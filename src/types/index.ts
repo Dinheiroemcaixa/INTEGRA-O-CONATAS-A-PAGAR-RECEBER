@@ -28,6 +28,8 @@ export interface ContaPagarImportada {
   status: StatusIntegracao
   conta_azul_id: string | null
   erro_mensagem: string | null
+  tentativas: number
+  importacao_id: string | null
   created_at: string
   updated_at: string
 }
@@ -67,7 +69,4 @@ export interface PayloadContaAzul {
   payment_type: 'BILL'
   competence_date?: string
   observations?: string
-  cost_center_id?: string
-  service_id?: string
-  contact: {
-    id?
+  cost_center_id
