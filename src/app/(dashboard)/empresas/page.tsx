@@ -2,17 +2,65 @@
 
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import { createClient } from '@/lib/supabase/client'
-import { useState } from 'react'
-import { Building2, Plus, Check, Loader2, ExternalLink } from 'lucide-react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { Building2, Plus, Check, Loader2, ExternalLink, RefreshCw, Unlink } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatCNPJ } from '@/lib/utils'
 
-export default function EmpresasPage() {
+function EmpresasPage() {
   const { empresas, recarregar, setEmpresaAtiva, empresaAtiva } = useEmpresa()
   const [showForm, setShowForm] = useState(false)
   const [salvando, setSalvando] = useState(false)
+  const [conectando, setConectando] = useState<string | null>(null)
   const [form, setForm] = useState({ nome: '', cnpj: '' })
   const supabase = createClient()
+  const searchParams = useSearchParams()
+
+  // Mostrar resultado do callback OAuth
+  useEffect(() => {
+    const sucesso = searchParams.get('sucesso')
+    const erro = searchParams.get('erro')
+    if (sucesso === 'conta_azul_conectado') {
+      toast.success('Conta Azul conectado com sucesso!')
+      recarregar()
+      // Limpar params da URL
+      window.history.replaceState({}, '', '/empresas')
+    } else if (erro) {
+      const msgs: Record<string, string> = {
+        autorizacao_negada: 'Autorização negada no Conta Azul.',
+        parametros_invalidos: 'Parâmetros inválidos no retorno.',
+      }
+      toast.error(msgs[erro] || `Erro: ${decodeURIComponent(erro)}`)
+      window.history.replaceState({}, '', '/empresas')
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleConectarContaAzul = (empresaId: string) => {
+    setConectando(empresaId)
+    window.location.href = `/api/conta-azul/autorizar?empresa_id=${empresaId}`
+  }
+
+  const handleDesconectar = async (empresaId: string) => {
+    if (!confirm('Tem certeza que deseja desconectar o Conta Azul desta empresa?')) return
+    try {
+      const { error } = await supabase
+        .from('empresas')
+        .update({
+          access_token_conta_azul: null,
+          refresh_token_conta_azul: null,
+          data_expiracao_token: null,
+          conta_azul_connected: false,
+        })
+        .eq('id', empresaId)
+      if (error) throw error
+      toast.success('Conta Azul desconectado.')
+      await recarregar()
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao desconectar')
+    }
+  }
 
   const handleCriar = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -118,44 +166,4 @@ export default function EmpresasPage() {
             <div key={emp.id}
               className={`bg-dark-800 border rounded-xl p-5 flex items-center gap-4 transition-all
                 ${empresaAtiva?.id === emp.id ? 'border-brand-600 shadow-md shadow-brand-900/20' : 'border-dark-700 hover:border-dark-600'}`}>
-              <div className="w-11 h-11 bg-brand-600/20 border border-brand-600/30 rounded-xl flex items-center justify-center flex-shrink-0">
-                <span className="text-brand-400 font-bold text-lg">
-                  {emp.nome.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-white font-semibold truncate">{emp.nome}</p>
-                <p className="text-dark-500 text-sm">
-                  {emp.cnpj ? formatCNPJ(emp.cnpj) : 'CNPJ não informado'}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {emp.access_token_conta_azul ? (
-                  <span className="flex items-center gap-1.5 text-xs text-green-400 bg-green-400/10 px-2.5 py-1 rounded-full">
-                    <Check size={11} /> Conta Azul
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1.5 text-xs text-yellow-500 bg-yellow-400/10 px-2.5 py-1 rounded-full">
-                    <ExternalLink size={11} /> Configurar
-                  </span>
-                )}
-                {empresaAtiva?.id === emp.id ? (
-                  <span className="text-xs text-brand-400 bg-brand-400/10 px-2.5 py-1 rounded-full font-medium">
-                    Ativa
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => setEmpresaAtiva(emp)}
-                    className="text-xs text-dark-400 hover:text-white bg-dark-700 hover:bg-dark-600 px-3 py-1 rounded-full transition-all"
-                  >
-                    Selecionar
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
+              <div className="w-11 h-11 bg-bran
