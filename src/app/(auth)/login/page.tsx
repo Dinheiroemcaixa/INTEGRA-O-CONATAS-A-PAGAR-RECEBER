@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { Eye, EyeOff, LogIn, Loader2 } from 'lucide-react'
 
@@ -12,7 +11,6 @@ export default function LoginPage() {
   const [mostrarSenha, setMostrarSenha] = useState(false)
   const [carregando, setCarregando] = useState(false)
   const [modoRegistro, setModoRegistro] = useState(false)
-  const router = useRouter()
   const supabase = createClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,14 +20,17 @@ export default function LoginPage() {
       if (modoRegistro) {
         const { error } = await supabase.auth.signUp({ email, password: senha })
         if (error) throw error
-        toast.success('Conta criada! Verifique seu e-mail para confirmar.')
-        setModoRegistro(false)
+        toast.success('Conta criada! Fazendo login...')
+        // Auto-login após registro
+        const { error: loginError } = await supabase.auth.signInWithPassword({ email, password: senha })
+        if (loginError) throw loginError
+        window.location.href = '/dashboard'
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password: senha })
         if (error) throw error
         toast.success('Bem-vindo!')
-        router.push('/dashboard')
-        router.refresh()
+        // Usar window.location para garantir que os cookies sejam enviados corretamente
+        window.location.href = '/dashboard'
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro desconhecido'
@@ -40,7 +41,6 @@ export default function LoginPage() {
       } else {
         toast.error(msg)
       }
-    } finally {
       setCarregando(false)
     }
   }
