@@ -26,12 +26,17 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
+  // IMPORTANTE: getUser() valida o token com o servidor Supabase
+  // Nao usar getSession() pois nao valida com o servidor
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const isAuthPage = request.nextUrl.pathname.startsWith('/login')
-  const isPublicPath = request.nextUrl.pathname === '/'
+  const pathname = request.nextUrl.pathname
+  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/registro')
+  const isPublicPath = pathname === '/' || pathname.startsWith('/api/conta-azul/callback')
+
+  console.log('[middleware] path=' + pathname + ' user=' + (user?.email ?? 'null'))
 
   if (!user && !isAuthPage && !isPublicPath) {
     const url = request.nextUrl.clone()

@@ -21,7 +21,6 @@ export default function LoginPage() {
         const { error } = await supabase.auth.signUp({ email, password: senha })
         if (error) throw error
         toast.success('Conta criada! Fazendo login...')
-        // Auto-login após registro
         const { error: loginError } = await supabase.auth.signInWithPassword({ email, password: senha })
         if (loginError) throw loginError
         window.location.href = '/dashboard'
@@ -29,7 +28,6 @@ export default function LoginPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password: senha })
         if (error) throw error
         toast.success('Bem-vindo!')
-        // Usar window.location para garantir que os cookies sejam enviados corretamente
         window.location.href = '/dashboard'
       }
     } catch (err: unknown) {
@@ -41,6 +39,7 @@ export default function LoginPage() {
       } else {
         toast.error(msg)
       }
+    } finally {
       setCarregando(false)
     }
   }
