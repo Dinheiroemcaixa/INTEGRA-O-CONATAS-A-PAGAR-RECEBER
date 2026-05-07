@@ -69,7 +69,7 @@ function EmpresasPage() {
       const cnpjLimpo = form.cnpj.replace(/\D/g, '')
       const { data: empresa, error: errEmp } = await supabase
         .from('empresas')
-        .insert({ nome: form.nome.trim(), cnpj: cnpjLimpo })
+        .insert({ nome: form.nome.trim(), cnpj: cnpjLimpo, created_by: user.id })
         .select()
         .single()
       if (errEmp) throw errEmp
@@ -226,6 +226,4 @@ export default function EmpresasPageWrapper() {
   return (
     <Suspense>
       <EmpresasPage />
-    </Suspense>
-  )
-}
+ 
