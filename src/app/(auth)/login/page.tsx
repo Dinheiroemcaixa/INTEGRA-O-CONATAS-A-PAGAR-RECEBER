@@ -13,6 +13,31 @@ export default function LoginPage() {
   const [modoRegistro, setModoRegistro] = useState(false)
   const supabase = createClient()
 
+  const fazerLogin = async (emailVal: string, senhaVal: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: emailVal,
+      password: senhaVal,
+    })
+    if (error) throw error
+
+    // Aguarda o supabase/ssr gravar os cookies no browser
+    await new Promise(r => setTimeout(r, 1000))
+
+    // Verifica via API se os cookies chegaram ao servidor
+    const check = await fetch('/api/auth/check')
+    const { authenticated } = await check.json()
+
+    if (authenticated) {
+      window.location.replace('/dashboard')
+    } else {
+      // Fallback: tenta mais uma vez com delay maior
+      await new Promise(r => setTimeout(r, 1500))
+      window.location.replace('/dashboard')
+    }
+
+    return data
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setCarregando(true)
@@ -21,14 +46,10 @@ export default function LoginPage() {
         const { error } = await supabase.auth.signUp({ email, password: senha })
         if (error) throw error
         toast.success('Conta criada! Fazendo login...')
-        const { error: loginError } = await supabase.auth.signInWithPassword({ email, password: senha })
-        if (loginError) throw loginError
-        window.location.href = '/dashboard'
+        await fazerLogin(email, senha)
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password: senha })
-        if (error) throw error
+        await fazerLogin(email, senha)
         toast.success('Bem-vindo!')
-        window.location.href = '/dashboard'
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro desconhecido'
@@ -46,14 +67,12 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-dark-950 flex items-center justify-center p-4">
-      {/* Background gradient */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -left-40 w-96 h-96 bg-brand-600 rounded-full opacity-10 blur-3xl" />
         <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-brand-800 rounded-full opacity-10 blur-3xl" />
       </div>
 
       <div className="relative w-full max-w-md animate-fade-in">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-600 rounded-2xl mb-4 shadow-lg shadow-brand-900/50">
             <span className="text-2xl font-bold text-white">$</span>
@@ -62,7 +81,6 @@ export default function LoginPage() {
           <p className="text-dark-400 mt-1 text-sm">BPO Financeiro — Gestão Inteligente</p>
         </div>
 
-        {/* Card */}
         <div className="bg-dark-800 rounded-2xl border border-dark-700 p-8 shadow-2xl">
           <h2 className="text-xl font-semibold text-white mb-6">
             {modoRegistro ? 'Criar conta' : 'Entrar no sistema'}
@@ -70,24 +88,19 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-dark-300 mb-1.5">
-                E-mail
-              </label>
+              <label className="block text-sm font-medium text-dark-300 mb-1.5">E-mail</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seu@email.com.br"
                 required
-                className="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white placeholder-dark-500
-                           focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
+                className="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-dark-300 mb-1.5">
-                Senha
-              </label>
+              <label className="block text-sm font-medium text-dark-300 mb-1.5">Senha</label>
               <div className="relative">
                 <input
                   type={mostrarSenha ? 'text' : 'password'}
@@ -96,9 +109,7 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   required
                   minLength={6}
-                  className="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 pr-12 text-white
-                             placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500
-                             focus:border-transparent transition-all"
+                  className="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 pr-12 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
                 />
                 <button
                   type="button"
@@ -113,15 +124,9 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={carregando}
-              className="w-full bg-brand-600 hover:bg-brand-500 disabled:opacity-60 disabled:cursor-not-allowed
-                         text-white font-semibold py-3.5 rounded-lg flex items-center justify-center gap-2
-                         transition-all duration-200 shadow-lg shadow-brand-900/30 mt-2"
+              className="w-full bg-brand-600 hover:bg-brand-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-lg flex items-center justify-center gap-2 transition-all duration-200 shadow-lg shadow-brand-900/30 mt-2"
             >
-              {carregando ? (
-                <Loader2 size={20} className="animate-spin" />
-              ) : (
-                <LogIn size={20} />
-              )}
+              {carregando ? <Loader2 size={20} className="animate-spin" /> : <LogIn size={20} />}
               {modoRegistro ? 'Criar conta' : 'Entrar'}
             </button>
           </form>

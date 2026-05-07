@@ -26,29 +26,9 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // IMPORTANTE: getUser() valida o token com o servidor Supabase
-  // Nao usar getSession() pois nao valida com o servidor
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  const pathname = request.nextUrl.pathname
-  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/registro')
-  const isPublicPath = pathname === '/' || pathname.startsWith('/api/conta-azul/callback')
-
-  console.log('[middleware] path=' + pathname + ' user=' + (user?.email ?? 'null'))
-
-  if (!user && !isAuthPage && !isPublicPath) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
-  }
-
-  if (user && isAuthPage) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
-  }
+  // Apenas atualiza/propaga os cookies de sessao - sem redirecionar
+  // O redirect e feito pelo layout de cada grupo de rotas
+  await supabase.auth.getUser()
 
   return supabaseResponse
 }
