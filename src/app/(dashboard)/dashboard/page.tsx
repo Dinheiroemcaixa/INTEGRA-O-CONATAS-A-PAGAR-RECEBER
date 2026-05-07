@@ -183,7 +183,7 @@ export default function DashboardPage() {
             <span className="text-sm text-dark-300">Supabase conectado</span>
           </div>
           <div className={`flex items-center gap-2 bg-dark-900 rounded-lg px-3 py-2`}>
-            {empresaAtiva?.conta_azul_connected ? (
+            {empresaAtiva?.access_token_conta_azul ? (
               <><CheckCircle size={14} className="text-green-400" />
               <span className="text-sm text-dark-300">Conta Azul conectado</span></>
             ) : (
@@ -195,4 +195,3 @@ export default function DashboardPage() {
       </div>
     </div>
   )
-}
