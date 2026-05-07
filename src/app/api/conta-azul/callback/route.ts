@@ -41,7 +41,6 @@ export async function GET(req: NextRequest) {
         access_token_conta_azul: tokens.access_token,
         refresh_token_conta_azul: tokens.refresh_token,
         data_expiracao_token: expiracao,
-        conta_azul_connected: true,
       })
       .eq('id', state)
 

@@ -130,7 +130,7 @@ export default function EmpresasPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                {emp.conta_azul_connected ? (
+                {emp.access_token_conta_azul ? (
                   <span className="flex items-center gap-1.5 text-xs text-green-400 bg-green-400/10 px-2.5 py-1 rounded-full">
                     <Check size={11} /> Conta Azul
                   </span>
