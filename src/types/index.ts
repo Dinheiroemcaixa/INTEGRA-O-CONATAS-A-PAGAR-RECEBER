@@ -7,6 +7,7 @@ export interface Empresa {
   access_token_conta_azul: string | null
   refresh_token_conta_azul: string | null
   data_expiracao_token: string | null
+  conta_azul_connected: boolean
   created_at: string
 }
 
@@ -69,7 +70,4 @@ export interface PayloadContaAzul {
   cost_center_id?: string
   service_id?: string
   contact: {
-    id?: string
-    name: string
-  }
-}
+    id?
