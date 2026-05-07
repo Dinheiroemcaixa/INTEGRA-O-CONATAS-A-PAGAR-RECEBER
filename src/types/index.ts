@@ -56,6 +56,7 @@ export interface ResultadoImportacao {
   validos: number
   invalidos: number
   dados: ContaPagarPreview[]
+  aviso?: string
 }
 
 export interface PayloadContaAzul {
