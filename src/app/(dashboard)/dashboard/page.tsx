@@ -120,7 +120,6 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Cards de estatísticas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {cards.map((card) => {
           const Icon = card.icon
@@ -146,7 +145,6 @@ export default function DashboardPage() {
         })}
       </div>
 
-      {/* Ações rápidas */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Link href="/contas-pagar"
           className="bg-dark-800 border border-dark-700 hover:border-brand-600 rounded-xl p-6 flex items-center gap-4 transition-all group">
@@ -171,7 +169,6 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* Status da integração */}
       <div className="bg-dark-800 border border-dark-700 rounded-xl p-5">
         <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
@@ -182,16 +179,21 @@ export default function DashboardPage() {
             <CheckCircle size={14} className="text-green-400" />
             <span className="text-sm text-dark-300">Supabase conectado</span>
           </div>
-          <div className={`flex items-center gap-2 bg-dark-900 rounded-lg px-3 py-2`}>
+          <div className="flex items-center gap-2 bg-dark-900 rounded-lg px-3 py-2">
             {empresaAtiva?.access_token_conta_azul ? (
-              <><CheckCircle size={14} className="text-green-400" />
-              <span className="text-sm text-dark-300">Conta Azul conectado</span></>
+              <>
+                <CheckCircle size={14} className="text-green-400" />
+                <span className="text-sm text-dark-300">Conta Azul conectado</span>
+              </>
             ) : (
-              <><AlertCircle size={14} className="text-yellow-400" />
-              <span className="text-sm text-dark-300">Conta Azul: configurar em Empresas</span></>
+              <>
+                <AlertCircle size={14} className="text-yellow-400" />
+                <span className="text-sm text-dark-300">Conta Azul: configurar em Empresas</span>
+              </>
             )}
           </div>
         </div>
       </div>
     </div>
-  )}
+  )
+}
