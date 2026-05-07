@@ -69,4 +69,10 @@ export interface PayloadContaAzul {
   payment_type: 'BILL'
   competence_date?: string
   observations?: string
-  cost_center_id
+  cost_center_id?: string
+  service_id?: string
+  contact: {
+    id?: string
+    name: string
+  }
+}
