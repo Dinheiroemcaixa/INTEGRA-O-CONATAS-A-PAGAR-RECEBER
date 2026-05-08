@@ -19,31 +19,35 @@ export interface TokenResponse {
 }
 
 export interface ContaPagarPayload {
-  // Nova API v2 - campos em inglês conforme documentação oficial
-  description: string
-  amount: number
-  due_date: string              // YYYY-MM-DD
-  competence_date?: string      // YYYY-MM-DD
-  notes?: string
-  contact?: {
-    name: string
-    id?: string
+  // API v2 Conta Azul - documentação: developers.contaazul.com
+  data_competencia: string      // YYYY-MM-DD (obrigatório)
+  valor: number                 // (obrigatório)
+  observacao: string            // (obrigatório)
+  descricao: string             // (obrigatório)
+  contato?: string              // UUID do contato
+  conta_financeira?: string     // UUID da conta financeira
+  condicao_pagamento: {         // (obrigatório)
+    parcelas: Array<{
+      descricao: string
+      data_vencimento: string   // YYYY-MM-DD
+      nota: string
+      conta_financeira?: string
+      detalhe_valor: {
+        valor_bruto: number
+        multa?: number
+        juros?: number
+        valor_liquido?: number
+        desconto?: number
+        taxa?: number
+      }
+    }>
   }
-  category?: {
-    id?: string
-  }
-  cost_center?: {
-    id?: string
-  }
-  payment_type?: 'BILL' | 'DUPLICATE' | 'PROMISSORY_NOTE' | 'RECEIPT' | 'OTHER'
 }
 
 export interface ContaPagarResponse {
-  id: string
-  description: string
-  amount: number
-  due_date: string
-  status: 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED'
+  protocolId: string
+  status: 'PENDING' | 'SUCCESS' | 'ERROR'
+  createdAt: string
 }
 
 // ─── OAuth2: Trocar código por token ─────────────────────────────────────────
@@ -112,7 +116,7 @@ export async function criarContaPagar(
   payload: ContaPagarPayload
 ): Promise<ContaPagarResponse> {
   const res = await fetch(
-    `${BASE_URL}/bills`,
+    `${BASE_URL}/financeiro/eventos-financeiros/contas-a-pagar`,
     {
       method: 'POST',
       headers: {

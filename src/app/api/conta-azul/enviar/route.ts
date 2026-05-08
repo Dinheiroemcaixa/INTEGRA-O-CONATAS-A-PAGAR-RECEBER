@@ -97,14 +97,22 @@ export async function POST(req: NextRequest) {
       await sleep(300) // Rate limiting: evitar flood na API
 
       try {
-        // Payload no formato da nova API v2 do Conta Azul (campos em inglês)
+        // Payload formato API v2 Conta Azul (documentação oficial)
         const payload = {
-          description: conta.descricao || `Pagamento - ${conta.fornecedor}`,
-          amount: Number(conta.valor),
-          due_date: conta.vencimento,
-          competence_date: conta.emissao || conta.vencimento,
-          notes: conta.descricao || undefined,
-          contact: { name: conta.fornecedor },
+          data_competencia: conta.emissao || conta.vencimento,
+          valor: Number(conta.valor),
+          observacao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
+          descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
+          condicao_pagamento: {
+            parcelas: [{
+              descricao: conta.descricao || `Parcela - ${conta.fornecedor}`,
+              data_vencimento: conta.vencimento,
+              nota: conta.descricao || `NF ${conta.fornecedor}`,
+              detalhe_valor: {
+                valor_bruto: Number(conta.valor),
+              },
+            }],
+          },
         }
 
         const resposta = await criarContaPagar(accessToken, payload)
@@ -114,7 +122,7 @@ export async function POST(req: NextRequest) {
           .from('contas_pagar_importadas')
           .update({
             status: 'enviado',
-            conta_azul_id: resposta.id,
+            conta_azul_id: resposta.protocolId,
             erro_mensagem: null,
             tentativas: (conta.tentativas || 0) + 1,
           })
@@ -129,7 +137,7 @@ export async function POST(req: NextRequest) {
           conta_pagar_id: conta.id,
           acao: 'enviar_conta_azul',
           status: 'sucesso',
-          detalhes: { conta_azul_id: resposta.id, valor: conta.valor },
+          detalhes: { conta_azul_id: resposta.protocolId, valor: conta.valor },
         })
       } catch (errEnvio: unknown) {
         const msg = errEnvio instanceof Error ? errEnvio.message : 'Erro desconhecido'
@@ -151,16 +159,25 @@ export async function POST(req: NextRequest) {
 
             // Retry único
             const payload = {
-              description: conta.descricao || `Pagamento - ${conta.fornecedor}`,
-              amount: Number(conta.valor),
-              due_date: conta.vencimento,
-              competence_date: conta.emissao || conta.vencimento,
-              contact: { name: conta.fornecedor },
+              data_competencia: conta.emissao || conta.vencimento,
+              valor: Number(conta.valor),
+              observacao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
+              descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
+              condicao_pagamento: {
+                parcelas: [{
+                  descricao: conta.descricao || `Parcela - ${conta.fornecedor}`,
+                  data_vencimento: conta.vencimento,
+                  nota: conta.descricao || `NF ${conta.fornecedor}`,
+                  detalhe_valor: {
+                    valor_bruto: Number(conta.valor),
+                  },
+                }],
+              },
             }
             const resposta = await criarContaPagar(accessToken, payload)
             await supabaseAdmin.from('contas_pagar_importadas').update({
               status: 'enviado',
-              conta_azul_id: resposta.id,
+              conta_azul_id: resposta.protocolId,
               erro_mensagem: null,
             }).eq('id', conta.id)
             enviados++
