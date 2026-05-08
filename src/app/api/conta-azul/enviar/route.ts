@@ -199,9 +199,14 @@ export async function POST(req: NextRequest) {
       resultados,
     })
   } catch (err) {
-    const errMsg = err instanceof Error ? err.message + "\n" + err.stack : JSON.stringify(err)
-    console.error("[conta-azul/enviar] ERRO COMPLETO:", errMsg)
-    const msg = err instanceof Error ? err.message : 'Erro interno'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    const errMsg = err instanceof Error ? err.message : JSON.stringify(err)
+    const stack = err instanceof Error ? err.stack : ''
+    console.error("[conta-azul/enviar] ERRO:", errMsg)
+    // Em dev retorna detalhes completos para debug
+    return NextResponse.json({ 
+      error: errMsg,
+      stack: stack,
+      tipo: err instanceof Error ? err.constructor.name : typeof err
+    }, { status: 500 })
   }
 }
