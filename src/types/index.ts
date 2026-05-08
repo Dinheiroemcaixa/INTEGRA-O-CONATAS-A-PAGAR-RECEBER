@@ -25,6 +25,8 @@ export interface ContaPagarImportada {
   valor: number
   vencimento: string
   descricao: string | null
+  doc: string | null
+  emissao: string | null
   status: StatusIntegracao
   conta_azul_id: string | null
   erro_mensagem: string | null
@@ -49,6 +51,8 @@ export interface ContaPagarPreview {
   valor: number
   vencimento: string
   descricao?: string
+  doc?: string
+  emissao?: string
   linha_original?: string
   valido: boolean
   erros?: string[]

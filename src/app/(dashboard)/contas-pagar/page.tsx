@@ -80,6 +80,8 @@ export default function ContasPagarPage() {
           valor: d.valor,
           vencimento: d.vencimento || new Date().toISOString().split('T')[0],
           descricao: d.descricao || null,
+          doc: d.doc || null,
+          emissao: d.emissao || null,
           status: 'pendente',
         }))
 

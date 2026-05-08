@@ -54,10 +54,11 @@ export default function TabelaPreview({
                   className="w-4 h-4 rounded border-dark-500 bg-dark-700 checked:bg-brand-600 cursor-pointer"
                 />
               </th>
+              <th>NF / DOC</th>
               <th>Fornecedor</th>
-              <th className="text-right">Valor</th>
+              <th>Emissão</th>
               <th>Vencimento</th>
-              <th>Descrição</th>
+              <th className="text-right">Valor</th>
               <th className="text-center">Status</th>
               <th className="w-10"></th>
             </tr>
@@ -81,11 +82,26 @@ export default function TabelaPreview({
                   />
                 </td>
                 <td>
+                  {/* NF extraído da descrição e DOC separado */}
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-white font-medium text-xs">
+                      {item.descricao
+                        ? item.descricao.split(' | DOC:')[0].replace('NF: ', '')
+                        : '-'}
+                    </span>
+                    {item.doc && (
+                      <span className="text-dark-400 text-xs">{item.doc}</span>
+                    )}
+                  </div>
+                </td>
+                <td>
                   <span className="text-white font-medium">{item.fornecedor}</span>
                 </td>
-                <td className="text-right">
-                  <span className="text-green-400 font-semibold tabular-nums">
-                    {formatCurrency(item.valor)}
+                <td>
+                  <span className="text-dark-300 text-xs">
+                    {item.emissao ? formatDate(item.emissao) : (
+                      <span className="text-dark-600">-</span>
+                    )}
                   </span>
                 </td>
                 <td>
@@ -95,9 +111,9 @@ export default function TabelaPreview({
                     )}
                   </span>
                 </td>
-                <td>
-                  <span className="text-dark-400 text-xs truncate max-w-[200px] block">
-                    {item.descricao || '-'}
+                <td className="text-right">
+                  <span className="text-green-400 font-semibold tabular-nums">
+                    {formatCurrency(item.valor)}
                   </span>
                 </td>
                 <td className="text-center">

@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
           descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
           valor: Number(conta.valor),
           data_vencimento: conta.vencimento,
-          data_competencia: conta.vencimento,
+          data_competencia: conta.emissao || conta.vencimento,
           observacoes: conta.descricao || undefined,
           contato: { nome: conta.fornecedor },
         }
@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
               descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
               valor: Number(conta.valor),
               data_vencimento: conta.vencimento,
-              data_competencia: conta.vencimento,
+              data_competencia: conta.emissao || conta.vencimento,
               contato: { nome: conta.fornecedor },
             }
             const resposta = await criarContaPagar(accessToken, payload)

@@ -1,7 +1,7 @@
 /**
  * Parser especializado para arquivos DataCar (CpRl010)
  * Formato: Excel com cabeçalho nas primeiras 12 linhas
- * Colunas: A=NF, J=EMISSÃO, N=FORNECEDOR, Q=DOC, T=VENCIMENTO, X=VALOR
+ * Colunas: A(0)=NF, I(8)=EMISSÃO, N(13)=FORNECEDOR, Q(16)=DOC, T(19)=VENCIMENTO, X(23)=VALOR
  */
 
 import * as XLSX from 'xlsx'
@@ -14,9 +14,9 @@ export async function parseExcelDataCar(file: File): Promise<ResultadoImportacao
   const buffer = await file.arrayBuffer()
   const wb = XLSX.read(buffer, { type: 'array', cellDates: true })
   const ws = wb.Sheets[wb.SheetNames[0]]
+  // raw: true preserva os valores numéricos reais (ex: 774.12 em vez de "774,12" formatado)
+  // dateNF formata as datas como string ISO para facilitar o parse
   const rows: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, dateNF: 'yyyy-mm-dd' })
-
-  const dados: ContaPagarPreview[] = []
 
   // Detectar se é formato DataCar (CpRl010) pela linha 10 (índice 9) com "NF", "FORNECEDOR", "VENCIM", "VALOR"
   const isDataCar = detectarFormatoDataCar(rows)
@@ -29,14 +29,12 @@ export async function parseExcelDataCar(file: File): Promise<ResultadoImportacao
 }
 
 function detectarFormatoDataCar(rows: unknown[][]): boolean {
-  // Linha 10 (índice 9) tem cabeçalhos NF, FORNECEDOR, VENCIM, VALOR
   for (let i = 0; i < Math.min(15, rows.length); i++) {
     const row = rows[i]
     const rowStr = row.map((c) => String(c || '').toUpperCase()).join(' ')
     if (rowStr.includes('FORNECEDOR') && rowStr.includes('VENCIM') && rowStr.includes('VALOR')) {
       return true
     }
-    // Também detectar pelo nome do relatório CpRl010
     if (rowStr.includes('CPRL010') || rowStr.includes('PREVISÃO DE PAGAMENTOS') || rowStr.includes('PREVISAO DE PAGAMENTOS')) {
       return true
     }
@@ -46,37 +44,44 @@ function detectarFormatoDataCar(rows: unknown[][]): boolean {
 
 function parseDataCarNativo(rows: unknown[][]): ResultadoImportacao {
   const dados: ContaPagarPreview[] = []
-  // Pular linhas de cabeçalho (linhas 1-12, índices 0-11)
-  // Dados começam na linha 13 (índice 12)
-  // Identificar índices das colunas: NF=0, EMISSÃO=8, FORNECEDOR=13, DOC=16, VENCIM=19, VALOR=23
+  // Índices das colunas DataCar:
+  // A(0)=NF, I(8)=EMISSÃO, N(13)=FORNECEDOR, Q(16)=DOC, T(19)=VENCIM, X(23)=VALOR
 
   for (let i = 12; i < rows.length; i++) {
-    const row = rows[i] as string[]
+    const row = rows[i] as unknown[]
     if (!row || row.length < 24) continue
 
-    const nf = String(row[0] || '').trim()
+    const nf        = String(row[0]  || '').trim()
+    const emissaoRaw = row[8]
     const fornecedor = String(row[13] || '').trim()
+    const doc        = String(row[16] || '').trim()
     const vencimentoRaw = row[19]
-    const valorRaw = row[23]
+    const valorRaw   = row[23]
 
     // Pular linhas vazias, linhas de grupo/filial e linhas de totais
     if (!nf || !fornecedor || !valorRaw) continue
     if (isLinhaGrupo(nf, row)) continue
     if (isLinhaTotal(nf)) continue
 
-    const valor = typeof valorRaw === 'number' ? valorRaw : parseCurrency(String(valorRaw))
+    const valor     = typeof valorRaw === 'number' ? valorRaw : parseCurrency(String(valorRaw))
     const vencimento = normalizarData(vencimentoRaw)
+    const emissao   = normalizarData(emissaoRaw)
     const erros: string[] = []
 
     if (!fornecedor) erros.push('Fornecedor não identificado')
     if (isNaN(valor) || valor <= 0) erros.push('Valor inválido')
     if (!vencimento) erros.push('Vencimento não identificado')
 
+    // Descrição: NF + DOC (quando presente)
+    const descricao = doc ? `NF: ${nf} | DOC: ${doc}` : `NF: ${nf}`
+
     dados.push({
       fornecedor: fornecedor || 'NÃO IDENTIFICADO',
       valor,
       vencimento: vencimento || '',
-      descricao: `NF: ${nf}`,
+      descricao,
+      doc: doc || undefined,
+      emissao: emissao || undefined,
       linha_original: `Linha ${i + 1}`,
       valido: erros.length === 0,
       erros: erros.length > 0 ? erros : undefined,
@@ -91,8 +96,7 @@ function parseDataCarNativo(rows: unknown[][]): ResultadoImportacao {
   }
 }
 
-function isLinhaGrupo(nf: string, row: string[]): boolean {
-  // Linha de grupo/filial: NF tem texto curto sem número E fornecedor está vazio
+function isLinhaGrupo(nf: string, row: unknown[]): boolean {
   const semDigito = !/\d/.test(nf)
   const fornecedorVazio = !row[13] || String(row[13]).trim() === ''
   const valorVazio = !row[23] || String(row[23]).trim() === ''
@@ -113,14 +117,12 @@ function normalizarData(raw: unknown): string {
     return `${y}-${m}-${d}`
   }
   const str = String(raw).trim()
-  // Formato "2026-05-01 00:00:00" (quando XLSX serializa datetime como string)
   const dtMatch = str.match(/^(\d{4}-\d{2}-\d{2})/)
   if (dtMatch) return dtMatch[1]
   return parseDate(str)
 }
 
 function parseExcelGenerico(rows: unknown[][]): ResultadoImportacao {
-  // Detectar linha de cabeçalho genérico
   let headerRow = -1
   let colFornecedor = -1
   let colValor = -1
@@ -143,7 +145,6 @@ function parseExcelGenerico(rows: unknown[][]): ResultadoImportacao {
   }
 
   if (headerRow < 0) {
-    // Tentar usar primeiras colunas como fallback
     return { total: 0, validos: 0, invalidos: 0, dados: [] }
   }
 
@@ -176,7 +177,6 @@ export async function parseCSV(file: File): Promise<ResultadoImportacao> {
       complete: (results) => {
         const raw = results.data as Record<string, string>[]
         const dados: ContaPagarPreview[] = raw.map((row, idx) => {
-          const keys = Object.keys(row).map((k) => k.toUpperCase())
           const get = (terms: string[]) => {
             const k = Object.keys(row).find((k) => terms.some((t) => k.toUpperCase().includes(t)))
             return k ? row[k] : ''
