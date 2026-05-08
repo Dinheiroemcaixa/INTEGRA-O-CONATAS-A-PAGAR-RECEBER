@@ -199,7 +199,8 @@ export async function POST(req: NextRequest) {
       resultados,
     })
   } catch (err) {
-    console.error('[conta-azul/enviar]', err)
+    const errMsg = err instanceof Error ? err.message + "\n" + err.stack : JSON.stringify(err)
+    console.error("[conta-azul/enviar] ERRO COMPLETO:", errMsg)
     const msg = err instanceof Error ? err.message : 'Erro interno'
     return NextResponse.json({ error: msg }, { status: 500 })
   }
