@@ -29,7 +29,7 @@ function EmpresasPage() {
         autorizacao_negada: 'Autorização negada no Conta Azul.',
         parametros_invalidos: 'Parâmetros inválidos no retorno.',
       }
-      toast.error(msgs[erro] || `Erro: ${decodeURIComponent(erro)}`)
+      toast.error(msgs[erro] || 'Erro: ' + decodeURIComponent(erro))
       window.history.replaceState({}, '', '/empresas')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -37,7 +37,7 @@ function EmpresasPage() {
 
   function handleConectarContaAzul(empresaId: string) {
     setConectando(empresaId)
-    window.location.href = `/api/conta-azul/autorizar?empresa_id=${empresaId}`
+    window.location.href = '/api/conta-azul/autorizar?empresa_id=' + empresaId
   }
 
   async function handleDesconectar(empresaId: string) {
@@ -150,11 +150,12 @@ function EmpresasPage() {
           {empresas.map((emp) => (
             <div
               key={emp.id}
-              className={`bg-dark-800 border rounded-xl p-5 flex items-center gap-4 transition-all ${
+              className={[
+                'bg-dark-800 border rounded-xl p-5 flex items-center gap-4 transition-all',
                 empresaAtiva?.id === emp.id
                   ? 'border-brand-600 shadow-md shadow-brand-900/20'
-                  : 'border-dark-700 hover:border-dark-600'
-              }`}
+                  : 'border-dark-700 hover:border-dark-600',
+              ].join(' ')}
             >
               <div className="w-11 h-11 bg-brand-600/20 border border-brand-600/30 rounded-xl flex items-center justify-center flex-shrink-0">
                 <span className="text-brand-400 font-bold text-lg">
@@ -226,4 +227,6 @@ export default function EmpresasPageWrapper() {
   return (
     <Suspense>
       <EmpresasPage />
- 
+    </Suspense>
+  )
+}
