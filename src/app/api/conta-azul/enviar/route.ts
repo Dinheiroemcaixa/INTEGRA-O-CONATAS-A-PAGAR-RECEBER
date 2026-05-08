@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import {
-  criarContaPagar,
-  refreshToken as refreshCA,
-  listarContasFinanceiras,
-  buscarOuCriarContato,
-} from '@/lib/conta-azul/api'
-import { sleep } from '@/lib/utils'
+import { criarContaPagar, refreshToken as refreshCA, listarContasFinanceiras, buscarOuCriarContato } from '@/lib/conta-azul/api'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -19,12 +13,13 @@ const supabaseAdmin = createClient(
 interface RequestBody {
   empresa_id: string
   contas_ids?: string[]
+  limite?: number
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body: RequestBody = await req.json()
-    const { empresa_id, contas_ids } = body
+    const { empresa_id, contas_ids, limite = 5 } = body
 
     if (!empresa_id) {
       return NextResponse.json({ error: 'empresa_id obrigatório' }, { status: 400 })
@@ -72,31 +67,29 @@ export async function POST(req: NextRequest) {
       } catch (errRefresh) {
         console.error('[refresh token]', errRefresh)
         return NextResponse.json({
-          error: 'Token do Conta Azul expirado e não foi possível renovar. Reconecte a integração em Empresas.'
+          error: 'Token do Conta Azul expirado. Reconecte a integração em Empresas.'
         }, { status: 401 })
       }
     }
 
-    // Buscar UUID da primeira conta financeira disponível
-    let contaFinanceiraId: string | undefined
+    // Buscar conta financeira UMA VEZ só (não por lançamento)
+    let contaFinanceiraId: string | null = null
     try {
-      const contasFinanceiras = await listarContasFinanceiras(accessToken)
-      if (contasFinanceiras.length > 0) {
-        contaFinanceiraId = contasFinanceiras[0].id
-        console.log('[conta-azul] contas financeiras:', JSON.stringify(contasFinanceiras.slice(0, 3)))
-      } else {
-        console.log('[conta-azul] nenhuma conta financeira encontrada')
+      const contas = await listarContasFinanceiras(accessToken)
+      if (contas && contas.length > 0) {
+        contaFinanceiraId = contas[0].id
       }
     } catch (e) {
-      console.error('[conta-azul] erro ao buscar contas financeiras:', e)
+      console.warn('[conta_financeira] não foi possível buscar:', e)
     }
 
-    // Buscar contas pendentes
+    // Buscar contas pendentes - limitar para evitar timeout
     let query = supabaseAdmin
       .from('contas_pagar_importadas')
       .select('*')
       .eq('empresa_id', empresa_id)
       .eq('status', 'pendente')
+      .limit(limite)
 
     if (contas_ids && contas_ids.length > 0) {
       query = query.in('id', contas_ids)
@@ -113,39 +106,41 @@ export async function POST(req: NextRequest) {
     const resultados: { id: string; status: 'sucesso' | 'erro'; detalhe?: string }[] = []
 
     for (const conta of contas) {
-      await sleep(300)
-
       try {
-        // Buscar/criar contato pelo nome do fornecedor
-        const contatoId = await buscarOuCriarContato(accessToken, conta.fornecedor || 'Fornecedor')
+        // Buscar ou criar contato para este fornecedor
+        let contatoId: string | null = null
+        try {
+          contatoId = await buscarOuCriarContato(accessToken, conta.fornecedor)
+        } catch (e) {
+          console.warn('[contato] não foi possível buscar/criar:', e)
+        }
 
-        const payload = {
-          data_competencia: conta.emissao || conta.vencimento,
+        const dataCompetencia = conta.emissao || conta.vencimento
+        const payload: Record<string, unknown> = {
+          data_competencia: dataCompetencia,
           valor: Number(conta.valor),
           observacao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
           descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
-          ...(contatoId ? { contato: contatoId } : {}),
-          ...(contaFinanceiraId ? { conta_financeira: contaFinanceiraId } : {}),
           condicao_pagamento: {
             parcelas: [{
-              descricao: conta.descricao || `Parcela - ${conta.fornecedor}`,
+              descricao: conta.descricao || conta.fornecedor,
               data_vencimento: conta.vencimento,
-              nota: conta.descricao || `NF ${conta.fornecedor}`,
-              ...(contaFinanceiraId ? { conta_financeira: contaFinanceiraId } : {}),
-              detalhe_valor: {
-                valor_bruto: Number(conta.valor),
-              },
-            }],
-          },
+              nota: conta.descricao || '',
+              detalhe_valor: { valor_bruto: Number(conta.valor) }
+            }]
+          }
         }
 
-        const resposta = await criarContaPagar(accessToken, payload)
+        if (contatoId) payload.contato = contatoId
+        if (contaFinanceiraId) payload.conta_financeira = contaFinanceiraId
+
+        const resposta = await criarContaPagar(accessToken, payload as never)
 
         await supabaseAdmin
           .from('contas_pagar_importadas')
           .update({
             status: 'enviado',
-            conta_azul_id: resposta.protocolId,
+            conta_azul_id: resposta.protocolId || resposta.id || 'enviado',
             erro_mensagem: null,
             tentativas: (conta.tentativas || 0) + 1,
           })
@@ -159,54 +154,10 @@ export async function POST(req: NextRequest) {
           conta_pagar_id: conta.id,
           acao: 'enviar_conta_azul',
           status: 'sucesso',
-          detalhes: { conta_azul_id: resposta.protocolId, valor: conta.valor },
+          detalhes: { valor: conta.valor },
         })
       } catch (errEnvio: unknown) {
-        const msg = errEnvio instanceof Error ? errEnvio.message : 'Erro desconhecido'
-
-        if (msg === 'TOKEN_EXPIRADO' && empresa.refresh_token_conta_azul) {
-          try {
-            const novosTokens = await refreshCA(
-              empresa.refresh_token_conta_azul,
-              process.env.CONTA_AZUL_CLIENT_ID!,
-              process.env.CONTA_AZUL_CLIENT_SECRET!
-            )
-            accessToken = novosTokens.access_token
-            await supabaseAdmin.from('empresas').update({
-              access_token_conta_azul: novosTokens.access_token,
-              refresh_token_conta_azul: novosTokens.refresh_token,
-              data_expiracao_token: new Date(Date.now() + novosTokens.expires_in * 1000).toISOString(),
-            }).eq('id', empresa_id)
-
-            const contatoId = await buscarOuCriarContato(accessToken, conta.fornecedor || 'Fornecedor')
-            const payloadRetry = {
-              data_competencia: conta.emissao || conta.vencimento,
-              valor: Number(conta.valor),
-              observacao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
-              descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
-              ...(contatoId ? { contato: contatoId } : {}),
-              ...(contaFinanceiraId ? { conta_financeira: contaFinanceiraId } : {}),
-              condicao_pagamento: {
-                parcelas: [{
-                  descricao: conta.descricao || `Parcela - ${conta.fornecedor}`,
-                  data_vencimento: conta.vencimento,
-                  nota: conta.descricao || `NF ${conta.fornecedor}`,
-                  ...(contaFinanceiraId ? { conta_financeira: contaFinanceiraId } : {}),
-                  detalhe_valor: { valor_bruto: Number(conta.valor) },
-                }],
-              },
-            }
-            const resposta = await criarContaPagar(accessToken, payloadRetry)
-            await supabaseAdmin.from('contas_pagar_importadas').update({
-              status: 'enviado',
-              conta_azul_id: resposta.protocolId,
-              erro_mensagem: null,
-            }).eq('id', conta.id)
-            enviados++
-            resultados.push({ id: conta.id, status: 'sucesso' })
-            continue
-          } catch { /* cai no erro abaixo */ }
-        }
+        const msg = errEnvio instanceof Error ? errEnvio.message : String(errEnvio)
 
         await supabaseAdmin
           .from('contas_pagar_importadas')
@@ -230,15 +181,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Contar quantos ainda ficaram pendentes
+    const { count: pendentesRestantes } = await supabaseAdmin
+      .from('contas_pagar_importadas')
+      .select('*', { count: 'exact', head: true })
+      .eq('empresa_id', empresa_id)
+      .eq('status', 'pendente')
+
     return NextResponse.json({
       enviados,
       erros,
       total: contas.length,
+      pendentes_restantes: pendentesRestantes || 0,
       resultados,
     })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    console.error('[conta-azul/enviar]', msg)
+    console.error('[conta-azul/enviar]', err)
+    const msg = err instanceof Error ? err.message : 'Erro interno'
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
