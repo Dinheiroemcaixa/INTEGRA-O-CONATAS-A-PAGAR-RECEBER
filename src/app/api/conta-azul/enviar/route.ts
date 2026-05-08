@@ -151,11 +151,11 @@ export async function POST(req: NextRequest) {
 
             // Retry único
             const payload = {
-              description: conta.descricao || `Pagamento - ${conta.fornecedor}`,
-              amount: Number(conta.valor),
-              due_date: conta.vencimento,
-              payment_type: 'BILL' as const,
-              contact: { name: conta.fornecedor },
+              descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
+              valor: Number(conta.valor),
+              data_vencimento: conta.vencimento,
+              data_competencia: conta.emissao || conta.vencimento,
+              contato: { nome: conta.fornecedor },
             }
             const resposta = await criarContaPagar(accessToken, payload)
             await supabaseAdmin.from('contas_pagar_importadas').update({
@@ -203,6 +203,4 @@ export async function POST(req: NextRequest) {
       ? { message: err.message, stack: err.stack }
       : JSON.parse(JSON.stringify(err, Object.getOwnPropertyNames(err)))
     console.error('[conta-azul/enviar] DETALHE:', JSON.stringify(detail))
-    return NextResponse.json({ error: detail }, { status: 500 })
-  }
-}
+    return NextResponse.json({ error: detail 
