@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
           descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
           valor: Number(conta.valor),
           data_vencimento: conta.vencimento,
-          data_competencia: conta.emissao || conta.vencimento,
+          data_competencia: conta.vencimento,
           observacoes: conta.descricao || undefined,
           contato: { nome: conta.fornecedor },
         }
@@ -151,11 +151,11 @@ export async function POST(req: NextRequest) {
 
             // Retry único
             const payload = {
-              descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
-              valor: Number(conta.valor),
-              data_vencimento: conta.vencimento,
-              data_competencia: conta.emissao || conta.vencimento,
-              contato: { nome: conta.fornecedor },
+              description: conta.descricao || `Pagamento - ${conta.fornecedor}`,
+              amount: Number(conta.valor),
+              due_date: conta.vencimento,
+              payment_type: 'BILL' as const,
+              contact: { name: conta.fornecedor },
             }
             const resposta = await criarContaPagar(accessToken, payload)
             await supabaseAdmin.from('contas_pagar_importadas').update({
@@ -199,14 +199,10 @@ export async function POST(req: NextRequest) {
       resultados,
     })
   } catch (err) {
-    const errMsg = err instanceof Error ? err.message : JSON.stringify(err)
-    const stack = err instanceof Error ? err.stack : ''
-    console.error("[conta-azul/enviar] ERRO:", errMsg)
-    // Em dev retorna detalhes completos para debug
-    return NextResponse.json({ 
-      error: errMsg,
-      stack: stack,
-      tipo: err instanceof Error ? err.constructor.name : typeof err
-    }, { status: 500 })
+    const detail = err instanceof Error
+      ? { message: err.message, stack: err.stack }
+      : JSON.parse(JSON.stringify(err, Object.getOwnPropertyNames(err)))
+    console.error('[conta-azul/enviar] DETALHE:', JSON.stringify(detail))
+    return NextResponse.json({ error: detail }, { status: 500 })
   }
 }
