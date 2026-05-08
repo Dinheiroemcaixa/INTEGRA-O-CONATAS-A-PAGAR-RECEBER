@@ -19,30 +19,31 @@ export interface TokenResponse {
 }
 
 export interface ContaPagarPayload {
-  // Nova API v2 - endpoint contas a pagar
-  descricao: string
-  valor: number
-  data_vencimento: string       // YYYY-MM-DD
-  data_competencia?: string     // YYYY-MM-DD
-  observacoes?: string
-  contato?: {
-    nome: string
+  // Nova API v2 - campos em inglês conforme documentação oficial
+  description: string
+  amount: number
+  due_date: string              // YYYY-MM-DD
+  competence_date?: string      // YYYY-MM-DD
+  notes?: string
+  contact?: {
+    name: string
     id?: string
   }
-  categoria?: {
+  category?: {
     id?: string
   }
-  centro_custo?: {
+  cost_center?: {
     id?: string
   }
+  payment_type?: 'BILL' | 'DUPLICATE' | 'PROMISSORY_NOTE' | 'RECEIPT' | 'OTHER'
 }
 
 export interface ContaPagarResponse {
   id: string
-  descricao: string
-  valor: number
-  data_vencimento: string
-  status: 'PENDENTE' | 'PAGO' | 'VENCIDO' | 'CANCELADO'
+  description: string
+  amount: number
+  due_date: string
+  status: 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED'
 }
 
 // ─── OAuth2: Trocar código por token ─────────────────────────────────────────

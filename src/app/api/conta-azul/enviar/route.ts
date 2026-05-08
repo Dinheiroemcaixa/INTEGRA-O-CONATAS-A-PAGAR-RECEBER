@@ -97,14 +97,14 @@ export async function POST(req: NextRequest) {
       await sleep(300) // Rate limiting: evitar flood na API
 
       try {
-        // Payload no formato da nova API v2 do Conta Azul
+        // Payload no formato da nova API v2 do Conta Azul (campos em inglês)
         const payload = {
-          descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
-          valor: Number(conta.valor),
-          data_vencimento: conta.vencimento,
-          data_competencia: conta.vencimento,
-          observacoes: conta.descricao || undefined,
-          contato: { nome: conta.fornecedor },
+          description: conta.descricao || `Pagamento - ${conta.fornecedor}`,
+          amount: Number(conta.valor),
+          due_date: conta.vencimento,
+          competence_date: conta.emissao || conta.vencimento,
+          notes: conta.descricao || undefined,
+          contact: { name: conta.fornecedor },
         }
 
         const resposta = await criarContaPagar(accessToken, payload)
@@ -203,4 +203,4 @@ export async function POST(req: NextRequest) {
       ? { message: err.message, stack: err.stack }
       : JSON.parse(JSON.stringify(err, Object.getOwnPropertyNames(err)))
     console.error('[conta-azul/enviar] DETALHE:', JSON.stringify(detail))
-    return NextResponse.json({ error: detail 
+    return NextResp
