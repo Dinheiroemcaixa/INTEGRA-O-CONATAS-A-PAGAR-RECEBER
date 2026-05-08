@@ -64,7 +64,7 @@ function parseDataCarNativo(rows: unknown[][]): ResultadoImportacao {
     if (isLinhaGrupo(nf, row)) continue
     if (isLinhaTotal(nf)) continue
 
-    const valor = parseCurrency(String(valorRaw))
+    const valor = typeof valorRaw === 'number' ? valorRaw : parseCurrency(String(valorRaw))
     const vencimento = normalizarData(vencimentoRaw)
     const erros: string[] = []
 
