@@ -18,6 +18,17 @@ export interface TokenResponse {
   token_type: string
 }
 
+export interface ContaFinanceira {
+  id: string
+  descricao: string
+  tipo?: string
+}
+
+export interface ContatoCA {
+  id: string
+  nome: string
+}
+
 export interface ContaPagarPayload {
   // API v2 Conta Azul - documentação: developers.contaazul.com
   data_competencia: string      // YYYY-MM-DD (obrigatório)
@@ -58,7 +69,6 @@ export async function getTokenComCodigo(
   clientId: string,
   clientSecret: string
 ): Promise<TokenResponse> {
-  // Nova API usa Basic Auth com client_id:client_secret em Base64
   const credenciais = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
 
   const res = await fetch(AUTH_URL, {
@@ -109,6 +119,55 @@ export async function refreshToken(
   return res.json()
 }
 
+// ─── Listar Contas Financeiras ────────────────────────────────────────────────
+
+export async function listarContasFinanceiras(
+  accessToken: string
+): Promise<ContaFinanceira[]> {
+  const res = await fetch(`${BASE_URL}/financeiro/contas-financeiras`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  })
+  if (!res.ok) return []
+  const data = await res.json()
+  // A resposta pode ser array direto ou { content: [...] }
+  return Array.isArray(data) ? data : (data.content ?? data.items ?? [])
+}
+
+// ─── Listar / Criar Contato ───────────────────────────────────────────────────
+
+export async function buscarOuCriarContato(
+  accessToken: string,
+  nome: string
+): Promise<string | undefined> {
+  try {
+    // Buscar contato por nome
+    const busca = await fetch(
+      `${BASE_URL}/contatos?nome=${encodeURIComponent(nome)}&page=0&size=5`,
+      { headers: { 'Authorization': `Bearer ${accessToken}` } }
+    )
+    if (busca.ok) {
+      const data = await busca.json()
+      const lista: ContatoCA[] = Array.isArray(data) ? data : (data.content ?? data.items ?? [])
+      if (lista.length > 0) return lista[0].id
+    }
+
+    // Criar contato se não existir
+    const criar = await fetch(`${BASE_URL}/contatos`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ nome, tipo_pessoa: 'PJ', ativo: true }),
+    })
+    if (criar.ok) {
+      const novo: ContatoCA = await criar.json()
+      return novo.id
+    }
+  } catch { /* ignora - contato é opcional */ }
+  return undefined
+}
+
 // ─── Criar Conta a Pagar ──────────────────────────────────────────────────────
 
 export async function criarContaPagar(
@@ -131,7 +190,7 @@ export async function criarContaPagar(
 
   if (!res.ok) {
     const errBody = await res.text()
-    const mensagem = `HTTP_${res.status}__ENDPOINT:${BASE_URL}/financeiro/eventos-financeiros/contas-a-pagar__PAYLOAD:${JSON.stringify(payload)}__RESPONSE:${errBody}`
+    const mensagem = `HTTP_${res.status}__PAYLOAD:${JSON.stringify(payload)}__RESPONSE:${errBody}`
     throw new Error(mensagem)
   }
 

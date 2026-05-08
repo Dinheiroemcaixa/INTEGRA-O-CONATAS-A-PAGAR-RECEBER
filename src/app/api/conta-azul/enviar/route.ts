@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { criarContaPagar, refreshToken as refreshCA } from '@/lib/conta-azul/api'
+import {
+  criarContaPagar,
+  refreshToken as refreshCA,
+  listarContasFinanceiras,
+  buscarOuCriarContato,
+} from '@/lib/conta-azul/api'
 import { sleep } from '@/lib/utils'
 
 export const runtime = 'nodejs'
@@ -46,7 +51,7 @@ export async function POST(req: NextRequest) {
     let accessToken = empresa.access_token_conta_azul
     const expiracao = empresa.data_expiracao_token ? new Date(empresa.data_expiracao_token) : null
     const agora = new Date()
-    const tokenExpirado = expiracao && expiracao <= new Date(agora.getTime() + 5 * 60 * 1000) // 5min de margem
+    const tokenExpirado = expiracao && expiracao <= new Date(agora.getTime() + 5 * 60 * 1000)
 
     if (tokenExpirado && empresa.refresh_token_conta_azul) {
       try {
@@ -72,6 +77,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Buscar UUID da primeira conta financeira disponível
+    let contaFinanceiraId: string | undefined
+    try {
+      const contasFinanceiras = await listarContasFinanceiras(accessToken)
+      if (contasFinanceiras.length > 0) {
+        contaFinanceiraId = contasFinanceiras[0].id
+        console.log('[conta-azul] contas financeiras:', JSON.stringify(contasFinanceiras.slice(0, 3)))
+      } else {
+        console.log('[conta-azul] nenhuma conta financeira encontrada')
+      }
+    } catch (e) {
+      console.error('[conta-azul] erro ao buscar contas financeiras:', e)
+    }
+
     // Buscar contas pendentes
     let query = supabaseAdmin
       .from('contas_pagar_importadas')
@@ -94,20 +113,25 @@ export async function POST(req: NextRequest) {
     const resultados: { id: string; status: 'sucesso' | 'erro'; detalhe?: string }[] = []
 
     for (const conta of contas) {
-      await sleep(300) // Rate limiting: evitar flood na API
+      await sleep(300)
 
       try {
-        // Payload formato API v2 Conta Azul (documentação oficial)
+        // Buscar/criar contato pelo nome do fornecedor
+        const contatoId = await buscarOuCriarContato(accessToken, conta.fornecedor || 'Fornecedor')
+
         const payload = {
           data_competencia: conta.emissao || conta.vencimento,
           valor: Number(conta.valor),
           observacao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
           descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
+          ...(contatoId ? { contato: contatoId } : {}),
+          ...(contaFinanceiraId ? { conta_financeira: contaFinanceiraId } : {}),
           condicao_pagamento: {
             parcelas: [{
               descricao: conta.descricao || `Parcela - ${conta.fornecedor}`,
               data_vencimento: conta.vencimento,
               nota: conta.descricao || `NF ${conta.fornecedor}`,
+              ...(contaFinanceiraId ? { conta_financeira: contaFinanceiraId } : {}),
               detalhe_valor: {
                 valor_bruto: Number(conta.valor),
               },
@@ -117,7 +141,6 @@ export async function POST(req: NextRequest) {
 
         const resposta = await criarContaPagar(accessToken, payload)
 
-        // Marcar como enviado
         await supabaseAdmin
           .from('contas_pagar_importadas')
           .update({
@@ -131,7 +154,6 @@ export async function POST(req: NextRequest) {
         enviados++
         resultados.push({ id: conta.id, status: 'sucesso' })
 
-        // Log
         await supabaseAdmin.from('logs_integracao').insert({
           empresa_id,
           conta_pagar_id: conta.id,
@@ -142,7 +164,6 @@ export async function POST(req: NextRequest) {
       } catch (errEnvio: unknown) {
         const msg = errEnvio instanceof Error ? errEnvio.message : 'Erro desconhecido'
 
-        // Se token expirou no meio do processo, renovar e tentar uma vez mais
         if (msg === 'TOKEN_EXPIRADO' && empresa.refresh_token_conta_azul) {
           try {
             const novosTokens = await refreshCA(
@@ -157,24 +178,25 @@ export async function POST(req: NextRequest) {
               data_expiracao_token: new Date(Date.now() + novosTokens.expires_in * 1000).toISOString(),
             }).eq('id', empresa_id)
 
-            // Retry único
-            const payload = {
+            const contatoId = await buscarOuCriarContato(accessToken, conta.fornecedor || 'Fornecedor')
+            const payloadRetry = {
               data_competencia: conta.emissao || conta.vencimento,
               valor: Number(conta.valor),
               observacao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
               descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
+              ...(contatoId ? { contato: contatoId } : {}),
+              ...(contaFinanceiraId ? { conta_financeira: contaFinanceiraId } : {}),
               condicao_pagamento: {
                 parcelas: [{
                   descricao: conta.descricao || `Parcela - ${conta.fornecedor}`,
                   data_vencimento: conta.vencimento,
                   nota: conta.descricao || `NF ${conta.fornecedor}`,
-                  detalhe_valor: {
-                    valor_bruto: Number(conta.valor),
-                  },
+                  ...(contaFinanceiraId ? { conta_financeira: contaFinanceiraId } : {}),
+                  detalhe_valor: { valor_bruto: Number(conta.valor) },
                 }],
               },
             }
-            const resposta = await criarContaPagar(accessToken, payload)
+            const resposta = await criarContaPagar(accessToken, payloadRetry)
             await supabaseAdmin.from('contas_pagar_importadas').update({
               status: 'enviado',
               conta_azul_id: resposta.protocolId,
@@ -186,7 +208,6 @@ export async function POST(req: NextRequest) {
           } catch { /* cai no erro abaixo */ }
         }
 
-        // Marcar como erro
         await supabaseAdmin
           .from('contas_pagar_importadas')
           .update({
@@ -216,17 +237,8 @@ export async function POST(req: NextRequest) {
       resultados,
     })
   } catch (err) {
-    const detail: Record<string, unknown> = {}
-    if (err instanceof Error) {
-      detail.message = err.message
-      // capturar campos extras do erro (httpStatus, apiResponse, payloadEnviado)
-      for (const key of Object.getOwnPropertyNames(err)) {
-        if (key !== 'stack') detail[key] = (err as Record<string, unknown>)[key]
-      }
-    } else {
-      detail.raw = JSON.stringify(err)
-    }
-    console.error('[conta-azul/enviar]', JSON.stringify(detail))
-    return NextResponse.json({ debug: detail }, { status: 500 })
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[conta-azul/enviar]', msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
