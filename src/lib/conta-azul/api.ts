@@ -112,7 +112,7 @@ export async function criarContaPagar(
   payload: ContaPagarPayload
 ): Promise<ContaPagarResponse> {
   const res = await fetch(
-    `${BASE_URL}/financeiro/eventos-financeiros/contas-a-pagar`,
+    `${BASE_URL}/bills`,
     {
       method: 'POST',
       headers: {
