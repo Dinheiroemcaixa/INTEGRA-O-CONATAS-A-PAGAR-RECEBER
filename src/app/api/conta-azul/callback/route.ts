@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const error = searchParams.get('error')
 
   // Usar a URL da própria requisição como base (funciona em qualquer domínio Vercel)
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || origin''
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || origin
 
   if (error) {
     return NextResponse.redirect(`${appUrl}/empresas?erro=autorizacao_negada`)
