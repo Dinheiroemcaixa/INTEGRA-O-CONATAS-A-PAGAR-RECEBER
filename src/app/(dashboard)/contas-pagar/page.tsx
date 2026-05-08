@@ -87,7 +87,10 @@ export default function ContasPagarPage() {
 
       const { error } = await supabase
         .from('contas_pagar_importadas')
-        .insert(itens)
+        .upsert(itens, {
+          onConflict: 'empresa_id,fornecedor,valor,vencimento,doc',
+          ignoreDuplicates: true,
+        })
 
       if (error) throw error
 
