@@ -112,6 +112,7 @@ export default function TabelaContas({ empresaId }: Props) {
                   <th>Fornecedor</th>
                   <th className="text-right">Valor</th>
                   <th>Vencimento</th>
+                  <th>Emissão</th>
                   <th>Descrição</th>
                   <th className="text-center">Status</th>
                   <th>ID Conta Azul</th>
@@ -133,6 +134,11 @@ export default function TabelaContas({ empresaId }: Props) {
                       </td>
                       <td>
                         <span className="text-dark-300">{formatDate(conta.vencimento)}</span>
+                      </td>
+                      <td>
+                        <span className="text-dark-300 text-xs">
+                          {conta.emissao ? formatDate(conta.emissao) : <span className="text-dark-600">-</span>}
+                        </span>
                       </td>
                       <td>
                         <span className="text-dark-400 text-xs truncate max-w-[180px] block">
