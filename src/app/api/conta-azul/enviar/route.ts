@@ -203,4 +203,6 @@ export async function POST(req: NextRequest) {
       ? { message: err.message, stack: err.stack }
       : JSON.parse(JSON.stringify(err, Object.getOwnPropertyNames(err)))
     console.error('[conta-azul/enviar] DETALHE:', JSON.stringify(detail))
-    return NextResp
+    return NextResponse.json({ error: detail }, { status: 500 })
+  }
+}
