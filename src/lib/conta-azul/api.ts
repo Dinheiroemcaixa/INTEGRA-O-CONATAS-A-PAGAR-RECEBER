@@ -126,12 +126,8 @@ export async function criarContaPagar(
   if (res.status === 401) throw new Error('TOKEN_EXPIRADO')
 
   if (!res.ok) {
-    const err = await res.text()
-    let mensagem = `HTTP ${res.status}`
-    try {
-      const json = JSON.parse(err)
-      mensagem = json.message || json.erro || json.error || mensagem
-    } catch { /* noop */ }
+    const errBody = await res.text()
+    const mensagem = `HTTP_${res.status}__ENDPOINT:${BASE_URL}/financeiro/eventos-financeiros/contas-a-pagar__PAYLOAD:${JSON.stringify(payload)}__RESPONSE:${errBody}`
     throw new Error(mensagem)
   }
 
