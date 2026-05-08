@@ -216,10 +216,17 @@ export async function POST(req: NextRequest) {
       resultados,
     })
   } catch (err) {
-    const detail = err instanceof Error
-      ? { message: err.message, stack: err.stack }
-      : JSON.parse(JSON.stringify(err, Object.getOwnPropertyNames(err)))
-    console.error('[conta-azul/enviar] DETALHE:', JSON.stringify(detail))
-    return NextResponse.json({ error: detail }, { status: 500 })
+    const detail: Record<string, unknown> = {}
+    if (err instanceof Error) {
+      detail.message = err.message
+      // capturar campos extras do erro (httpStatus, apiResponse, payloadEnviado)
+      for (const key of Object.getOwnPropertyNames(err)) {
+        if (key !== 'stack') detail[key] = (err as Record<string, unknown>)[key]
+      }
+    } else {
+      detail.raw = JSON.stringify(err)
+    }
+    console.error('[conta-azul/enviar]', JSON.stringify(detail))
+    return NextResponse.json({ debug: detail }, { status: 500 })
   }
 }
