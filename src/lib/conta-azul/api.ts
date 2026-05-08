@@ -148,7 +148,7 @@ export function getUrlAutorizacao(
     response_type: 'code',
     client_id: clientId,
     redirect_uri: redirectUri,
-    scope: 'financeiro contatos',
+    scope: 'openid profile aws.cognito.signin.user.admin',
     ...(state ? { state } : {}),
   })
   return `${AUTHORIZE_URL}?${params}`
