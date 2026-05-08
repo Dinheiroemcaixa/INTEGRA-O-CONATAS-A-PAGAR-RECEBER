@@ -151,11 +151,11 @@ export async function POST(req: NextRequest) {
 
             // Retry único
             const payload = {
-              descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
-              valor: Number(conta.valor),
-              data_vencimento: conta.vencimento,
-              data_competencia: conta.emissao || conta.vencimento,
-              contato: { nome: conta.fornecedor },
+              description: conta.descricao || `Pagamento - ${conta.fornecedor}`,
+              amount: Number(conta.valor),
+              due_date: conta.vencimento,
+              competence_date: conta.emissao || conta.vencimento,
+              contact: { name: conta.fornecedor },
             }
             const resposta = await criarContaPagar(accessToken, payload)
             await supabaseAdmin.from('contas_pagar_importadas').update({
