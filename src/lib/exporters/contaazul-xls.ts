@@ -7,16 +7,16 @@ import * as XLSX from 'xlsx'
 import type { ContaPagarPreview } from '@/types'
 
 const CABECALHO: string[] = [
-  'Data de Competencia',
+  'Data de Competência',
   'Data de Vencimento',
   'Data de Pagamento',
   'Valor',
   'Categoria',
-  'Descricao',
+  'Descrição',
   'Cliente/Fornecedor',
   'CNPJ/CPF Cliente/Fornecedor',
   'Centro de Custo',
-  'Observacoes',
+  'Observações',
 ]
 
 export interface OpcoeExportacao {
