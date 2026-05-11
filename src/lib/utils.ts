@@ -54,7 +54,18 @@ export function parseDate(dateStr: string): string {
 export function parseCurrency(value: string | number): number {
   if (typeof value === 'number') return value
   const str = String(value).trim()
-  // Remove R$, espaços, pontos de milhar, troca vírgula decimal por ponto
+
+  // Se não tem vírgula e tem ponto, pode ser o formato internacional/JS (decimal ponto)
+  // Ex: "774.12" ou "1234.5"
+  if (!str.includes(',') && str.includes('.')) {
+    const parts = str.split('.')
+    // Se tem apenas um ponto e ele está no final (1 ou 2 casas), tratamos como decimal
+    if (parts.length === 2 && (parts[1].length === 1 || parts[1].length === 2)) {
+      return parseFloat(str.replace(/[^\d.]/g, '')) || 0
+    }
+  }
+
+  // Caso contrário, tratamos como formato brasileiro (ponto = milhar, vírgula = decimal)
   const cleaned = str
     .replace(/R\$\s?/g, '')
     .replace(/\./g, '')
@@ -62,6 +73,7 @@ export function parseCurrency(value: string | number): number {
     .trim()
   return parseFloat(cleaned) || 0
 }
+
 
 export function formatCNPJ(cnpj: string): string {
   const digits = cnpj.replace(/\D/g, '')

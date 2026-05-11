@@ -28,7 +28,7 @@ function calcularSimilaridade(a: string, b: string): number {
   if (wordsA.length === 0 || wordsB.length === 0) return 0
 
   // Palavras em comum (ignora palavras curtas tipo LTDA, ME, EPP, SA, EIRELI)
-  const stopwords = new Set(['LTDA', 'ME', 'EPP', 'SA', 'EIRELI', 'EIRE', 'LIMI', 'DE', 'DO', 'DA', 'DOS', 'DAS', 'E'])
+  const stopwords = new Set(['LTDA', 'ME', 'EPP', 'SA', 'EIRELI', 'EIRE', 'LIMI', 'DE', 'DO', 'DA', 'DOS', 'DAS', 'E', 'LTDA', 'EIRELI', 'ME', 'EPP', 'EP', 'MEI'])
   const relevantesA = wordsA.filter((w) => w.length > 2 && !stopwords.has(w))
   const relevantesB = wordsB.filter((w) => w.length > 2 && !stopwords.has(w))
 
@@ -43,19 +43,35 @@ function calcularSimilaridade(a: string, b: string): number {
     wb === w || wb.startsWith(w.slice(0, 4)) || w.startsWith(wb.slice(0, 4))
   )).length
 
-  const scorePalavras = (comuns * 2) / (relevantesA.length + relevantesB.length)
+  // Cálculo base de Dice Coefficient
+  const dice = (comuns * 2) / (relevantesA.length + relevantesB.length)
+  let score = dice
 
-  // Bonus se a primeira palavra relevante bate
-  const bonusPrimeira = relevantesA[0] === relevantesB[0] ? 0.15 : 0
+  // 1. Bonus se a primeira palavra relevante bate (muito comum em nomes de empresas)
+  if (relevantesA[0] === relevantesB[0]) {
+    score += 0.25
+  }
 
-  return Math.min(100, Math.round((scorePalavras + bonusPrimeira) * 100))
+  // 2. Lógica de Palavra-Chave (Keyword Match)
+  // Se uma lista de palavras está totalmente contida na outra, é um match forte
+  const bContidoEmA = relevantesB.every(wb => relevantesA.some(wa => wa.includes(wb) || wb.includes(wa)))
+  const aContidoEmB = relevantesA.every(wa => relevantesB.some(wb => wb.includes(wa) || wa.includes(wb)))
+
+  if (bContidoEmA || aContidoEmB) {
+    // Se uma das partes for o nome completo "importante", damos um score alto (mínimo 80)
+    score = Math.max(score, 0.80)
+    // Se for o primeiro termo que coincide, sobe para 90
+    if (relevantesA[0] === relevantesB[0]) score = Math.max(score, 0.90)
+  }
+
+  return Math.min(100, Math.round(score * 100))
 }
 
 function scoreParaConfianca(score: number): ConfiancaMatch {
-  if (score === 100) return 'exato'
-  if (score >= 75)  return 'alto'
-  if (score >= 50)  return 'medio'
-  if (score >= 30)  return 'baixo'
+  if (score >= 95) return 'exato'
+  if (score >= 75) return 'alto'
+  if (score >= 50) return 'medio'
+  if (score >= 30) return 'baixo'
   return 'nenhum'
 }
 
