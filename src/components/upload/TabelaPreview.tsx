@@ -15,36 +15,29 @@ interface Props {
 }
 
 function BadgeMatch({ confianca, score }: { confianca: string; score: number }) {
-  if (confianca === 'exato') {
+  if (confianca === 'exato' || score === 100) {
     return (
       <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded-full font-medium" title="Nome exato encontrado no ContaAzul">
         <CheckCircle size={9} /> exato
       </span>
     )
   }
-  if (confianca === 'alto') {
+  
+  if (score >= 80) {
     return (
-      <span className="inline-flex items-center gap-1 text-[10px] text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded-full font-medium" title={`Match automático — confiança ${score}%`}>
+      <span className="inline-flex items-center gap-1 text-[10px] text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded-full font-medium" title={`Match automático — confiança ${score}%`}>
         ✓ {score}%
       </span>
     )
   }
-  if (confianca === 'medio') {
-    return (
-      <span className="inline-flex items-center gap-1 text-[10px] text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded-full font-medium" title={`Match incerto — verifique — confiança ${score}%`}>
-        ~ {score}%
-      </span>
-    )
-  }
-  if (confianca === 'baixo') {
-    return (
-      <span className="inline-flex items-center gap-1 text-[10px] text-orange-400 bg-orange-400/10 px-1.5 py-0.5 rounded-full font-medium" title={`Match fraco — confiança ${score}%`}>
-        ? {score}%
-      </span>
-    )
-  }
-  return null
+
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded-full font-medium" title={`Match fraco — verifique — confiança ${score}%`}>
+      <AlertCircle size={9} /> {score}%
+    </span>
+  )
 }
+
 
 export default function TabelaPreview({
   dados, selecionados, onToggle, onToggleTodos, onRemover, onUpdateFornecedor
