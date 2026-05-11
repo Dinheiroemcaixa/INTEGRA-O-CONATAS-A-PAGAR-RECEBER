@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { criarContaPagar, refreshToken as refreshCA, listarContasFinanceiras, buscarOuCriarContato } from '@/lib/conta-azul/api'
+import { criarContaPagar, refreshToken as refreshCA, listarContasFinanceiras, buscarOuCriarContato, listarCategorias } from '@/lib/conta-azul/api'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -83,6 +83,17 @@ export async function POST(req: NextRequest) {
       console.warn('[conta_financeira] não foi possível buscar:', e)
     }
 
+    // Buscar categorias financeiras UMA VEZ só
+    let categoriaPadraoId: string | null = null
+    try {
+      const categorias = await listarCategorias(accessToken)
+      if (categorias && categorias.length > 0) {
+        categoriaPadraoId = categorias[0].id
+      }
+    } catch (e) {
+      console.warn('[categorias] não foi possível buscar:', e)
+    }
+
     // Buscar contas pendentes - limitar para evitar timeout
     let query = supabaseAdmin
       .from('contas_pagar_importadas')
@@ -116,7 +127,7 @@ export async function POST(req: NextRequest) {
         }
 
         const dataCompetencia = conta.emissao || conta.vencimento
-        const payload: Record<string, unknown> = {
+        const payload: Record<string, any> = {
           data_competencia: dataCompetencia,
           valor: Number(conta.valor),
           observacao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
@@ -126,9 +137,20 @@ export async function POST(req: NextRequest) {
               descricao: conta.descricao || conta.fornecedor,
               data_vencimento: conta.vencimento,
               nota: conta.descricao || '',
-              detalhe_valor: { valor_bruto: Number(conta.valor) }
+              detalhe_valor: {
+                valor_bruto: Number(conta.valor),
+                valor_liquido: Number(conta.valor)
+              }
             }]
           }
+        }
+
+        // Adicionar rateio obrigatório (v2)
+        if (categoriaPadraoId) {
+          payload.rateio = [{
+            categoria_id: categoriaPadraoId,
+            valor: Number(conta.valor)
+          }]
         }
 
         if (contatoId) payload.contato = contatoId

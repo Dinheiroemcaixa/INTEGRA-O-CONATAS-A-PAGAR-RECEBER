@@ -46,8 +46,24 @@ export async function GET(req: NextRequest) {
   }
 
   const BASE_URL = 'https://api-v2.contaazul.com/v1'
+  
+  // Buscar categorias para o diagnóstico
+  let categorias: any[] = []
+  try {
+    const resCat = await fetch(`${BASE_URL}/financeiro/categorias`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    })
+    if (resCat.ok) {
+      const dataCat = await resCat.json()
+      categorias = Array.isArray(dataCat) ? dataCat : (dataCat.content ?? dataCat.items ?? [])
+    }
+  } catch (e) {
+    console.warn('Erro ao buscar categorias no diagnóstico:', e)
+  }
+
   const cfArray = Array.isArray(contasFinanceiras) ? contasFinanceiras as { id: string }[] : []
   const cfId = cfArray.length > 0 ? cfArray[0].id : undefined
+  const catId = categorias.length > 0 ? categorias[0].id : undefined
 
   const payload = {
     data_competencia: '2026-05-01',
@@ -62,9 +78,18 @@ export async function GET(req: NextRequest) {
         data_vencimento: '2026-05-31',
         nota: 'nota teste',
         ...(cfId ? { conta_financeira: cfId } : {}),
-        detalhe_valor: { valor_bruto: 1.00 },
+        detalhe_valor: { 
+          valor_bruto: 1.00,
+          valor_liquido: 1.00
+        },
       }],
     },
+    ...(catId ? {
+      rateio: [{
+        categoria_id: catId,
+        valor: 1.00
+      }]
+    } : {})
   }
 
   const res = await fetch(

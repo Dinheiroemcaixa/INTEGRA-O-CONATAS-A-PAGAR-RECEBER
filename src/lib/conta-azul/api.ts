@@ -45,14 +45,18 @@ export interface ContaPagarPayload {
       conta_financeira?: string
       detalhe_valor: {
         valor_bruto: number
+        valor_liquido: number   // (obrigatório na v2)
         multa?: number
         juros?: number
-        valor_liquido?: number
         desconto?: number
         taxa?: number
       }
     }>
   }
+  rateio?: Array<{              // (obrigatório na v2 - ao menos 1)
+    categoria_id: string
+    valor: number
+  }>
 }
 
 export interface ContaPagarResponse {
@@ -130,6 +134,19 @@ export async function listarContasFinanceiras(
   if (!res.ok) return []
   const data = await res.json()
   // A resposta pode ser array direto ou { content: [...] }
+  return Array.isArray(data) ? data : (data.content ?? data.items ?? [])
+}
+
+// ─── Listar Categorias Financeiras ─────────────────────────────────────────────
+
+export async function listarCategorias(
+  accessToken: string
+): Promise<Array<{ id: string; nome: string }>> {
+  const res = await fetch(`${BASE_URL}/financeiro/categorias`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  })
+  if (!res.ok) return []
+  const data = await res.json()
   return Array.isArray(data) ? data : (data.content ?? data.items ?? [])
 }
 
