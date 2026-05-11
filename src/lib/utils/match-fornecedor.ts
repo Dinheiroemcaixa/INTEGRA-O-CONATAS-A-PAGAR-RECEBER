@@ -75,6 +75,11 @@ function scoreParaConfianca(score: number): ConfiancaMatch {
   return 'nenhum'
 }
 
+// Regras específicas de "De-Para" solicitadas pelo usuário
+const REGRAS_CUSTOMIZADAS: Record<string, string> = {
+  'GP CONTAGEM MG': 'GOMMA PNEUS LTDA',
+}
+
 /**
  * Busca o melhor match para um nome de fornecedor do Datacar
  */
@@ -83,6 +88,21 @@ export function matchFornecedor(
   fornecedores: FornecedorContaAzul[]
 ): ResultadoMatch {
   const normalizado = normalizarNome(nomeDatacar)
+
+  // 1. Verificar regras customizadas (De-Para específico)
+  if (REGRAS_CUSTOMIZADAS[normalizado]) {
+    const nomeAlvo = REGRAS_CUSTOMIZADAS[normalizado]
+    const fEncontrado = fornecedores.find(f => 
+      f.nome === nomeAlvo || f.nomeNormalizado === normalizarNome(nomeAlvo)
+    )
+    return {
+      nomeOriginal: nomeDatacar,
+      nomeCorrigido: nomeAlvo,
+      cnpj: fEncontrado?.cnpj || '',
+      confianca: 'exato',
+      score: 100,
+    }
+  }
 
   let melhorScore = 0
   let melhorFornecedor: FornecedorContaAzul | null = null
@@ -98,6 +118,7 @@ export function matchFornecedor(
         score: 100,
       }
     }
+
 
     const score = calcularSimilaridade(normalizado, f.nomeNormalizado)
     if (score > melhorScore) {
