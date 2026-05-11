@@ -148,7 +148,6 @@ export default function ContasPagarPage() {
       }
 
       exportarParaContaAzulXls(contas, {
-        contaBancaria: '',  // O usuário preenche no ContaAzul após importar
         categoria: '',
       })
 
