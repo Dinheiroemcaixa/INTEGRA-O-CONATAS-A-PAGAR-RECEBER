@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
         // Buscar ou criar contato para este fornecedor
         let contatoId: string | null = null
         try {
-          contatoId = await buscarOuCriarContato(accessToken, conta.fornecedor)
+          contatoId = (await buscarOuCriarContato(accessToken, conta.fornecedor)) ?? null
         } catch (e) {
           console.warn('[contato] não foi possível buscar/criar:', e)
         }
