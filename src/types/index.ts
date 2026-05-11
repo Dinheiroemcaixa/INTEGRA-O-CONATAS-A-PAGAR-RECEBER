@@ -74,4 +74,5 @@ export interface ResultadoImportacao {
   total: number
   validos: number
   invalidos: number
-  dados: ContaPagarPreview
+  dados: ContaPagarPreview[]
+}
