@@ -43,9 +43,10 @@ export function exportarParaContaAzulXls(
     const competencia = conta.emissao ? formatarData(conta.emissao) : vencimento
     const valor = -Math.abs(conta.valor)
 
-    // Prioriza o nome corrigido (seja por match ou edição manual)
-    const fornecedorFinal = conta.matchFornecedor?.nomeCorrigido || conta.fornecedor
-    const descricaoFinal = conta.descricao || fornecedorFinal
+    
+    // Prioriza o nome corrigido (seja por match ou edição manual) e remove espaços extras
+    const fornecedorFinal = (conta.matchFornecedor?.nomeCorrigido || conta.fornecedor).trim()
+    const descricaoFinal = (conta.descricao || fornecedorFinal).trim()
 
     return [
       competencia,
@@ -73,6 +74,8 @@ export function exportarParaContaAzulXls(
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Dados')
 
-  const nomeArquivo = `contas_a_pagar_contaazul_${new Date().toISOString().slice(0, 10)}.xls`
+  const dataStr = new Date().toISOString().slice(0, 10)
+  const nomeArquivo = `contas_pagar_contaazul_corrigido_${dataStr}.xls`
   XLSX.writeFile(wb, nomeArquivo, { bookType: 'xls', type: 'binary' })
 }
+
