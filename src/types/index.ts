@@ -46,6 +46,14 @@ export interface LogIntegracao {
   created_at: string
 }
 
+export interface MatchFornecedorInfo {
+  nomeOriginal: string
+  nomeCorrigido: string
+  cnpj: string
+  confianca: 'exato' | 'alto' | 'medio' | 'baixo' | 'nenhum'
+  score: number
+}
+
 export interface ContaPagarPreview {
   fornecedor: string
   valor: number
@@ -58,27 +66,12 @@ export interface ContaPagarPreview {
   linha_original?: string
   valido: boolean
   erros?: string[]
+  /** Resultado do match automático com fornecedores do ContaAzul */
+  matchFornecedor?: MatchFornecedorInfo
 }
 
 export interface ResultadoImportacao {
   total: number
   validos: number
   invalidos: number
-  dados: ContaPagarPreview[]
-  aviso?: string
-}
-
-export interface PayloadContaAzul {
-  description: string
-  amount: number
-  due_date: string
-  payment_type: 'BILL'
-  competence_date?: string
-  observations?: string
-  cost_center_id?: string
-  service_id?: string
-  contact: {
-    id?: string
-    name: string
-  }
-}
+  dados: ContaPagarPreview

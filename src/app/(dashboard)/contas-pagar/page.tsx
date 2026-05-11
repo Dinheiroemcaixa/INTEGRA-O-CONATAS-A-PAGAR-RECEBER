@@ -14,6 +14,8 @@ import {
 import toast from 'react-hot-toast'
 import { formatCurrency } from '@/lib/utils'
 import { exportarParaContaAzulXls } from '@/lib/exporters/contaazul-xls'
+import { matchFornecedoresEmLote } from '@/lib/utils/match-fornecedor'
+import type { FornecedorContaAzul } from '@/lib/parsers/fornecedores-contaazul'
 
 type Etapa = 'upload' | 'preview' | 'contas'
 
@@ -27,16 +29,63 @@ export default function ContasPagarPage() {
   const [gerandoXls, setGerandoXls] = useState(false)
   const supabase = createClient()
 
-  const handleResultado = useCallback((res: ResultadoImportacao) => {
+  const handleResultado = useCallback(async (res: ResultadoImportacao) => {
+    // Tentar buscar fornecedores do ContaAzul para fazer match automático de nomes
+    let dadosComMatch = res.dados
+    if (empresaAtiva) {
+      try {
+        const { data: fornecedoresDB } = await supabase
+          .from('fornecedores_contaazul')
+          .select('nome, cnpj, nome_normalizado')
+          .eq('empresa_id', empresaAtiva.id)
+
+        if (fornecedoresDB && fornecedoresDB.length > 0) {
+          const fornecedores: FornecedorContaAzul[] = fornecedoresDB.map((f) => ({
+            nome: f.nome,
+            cnpj: f.cnpj || '',
+            nomeNormalizado: f.nome_normalizado,
+          }))
+
+          const nomesDatacar = res.dados.map((d) => d.fornecedor)
+          const matchMap = matchFornecedoresEmLote(nomesDatacar, fornecedores)
+
+          dadosComMatch = res.dados.map((d) => {
+            const match = matchMap.get(d.fornecedor)
+            if (!match) return d
+            return {
+              ...d,
+              // Aplica o nome corrigido automaticamente se confiança >= alto
+              fornecedor: match.confianca === 'exato' || match.confianca === 'alto'
+                ? match.nomeCorrigido
+                : d.fornecedor,
+              matchFornecedor: match,
+            }
+          })
+
+          // Contar quantos foram corrigidos
+          const corrigidos = dadosComMatch.filter(
+            (d) => d.matchFornecedor && d.matchFornecedor.nomeOriginal !== d.matchFornecedor.nomeCorrigido
+              && (d.matchFornecedor.confianca === 'exato' || d.matchFornecedor.confianca === 'alto')
+          ).length
+          if (corrigidos > 0) {
+            toast.success(`${corrigidos} nomes de fornecedores corrigidos automaticamente!`, { duration: 4000 })
+          }
+        }
+      } catch {
+        // Falha silenciosa — match é opcional, não bloqueia o fluxo
+      }
+    }
+
     setResultado(res)
-    setDadosEditados(res.dados)
+    setDadosEditados(dadosComMatch)
     // Pré-selecionar apenas os válidos
     const validos = new Set<number>(
-      res.dados.reduce((acc: number[], d, i) => { if (d.valido) acc.push(i); return acc }, [])
+      dadosComMatch.reduce((acc: number[], d, i) => { if (d.valido) acc.push(i); return acc }, [])
     )
     setSelecionados(validos)
     setEtapa('preview')
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empresaAtiva])
 
   const toggleItem = (idx: number) => {
     setSelecionados((prev) => {
@@ -299,51 +348,4 @@ export default function ContasPagarPage() {
                 disabled={salvando || selecionados.size === 0 || !empresaAtiva}
                 className="bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed
                            text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all
-                           shadow-lg shadow-brand-900/30"
-              >
-                {salvando ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                Salvar e Continuar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ETAPA 3: Contas salvas */}
-      {etapa === 'contas' && (
-        <div className="space-y-4">
-          {/* Painel: baixar XLS para importar no ContaAzul */}
-          {empresaAtiva && (
-            <div className="bg-gradient-to-r from-emerald-900/30 to-brand-900/20 border border-emerald-600/30 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
-                <p className="text-white font-semibold">Exportar para ContaAzul</p>
-                <p className="text-dark-400 text-sm">
-                  Gera o arquivo <span className="text-emerald-400 font-mono">.xls</span> no modelo exato do ContaAzul.
-                </p>
-                <p className="text-dark-500 text-xs mt-1">
-                  Importe em: <span className="text-dark-300">Financeiro &gt; Contas a Pagar &gt; Importar</span>
-                </p>
-              </div>
-              <button
-                onClick={() => handleBaixarXls('salvas')}
-                disabled={gerandoXls || !empresaAtiva}
-                className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed
-                           text-white px-8 py-3.5 rounded-xl font-bold flex items-center gap-3
-                           transition-all shadow-lg shadow-emerald-900/40 text-base whitespace-nowrap"
-              >
-                {gerandoXls ? (
-                  <Loader2 size={20} className="animate-spin" />
-                ) : (
-                  <FileDown size={20} />
-                )}
-                Baixar XLS ContaAzul
-              </button>
-            </div>
-          )}
-
-          <TabelaContas empresaId={empresaAtiva?.id} />
-        </div>
-      )}
-    </div>
-  )
-}
+                           shadow-lg shadow-brand-9
