@@ -220,8 +220,14 @@ export default function ContasPagarPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Contas a Pagar</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-white">Contas a Pagar</h1>
+            <span className="px-2 py-0.5 bg-dark-700 text-dark-400 text-[10px] font-mono rounded border border-dark-600">
+              v1.2
+            </span>
+          </div>
           <p className="text-dark-400 text-sm mt-1">
+
             {empresaAtiva ? `Empresa: ${empresaAtiva.nome}` : 'Selecione uma empresa no menu superior'}
           </p>
         </div>
