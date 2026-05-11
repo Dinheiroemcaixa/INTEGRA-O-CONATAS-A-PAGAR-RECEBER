@@ -171,8 +171,9 @@ export default function ContasPagarPage() {
           .from('contas_pagar_importadas')
           .select('*')
           .eq('empresa_id', empresaAtiva.id)
-          .eq('status', 'pendente')
+          .in('status', ['pendente', 'erro'])
           .order('vencimento', { ascending: true })
+
 
         if (error) throw error
         if (!data || data.length === 0) {
