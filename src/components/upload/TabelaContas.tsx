@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { ContaPagarImportada } from '@/types'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { CheckCircle, Clock, AlertCircle, RefreshCw, Loader2 } from 'lucide-react'
+import { CheckCircle, Clock, AlertCircle, RefreshCw, Loader2, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import toast from 'react-hot-toast'
 
 interface Props {
   empresaId?: string
@@ -32,7 +33,7 @@ export default function TabelaContas({ empresaId }: Props) {
         .from('contas_pagar_importadas')
         .select('*')
         .eq('empresa_id', empresaId)
-        .order('vencimento', { ascending: true })
+        .order('created_at', { ascending: false }) // Mais recentes primeiro
 
       if (filtro !== 'todos') {
         query = query.eq('status', filtro)
@@ -47,6 +48,39 @@ export default function TabelaContas({ empresaId }: Props) {
   }, [empresaId, filtro, supabase])
 
   useEffect(() => { carregar() }, [carregar])
+
+  const removerConta = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir este registro?')) return
+    try {
+      const { error } = await supabase
+        .from('contas_pagar_importadas')
+        .delete()
+        .eq('id', id)
+      
+      if (error) throw error
+      toast.success('Registro excluído')
+      carregar()
+    } catch (err) {
+      toast.error('Erro ao excluir')
+    }
+  }
+
+  const limparTudo = async () => {
+    if (!confirm('Deseja excluir TODAS as contas PENDENTES desta empresa?')) return
+    try {
+      const { error } = await supabase
+        .from('contas_pagar_importadas')
+        .delete()
+        .eq('empresa_id', empresaId)
+        .eq('status', 'pendente')
+      
+      if (error) throw error
+      toast.success('Limpeza concluída')
+      carregar()
+    } catch (err) {
+      toast.error('Erro ao limpar')
+    }
+  }
 
   const totalPendente = contas.filter((c) => c.status === 'pendente').reduce((s, c) => s + Number(c.valor), 0)
   const totalEnviado = contas.filter((c) => c.status === 'enviado').reduce((s, c) => s + Number(c.valor), 0)
@@ -65,29 +99,43 @@ export default function TabelaContas({ empresaId }: Props) {
         </div>
       </div>
 
-      {/* Filtros */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {['todos', 'pendente', 'enviado', 'erro'].map((f) => (
+      {/* Filtros e Ações em Lote */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          {['todos', 'pendente', 'enviado', 'erro'].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFiltro(f)}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-sm font-medium transition-all capitalize',
+                filtro === f
+                  ? 'bg-brand-600 text-white'
+                  : 'bg-dark-800 text-dark-400 hover:text-white hover:bg-dark-700'
+              )}
+            >
+              {f === 'todos' ? 'Todos' : f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {contas.some(c => c.status === 'pendente') && (
+            <button
+              onClick={limparTudo}
+              className="flex items-center gap-1.5 text-red-400 hover:text-red-300 hover:bg-red-400/10 text-xs px-3 py-1.5 rounded-lg transition-all"
+            >
+              <Trash2 size={14} />
+              Limpar Pendentes
+            </button>
+          )}
           <button
-            key={f}
-            onClick={() => setFiltro(f)}
-            className={cn(
-              'px-3 py-1.5 rounded-lg text-sm font-medium transition-all capitalize',
-              filtro === f
-                ? 'bg-brand-600 text-white'
-                : 'bg-dark-800 text-dark-400 hover:text-white hover:bg-dark-700'
-            )}
+            onClick={carregar}
+            className="flex items-center gap-1.5 text-dark-400 hover:text-white text-sm px-3 py-1.5 rounded-lg hover:bg-dark-800 transition-all"
           >
-            {f === 'todos' ? 'Todos' : f.charAt(0).toUpperCase() + f.slice(1)}
+            {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+            Atualizar
           </button>
-        ))}
-        <button
-          onClick={carregar}
-          className="ml-auto flex items-center gap-1.5 text-dark-400 hover:text-white text-sm px-3 py-1.5 rounded-lg hover:bg-dark-800 transition-all"
-        >
-          {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-          Atualizar
-        </button>
+        </div>
       </div>
 
       {/* Tabela */}
@@ -112,10 +160,9 @@ export default function TabelaContas({ empresaId }: Props) {
                   <th>Fornecedor</th>
                   <th className="text-right">Valor</th>
                   <th>Vencimento</th>
-                  <th>Emissão</th>
                   <th>Descrição</th>
                   <th className="text-center">Status</th>
-                  <th>ID Conta Azul</th>
+                  <th className="w-10"></th>
                 </tr>
               </thead>
               <tbody>
@@ -136,11 +183,6 @@ export default function TabelaContas({ empresaId }: Props) {
                         <span className="text-dark-300">{formatDate(conta.vencimento)}</span>
                       </td>
                       <td>
-                        <span className="text-dark-300 text-xs">
-                          {conta.emissao ? formatDate(conta.emissao) : <span className="text-dark-600">-</span>}
-                        </span>
-                      </td>
-                      <td>
                         <span className="text-dark-400 text-xs truncate max-w-[180px] block">
                           {conta.descricao || '-'}
                         </span>
@@ -153,16 +195,15 @@ export default function TabelaContas({ empresaId }: Props) {
                           <Icon size={11} />
                           {cfg.label}
                         </span>
-                        {conta.status === 'erro' && conta.erro_mensagem && (
-                          <p className="text-red-400 text-[10px] mt-0.5 max-w-[150px] truncate" title={conta.erro_mensagem}>
-                            {conta.erro_mensagem}
-                          </p>
-                        )}
                       </td>
                       <td>
-                        <span className="text-dark-500 text-xs font-mono">
-                          {conta.conta_azul_id || '-'}
-                        </span>
+                        <button
+                          onClick={() => removerConta(conta.id)}
+                          className="text-dark-500 hover:text-red-400 transition-colors p-1"
+                          title="Excluir"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </td>
                     </tr>
                   )
@@ -175,3 +216,4 @@ export default function TabelaContas({ empresaId }: Props) {
     </div>
   )
 }
+
