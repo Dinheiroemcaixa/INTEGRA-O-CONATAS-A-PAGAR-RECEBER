@@ -124,4 +124,64 @@ export default function TabelaPreview({
                     <input
                       type="checkbox"
                       checked={selecionados.has(idx)}
-                      onChange={
+                      onChange={() => onToggle(idx)}
+                      className="w-4 h-4 rounded border-dark-500 bg-dark-700 checked:bg-brand-600 cursor-pointer"
+                    />
+                  </td>
+                  <td>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          'font-medium',
+                          foiCorrigido ? 'text-emerald-400' : 'text-white',
+                          !item.valido && 'text-red-400'
+                        )}>
+                          {item.fornecedor}
+                        </span>
+                        {match && <BadgeMatch confianca={match.confianca} score={match.score} />}
+                      </div>
+                      {foiCorrigido && (
+                        <span className="text-[10px] text-dark-500 flex items-center gap-1">
+                          original: {match.nomeOriginal}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="text-right font-mono text-white">
+                    {formatCurrency(item.valor)}
+                  </td>
+                  <td className="text-dark-300 text-sm">
+                    {item.vencimento ? formatDate(item.vencimento) : '---'}
+                  </td>
+                  <td className="text-dark-400 text-xs max-w-[200px] truncate" title={item.descricao}>
+                    {item.descricao || '---'}
+                  </td>
+                  <td className="text-center">
+                    {item.valido ? (
+                      <span className="text-emerald-400 text-[10px] font-bold uppercase tracking-wider">OK</span>
+                    ) : (
+                      <div className="flex flex-col items-center">
+                        <span className="text-red-400 text-[10px] font-bold uppercase tracking-wider">Erro</span>
+                        <p className="text-[9px] text-red-400/70 max-w-[100px] leading-tight">
+                          {item.erros?.[0]}
+                        </p>
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    <button
+                      onClick={() => onRemover(idx)}
+                      className="text-dark-500 hover:text-red-400 transition-colors p-1"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
