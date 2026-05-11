@@ -8,11 +8,12 @@ import TabelaPreview from '@/components/upload/TabelaPreview'
 import TabelaContas from '@/components/upload/TabelaContas'
 import type { ContaPagarPreview, ResultadoImportacao } from '@/types'
 import {
-  Upload, Send, Save, ArrowLeft, Loader2,
+  Upload, Save, ArrowLeft, Loader2,
   CheckCircle, AlertCircle, FileDown
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatCurrency } from '@/lib/utils'
+import { exportarParaContaAzulXls } from '@/lib/exporters/contaazul-xls'
 
 type Etapa = 'upload' | 'preview' | 'contas'
 
@@ -23,8 +24,7 @@ export default function ContasPagarPage() {
   const [dadosEditados, setDadosEditados] = useState<ContaPagarPreview[]>([])
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set())
   const [salvando, setSalvando] = useState(false)
-  const [enviando, setEnviando] = useState(false)
-  const [progressoEnvio, setProgressoEnvio] = useState({ atual: 0, total: 0, erros: 0 })
+  const [gerandoXls, setGerandoXls] = useState(false)
   const supabase = createClient()
 
   const handleResultado = useCallback((res: ResultadoImportacao) => {
@@ -107,53 +107,59 @@ export default function ContasPagarPage() {
     }
   }
 
-  const handleEnviarContaAzul = async () => {
-    if (!empresaAtiva) { toast.error('Selecione uma empresa primeiro'); return }
-
-    setEnviando(true)
-    setProgressoEnvio({ atual: 0, total: 0, erros: 0 })
-
+  const handleBaixarXls = async (fonte: 'preview' | 'salvas' = 'salvas') => {
+    setGerandoXls(true)
     try {
-      // Buscar contas pendentes da empresa
-      const { data: contas, error } = await supabase
-        .from('contas_pagar_importadas')
-        .select('*')
-        .eq('empresa_id', empresaAtiva.id)
-        .eq('status', 'pendente')
+      let contas: ContaPagarPreview[] = []
 
-      if (error) throw error
-      if (!contas || contas.length === 0) {
-        toast('Nenhuma conta pendente para enviar', { icon: 'ℹ️' })
+      if (fonte === 'preview') {
+        // Exportar os itens selecionados da tela de preview
+        contas = dadosEditados.filter((_, i) => selecionados.has(i))
+      } else {
+        // Exportar as contas pendentes já salvas no banco
+        if (!empresaAtiva) { toast.error('Selecione uma empresa primeiro'); return }
+        const { data, error } = await supabase
+          .from('contas_pagar_importadas')
+          .select('*')
+          .eq('empresa_id', empresaAtiva.id)
+          .eq('status', 'pendente')
+          .order('vencimento', { ascending: true })
+
+        if (error) throw error
+        if (!data || data.length === 0) {
+          toast('Nenhuma conta pendente para exportar', { icon: 'ℹ️' })
+          return
+        }
+
+        contas = data.map((c) => ({
+          fornecedor: c.fornecedor,
+          valor: Number(c.valor),
+          vencimento: c.vencimento,
+          descricao: c.descricao || undefined,
+          doc: c.doc || undefined,
+          emissao: c.emissao || undefined,
+          valido: true,
+        }))
+      }
+
+      if (contas.length === 0) {
+        toast.error('Nenhum registro para exportar')
         return
       }
 
-      setProgressoEnvio({ atual: 0, total: contas.length, erros: 0 })
-
-      const res = await fetch('/api/conta-azul/enviar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          empresa_id: empresaAtiva.id,
-          contas_ids: contas.map((c) => c.id),
-        }),
+      exportarParaContaAzulXls(contas, {
+        contaBancaria: '',  // O usuário preenche no ContaAzul após importar
+        categoria: '',
       })
 
-      const data = await res.json()
-
-      if (!res.ok) throw new Error(data.error || 'Erro ao enviar')
-
-      setProgressoEnvio({ atual: data.enviados, total: contas.length, erros: data.erros })
-
-      if (data.erros > 0) {
-        toast(`${data.enviados} enviados, ${data.erros} com erro`, { icon: '⚠️', duration: 6000 })
-      } else {
-        toast.success(`${data.enviados} contas enviadas ao Conta Azul!`)
-      }
+      toast.success(`Planilha gerada com ${contas.length} lançamentos! Importe no ContaAzul.`, {
+        duration: 5000,
+      })
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao enviar'
+      const msg = err instanceof Error ? err.message : 'Erro ao gerar planilha'
       toast.error(msg)
     } finally {
-      setEnviando(false)
+      setGerandoXls(false)
     }
   }
 
@@ -270,21 +276,36 @@ export default function ContasPagarPage() {
           />
 
           {/* Ações */}
-          <div className="flex items-center justify-between bg-dark-800 border border-dark-700 rounded-xl p-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-dark-800 border border-dark-700 rounded-xl p-4">
             <p className="text-sm text-dark-400">
               <span className="text-white font-semibold">{selecionados.size}</span> registros selecionados •{' '}
               <span className="text-green-400 font-semibold">{formatCurrency(valorSelecionado)}</span>
             </p>
-            <button
-              onClick={handleSalvar}
-              disabled={salvando || selecionados.size === 0 || !empresaAtiva}
-              className="bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed
-                         text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all
-                         shadow-lg shadow-brand-900/30"
-            >
-              {salvando ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-              Confirmar e Salvar
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Botão: baixar XLS direto do preview sem salvar */}
+              <button
+                onClick={() => handleBaixarXls('preview')}
+                disabled={gerandoXls || selecionados.size === 0}
+                className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed
+                           text-white px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 transition-all"
+                title="Gera o arquivo .xls no modelo do ContaAzul sem salvar no banco"
+              >
+                {gerandoXls ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
+                Baixar XLS ContaAzul
+              </button>
+
+              {/* Botão: salvar no banco e ir para etapa 3 */}
+              <button
+                onClick={handleSalvar}
+                disabled={salvando || selecionados.size === 0 || !empresaAtiva}
+                className="bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed
+                           text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all
+                           shadow-lg shadow-brand-900/30"
+              >
+                {salvando ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                Salvar e Continuar
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -292,31 +313,31 @@ export default function ContasPagarPage() {
       {/* ETAPA 3: Contas salvas */}
       {etapa === 'contas' && (
         <div className="space-y-4">
-          {/* Botão enviar Conta Azul */}
+          {/* Painel: baixar XLS para importar no ContaAzul */}
           {empresaAtiva && (
-            <div className="bg-gradient-to-r from-green-900/30 to-brand-900/20 border border-green-600/30 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="bg-gradient-to-r from-emerald-900/30 to-brand-900/20 border border-emerald-600/30 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <p className="text-white font-semibold">Enviar ao Conta Azul</p>
-                <p className="text-dark-400 text-sm">Todas as contas pendentes serão enviadas via API</p>
-                {enviando && (
-                  <p className="text-brand-300 text-xs mt-1">
-                    Processando {progressoEnvio.atual}/{progressoEnvio.total}...
-                  </p>
-                )}
+                <p className="text-white font-semibold">Exportar para ContaAzul</p>
+                <p className="text-dark-400 text-sm">
+                  Gera o arquivo <span className="text-emerald-400 font-mono">.xls</span> no modelo exato do ContaAzul.
+                </p>
+                <p className="text-dark-500 text-xs mt-1">
+                  Importe em: <span className="text-dark-300">Financeiro &gt; Contas a Pagar &gt; Importar</span>
+                </p>
               </div>
               <button
-                onClick={handleEnviarContaAzul}
-                disabled={enviando || !empresaAtiva}
-                className="bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed
+                onClick={() => handleBaixarXls('salvas')}
+                disabled={gerandoXls || !empresaAtiva}
+                className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed
                            text-white px-8 py-3.5 rounded-xl font-bold flex items-center gap-3
-                           transition-all shadow-lg shadow-green-900/40 text-base whitespace-nowrap"
+                           transition-all shadow-lg shadow-emerald-900/40 text-base whitespace-nowrap"
               >
-                {enviando ? (
+                {gerandoXls ? (
                   <Loader2 size={20} className="animate-spin" />
                 ) : (
-                  <Send size={20} />
+                  <FileDown size={20} />
                 )}
-                Enviar para Conta Azul
+                Baixar XLS ContaAzul
               </button>
             </div>
           )}

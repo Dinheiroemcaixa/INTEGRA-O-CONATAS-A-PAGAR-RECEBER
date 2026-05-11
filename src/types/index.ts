@@ -51,7 +51,9 @@ export interface ContaPagarPreview {
   valor: number
   vencimento: string
   descricao?: string
+  /** Número do documento / NF original do Datacar */
   doc?: string
+  /** Data de emissão do documento */
   emissao?: string
   linha_original?: string
   valido: boolean
