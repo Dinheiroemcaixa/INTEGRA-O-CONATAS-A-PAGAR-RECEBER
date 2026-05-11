@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
           .from('contas_pagar_importadas')
           .update({
             status: 'enviado',
-            conta_azul_id: resposta.protocolId || resposta.id || 'enviado',
+            conta_azul_id: resposta.protocolId || 'enviado',
             erro_mensagem: null,
             tentativas: (conta.tentativas || 0) + 1,
           })
