@@ -43,15 +43,19 @@ export function exportarParaContaAzulXls(
     const competencia = conta.emissao ? formatarData(conta.emissao) : vencimento
     const valor = -Math.abs(conta.valor)
 
+    // Prioriza o nome corrigido (seja por match ou edição manual)
+    const fornecedorFinal = conta.matchFornecedor?.nomeCorrigido || conta.fornecedor
+    const descricaoFinal = conta.descricao || fornecedorFinal
+
     return [
       competencia,
       vencimento,
       '',
       valor,
       categoria,
-      conta.descricao || conta.fornecedor,
-      conta.fornecedor,
-      '',
+      descricaoFinal,
+      fornecedorFinal,
+      conta.matchFornecedor?.cnpj || '',
       centroCusto,
       '',
     ]
