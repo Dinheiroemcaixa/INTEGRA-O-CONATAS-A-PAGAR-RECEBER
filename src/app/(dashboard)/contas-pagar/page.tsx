@@ -400,7 +400,8 @@ export default function ContasPagarPage() {
               Exportar XLS para ContaAzul
             </button>
           </div>
-          <TabelaContas />
+          <TabelaContas empresaId={empresaAtiva?.id} />
+
         </div>
       )}
     </div>
