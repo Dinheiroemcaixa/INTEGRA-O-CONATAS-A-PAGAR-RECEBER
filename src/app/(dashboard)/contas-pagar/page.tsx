@@ -330,7 +330,6 @@ export default function ContasPagarPage() {
               <span className="text-green-400 font-semibold">{formatCurrency(valorSelecionado)}</span>
             </p>
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Botão: baixar XLS direto do preview sem salvar */}
               <button
                 onClick={() => handleBaixarXls('preview')}
                 disabled={gerandoXls || selecionados.size === 0}
@@ -342,10 +341,38 @@ export default function ContasPagarPage() {
                 Baixar XLS ContaAzul
               </button>
 
-              {/* Botão: salvar no banco e ir para etapa 3 */}
               <button
                 onClick={handleSalvar}
                 disabled={salvando || selecionados.size === 0 || !empresaAtiva}
                 className="bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed
                            text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all
-                           shadow-lg shadow-brand-9
+                           shadow-lg shadow-brand-900/20"
+              >
+                {salvando ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                Salvar e Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ETAPA 3: Contas Salvas */}
+      {etapa === 'contas' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-white">Contas Importadas</h2>
+            <button
+              onClick={() => handleBaixarXls('salvas')}
+              disabled={gerandoXls}
+              className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all"
+            >
+              {gerandoXls ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+              Exportar XLS para ContaAzul
+            </button>
+          </div>
+          <TabelaContas />
+        </div>
+      )}
+    </div>
+  )
+}

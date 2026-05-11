@@ -13,7 +13,7 @@ import { formatCNPJ } from '@/lib/utils'
 import { parseFornecedoresArquivo } from '@/lib/parsers/fornecedores-contaazul'
 import type { Empresa } from '@/types'
 
-// ─── Painel de fornecedores por empresa ──────────────────────────────────────
+// --- Painel de fornecedores por empresa ---
 function PainelFornecedores({ empresa }: { empresa: Empresa }) {
   const [aberto, setAberto] = useState(false)
   const [total, setTotal] = useState<number | null>(null)
@@ -140,7 +140,7 @@ function PainelFornecedores({ empresa }: { empresa: Empresa }) {
           </div>
           {total !== null && total > 0 && (
             <p className="text-xs text-emerald-400">
-              Lista atualizada — {total} fornecedores prontos para match automatico.
+              Lista atualizada — {total} fornecedores prontos para match automático.
             </p>
           )}
         </div>
@@ -149,8 +149,8 @@ function PainelFornecedores({ empresa }: { empresa: Empresa }) {
   )
 }
 
-// ─── Página principal ─────────────────────────────────────────────────────────
-function EmpresasPage() {
+// --- Página principal ---
+function EmpresasPageContent() {
   const { empresas, recarregar, setEmpresaAtiva, empresaAtiva } = useEmpresa()
   const [showForm, setShowForm] = useState(false)
   const [salvando, setSalvando] = useState(false)
@@ -168,8 +168,8 @@ function EmpresasPage() {
       window.history.replaceState({}, '', '/empresas')
     } else if (erro) {
       const msgs: Record<string, string> = {
-        autorizacao_negada: 'Autorizacao negada no Conta Azul.',
-        parametros_invalidos: 'Parametros invalidos no retorno.',
+        autorizacao_negada: 'Autorização negada no Conta Azul.',
+        parametros_invalidos: 'Parâmetros inválidos no retorno.',
       }
       toast.error(msgs[erro] || `Erro: ${decodeURIComponent(erro)}`)
       window.history.replaceState({}, '', '/empresas')
@@ -207,7 +207,7 @@ function EmpresasPage() {
     setSalvando(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Usuario nao autenticado')
+      if (!user) throw new Error('Usuário não autenticado')
 
       const cnpjLimpo = form.cnpj.replace(/\D/g, '')
 
@@ -259,4 +259,132 @@ function EmpresasPage() {
           <form onSubmit={handleCriar} className="flex flex-col sm:flex-row gap-3">
             <input
               value={form.nome}
-              onChange={(e) => setForm({ ...form, nome: e.target.value
+              onChange={(e) => setForm({ ...form, nome: e.target.value })}
+              placeholder="Nome da Empresa"
+              required
+              className="flex-1 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 outline-none"
+            />
+            <input
+              value={form.cnpj}
+              onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
+              placeholder="CNPJ"
+              required
+              className="w-full sm:w-48 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 outline-none"
+            />
+            <button
+              type="submit"
+              disabled={salvando}
+              className="bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white px-6 py-2.5 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all"
+            >
+              {salvando ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+              Salvar
+            </button>
+          </form>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {empresas.map((empresa) => (
+          <div
+            key={empresa.id}
+            className={`bg-dark-800 border rounded-xl p-6 transition-all ${
+              empresaAtiva?.id === empresa.id ? 'border-brand-600 shadow-lg shadow-brand-900/20' : 'border-dark-700'
+            }`}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-dark-700 rounded-xl flex items-center justify-center">
+                  <Building2 size={24} className="text-dark-400" />
+                </div>
+                <div>
+                  <h3 className="text-white font-bold text-lg">{empresa.nome}</h3>
+                  <p className="text-dark-400 text-sm">{formatCNPJ(empresa.cnpj)}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEmpresaAtiva(empresa)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  empresaAtiva?.id === empresa.id
+                    ? 'bg-brand-600 text-white'
+                    : 'bg-dark-700 text-dark-400 hover:bg-dark-600'
+                }`}
+              >
+                {empresaAtiva?.id === empresa.id ? 'Ativa' : 'Selecionar'}
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-dark-900 rounded-lg border border-dark-700">
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${empresa.access_token_conta_azul ? 'bg-green-500' : 'bg-red-500'}`} />
+                  <span className="text-sm text-dark-300">Conta Azul</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {empresa.access_token_conta_azul ? (
+                    <>
+                      <button
+                        onClick={() => handleConectarContaAzul(empresa.id)}
+                        className="text-dark-400 hover:text-white transition-colors"
+                        title="Renovar conexão"
+                      >
+                        <RefreshCw size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDesconectar(empresa.id)}
+                        className="text-red-400 hover:text-red-300 transition-colors"
+                        title="Desconectar"
+                      >
+                        <Unlink size={16} />
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => handleConectarContaAzul(empresa.id)}
+                      disabled={conectando === empresa.id}
+                      className="text-brand-400 hover:text-brand-300 text-sm font-semibold flex items-center gap-1 transition-all"
+                    >
+                      {conectando === empresa.id ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <ExternalLink size={14} />
+                      )}
+                      Conectar
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Seção de Fornecedores */}
+              <PainelFornecedores empresa={empresa} />
+            </div>
+          </div>
+        ))}
+
+        {empresas.length === 0 && !showForm && (
+          <div className="lg:col-span-2 py-20 flex flex-col items-center justify-center border-2 border-dashed border-dark-700 rounded-2xl">
+            <Building2 size={48} className="text-dark-700 mb-4" />
+            <p className="text-dark-400">Nenhuma empresa cadastrada.</p>
+            <button
+              onClick={() => setShowForm(true)}
+              className="text-brand-400 font-semibold mt-2 hover:text-brand-300 transition-colors"
+            >
+              Cadastrar agora
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default function EmpresasPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="animate-spin text-brand-600" size={32} />
+      </div>
+    }>
+      <EmpresasPageContent />
+    </Suspense>
+  )
+}
