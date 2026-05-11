@@ -1,9 +1,9 @@
-'use client'
-
+import { useState } from 'react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { ContaPagarPreview } from '@/types'
-import { CheckCircle, AlertCircle, Trash2, ArrowRight } from 'lucide-react'
+import { CheckCircle, AlertCircle, Trash2, Edit2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import SelectorFornecedor from './SelectorFornecedor'
 
 interface Props {
   dados: ContaPagarPreview[]
@@ -11,33 +11,34 @@ interface Props {
   onToggle: (idx: number) => void
   onToggleTodos: () => void
   onRemover: (idx: number) => void
+  onUpdateFornecedor: (idx: number, novoNome: string) => void
 }
 
 function BadgeMatch({ confianca, score }: { confianca: string; score: number }) {
   if (confianca === 'exato') {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded-full font-medium" title="Nome exato encontrado no ContaAzul">
+      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded-full font-medium" title="Nome exato encontrado no ContaAzul">
         <CheckCircle size={9} /> exato
       </span>
     )
   }
   if (confianca === 'alto') {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded-full font-medium" title={`Match automático — confiança ${score}%`}>
+      <span className="inline-flex items-center gap-1 text-[10px] text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded-full font-medium" title={`Match automático — confiança ${score}%`}>
         ✓ {score}%
       </span>
     )
   }
   if (confianca === 'medio') {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded-full font-medium" title={`Match incerto — verifique — confiança ${score}%`}>
+      <span className="inline-flex items-center gap-1 text-[10px] text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded-full font-medium" title={`Match incerto — verifique — confiança ${score}%`}>
         ~ {score}%
       </span>
     )
   }
   if (confianca === 'baixo') {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-orange-400 bg-orange-400/10 px-1.5 py-0.5 rounded-full font-medium" title={`Match fraco — confiança ${score}%`}>
+      <span className="inline-flex items-center gap-1 text-[10px] text-orange-400 bg-orange-400/10 px-1.5 py-0.5 rounded-full font-medium" title={`Match fraco — confiança ${score}%`}>
         ? {score}%
       </span>
     )
@@ -46,8 +47,10 @@ function BadgeMatch({ confianca, score }: { confianca: string; score: number }) 
 }
 
 export default function TabelaPreview({
-  dados, selecionados, onToggle, onToggleTodos, onRemover
+  dados, selecionados, onToggle, onToggleTodos, onRemover, onUpdateFornecedor
 }: Props) {
+  const [editingIdx, setEditingIdx] = useState<number | null>(null)
+  
   const todosSelecionados = selecionados.size === dados.length && dados.length > 0
   const algunsSelecionados = selecionados.size > 0 && selecionados.size < dados.length
   const temMatch = dados.some((d) => d.matchFornecedor)
@@ -110,14 +113,15 @@ export default function TabelaPreview({
               const match = item.matchFornecedor
               const foiCorrigido = match && match.nomeOriginal !== match.nomeCorrigido
                 && (match.confianca === 'exato' || match.confianca === 'alto')
-              const temDuvida = match && (match.confianca === 'medio' || match.confianca === 'baixo')
+              const isEditing = editingIdx === idx
 
               return (
                 <tr
                   key={idx}
                   className={cn(
                     !item.valido && 'bg-red-500/5',
-                    selecionados.has(idx) && item.valido && 'bg-brand-600/5'
+                    selecionados.has(idx) && item.valido && 'bg-brand-600/5',
+                    isEditing && 'bg-brand-900/10'
                   )}
                 >
                   <td>
@@ -128,24 +132,42 @@ export default function TabelaPreview({
                       className="w-4 h-4 rounded border-dark-500 bg-dark-700 checked:bg-brand-600 cursor-pointer"
                     />
                   </td>
-                  <td>
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className={cn(
-                          'font-medium',
-                          foiCorrigido ? 'text-emerald-400' : 'text-white',
-                          !item.valido && 'text-red-400'
-                        )}>
-                          {item.fornecedor}
-                        </span>
-                        {match && <BadgeMatch confianca={match.confianca} score={match.score} />}
+                  <td className="min-w-[250px]">
+                    {isEditing ? (
+                      <SelectorFornecedor 
+                        valorInicial={item.fornecedor}
+                        onCancel={() => setEditingIdx(null)}
+                        onSelect={(nome) => {
+                          onUpdateFornecedor(idx, nome)
+                          setEditingIdx(null)
+                        }}
+                      />
+                    ) : (
+                      <div className="flex flex-col group relative">
+                        <div className="flex items-center gap-2">
+                          <span className={cn(
+                            'font-medium transition-colors',
+                            foiCorrigido ? 'text-emerald-400' : 'text-white',
+                            !item.valido && 'text-red-400'
+                          )}>
+                            {item.fornecedor}
+                          </span>
+                          {match && <BadgeMatch confianca={match.confianca} score={match.score} />}
+                          <button 
+                            onClick={() => setEditingIdx(idx)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1"
+                            title="Editar fornecedor"
+                          >
+                            <Edit2 size={12} />
+                          </button>
+                        </div>
+                        {foiCorrigido && (
+                          <span className="text-[10px] text-dark-500 flex items-center gap-1">
+                            original: {match.nomeOriginal}
+                          </span>
+                        )}
                       </div>
-                      {foiCorrigido && (
-                        <span className="text-[10px] text-dark-500 flex items-center gap-1">
-                          original: {match.nomeOriginal}
-                        </span>
-                      )}
-                    </div>
+                    )}
                   </td>
                   <td className="text-right font-mono text-white">
                     {formatCurrency(item.valor)}

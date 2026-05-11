@@ -211,11 +211,34 @@ export default function ContasPagarPage() {
     }
   }
 
+  const updateFornecedor = useCallback((idx: number, novoNome: string) => {
+    setDadosEditados((prev) => {
+      const next = [...prev]
+      const original = next[idx].matchFornecedor?.nomeOriginal || next[idx].fornecedor
+      next[idx] = {
+        ...next[idx],
+        fornecedor: novoNome,
+        matchFornecedor: {
+          nomeOriginal: original,
+          nomeCorrigido: novoNome,
+          cnpj: next[idx].matchFornecedor?.cnpj || '',
+          confianca: 'exato',
+          score: 100
+        },
+        valido: true,
+        erros: undefined
+      }
+      return next
+    })
+  }, [])
+
   const valorSelecionado = dadosEditados
     .filter((_, i) => selecionados.has(i))
     .reduce((s, d) => s + d.valor, 0)
 
   return (
+
+
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -227,7 +250,6 @@ export default function ContasPagarPage() {
             </span>
           </div>
           <p className="text-dark-400 text-sm mt-1">
-
             {empresaAtiva ? `Empresa: ${empresaAtiva.nome}` : 'Selecione uma empresa no menu superior'}
           </p>
         </div>
@@ -327,7 +349,9 @@ export default function ContasPagarPage() {
             onToggle={toggleItem}
             onToggleTodos={toggleTodos}
             onRemover={removerItem}
+            onUpdateFornecedor={updateFornecedor}
           />
+
 
           {/* Ações */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-dark-800 border border-dark-700 rounded-xl p-4">
