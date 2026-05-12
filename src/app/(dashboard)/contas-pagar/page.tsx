@@ -9,10 +9,10 @@ import TabelaContas from '@/components/upload/TabelaContas'
 import type { ContaPagarPreview, ResultadoImportacao } from '@/types'
 import {
   Upload, Save, ArrowLeft, Loader2,
-  CheckCircle, AlertCircle, FileDown
+  CheckCircle, AlertCircle, FileDown, Trash2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, cn } from '@/lib/utils'
 import { exportarParaContaAzulXls } from '@/lib/exporters/contaazul-xls'
 import { matchFornecedoresEmLote } from '@/lib/utils/match-fornecedor'
 import type { FornecedorContaAzul } from '@/lib/parsers/fornecedores-contaazul'
