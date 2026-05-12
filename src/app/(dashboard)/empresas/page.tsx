@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   Building2, Plus, Check, Loader2, ExternalLink,
-  RefreshCw, Unlink, Upload, Users, ChevronDown, ChevronUp, Trash2
+  RefreshCw, Unlink, Upload, Users, ChevronDown, ChevronUp, Trash2, ShieldCheck
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatCNPJ } from '@/lib/utils'
@@ -337,6 +337,15 @@ function EmpresasPageContent() {
                 <div className="flex items-center gap-2">
                   {empresa.access_token_conta_azul ? (
                     <>
+                      <a
+                        href={`/api/conta-azul/diagnostico?empresa_id=${empresa.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-yellow-500 hover:text-yellow-400 transition-colors"
+                        title="Diagnosticar Conexão"
+                      >
+                        <ShieldCheck size={16} />
+                      </a>
                       <button
                         onClick={() => handleConectarContaAzul(empresa.id)}
                         className="text-dark-400 hover:text-white transition-colors"
