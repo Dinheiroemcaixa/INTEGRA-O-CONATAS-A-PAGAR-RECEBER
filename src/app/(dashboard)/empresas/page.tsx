@@ -217,18 +217,25 @@ function EmpresasPageContent() {
       if (!user) throw new Error('Usuário não autenticado')
 
       const cnpjLimpo = form.cnpj.replace(/\D/g, '')
+      const empresaId = crypto.randomUUID()
 
-      const { data: empresa, error: errEmp } = await supabase
+      const { error: errEmp } = await supabase
         .from('empresas')
-        .insert({ nome: form.nome.trim(), cnpj: cnpjLimpo })
-        .select()
-        .single()
+        .insert({ 
+          id: empresaId,
+          nome: form.nome.trim(), 
+          cnpj: cnpjLimpo 
+        })
 
       if (errEmp) throw errEmp
 
       const { error: errVinc } = await supabase
         .from('usuarios_empresas')
-        .insert({ user_id: user.id, empresa_id: empresa.id, papel: 'admin' })
+        .insert({ 
+          user_id: user.id, 
+          empresa_id: empresaId, 
+          papel: 'admin' 
+        })
 
       if (errVinc) throw errVinc
 
