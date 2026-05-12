@@ -52,20 +52,21 @@ export default function ContasPagarPage() {
           dadosComMatch = res.dados.map((d) => {
             const match = matchMap.get(d.fornecedor)
             if (!match) return d
+            
+            // Se houver um match com confiança razoável (médio ou superior),
+            // já atualizamos o nome do fornecedor para que ele seja salvo corretamente
+            const deveCorrigirAuto = ['exato', 'alto', 'medio'].includes(match.confianca)
+
             return {
               ...d,
-              // Aplica o nome corrigido automaticamente se confiança >= alto
-              fornecedor: match.confianca === 'exato' || match.confianca === 'alto'
-                ? match.nomeCorrigido
-                : d.fornecedor,
+              fornecedor: deveCorrigirAuto ? match.nomeCorrigido : d.fornecedor,
               matchFornecedor: match,
             }
           })
 
           // Contar quantos foram corrigidos
           const corrigidos = dadosComMatch.filter(
-            (d) => d.matchFornecedor && d.matchFornecedor.nomeOriginal !== d.matchFornecedor.nomeCorrigido
-              && (d.matchFornecedor.confianca === 'exato' || d.matchFornecedor.confianca === 'alto')
+            (d) => d.matchFornecedor && d.matchFornecedor.nomeOriginal !== d.fornecedor
           ).length
           if (corrigidos > 0) {
             toast.success(`${corrigidos} nomes de fornecedores corrigidos automaticamente!`, { duration: 4000 })
@@ -125,7 +126,8 @@ export default function ContasPagarPage() {
         .filter((_, i) => selecionados.has(i))
         .map((d) => ({
           empresa_id: empresaAtiva.id,
-          fornecedor: d.fornecedor,
+          // Prioriza SEMPRE o nome corrigido (seja manual ou automático) ao salvar
+          fornecedor: (d.matchFornecedor?.nomeCorrigido || d.fornecedor).trim(),
           valor: d.valor,
           vencimento: d.vencimento || new Date().toISOString().split('T')[0],
           descricao: d.descricao || null,
@@ -181,15 +183,41 @@ export default function ContasPagarPage() {
           return
         }
 
-        contas = data.map((c) => ({
-          fornecedor: c.fornecedor,
-          valor: Number(c.valor),
-          vencimento: c.vencimento,
-          descricao: c.descricao || undefined,
-          doc: c.doc || undefined,
-          emissao: c.emissao || undefined,
-          valido: true,
-        }))
+        // Tentar buscar fornecedores para corrigir nomes mesmo em registros já salvos
+        let fornecedores: FornecedorContaAzul[] = []
+        if (empresaAtiva) {
+          const { data: fdb } = await supabase
+            .from('fornecedores_contaazul')
+            .select('nome, cnpj, nome_normalizado')
+            .eq('empresa_id', empresaAtiva.id)
+          if (fdb) {
+            fornecedores = fdb.map(f => ({ nome: f.nome, cnpj: f.cnpj || '', nomeNormalizado: f.nome_normalizado }))
+          }
+        }
+
+        const nomesParaMatch = data.map(c => c.fornecedor)
+        const matchMap = fornecedores.length > 0 
+          ? matchFornecedoresEmLote(nomesParaMatch, fornecedores)
+          : new Map()
+
+        contas = data.map((c) => {
+          const match = matchMap.get(c.fornecedor)
+          // Prioriza o match se for de alta confiança ou se o nome for diferente
+          const fornecedorFinal = match && (match.confianca === 'exato' || match.confianca === 'alto' || match.confianca === 'medio')
+            ? match.nomeCorrigido
+            : c.fornecedor
+
+          return {
+            fornecedor: fornecedorFinal,
+            valor: Number(c.valor),
+            vencimento: c.vencimento,
+            descricao: c.descricao || undefined,
+            doc: c.doc || undefined,
+            emissao: c.emissao || undefined,
+            matchFornecedor: match || undefined,
+            valido: true,
+          }
+        })
       }
 
       if (contas.length === 0) {

@@ -46,7 +46,12 @@ export function exportarParaContaAzulXls(
     
     // Prioriza o nome corrigido (seja por match ou edição manual) e remove espaços extras
     const fornecedorFinal = (conta.matchFornecedor?.nomeCorrigido || conta.fornecedor).trim()
-    const descricaoFinal = (conta.descricao || fornecedorFinal).trim()
+    
+    // Se a descrição for igual ao fornecedor original, atualiza para o corrigido também
+    let descricaoFinal = (conta.descricao || fornecedorFinal).trim()
+    if (conta.matchFornecedor && conta.descricao === conta.matchFornecedor.nomeOriginal) {
+      descricaoFinal = fornecedorFinal
+    }
 
     return [
       competencia,
