@@ -185,8 +185,24 @@ export default function ContasPagarPage() {
       let contas: ContaPagarPreview[] = []
 
       if (fonte === 'preview') {
-        // Exportar os itens selecionados da tela de preview
-        contas = dadosEditados.filter((_, i) => selecionados.has(i))
+        // Exportar o que está na tela (dadosEditados) que estiver selecionado
+        // Se houver filtro ativo, exportamos apenas o que o filtro mostra (opcional, mas geralmente é o esperado se o erro é 'constante')
+        contas = dadosEditados
+          .filter((d, i) => {
+            const estaSelecionado = selecionados.has(i)
+            if (!estaSelecionado) return false
+            
+            // Se houver filtro ativo, só exportamos o que o filtro permite
+            if (filtroPreview === 'erro') return !d.valido
+            if (filtroPreview === 'revisao') return d.valido && d.matchFornecedor && d.matchFornecedor.confianca !== 'exato'
+            
+            return true
+          })
+          .map(d => ({
+            ...d,
+            // Garantir que o fornecedor final seja o corrigido
+            fornecedor: (d.matchFornecedor?.nomeCorrigido || d.fornecedor).trim()
+          }))
       } else {
         // Exportar as contas pendentes já salvas no banco
         if (!empresaAtiva) { toast.error('Selecione uma empresa primeiro'); return }
