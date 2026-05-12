@@ -42,8 +42,10 @@ export function exportarParaContaAzulXls(
     const vencimento = formatarData(conta.vencimento)
     const competencia = conta.emissao ? formatarData(conta.emissao) : vencimento
     const valor = -Math.abs(conta.valor)
-
     
+    // Categoria: Prioriza a do registro (manual ou vinda do match), senão usa a global das opções
+    const categoriaFinal = conta.categoria || conta.matchFornecedor?.categoria || categoria
+
     // Prioriza o nome corrigido (seja por match ou edição manual) e remove espaços extras
     const fornecedorFinal = (conta.matchFornecedor?.nomeCorrigido || conta.fornecedor).trim()
     
@@ -58,7 +60,7 @@ export function exportarParaContaAzulXls(
       vencimento,
       '',
       valor,
-      categoria,
+      categoriaFinal,
       descricaoFinal,
       fornecedorFinal,
       conta.matchFornecedor?.cnpj || '',

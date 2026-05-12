@@ -49,6 +49,7 @@ function PainelFornecedores({ empresa }: { empresa: Empresa }) {
         empresa_id: empresa.id,
         nome: f.nome,
         cnpj: f.cnpj || null,
+        categoria_padrao: f.categoria || null,
         nome_normalizado: f.nomeNormalizado,
       }))
 

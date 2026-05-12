@@ -11,6 +11,7 @@ export interface ResultadoMatch {
   nomeOriginal: string        // nome vindo do Datacar
   nomeCorrigido: string       // nome cadastrado no ContaAzul
   cnpj: string
+  categoria?: string
   confianca: ConfiancaMatch
   score: number               // 0-100
 }
@@ -102,6 +103,7 @@ export function matchFornecedor(
       nomeOriginal: nomeDatacar,
       nomeCorrigido: nomeAlvo,
       cnpj: fEncontrado?.cnpj || '',
+      categoria: fEncontrado?.categoria,
       confianca: 'exato',
       score: 100,
     }
@@ -117,6 +119,7 @@ export function matchFornecedor(
         nomeOriginal: nomeDatacar,
         nomeCorrigido: f.nome,
         cnpj: f.cnpj,
+        categoria: f.categoria,
         confianca: 'exato',
         score: 100,
       }
@@ -144,6 +147,7 @@ export function matchFornecedor(
     nomeOriginal: nomeDatacar,
     nomeCorrigido: melhorFornecedor.nome,
     cnpj: melhorFornecedor.cnpj,
+    categoria: melhorFornecedor.categoria,
     confianca: scoreParaConfianca(melhorScore),
     score: melhorScore,
   }

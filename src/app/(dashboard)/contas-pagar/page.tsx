@@ -37,13 +37,14 @@ export default function ContasPagarPage() {
       try {
         const { data: fornecedoresDB } = await supabase
           .from('fornecedores_contaazul')
-          .select('nome, cnpj, nome_normalizado')
+          .select('nome, cnpj, nome_normalizado, categoria_padrao')
           .eq('empresa_id', empresaAtiva.id)
 
         if (fornecedoresDB && fornecedoresDB.length > 0) {
           const fornecedores: FornecedorContaAzul[] = fornecedoresDB.map((f) => ({
             nome: f.nome,
             cnpj: f.cnpj || '',
+            categoria: f.categoria_padrao || undefined,
             nomeNormalizado: f.nome_normalizado,
           }))
 
@@ -61,6 +62,7 @@ export default function ContasPagarPage() {
             return {
               ...d,
               fornecedor: deveCorrigirAuto ? match.nomeCorrigido : d.fornecedor,
+              categoria: match.categoria || d.categoria,
               matchFornecedor: match,
             }
           })
@@ -225,10 +227,15 @@ export default function ContasPagarPage() {
         if (empresaAtiva) {
           const { data: fdb } = await supabase
             .from('fornecedores_contaazul')
-            .select('nome, cnpj, nome_normalizado')
+            .select('nome, cnpj, nome_normalizado, categoria_padrao')
             .eq('empresa_id', empresaAtiva.id)
           if (fdb) {
-            fornecedores = fdb.map(f => ({ nome: f.nome, cnpj: f.cnpj || '', nomeNormalizado: f.nome_normalizado }))
+            fornecedores = fdb.map(f => ({ 
+              nome: f.nome, 
+              cnpj: f.cnpj || '', 
+              categoria: f.categoria_padrao || undefined,
+              nomeNormalizado: f.nome_normalizado 
+            }))
           }
         }
 
@@ -248,6 +255,7 @@ export default function ContasPagarPage() {
             fornecedor: fornecedorFinal,
             valor: Number(c.valor),
             vencimento: c.vencimento,
+            categoria: match?.categoria || undefined,
             descricao: c.descricao || undefined,
             doc: c.doc || undefined,
             emissao: c.emissao || undefined,

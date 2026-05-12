@@ -50,6 +50,7 @@ export interface MatchFornecedorInfo {
   nomeOriginal: string
   nomeCorrigido: string
   cnpj: string
+  categoria?: string
   confianca: 'exato' | 'alto' | 'medio' | 'baixo' | 'nenhum'
   score: number
 }
@@ -58,6 +59,7 @@ export interface ContaPagarPreview {
   fornecedor: string
   valor: number
   vencimento: string
+  categoria?: string
   descricao?: string
   /** Número do documento / NF original do Datacar */
   doc?: string

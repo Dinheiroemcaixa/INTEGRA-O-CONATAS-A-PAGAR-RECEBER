@@ -103,6 +103,7 @@ export default function TabelaPreview({
               <th>Fornecedor</th>
               <th className="text-right">Valor</th>
               <th>Vencimento</th>
+              <th>Categoria</th>
               <th>Descrição</th>
               <th className="text-center">Status</th>
               <th className="w-10"></th>
@@ -175,6 +176,14 @@ export default function TabelaPreview({
                   </td>
                   <td className="text-dark-300 text-sm">
                     {item.vencimento ? formatDate(item.vencimento) : '---'}
+                  </td>
+                  <td className="text-dark-300 text-xs">
+                    <span className={cn(
+                      "px-2 py-0.5 rounded-full border",
+                      item.categoria ? "bg-brand-500/10 border-brand-500/20 text-brand-400" : "bg-dark-700 border-dark-600 text-dark-500"
+                    )}>
+                      {item.categoria || 'Sem categoria'}
+                    </span>
                   </td>
                   <td className="text-dark-400 text-xs max-w-[200px] truncate" title={item.descricao}>
                     {item.descricao || '---'}
