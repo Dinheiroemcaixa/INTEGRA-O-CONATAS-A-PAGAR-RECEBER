@@ -142,12 +142,49 @@ export async function listarContasFinanceiras(
 export async function listarCategorias(
   accessToken: string
 ): Promise<Array<{ id: string; nome: string }>> {
-  const res = await fetch(`${BASE_URL}/financeiro/categorias`, {
-    headers: { 'Authorization': `Bearer ${accessToken}` },
-  })
-  if (!res.ok) return []
-  const data = await res.json()
-  return Array.isArray(data) ? data : (data.content ?? data.items ?? [])
+  // Tentar múltiplos endpoints possíveis para categorias
+  const endpoints = [
+    `${BASE_URL}/financeiro/categorias`,
+    `${BASE_URL}/categorias`,
+  ]
+
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetch(endpoint, {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      })
+      
+      console.log(`[categorias] ${endpoint} -> ${res.status}`)
+      
+      if (!res.ok) continue
+      
+      const data = await res.json()
+      console.log(`[categorias] resposta:`, JSON.stringify(data).substring(0, 500))
+      
+      let lista: any[] = []
+      if (Array.isArray(data)) {
+        lista = data
+      } else if (data.content && Array.isArray(data.content)) {
+        lista = data.content
+      } else if (data.items && Array.isArray(data.items)) {
+        lista = data.items
+      } else if (data.data && Array.isArray(data.data)) {
+        lista = data.data
+      }
+      
+      if (lista.length > 0) {
+        // Normalizar campos - a API pode retornar 'name' ou 'nome', 'uuid' ou 'id'
+        return lista.map(c => ({
+          id: c.id || c.uuid || c.categoryId,
+          nome: c.nome || c.name || c.descricao || c.description || 'Categoria',
+        })).filter(c => c.id)
+      }
+    } catch (e) {
+      console.warn(`[categorias] erro em ${endpoint}:`, e)
+    }
+  }
+
+  return []
 }
 
 // ─── Listar / Criar Contato ───────────────────────────────────────────────────

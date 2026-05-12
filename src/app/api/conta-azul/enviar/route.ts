@@ -87,11 +87,18 @@ export async function POST(req: NextRequest) {
     let categoriaPadraoId: string | null = null
     try {
       const categorias = await listarCategorias(accessToken)
+      console.log('[enviar] categorias encontradas:', categorias.length, categorias.map(c => `${c.id}:${c.nome}`).join(', '))
       if (categorias && categorias.length > 0) {
         categoriaPadraoId = categorias[0].id
       }
     } catch (e) {
       console.warn('[categorias] não foi possível buscar:', e)
+    }
+
+    if (!categoriaPadraoId) {
+      return NextResponse.json({
+        error: 'Nenhuma categoria financeira encontrada no Conta Azul. Acesse o Conta Azul e crie pelo menos uma categoria financeira (Ex: "Despesas Operacionais").'
+      }, { status: 400 })
     }
 
     // Buscar contas pendentes - limitar para evitar timeout
@@ -145,17 +152,16 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Adicionar rateio obrigatório (v2)
-        if (categoriaPadraoId) {
-          payload.rateio = [{
-            categoria_id: categoriaPadraoId,
-            valor: Number(conta.valor)
-          }]
-        }
+        // Rateio é OBRIGATÓRIO na API v2 - sempre incluir
+        payload.rateio = [{
+          categoria_id: categoriaPadraoId,
+          valor: Number(conta.valor)
+        }]
 
         if (contatoId) payload.contato = contatoId
         if (contaFinanceiraId) payload.conta_financeira = contaFinanceiraId
 
+        console.log('[enviar] payload:', JSON.stringify(payload).substring(0, 500))
         const resposta = await criarContaPagar(accessToken, payload as never)
 
         await supabaseAdmin
