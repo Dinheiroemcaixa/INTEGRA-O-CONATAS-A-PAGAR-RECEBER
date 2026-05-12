@@ -224,7 +224,8 @@ function EmpresasPageContent() {
         .insert({ 
           id: empresaId,
           nome: form.nome.trim(), 
-          cnpj: cnpjLimpo 
+          cnpj: cnpjLimpo,
+          created_by: user.id
         })
 
       if (errEmp) throw errEmp
