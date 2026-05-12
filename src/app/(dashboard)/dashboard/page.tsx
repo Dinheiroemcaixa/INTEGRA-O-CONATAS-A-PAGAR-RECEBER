@@ -6,9 +6,10 @@ import { useEffect, useState } from 'react'
 import { formatCurrency } from '@/lib/utils'
 import {
   ArrowDownCircle, Clock, CheckCircle, AlertCircle,
-  TrendingUp, Building2, Plus, Upload
+  TrendingUp, Building2, Plus, Upload, Trash2, Loader2
 } from 'lucide-react'
 import Link from 'next/link'
+import toast from 'react-hot-toast'
 
 interface Stats {
   totalPendente: number
@@ -25,6 +26,7 @@ export default function DashboardPage() {
     valorPendente: 0, valorEnviado: 0,
   })
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState<string | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
@@ -55,6 +57,29 @@ export default function DashboardPage() {
       }
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleLimparStatus = async (status: 'pendente' | 'erro') => {
+    const label = status === 'pendente' ? 'pendentes' : 'com erro'
+    if (!confirm(`Tem certeza que deseja apagar todos os registros ${label}?`)) return
+    
+    setDeleting(status)
+    try {
+      const { error } = await supabase
+        .from('contas_pagar_importadas')
+        .delete()
+        .eq('empresa_id', empresaAtiva!.id)
+        .eq('status', status)
+
+      if (error) throw error
+      
+      toast.success(`Registros ${label} removidos com sucesso!`)
+      await carregarStats()
+    } catch (err: any) {
+      toast.error('Erro ao remover registros: ' + err.message)
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -123,13 +148,34 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {cards.map((card) => {
           const Icon = card.icon
+          const isPendente = card.title.includes('Pendentes')
+          const isErro = card.title.includes('Erro')
+          const canDelete = (isPendente && stats.totalPendente > 0) || (isErro && stats.totalErro > 0)
+          const statusParaDeletar = isPendente ? 'pendente' : 'erro'
+
           return (
             <div key={card.title}
-              className={`bg-dark-800 border ${card.border} rounded-xl p-5 flex flex-col gap-3`}>
+              className={`bg-dark-800 border ${card.border} rounded-xl p-5 flex flex-col gap-3 relative group`}>
               <div className="flex items-center justify-between">
                 <p className="text-dark-400 text-sm font-medium">{card.title}</p>
-                <div className={`${card.bg} rounded-lg p-2`}>
-                  <Icon size={18} className={card.color} />
+                <div className="flex items-center gap-2">
+                  {canDelete && (
+                    <button
+                      onClick={() => handleLimparStatus(statusParaDeletar as any)}
+                      disabled={deleting !== null}
+                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
+                      title="Apagar estes registros"
+                    >
+                      {deleting === statusParaDeletar ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={16} />
+                      )}
+                    </button>
+                  )}
+                  <div className={`${card.bg} rounded-lg p-2`}>
+                    <Icon size={18} className={card.color} />
+                  </div>
                 </div>
               </div>
               <div>
