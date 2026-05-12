@@ -207,7 +207,8 @@ export async function criarContaPagar(
 
   if (!res.ok) {
     const errBody = await res.text()
-    const mensagem = `HTTP_${res.status}__PAYLOAD:${JSON.stringify(payload)}__RESPONSE:${errBody}`
+    // Mostrar a resposta da API primeiro (mais útil para debug)
+    const mensagem = `[${res.status}] ${errBody}`
     throw new Error(mensagem)
   }
 

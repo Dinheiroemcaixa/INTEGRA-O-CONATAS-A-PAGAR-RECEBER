@@ -202,8 +202,8 @@ export default function TabelaContas({ empresaId }: Props) {
                           {cfg.label}
                         </span>
                         {conta.status === 'erro' && conta.erro_mensagem && (
-                          <p className="text-red-400/80 text-[10px] mt-1 max-w-[200px] truncate" title={conta.erro_mensagem}>
-                            {conta.erro_mensagem.substring(0, 80)}{conta.erro_mensagem.length > 80 ? '...' : ''}
+                          <p className="text-red-400/80 text-[10px] mt-1 max-w-[300px] break-words" title={conta.erro_mensagem}>
+                            {conta.erro_mensagem.substring(0, 150)}{conta.erro_mensagem.length > 150 ? '...' : ''}
                           </p>
                         )}
                       </td>
