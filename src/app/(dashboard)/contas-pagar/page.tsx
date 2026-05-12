@@ -28,6 +28,7 @@ export default function ContasPagarPage() {
   const [salvando, setSalvando] = useState(false)
   const [gerandoXls, setGerandoXls] = useState(false)
   const [enviandoCA, setEnviandoCA] = useState(false)
+  const [refreshContas, setRefreshContas] = useState(0)
   const [filtroPreview, setFiltroPreview] = useState<'todos' | 'erro' | 'revisao'>('todos')
   const supabase = createClient()
 
@@ -636,6 +637,7 @@ export default function ContasPagarPage() {
                     toast.error(err.message || 'Erro ao enviar para o Conta Azul')
                   } finally {
                     setEnviandoCA(false)
+                    setRefreshContas(prev => prev + 1)
                   }
                 }}
                 disabled={enviandoCA}
@@ -654,7 +656,7 @@ export default function ContasPagarPage() {
               </button>
             </div>
           </div>
-          <TabelaContas empresaId={empresaAtiva?.id} />
+          <TabelaContas key={refreshContas} empresaId={empresaAtiva?.id} />
         </div>
       )}
     </div>
