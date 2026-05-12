@@ -57,8 +57,8 @@ export default function Sidebar() {
             <Zap size={18} className="text-white" />
           </div>
           <div>
-            <p className="text-white font-bold text-sm leading-tight">Dinheiro em Caixa</p>
-            <p className="text-dark-500 text-xs">BPO Financeiro</p>
+            <p className="text-white font-bold text-sm leading-tight">Connecta AI</p>
+            <p className="text-dark-500 text-[10px] uppercase tracking-wider">Inteligência Financeira</p>
           </div>
         </div>
       </div>

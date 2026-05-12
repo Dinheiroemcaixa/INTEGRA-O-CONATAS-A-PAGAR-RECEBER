@@ -6,8 +6,8 @@ import { Toaster } from 'react-hot-toast'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'BPO Financeiro | Dinheiro em Caixa',
-  description: 'Sistema de Gestão Financeira para BPO',
+  title: 'Connecta AI | Gestão Financeira Inteligente',
+  description: 'Sistema de Integração e Automação Financeira BPO',
 }
 
 export default function RootLayout({

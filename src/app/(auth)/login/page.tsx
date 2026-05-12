@@ -77,8 +77,8 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-600 rounded-2xl mb-4 shadow-lg shadow-brand-900/50">
             <span className="text-2xl font-bold text-white">$</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">Dinheiro em Caixa</h1>
-          <p className="text-dark-400 mt-1 text-sm">BPO Financeiro — Gestão Inteligente</p>
+          <h1 className="text-2xl font-bold text-white">Connecta AI</h1>
+          <p className="text-dark-400 mt-1 text-sm">Inteligência Artificial para BPO Financeiro</p>
         </div>
 
         <div className="bg-dark-800 rounded-2xl border border-dark-700 p-8 shadow-2xl">
