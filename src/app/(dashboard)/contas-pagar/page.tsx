@@ -9,7 +9,7 @@ import TabelaContas from '@/components/upload/TabelaContas'
 import type { ContaPagarPreview, ResultadoImportacao } from '@/types'
 import {
   Upload, Save, ArrowLeft, Loader2,
-  CheckCircle, AlertCircle, FileDown, Trash2
+  CheckCircle, AlertCircle, FileDown, Trash2, Send
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -27,6 +27,7 @@ export default function ContasPagarPage() {
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set())
   const [salvando, setSalvando] = useState(false)
   const [gerandoXls, setGerandoXls] = useState(false)
+  const [enviandoCA, setEnviandoCA] = useState(false)
   const [filtroPreview, setFiltroPreview] = useState<'todos' | 'erro' | 'revisao'>('todos')
   const supabase = createClient()
 
@@ -599,19 +600,61 @@ export default function ContasPagarPage() {
       {/* ETAPA 3: Contas Salvas */}
       {etapa === 'contas' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <h2 className="text-lg font-semibold text-white">Contas Importadas</h2>
-            <button
-              onClick={() => handleBaixarXls('salvas')}
-              disabled={gerandoXls}
-              className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all"
-            >
-              {gerandoXls ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
-              Exportar XLS para ContaAzul
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={async () => {
+                  if (!empresaAtiva) { toast.error('Selecione uma empresa'); return }
+                  if (!empresaAtiva.access_token_conta_azul) {
+                    toast.error('Empresa não está conectada ao Conta Azul. Vá em Empresas e conecte primeiro.')
+                    return
+                  }
+                  if (!confirm('Enviar todas as contas PENDENTES para o Conta Azul?')) return
+                  setEnviandoCA(true)
+                  try {
+                    const res = await fetch('/api/conta-azul/enviar', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ empresa_id: empresaAtiva.id, limite: 50 }),
+                    })
+                    const data = await res.json()
+                    if (!res.ok) throw new Error(data.error || 'Erro ao enviar')
+                    if (data.enviados > 0) {
+                      toast.success(`${data.enviados} contas enviadas com sucesso!`, { duration: 5000 })
+                    }
+                    if (data.erros > 0) {
+                      toast.error(`${data.erros} contas com erro. Verifique o status na tabela.`, { duration: 5000 })
+                    }
+                    if (data.enviados === 0 && data.erros === 0) {
+                      toast('Nenhuma conta pendente para enviar.', { icon: 'ℹ️' })
+                    }
+                    if (data.pendentes_restantes > 0) {
+                      toast(`Ainda restam ${data.pendentes_restantes} pendentes. Clique novamente para enviar mais.`, { icon: '📋', duration: 5000 })
+                    }
+                  } catch (err: any) {
+                    toast.error(err.message || 'Erro ao enviar para o Conta Azul')
+                  } finally {
+                    setEnviandoCA(false)
+                  }
+                }}
+                disabled={enviandoCA}
+                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-blue-900/20"
+              >
+                {enviandoCA ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                {enviandoCA ? 'Enviando...' : 'Enviar ao Conta Azul'}
+              </button>
+              <button
+                onClick={() => handleBaixarXls('salvas')}
+                disabled={gerandoXls}
+                className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all"
+              >
+                {gerandoXls ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+                Exportar XLS para ContaAzul
+              </button>
+            </div>
           </div>
           <TabelaContas empresaId={empresaAtiva?.id} />
-
         </div>
       )}
     </div>
