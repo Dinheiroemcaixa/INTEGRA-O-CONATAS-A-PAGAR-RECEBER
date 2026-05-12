@@ -36,7 +36,7 @@ export function exportarParaContaAzulXls(
   contas: ContaPagarPreview[],
   opcoes: OpcoeExportacao = {}
 ): void {
-  const { categoria = '', centroCusto = '' } = opcoes
+  const { categoria = 'Materiais para Revenda', centroCusto = '' } = opcoes
 
   const linhas = contas.map((conta) => {
     const vencimento = formatarData(conta.vencimento)

@@ -13,6 +13,7 @@ interface Props {
   onToggleTodos: () => void
   onRemover: (idx: number) => void
   onUpdateFornecedor: (idx: number, novoNome: string) => void
+  onUpdateCategoria: (idx: number, novaCategoria: string) => void
 }
 
 function BadgeMatch({ confianca, score }: { confianca: string; score: number }) {
@@ -41,7 +42,7 @@ function BadgeMatch({ confianca, score }: { confianca: string; score: number }) 
 
 
 export default function TabelaPreview({
-  dados, filtro, selecionados, onToggle, onToggleTodos, onRemover, onUpdateFornecedor
+  dados, filtro, selecionados, onToggle, onToggleTodos, onRemover, onUpdateFornecedor, onUpdateCategoria
 }: Props) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
   
@@ -178,12 +179,17 @@ export default function TabelaPreview({
                     {item.vencimento ? formatDate(item.vencimento) : '---'}
                   </td>
                   <td className="text-dark-300 text-xs">
-                    <span className={cn(
-                      "px-2 py-0.5 rounded-full border",
-                      item.categoria ? "bg-brand-500/10 border-brand-500/20 text-brand-400" : "bg-dark-700 border-dark-600 text-dark-500"
-                    )}>
-                      {item.categoria || 'Sem categoria'}
-                    </span>
+                    <input 
+                      type="text"
+                      defaultValue={item.categoria || 'Materiais para Revenda'}
+                      onBlur={(e) => {
+                        const val = e.target.value.trim()
+                        if (val && val !== item.categoria) {
+                          onUpdateCategoria(idx, val)
+                        }
+                      }}
+                      className="bg-dark-900 border border-dark-600 rounded px-2 py-1 text-xs w-full focus:ring-1 focus:ring-brand-500 outline-none transition-all"
+                    />
                   </td>
                   <td className="text-dark-400 text-xs max-w-[200px] truncate" title={item.descricao}>
                     {item.descricao || '---'}

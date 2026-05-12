@@ -62,7 +62,7 @@ export default function ContasPagarPage() {
             return {
               ...d,
               fornecedor: deveCorrigirAuto ? match.nomeCorrigido : d.fornecedor,
-              categoria: match.categoria || d.categoria,
+              categoria: match.categoria || 'Materiais para Revenda',
               matchFornecedor: match,
             }
           })
@@ -286,6 +286,7 @@ export default function ContasPagarPage() {
   }
 
   const updateFornecedor = useCallback((idx: number, novoNome: string) => {
+    // ... (mesmo código anterior, mas incluí aqui para contexto de onde inserir a nova função)
     setDadosEditados((prev) => {
       const next = [...prev]
       const original = next[idx].matchFornecedor?.nomeOriginal || next[idx].fornecedor
@@ -305,6 +306,32 @@ export default function ContasPagarPage() {
       return next
     })
   }, [])
+
+  const updateCategoria = useCallback(async (idx: number, novaCategoria: string) => {
+    setDadosEditados((prev) => {
+      const next = [...prev]
+      next[idx] = { ...next[idx], categoria: novaCategoria }
+      return next
+    })
+
+    // Lógica de "Aprendizado": Salvar no banco para este fornecedor
+    if (empresaAtiva) {
+      const conta = dadosEditados[idx]
+      const nomeFornecedor = conta.matchFornecedor?.nomeCorrigido || conta.fornecedor
+      
+      try {
+        await supabase
+          .from('fornecedores_contaazul')
+          .update({ categoria_padrao: novaCategoria })
+          .eq('empresa_id', empresaAtiva.id)
+          .eq('nome', nomeFornecedor)
+        
+        toast.success(`Categoria '${novaCategoria}' salva para ${nomeFornecedor}`, { id: 'learn-cat' })
+      } catch (err) {
+        console.error('Erro ao salvar categoria padrão:', err)
+      }
+    }
+  }, [empresaAtiva, dadosEditados, supabase])
 
   const valorSelecionado = dadosEditados
     .filter((_, i) => selecionados.has(i))
@@ -486,6 +513,7 @@ export default function ContasPagarPage() {
             onToggleTodos={toggleTodos}
             onRemover={removerItem}
             onUpdateFornecedor={updateFornecedor}
+            onUpdateCategoria={updateCategoria}
           />
 
 
