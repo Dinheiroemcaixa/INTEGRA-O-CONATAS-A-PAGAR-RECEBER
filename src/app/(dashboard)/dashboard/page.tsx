@@ -64,7 +64,7 @@ export default function DashboardPage() {
         <Building2 size={48} className="text-dark-600" />
         <h2 className="text-xl font-semibold text-white">Nenhuma empresa cadastrada</h2>
         <p className="text-dark-400 text-sm">Crie sua primeira empresa para começar</p>
-        <Link href="/empresas/nova"
+        <Link href="/empresas?new=true"
           className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all">
           <Plus size={18} /> Criar empresa
         </Link>

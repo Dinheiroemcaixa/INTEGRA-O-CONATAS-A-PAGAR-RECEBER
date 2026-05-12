@@ -163,6 +163,12 @@ function EmpresasPageContent() {
   useEffect(() => {
     const sucesso = searchParams.get('sucesso')
     const erro = searchParams.get('erro')
+    const isNew = searchParams.get('new')
+
+    if (isNew === 'true') {
+      setShowForm(true)
+    }
+
     if (sucesso === 'conta_azul_conectado') {
       toast.success('Conta Azul conectado com sucesso!')
       recarregar()
