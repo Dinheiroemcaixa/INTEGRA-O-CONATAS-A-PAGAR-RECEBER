@@ -27,6 +27,7 @@ export default function ContasPagarPage() {
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set())
   const [salvando, setSalvando] = useState(false)
   const [gerandoXls, setGerandoXls] = useState(false)
+  const [filtroPreview, setFiltroPreview] = useState<'todos' | 'erro' | 'revisao'>('todos')
   const supabase = createClient()
 
   const handleResultado = useCallback(async (res: ResultadoImportacao) => {
@@ -114,6 +115,26 @@ export default function ContasPagarPage() {
       prev.forEach((i) => { if (i < idx) next.add(i); else if (i > idx) next.add(i - 1) })
       return next
     })
+  }
+
+  const excluirTudoFiltrado = () => {
+    const indicesParaRemover = dadosEditados
+      .map((d, i) => ({ d, i }))
+      .filter(({ d }) => {
+        if (filtroPreview === 'erro') return !d.valido
+        if (filtroPreview === 'revisao') return d.valido && d.matchFornecedor && d.matchFornecedor.confianca !== 'exato'
+        return true
+      })
+      .map(({ i }) => i)
+
+    if (indicesParaRemover.length === 0) return
+    if (!confirm(`Deseja remover todos os ${indicesParaRemover.length} registros selecionados pelo filtro?`)) return
+
+    const novosDados = dadosEditados.filter((_, i) => !indicesParaRemover.includes(i))
+    setDadosEditados(novosDados)
+    setSelecionados(new Set())
+    setFiltroPreview('todos')
+    toast.success('Registros removidos')
   }
 
   const handleSalvar = async () => {
@@ -351,29 +372,91 @@ export default function ContasPagarPage() {
       {/* ETAPA 2: Preview */}
       {etapa === 'preview' && resultado && (
         <div className="space-y-4">
-          {/* Resumo */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-dark-800 border border-dark-700 rounded-xl p-4">
-              <p className="text-dark-400 text-xs mb-1">Total encontrado</p>
-              <p className="text-white text-2xl font-bold">{resultado.total}</p>
-            </div>
+          {/* Resumo / Filtros */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <button
+              onClick={() => setFiltroPreview('todos')}
+              className={cn(
+                "bg-dark-800 border rounded-xl p-4 text-left transition-all",
+                filtroPreview === 'todos' ? "border-brand-500 ring-1 ring-brand-500" : "border-dark-700 hover:border-dark-500"
+              )}
+            >
+              <p className="text-dark-400 text-xs mb-1">Total</p>
+              <p className="text-white text-2xl font-bold">{dadosEditados.length}</p>
+            </button>
+
             <div className="bg-dark-800 border border-green-500/20 rounded-xl p-4">
-              <p className="text-dark-400 text-xs mb-1">Válidos</p>
-              <p className="text-green-400 text-2xl font-bold">{resultado.validos}</p>
+              <p className="text-dark-400 text-xs mb-1">Confirmados</p>
+              <p className="text-green-400 text-2xl font-bold">
+                {dadosEditados.filter(d => d.valido && (!d.matchFornecedor || d.matchFornecedor.confianca === 'exato')).length}
+              </p>
             </div>
-            <div className="bg-dark-800 border border-red-500/20 rounded-xl p-4">
-              <p className="text-dark-400 text-xs mb-1">Com erro</p>
-              <p className="text-red-400 text-2xl font-bold">{resultado.invalidos}</p>
-            </div>
+
+            <button
+              onClick={() => setFiltroPreview('revisao')}
+              className={cn(
+                "bg-dark-800 border rounded-xl p-4 text-left transition-all",
+                filtroPreview === 'revisao' ? "border-yellow-500 ring-1 ring-yellow-500" : "border-yellow-500/20 hover:border-yellow-500/40"
+              )}
+            >
+              <p className="text-yellow-500/70 text-xs mb-1">Amarelas (Revisar)</p>
+              <p className="text-yellow-400 text-2xl font-bold">
+                {dadosEditados.filter(d => d.valido && d.matchFornecedor && d.matchFornecedor.confianca !== 'exato').length}
+              </p>
+            </button>
+
+            <button
+              onClick={() => setFiltroPreview('erro')}
+              className={cn(
+                "bg-dark-800 border rounded-xl p-4 text-left transition-all",
+                filtroPreview === 'erro' ? "border-red-500 ring-1 ring-red-500" : "border-red-500/20 hover:border-red-500/40"
+              )}
+            >
+              <p className="text-red-500/70 text-xs mb-1">Vermelhas (Erro)</p>
+              <p className="text-red-400 text-2xl font-bold">
+                {dadosEditados.filter(d => !d.valido).length}
+              </p>
+            </button>
+
             <div className="bg-dark-800 border border-brand-500/20 rounded-xl p-4">
               <p className="text-dark-400 text-xs mb-1">Valor selecionado</p>
               <p className="text-brand-400 text-xl font-bold">{formatCurrency(valorSelecionado)}</p>
             </div>
           </div>
 
+          {/* Barra de Ação de Filtro */}
+          {filtroPreview !== 'todos' && (
+            <div className="bg-dark-800 border border-dark-700 px-4 py-2 rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className={cn(
+                  "w-2 h-2 rounded-full animate-pulse",
+                  filtroPreview === 'erro' ? "bg-red-500" : "bg-yellow-500"
+                )} />
+                <p className="text-sm text-dark-300">
+                  Filtrando por: <span className="font-bold uppercase">{filtroPreview === 'erro' ? 'Vermelhas' : 'Amarelas'}</span>
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={excluirTudoFiltrado}
+                  className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 font-medium"
+                >
+                  <Trash2 size={14} /> Excluir tudo do filtro
+                </button>
+                <button 
+                  onClick={() => setFiltroPreview('todos')}
+                  className="text-xs text-dark-400 hover:text-white"
+                >
+                  Limpar filtro
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Tabela de preview */}
           <TabelaPreview
-            dados={dadosEditados}
+            dados={dadosEditados.map((d, i) => ({ ...d, originalIdx: i }))}
+            filtro={filtroPreview}
             selecionados={selecionados}
             onToggle={toggleItem}
             onToggleTodos={toggleTodos}

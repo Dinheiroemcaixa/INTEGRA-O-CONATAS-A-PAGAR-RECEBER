@@ -6,7 +6,8 @@ import { cn } from '@/lib/utils'
 import SelectorFornecedor from './SelectorFornecedor'
 
 interface Props {
-  dados: ContaPagarPreview[]
+  dados: (ContaPagarPreview & { originalIdx?: number })[]
+  filtro: 'todos' | 'erro' | 'revisao'
   selecionados: Set<number>
   onToggle: (idx: number) => void
   onToggleTodos: () => void
@@ -40,10 +41,17 @@ function BadgeMatch({ confianca, score }: { confianca: string; score: number }) 
 
 
 export default function TabelaPreview({
-  dados, selecionados, onToggle, onToggleTodos, onRemover, onUpdateFornecedor
+  dados, filtro, selecionados, onToggle, onToggleTodos, onRemover, onUpdateFornecedor
 }: Props) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
   
+  // Filtrar os dados para exibição
+  const dadosFiltrados = dados.filter(d => {
+    if (filtro === 'erro') return !d.valido
+    if (filtro === 'revisao') return d.valido && d.matchFornecedor && d.matchFornecedor.confianca !== 'exato'
+    return true
+  })
+
   const todosSelecionados = selecionados.size === dados.length && dados.length > 0
   const algunsSelecionados = selecionados.size > 0 && selecionados.size < dados.length
   const temMatch = dados.some((d) => d.matchFornecedor)
@@ -57,8 +65,7 @@ export default function TabelaPreview({
       {/* Header da tabela */}
       <div className="px-4 py-3 border-b border-dark-700 flex items-center justify-between flex-wrap gap-2">
         <p className="text-sm text-dark-400">
-          <span className="text-white font-semibold">{selecionados.size}</span> de{' '}
-          <span className="text-white font-semibold">{dados.length}</span> registros selecionados
+          Mostrando <span className="text-white font-semibold">{dadosFiltrados.length}</span> de <span className="text-white font-semibold">{dados.length}</span> registros
         </p>
         <div className="flex items-center gap-3 flex-wrap">
           {temMatch && corrigidos > 0 && (
@@ -102,7 +109,8 @@ export default function TabelaPreview({
             </tr>
           </thead>
           <tbody>
-            {dados.map((item, idx) => {
+            {dadosFiltrados.map((item) => {
+              const idx = item.originalIdx ?? 0
               const match = item.matchFornecedor
               const foiCorrigido = match && match.nomeOriginal !== match.nomeCorrigido
                 && (match.confianca === 'exato' || match.confianca === 'alto')
