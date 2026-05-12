@@ -14,6 +14,8 @@ interface Props {
   onRemover: (idx: number) => void
   onUpdateFornecedor: (idx: number, novoNome: string) => void
   onUpdateCategoria: (idx: number, novaCategoria: string) => void
+  onRemoverLote: (indices: number[]) => void
+  onUpdateCategoriaLote: (indices: number[], novaCategoria: string) => void
 }
 
 function BadgeMatch({ confianca, score }: { confianca: string; score: number }) {
@@ -42,14 +44,27 @@ function BadgeMatch({ confianca, score }: { confianca: string; score: number }) 
 
 
 export default function TabelaPreview({
-  dados, filtro, selecionados, onToggle, onToggleTodos, onRemover, onUpdateFornecedor, onUpdateCategoria
+  dados, filtro, selecionados, onToggle, onToggleTodos, onRemover, onUpdateFornecedor, onUpdateCategoria,
+  onRemoverLote, onUpdateCategoriaLote
 }: Props) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
+  const [buscaFornecedor, setBuscaFornecedor] = useState('')
+  const [buscaCategoria, setBuscaCategoria] = useState('')
+  const [buscaValor, setBuscaValor] = useState('')
+  const [loteCategoria, setLoteCategoria] = useState('')
+  const [showBulkEdit, setShowBulkEdit] = useState(false)
   
   // Filtrar os dados para exibição
   const dadosFiltrados = dados.filter(d => {
-    if (filtro === 'erro') return !d.valido
-    if (filtro === 'revisao') return d.valido && d.matchFornecedor && d.matchFornecedor.confianca !== 'exato'
+    // Filtro de status (bolinhas)
+    if (filtro === 'erro' && d.valido) return false
+    if (filtro === 'revisao' && (!d.valido || !d.matchFornecedor || d.matchFornecedor.confianca === 'exato')) return false
+    
+    // Filtros de texto/valor
+    if (buscaFornecedor && !d.fornecedor.toLowerCase().includes(buscaFornecedor.toLowerCase())) return false
+    if (buscaCategoria && ! (d.categoria || 'Materiais para Revenda').toLowerCase().includes(buscaCategoria.toLowerCase())) return false
+    if (buscaValor && !d.valor.toString().includes(buscaValor)) return false
+    
     return true
   })
 
@@ -64,28 +79,110 @@ export default function TabelaPreview({
   return (
     <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden">
       {/* Header da tabela */}
-      <div className="px-4 py-3 border-b border-dark-700 flex items-center justify-between flex-wrap gap-2">
-        <p className="text-sm text-dark-400">
-          Mostrando <span className="text-white font-semibold">{dadosFiltrados.length}</span> de <span className="text-white font-semibold">{dados.length}</span> registros
-        </p>
-        <div className="flex items-center gap-3 flex-wrap">
-          {temMatch && corrigidos > 0 && (
-            <span className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">
-              <CheckCircle size={11} />
-              {corrigidos} fornecedores corrigidos
+      <div className="px-4 py-3 border-b border-dark-700 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <p className="text-sm text-dark-400">
+            Mostrando <span className="text-white font-semibold">{dadosFiltrados.length}</span> de <span className="text-white font-semibold">{dados.length}</span> registros
+          </p>
+          <div className="flex items-center gap-3 flex-wrap">
+            {temMatch && corrigidos > 0 && (
+              <span className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">
+                <CheckCircle size={11} />
+                {corrigidos} fornecedores corrigidos
+              </span>
+            )}
+            <span className="flex items-center gap-1.5 text-xs text-green-400">
+              <CheckCircle size={12} />
+              {dados.filter((d) => d.valido).length} válidos
             </span>
-          )}
-          <span className="flex items-center gap-1.5 text-xs text-green-400">
-            <CheckCircle size={12} />
-            {dados.filter((d) => d.valido).length} válidos
-          </span>
-          {dados.filter((d) => !d.valido).length > 0 && (
-            <span className="flex items-center gap-1.5 text-xs text-red-400">
-              <AlertCircle size={12} />
-              {dados.filter((d) => !d.valido).length} com erro
-            </span>
-          )}
+            {dados.filter((d) => !d.valido).length > 0 && (
+              <span className="flex items-center gap-1.5 text-xs text-red-400">
+                <AlertCircle size={12} />
+                {dados.filter((d) => !d.valido).length} com erro
+              </span>
+            )}
+          </div>
         </div>
+
+        {/* Barra de Filtros Pesquisa */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="relative">
+            <input 
+              type="text" 
+              placeholder="Filtrar fornecedor..."
+              value={buscaFornecedor}
+              onChange={(e) => setBuscaFornecedor(e.target.value)}
+              className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:ring-1 focus:ring-brand-500"
+            />
+          </div>
+          <div className="relative">
+            <input 
+              type="text" 
+              placeholder="Filtrar categoria..."
+              value={buscaCategoria}
+              onChange={(e) => setBuscaCategoria(e.target.value)}
+              className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:ring-1 focus:ring-brand-500"
+            />
+          </div>
+          <div className="relative">
+            <input 
+              type="text" 
+              placeholder="Filtrar valor..."
+              value={buscaValor}
+              onChange={(e) => setBuscaValor(e.target.value)}
+              className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:ring-1 focus:ring-brand-500"
+            />
+          </div>
+        </div>
+
+        {/* Painel de Edição em Lote */}
+        {selecionados.size > 0 && (
+          <div className="bg-brand-600/10 border border-brand-600/30 rounded-lg p-3 flex items-center justify-between animate-in slide-in-from-top-2">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold text-brand-400">{selecionados.size} selecionados</span>
+              <div className="h-4 w-px bg-dark-600" />
+              {showBulkEdit ? (
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="text" 
+                    placeholder="Nova categoria para todos..."
+                    value={loteCategoria}
+                    onChange={(e) => setLoteCategoria(e.target.value)}
+                    className="bg-dark-900 border border-dark-600 rounded px-2 py-1 text-xs text-white outline-none"
+                  />
+                  <button 
+                    onClick={() => {
+                      onUpdateCategoriaLote(Array.from(selecionados), loteCategoria)
+                      setShowBulkEdit(false)
+                      setLoteCategoria('')
+                    }}
+                    className="bg-brand-600 text-white px-3 py-1 rounded text-[10px] font-bold"
+                  >
+                    Aplicar
+                  </button>
+                  <button onClick={() => setShowBulkEdit(false)} className="text-dark-400 text-[10px]">Cancelar</button>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => setShowBulkEdit(true)}
+                  className="text-xs text-brand-400 hover:text-brand-300 font-semibold flex items-center gap-1"
+                >
+                  <Edit2 size={12} /> Alterar Categoria em Lote
+                </button>
+              )}
+            </div>
+            <button 
+              onClick={() => {
+                if (confirm(`Remover todos os ${selecionados.size} itens selecionados?`)) {
+                  onRemoverLote(Array.from(selecionados))
+                }
+              }}
+              className="text-xs text-red-400 hover:text-red-300 font-semibold flex items-center gap-1"
+            >
+              <Trash2 size={12} /> Excluir selecionados
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="overflow-x-auto">

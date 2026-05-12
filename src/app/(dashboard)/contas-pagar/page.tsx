@@ -335,6 +335,48 @@ export default function ContasPagarPage() {
     }
   }, [empresaAtiva, dadosEditados, supabase])
 
+  const removerEmLote = (indices: number[]) => {
+    const novosDados = dadosEditados.filter((_, i) => !indices.includes(i))
+    setDadosEditados(novosDados)
+    setSelecionados(new Set())
+    toast.success(`${indices.length} registros removidos`)
+  }
+
+  const updateCategoriaEmLote = async (indices: number[], novaCategoria: string) => {
+    if (!novaCategoria.trim()) return
+
+    setDadosEditados((prev) => {
+      const next = [...prev]
+      indices.forEach(idx => {
+        next[idx] = { ...next[idx], categoria: novaCategoria }
+      })
+      return next
+    })
+
+    // Lógica de "Aprendizado" em Lote
+    if (empresaAtiva) {
+      const fornecedoresAfetados = Array.from(new Set(
+        indices.map(idx => {
+          const d = dadosEditados[idx]
+          return d.matchFornecedor?.nomeCorrigido || d.fornecedor
+        })
+      ))
+
+      try {
+        await supabase
+          .from('fornecedores_contaazul')
+          .update({ categoria_padrao: novaCategoria })
+          .eq('empresa_id', empresaAtiva.id)
+          .in('nome', fornecedoresAfetados)
+        
+        toast.success(`Categoria salva para ${fornecedoresAfetados.length} fornecedores`, { id: 'learn-cat-lote' })
+      } catch (err) {
+        console.error('Erro ao salvar categoria padrão em lote:', err)
+      }
+    }
+    setSelecionados(new Set())
+  }
+
   const valorSelecionado = dadosEditados
     .filter((_, i) => selecionados.has(i))
     .reduce((s, d) => s + d.valor, 0)
@@ -516,6 +558,8 @@ export default function ContasPagarPage() {
             onRemover={removerItem}
             onUpdateFornecedor={updateFornecedor}
             onUpdateCategoria={updateCategoria}
+            onRemoverLote={removerEmLote}
+            onUpdateCategoriaLote={updateCategoriaEmLote}
           />
 
 
