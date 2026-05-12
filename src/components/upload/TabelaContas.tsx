@@ -160,6 +160,7 @@ export default function TabelaContas({ empresaId }: Props) {
                   <th>Fornecedor</th>
                   <th className="text-right">Valor</th>
                   <th>Vencimento</th>
+                  <th>Categoria</th>
                   <th>Descrição</th>
                   <th className="text-center">Status</th>
                   <th className="w-10"></th>
@@ -181,6 +182,11 @@ export default function TabelaContas({ empresaId }: Props) {
                       </td>
                       <td>
                         <span className="text-dark-300">{formatDate(conta.vencimento)}</span>
+                      </td>
+                      <td>
+                        <span className="text-dark-400 text-xs px-2 py-0.5 rounded-full bg-dark-700 border border-dark-600">
+                          {conta.categoria || 'Materiais para Revenda'}
+                        </span>
                       </td>
                       <td>
                         <span className="text-dark-400 text-xs truncate max-w-[180px] block">

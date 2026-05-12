@@ -153,6 +153,7 @@ export default function ContasPagarPage() {
           fornecedor: (d.matchFornecedor?.nomeCorrigido || d.fornecedor).trim(),
           valor: d.valor,
           vencimento: d.vencimento || new Date().toISOString().split('T')[0],
+          categoria: d.categoria || 'Materiais para Revenda',
           descricao: d.descricao || null,
           doc: d.doc || null,
           emissao: d.emissao || null,
@@ -255,7 +256,8 @@ export default function ContasPagarPage() {
             fornecedor: fornecedorFinal,
             valor: Number(c.valor),
             vencimento: c.vencimento,
-            categoria: match?.categoria || undefined,
+            // Prioriza a categoria salva no banco, senão tenta o match, senão fallback global
+            categoria: c.categoria || match?.categoria || 'Materiais para Revenda',
             descricao: c.descricao || undefined,
             doc: c.doc || undefined,
             emissao: c.emissao || undefined,

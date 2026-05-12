@@ -24,6 +24,7 @@ export interface ContaPagarImportada {
   fornecedor: string
   valor: number
   vencimento: string
+  categoria: string | null
   descricao: string | null
   doc: string | null
   emissao: string | null
