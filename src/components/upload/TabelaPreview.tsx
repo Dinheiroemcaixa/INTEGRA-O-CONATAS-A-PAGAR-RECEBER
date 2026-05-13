@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { ContaPagarPreview } from '@/types'
-import { CheckCircle, AlertCircle, Trash2, Edit2 } from 'lucide-react'
+import { CheckCircle, AlertCircle, Trash2, Edit2, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import SelectorFornecedor from './SelectorFornecedor'
+import SelectorCategoria from './SelectorCategoria'
+import SelectorContaFinanceira from './SelectorContaFinanceira'
+import { LISTA_CATEGORIAS_FLAT, CONTAS_FINANCEIRAS_PADRAO } from '@/lib/conta-azul/constants'
 
 interface Props {
   dados: (ContaPagarPreview & { originalIdx?: number })[]
@@ -14,8 +17,10 @@ interface Props {
   onRemover: (idx: number) => void
   onUpdateFornecedor: (idx: number, novoNome: string) => void
   onUpdateCategoria: (idx: number, novaCategoria: string) => void
+  onUpdateConta: (idx: number, novaConta: string) => void
   onRemoverLote: (indices: number[]) => void
   onUpdateCategoriaLote: (indices: number[], novaCategoria: string) => void
+  onUpdateContaLote: (indices: number[], novaConta: string) => void
 }
 
 function BadgeMatch({ confianca, score }: { confianca: string; score: number }) {
@@ -45,14 +50,19 @@ function BadgeMatch({ confianca, score }: { confianca: string; score: number }) 
 
 export default function TabelaPreview({
   dados, filtro, selecionados, onToggle, onToggleTodos, onRemover, onUpdateFornecedor, onUpdateCategoria,
-  onRemoverLote, onUpdateCategoriaLote
+  onRemoverLote, onUpdateCategoriaLote, onUpdateConta, onUpdateContaLote
 }: Props) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
+  const [editingCatIdx, setEditingCatIdx] = useState<number | null>(null)
+  const [editingContaIdx, setEditingContaIdx] = useState<number | null>(null)
   const [buscaFornecedor, setBuscaFornecedor] = useState('')
   const [buscaCategoria, setBuscaCategoria] = useState('')
   const [buscaValor, setBuscaValor] = useState('')
   const [loteCategoria, setLoteCategoria] = useState('')
+  const [loteConta, setLoteConta] = useState('')
   const [showBulkEdit, setShowBulkEdit] = useState(false)
+  const [showBulkList, setShowBulkList] = useState(false)
+  const [showBulkContaList, setShowBulkContaList] = useState(false)
   
   // Filtrar os dados para exibição
   const dadosFiltrados = dados.filter(d => {
@@ -142,32 +152,91 @@ export default function TabelaPreview({
               <span className="text-xs font-bold text-brand-400">{selecionados.size} selecionados</span>
               <div className="h-4 w-px bg-dark-600" />
               {showBulkEdit ? (
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="text" 
-                    placeholder="Nova categoria para todos..."
-                    value={loteCategoria}
-                    onChange={(e) => setLoteCategoria(e.target.value)}
-                    className="bg-dark-900 border border-dark-600 rounded px-2 py-1 text-xs text-white outline-none"
-                  />
-                  <button 
-                    onClick={() => {
-                      onUpdateCategoriaLote(Array.from(selecionados), loteCategoria)
-                      setShowBulkEdit(false)
-                      setLoteCategoria('')
-                    }}
-                    className="bg-brand-600 text-white px-3 py-1 rounded text-[10px] font-bold"
-                  >
-                    Aplicar
-                  </button>
-                  <button onClick={() => setShowBulkEdit(false)} className="text-dark-400 text-[10px]">Cancelar</button>
+                <div className="flex items-center gap-3 flex-wrap">
+                  {/* Categoria em Lote */}
+                  <div className="flex items-center gap-2 relative">
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        placeholder="Categoria para todos..."
+                        value={loteCategoria}
+                        onChange={(e) => { setLoteCategoria(e.target.value); setShowBulkList(true) }}
+                        onFocus={() => setShowBulkList(true)}
+                        className="bg-dark-900 border border-dark-600 rounded px-2 py-1 text-xs text-white outline-none w-[160px]"
+                      />
+                      {showBulkList && (
+                        <div className="absolute z-50 mt-1 w-full bg-dark-800 border border-dark-600 rounded-lg shadow-2xl overflow-hidden max-h-[200px] overflow-y-auto">
+                          {LISTA_CATEGORIAS_FLAT.filter(c => c.toLowerCase().includes(loteCategoria.toLowerCase())).slice(0, 10).map((cat, i) => (
+                            <button
+                              key={i}
+                              onClick={() => { setLoteCategoria(cat); setShowBulkList(false) }}
+                              className="w-full text-left px-3 py-1.5 text-[10px] text-white hover:bg-brand-600/20 transition-colors"
+                            >
+                              {cat}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <button 
+                      onClick={() => {
+                        onUpdateCategoriaLote(Array.from(selecionados), loteCategoria)
+                        setShowBulkList(false)
+                        setLoteCategoria('')
+                      }}
+                      disabled={!loteCategoria}
+                      className="bg-brand-600 text-white px-2 py-1 rounded text-[10px] font-bold disabled:opacity-50"
+                    >
+                      Aplicar
+                    </button>
+                  </div>
+
+                  {/* Conta em Lote */}
+                  <div className="flex items-center gap-2 relative">
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        placeholder="Conta para todos..."
+                        value={loteConta}
+                        onChange={(e) => { setLoteConta(e.target.value); setShowBulkContaList(true) }}
+                        onFocus={() => setShowBulkContaList(true)}
+                        className="bg-dark-900 border border-dark-600 rounded px-2 py-1 text-xs text-white outline-none w-[160px]"
+                      />
+                      {showBulkContaList && (
+                        <div className="absolute z-50 mt-1 w-full bg-dark-800 border border-dark-600 rounded-lg shadow-2xl overflow-hidden max-h-[200px] overflow-y-auto">
+                          {CONTAS_FINANCEIRAS_PADRAO.filter(c => c.toLowerCase().includes(loteConta.toLowerCase())).map((cat, i) => (
+                            <button
+                              key={i}
+                              onClick={() => { setLoteConta(cat); setShowBulkContaList(false) }}
+                              className="w-full text-left px-3 py-1.5 text-[10px] text-white hover:bg-blue-600/20 transition-colors"
+                            >
+                              {cat}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <button 
+                      onClick={() => {
+                        onUpdateContaLote(Array.from(selecionados), loteConta)
+                        setShowBulkContaList(false)
+                        setLoteConta('')
+                      }}
+                      disabled={!loteConta}
+                      className="bg-blue-600 text-white px-2 py-1 rounded text-[10px] font-bold disabled:opacity-50"
+                    >
+                      Aplicar
+                    </button>
+                  </div>
+
+                  <button onClick={() => { setShowBulkEdit(false); setShowBulkList(false); setShowBulkContaList(false) }} className="text-dark-400 text-[10px]">Fechar</button>
                 </div>
               ) : (
                 <button 
                   onClick={() => setShowBulkEdit(true)}
                   className="text-xs text-brand-400 hover:text-brand-300 font-semibold flex items-center gap-1"
                 >
-                  <Edit2 size={12} /> Alterar Categoria em Lote
+                  <Edit2 size={12} /> Alterar em Lote
                 </button>
               )}
             </div>
@@ -202,6 +271,7 @@ export default function TabelaPreview({
               <th className="text-right">Valor</th>
               <th>Vencimento</th>
               <th>Categoria</th>
+              <th>Conta</th>
               <th>Descrição</th>
               <th className="text-center">Status</th>
               <th className="w-10"></th>
@@ -275,18 +345,49 @@ export default function TabelaPreview({
                   <td className="text-dark-300 text-sm">
                     {item.vencimento ? formatDate(item.vencimento) : '---'}
                   </td>
-                  <td className="text-dark-300 text-xs">
-                    <input 
-                      type="text"
-                      defaultValue={item.categoria || 'Materiais para Revenda'}
-                      onBlur={(e) => {
-                        const val = e.target.value.trim()
-                        if (val && val !== item.categoria) {
-                          onUpdateCategoria(idx, val)
-                        }
-                      }}
-                      className="bg-dark-900 border border-dark-600 rounded px-2 py-1 text-xs w-full focus:ring-1 focus:ring-brand-500 outline-none transition-all"
-                    />
+                  <td className="text-dark-300 text-xs min-w-[200px]">
+                    {editingCatIdx === idx ? (
+                      <SelectorCategoria 
+                        valorInicial={item.categoria || 'Materiais para Revenda'}
+                        onCancel={() => setEditingCatIdx(null)}
+                        onSelect={(cat) => {
+                          onUpdateCategoria(idx, cat)
+                          setEditingCatIdx(null)
+                        }}
+                      />
+                    ) : (
+                      <div 
+                        className="group flex items-center justify-between gap-2 bg-dark-900/50 border border-dark-700/50 hover:border-dark-600 rounded px-2 py-1 cursor-pointer transition-all"
+                        onClick={() => setEditingCatIdx(idx)}
+                      >
+                        <span className="truncate">
+                          {item.categoria || 'Materiais para Revenda'}
+                        </span>
+                        <ChevronDown size={12} className="text-dark-500 group-hover:text-dark-300" />
+                      </div>
+                    )}
+                  </td>
+                  <td className="text-dark-300 text-xs min-w-[180px]">
+                    {editingContaIdx === idx ? (
+                      <SelectorContaFinanceira 
+                        valorInicial={item.conta_financeira || 'Santander Barão'}
+                        onCancel={() => setEditingContaIdx(null)}
+                        onSelect={(conta) => {
+                          onUpdateConta(idx, conta)
+                          setEditingContaIdx(null)
+                        }}
+                      />
+                    ) : (
+                      <div 
+                        className="group flex items-center justify-between gap-2 bg-blue-900/10 border border-blue-500/20 hover:border-blue-500/40 rounded px-2 py-1 cursor-pointer transition-all"
+                        onClick={() => setEditingContaIdx(idx)}
+                      >
+                        <span className="truncate text-blue-300">
+                          {item.conta_financeira || 'Santander Barão'}
+                        </span>
+                        <ChevronDown size={12} className="text-blue-500 group-hover:text-blue-300" />
+                      </div>
+                    )}
                   </td>
                   <td className="text-dark-400 text-xs max-w-[200px] truncate" title={item.descricao}>
                     {item.descricao || '---'}

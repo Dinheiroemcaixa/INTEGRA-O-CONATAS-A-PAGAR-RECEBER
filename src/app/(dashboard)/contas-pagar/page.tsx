@@ -15,6 +15,7 @@ import toast from 'react-hot-toast'
 import { formatCurrency, cn } from '@/lib/utils'
 import { exportarParaContaAzulXls } from '@/lib/exporters/contaazul-xls'
 import { matchFornecedoresEmLote } from '@/lib/utils/match-fornecedor'
+import { sugerirCategoria } from '@/lib/utils/auto-categoria'
 import type { FornecedorContaAzul } from '@/lib/parsers/fornecedores-contaazul'
 
 type Etapa = 'upload' | 'preview' | 'contas'
@@ -55,16 +56,14 @@ export default function ContasPagarPage() {
 
           dadosComMatch = res.dados.map((d) => {
             const match = matchMap.get(d.fornecedor)
-            if (!match) return d
-            
-            // Se houver um match com confiança razoável (médio ou superior),
-            // já atualizamos o nome do fornecedor para que ele seja salvo corretamente
-            const deveCorrigirAuto = ['exato', 'alto', 'medio'].includes(match.confianca)
+            const deveCorrigirAuto = match && ['exato', 'alto', 'medio'].includes(match.confianca)
+            const nomeFinal = deveCorrigirAuto ? match.nomeCorrigido : d.fornecedor
+            const sugestao = sugerirCategoria(nomeFinal) || sugerirCategoria(d.descricao || '')
 
             return {
               ...d,
-              fornecedor: deveCorrigirAuto ? match.nomeCorrigido : d.fornecedor,
-              categoria: match.categoria || 'Materiais para Revenda',
+              fornecedor: nomeFinal,
+              categoria: match?.categoria || sugestao || 'Materiais para Revenda',
               matchFornecedor: match,
             }
           })
@@ -156,6 +155,7 @@ export default function ContasPagarPage() {
           valor: d.valor,
           vencimento: d.vencimento || new Date().toISOString().split('T')[0],
           categoria: d.categoria || 'Materiais para Revenda',
+          conta_financeira: d.conta_financeira || 'Santander Barão',
           descricao: d.descricao || null,
           doc: d.doc || null,
           emissao: d.emissao || null,
@@ -336,6 +336,14 @@ export default function ContasPagarPage() {
       }
     }
   }, [empresaAtiva, dadosEditados, supabase])
+ 
+  const updateConta = useCallback(async (idx: number, novaConta: string) => {
+    setDadosEditados((prev) => {
+      const next = [...prev]
+      next[idx] = { ...next[idx], conta_financeira: novaConta }
+      return next
+    })
+  }, [])
 
   const removerEmLote = (indices: number[]) => {
     const novosDados = dadosEditados.filter((_, i) => !indices.includes(i))
@@ -376,6 +384,19 @@ export default function ContasPagarPage() {
         console.error('Erro ao salvar categoria padrão em lote:', err)
       }
     }
+    setSelecionados(new Set())
+  }
+
+  const updateContaEmLote = async (indices: number[], novaConta: string) => {
+    if (!novaConta.trim()) return
+
+    setDadosEditados((prev) => {
+      const next = [...prev]
+      indices.forEach(idx => {
+        next[idx] = { ...next[idx], conta_financeira: novaConta }
+      })
+      return next
+    })
     setSelecionados(new Set())
   }
 
@@ -560,8 +581,10 @@ export default function ContasPagarPage() {
             onRemover={removerItem}
             onUpdateFornecedor={updateFornecedor}
             onUpdateCategoria={updateCategoria}
+            onUpdateConta={updateConta}
             onRemoverLote={removerEmLote}
             onUpdateCategoriaLote={updateCategoriaEmLote}
+            onUpdateContaLote={updateContaEmLote}
           />
 
 

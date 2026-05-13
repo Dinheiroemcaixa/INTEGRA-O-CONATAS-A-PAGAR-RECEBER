@@ -25,6 +25,7 @@ export interface ContaPagarImportada {
   valor: number
   vencimento: string
   categoria: string | null
+  conta_financeira: string | null
   descricao: string | null
   doc: string | null
   emissao: string | null
@@ -61,6 +62,7 @@ export interface ContaPagarPreview {
   valor: number
   vencimento: string
   categoria?: string
+  conta_financeira?: string
   descricao?: string
   /** Número do documento / NF original do Datacar */
   doc?: string
