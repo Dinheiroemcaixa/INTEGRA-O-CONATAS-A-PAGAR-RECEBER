@@ -121,27 +121,42 @@ export async function POST(req: NextRequest) {
 
     for (const conta of contas) {
       try {
-        // Buscar ou criar contato
+        console.log(`[enviar] Processando conta ${conta.id}: Fornecedor=${conta.fornecedor}, Categoria=${conta.categoria}, Conta=${conta.conta_financeira}`)
+
+        // 1. Buscar ou criar contato (Fornecedor)
         let contatoId: string | null = null
         try {
           contatoId = (await buscarOuCriarContato(accessToken, conta.fornecedor)) ?? null
+          console.log(`[enviar] Contato ID para ${conta.fornecedor}: ${contatoId}`)
         } catch (e) {
-          console.warn('[contato] erro:', e)
+          console.warn(`[enviar] Erro ao buscar contato ${conta.fornecedor}:`, e)
         }
 
-        // Mapear CATEGORIA pelo nome
+        // 2. Mapear CATEGORIA pelo nome
         let categoriaIdParaEstaConta = categoriaPadraoId
         if (conta.categoria) {
-          const nomeBusca = conta.categoria.toLowerCase().trim()
+          const nomeBuscaOriginal = conta.categoria.toLowerCase().trim()
+          // Tira códigos como "4.01.01 - " do início se houver
+          const nomeBuscaLimpo = nomeBuscaOriginal.replace(/^[\d.]+\s*-\s*/, '').trim()
+          
           const match = todasCategorias.find(c => {
             const nomeCA = c.nome.toLowerCase().trim()
-            // Tenta match exato ou parcial (se o código da categoria estiver no nome)
-            return nomeCA === nomeBusca || nomeCA.includes(nomeBusca) || nomeBusca.includes(nomeCA)
+            // Tenta match exato no nome limpo ou se um contém o outro
+            return nomeCA === nomeBuscaLimpo || 
+                   nomeCA === nomeBuscaOriginal ||
+                   nomeCA.includes(nomeBuscaLimpo) || 
+                   nomeBuscaLimpo.includes(nomeCA)
           })
-          if (match) categoriaIdParaEstaConta = match.id
+          
+          if (match) {
+            categoriaIdParaEstaConta = match.id
+            console.log(`[enviar] Categoria mapeada: ${conta.categoria} -> ${match.nome} (${match.id})`)
+          } else {
+            console.log(`[enviar] Categoria NÃO mapeada (usando padrão): ${conta.categoria}`)
+          }
         }
 
-        // Mapear CONTA FINANCEIRA pelo nome
+        // 3. Mapear CONTA FINANCEIRA pelo nome
         let contaIdParaEstaConta = contaPadraoId
         if (conta.conta_financeira) {
           const nomeBusca = conta.conta_financeira.toLowerCase().trim()
@@ -149,11 +164,19 @@ export async function POST(req: NextRequest) {
             const nomeCA = c.descricao.toLowerCase().trim()
             return nomeCA === nomeBusca || nomeCA.includes(nomeBusca) || nomeBusca.includes(nomeCA)
           })
-          if (match) contaIdParaEstaConta = match.id
+          
+          if (match) {
+            contaIdParaEstaConta = match.id
+            console.log(`[enviar] Conta financeira mapeada: ${conta.conta_financeira} -> ${match.descricao} (${match.id})`)
+          } else {
+            console.log(`[enviar] Conta financeira NÃO mapeada (usando padrão): ${conta.conta_financeira}`)
+          }
         }
 
         const dataCompetencia = conta.emissao || conta.vencimento
         const valorNum = Number(conta.valor)
+        
+        // Payload conforme Documentação Oficial de "Eventos Financeiros" v2
         const payload: any = {
           descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
           data_emissao: dataCompetencia,
@@ -161,7 +184,8 @@ export async function POST(req: NextRequest) {
           valor: valorNum,
           valor_total: valorNum,
           observacao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
-          cliente_fornecedor_id: contatoId || undefined,
+          contato: contatoId || undefined,
+          conta_financeira: contaIdParaEstaConta || undefined,
           condicao_pagamento: {
             parcelas: [{
               descricao: conta.descricao || conta.fornecedor,
@@ -184,14 +208,9 @@ export async function POST(req: NextRequest) {
           }],
           rateio: [{
             id_categoria: categoriaIdParaEstaConta,
-            categoria_id: categoriaIdParaEstaConta,
-            valor: valorNum,
-            value: valorNum
+            valor: valorNum
           }]
         }
-
-        if (contatoId) payload.contato = contatoId
-        if (contaIdParaEstaConta) payload.conta_financeira = contaIdParaEstaConta
 
         console.log(`[enviar] payload conta ${conta.id}:`, JSON.stringify(payload).substring(0, 600))
         const resposta = await criarContaPagar(accessToken, payload as never)
