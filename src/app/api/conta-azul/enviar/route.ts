@@ -176,20 +176,34 @@ export async function POST(req: NextRequest) {
         const dataCompetencia = conta.emissao || conta.vencimento
         const valorNum = Number(conta.valor)
         
-        // Payload conforme Documentação Oficial de "Eventos Financeiros" v2
+        // Payload "SUPER-HÍBRIDO" para garantir que a API pegue o campo correto
         const payload: any = {
+          tipo: 'DESPESA',
           descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
           data_emissao: dataCompetencia,
           data_competencia: dataCompetencia,
+          competencia: dataCompetencia,
           valor: valorNum,
           valor_total: valorNum,
           observacao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
+          
+          // Variações de Fornecedor
           contato: contatoId || undefined,
+          id_contato: contatoId || undefined,
+          cliente_fornecedor_id: contatoId || undefined,
+          id_pessoa: contatoId || undefined,
+          customer_id: contatoId || undefined,
+
+          // Variações de Conta Financeira
           conta_financeira: contaIdParaEstaConta || undefined,
+          id_conta_financeira: contaIdParaEstaConta || undefined,
+          conta_financeira_id: contaIdParaEstaConta || undefined,
+          
           condicao_pagamento: {
             parcelas: [{
               descricao: conta.descricao || conta.fornecedor,
               data_vencimento: conta.vencimento,
+              vencimento: conta.vencimento,
               nota: conta.descricao || '',
               valor: valorNum,
               detalhe_valor: {
@@ -208,7 +222,10 @@ export async function POST(req: NextRequest) {
           }],
           rateio: [{
             id_categoria: categoriaIdParaEstaConta,
-            valor: valorNum
+            categoria_id: categoriaIdParaEstaConta,
+            categoryId: categoriaIdParaEstaConta,
+            valor: valorNum,
+            value: valorNum
           }]
         }
 
