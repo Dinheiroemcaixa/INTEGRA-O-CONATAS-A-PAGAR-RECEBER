@@ -176,36 +176,23 @@ export async function POST(req: NextRequest) {
         const dataCompetencia = conta.emissao || conta.vencimento
         const valorNum = Number(conta.valor)
         
-        // Payload "SUPER-HÍBRIDO" para garantir que a API pegue o campo correto
+        // Payload 100% fiel à documentação oficial capturada
         const payload: any = {
-          tipo: 'DESPESA',
-          descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
-          data_emissao: dataCompetencia,
           data_competencia: dataCompetencia,
-          competencia: dataCompetencia,
           valor: valorNum,
-          valor_total: valorNum,
+          descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
           observacao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
-          
-          // Variações de Fornecedor
           contato: contatoId || undefined,
-          id_contato: contatoId || undefined,
-          cliente_fornecedor_id: contatoId || undefined,
-          id_pessoa: contatoId || undefined,
-          customer_id: contatoId || undefined,
-
-          // Variações de Conta Financeira
           conta_financeira: contaIdParaEstaConta || undefined,
-          id_conta_financeira: contaIdParaEstaConta || undefined,
-          conta_financeira_id: contaIdParaEstaConta || undefined,
-          
+          rateio: [{
+            id_categoria: categoriaIdParaEstaConta,
+            valor: valorNum
+          }],
           condicao_pagamento: {
             parcelas: [{
               descricao: conta.descricao || conta.fornecedor,
               data_vencimento: conta.vencimento,
-              vencimento: conta.vencimento,
-              nota: conta.descricao || '',
-              valor: valorNum,
+              conta_financeira: contaIdParaEstaConta || undefined, // Obrigatório aqui também para vincular a conta bancária
               detalhe_valor: {
                 valor_bruto: valorNum,
                 valor_liquido: valorNum,
@@ -215,18 +202,7 @@ export async function POST(req: NextRequest) {
                 taxa: 0
               }
             }]
-          },
-          parcelas: [{
-            data_vencimento: conta.vencimento,
-            valor: valorNum
-          }],
-          rateio: [{
-            id_categoria: categoriaIdParaEstaConta,
-            categoria_id: categoriaIdParaEstaConta,
-            categoryId: categoriaIdParaEstaConta,
-            valor: valorNum,
-            value: valorNum
-          }]
+          }
         }
 
         console.log(`[enviar] payload conta ${conta.id}:`, JSON.stringify(payload).substring(0, 600))
