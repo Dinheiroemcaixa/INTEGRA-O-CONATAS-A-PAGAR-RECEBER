@@ -166,8 +166,9 @@ export async function POST(req: NextRequest) {
               }
             }]
           },
-          rateio: [{
-            categoria_id: categoriaIdParaEstaConta,
+          // A API usa o nome em INGLÊS para categorias (confirmado pela msg de erro)
+          categoriesRatio: [{
+            categoryId: categoriaIdParaEstaConta,
             valor: valorNum
           }]
         }
