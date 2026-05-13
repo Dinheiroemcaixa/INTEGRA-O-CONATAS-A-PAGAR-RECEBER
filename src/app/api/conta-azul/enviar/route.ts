@@ -146,10 +146,11 @@ export async function POST(req: NextRequest) {
 
         const dataCompetencia = conta.emissao || conta.vencimento
         const payload: Record<string, any> = {
+          // Campos em Inglês (v2 atual)
           description: conta.descricao || `Pagamento - ${conta.fornecedor}`,
           issue_date: dataCompetencia,
+          competenceDate: dataCompetencia, // Conforme erro da API
           amount: Number(conta.valor),
-          observation: conta.descricao || `Pagamento - ${conta.fornecedor}`,
           customer_id: contatoId || undefined,
           financial_account_id: contaFinanceiraId || undefined,
           installments: [{
@@ -161,10 +162,32 @@ export async function POST(req: NextRequest) {
           categoriesRatio: [{
             categoryId: categoriaIdParaEstaConta,
             amount: Number(conta.valor)
+          }],
+
+          // Campos em Português (v2 legada/híbrida - Conforme erro da API)
+          descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
+          data_competencia: dataCompetencia,
+          valor: Number(conta.valor),
+          contato: contatoId || undefined,
+          conta_financeira: contaFinanceiraId || undefined,
+          condicao_pagamento: {
+            parcelas: [{
+              descricao: conta.descricao || conta.fornecedor,
+              data_vencimento: conta.vencimento,
+              valor: Number(conta.valor),
+              valor_liquido: Number(conta.valor)
+            }]
+          },
+          rateio: [{
+            categoria_id: categoriaIdParaEstaConta,
+            id_categoria: categoriaIdParaEstaConta,
+            categoryId: categoriaIdParaEstaConta,
+            valor: Number(conta.valor),
+            amount: Number(conta.valor)
           }]
         }
 
-        console.log(`[enviar] enviando conta ${conta.id} com categoria ${categoriaIdParaEstaConta} (${conta.categoria})`)
+        console.log(`[enviar] enviando conta ${conta.id} com payload híbrido`)
         const resposta = await criarContaPagar(accessToken, payload as never)
 
         await supabaseAdmin

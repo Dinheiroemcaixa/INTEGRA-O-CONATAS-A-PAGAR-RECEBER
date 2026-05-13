@@ -158,8 +158,8 @@ export default function TabelaContas({ empresaId }: Props) {
               <thead>
                 <tr>
                   <th>Fornecedor</th>
-                  <th className="text-right">Valor</th>
-                  <th>Vencimento</th>
+                  <th className="text-center">Valor</th>
+                  <th className="text-center">Vencimento</th>
                   <th>Categoria</th>
                   <th>Descrição</th>
                   <th className="text-center">Status</th>
@@ -175,7 +175,7 @@ export default function TabelaContas({ empresaId }: Props) {
                       <td>
                         <span className="text-white font-medium">{conta.fornecedor}</span>
                       </td>
-                      <td className="text-right">
+                      <td className="text-center">
                         <span className="text-green-400 font-semibold tabular-nums">
                           {formatCurrency(Number(conta.valor))}
                         </span>
