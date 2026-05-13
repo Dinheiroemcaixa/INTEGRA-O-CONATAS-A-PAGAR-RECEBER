@@ -259,7 +259,6 @@ export async function POST(req: NextRequest) {
         })
       }
     }
-    }
 
     // Contar quantos ainda ficaram pendentes
     const { count: pendentesRestantes } = await supabaseAdmin
