@@ -72,35 +72,32 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Buscar conta financeira UMA VEZ só (não por lançamento)
-    let contaFinanceiraId: string | null = null
-    try {
-      const contas = await listarContasFinanceiras(accessToken)
-      if (contas && contas.length > 0) {
-        contaFinanceiraId = contas[0].id
-      }
-    } catch (e) {
-      console.warn('[conta_financeira] não foi possível buscar:', e)
-    }
-
     // Buscar categorias financeiras UMA VEZ só
     let todasCategorias: Array<{ id: string; nome: string }> = []
     try {
       todasCategorias = await listarCategorias(accessToken)
-      console.log('[enviar] categorias encontradas:', todasCategorias.length, todasCategorias.map(c => `${c.id}:${c.nome}`).join(', '))
     } catch (e) {
       console.warn('[categorias] não foi possível buscar:', e)
     }
 
+    // Buscar contas financeiras UMA VEZ só
+    let todasContasFinanceiras: Array<{ id: string; nome: string }> = []
+    try {
+      todasContasFinanceiras = await listarContasFinanceiras(accessToken)
+    } catch (e) {
+      console.warn('[contas_financeiras] não foi possível buscar:', e)
+    }
+
     if (todasCategorias.length === 0) {
       return NextResponse.json({
-        error: 'Nenhuma categoria financeira encontrada no Conta Azul. Acesse o Conta Azul e verifique se existem categorias de DESPESA cadastradas.'
+        error: 'Nenhuma categoria financeira encontrada no Conta Azul.'
       }, { status: 400 })
     }
 
     const categoriaPadraoId = todasCategorias[0].id
+    const contaPadraoId = todasContasFinanceiras.length > 0 ? todasContasFinanceiras[0].id : null
 
-    // Buscar contas pendentes - limitar para evitar timeout
+    // Buscar contas pendentes
     let query = supabaseAdmin
       .from('contas_pagar_importadas')
       .select('*')
@@ -124,29 +121,40 @@ export async function POST(req: NextRequest) {
 
     for (const conta of contas) {
       try {
-        // Buscar ou criar contato para este fornecedor
+        // Buscar ou criar contato
         let contatoId: string | null = null
         try {
           contatoId = (await buscarOuCriarContato(accessToken, conta.fornecedor)) ?? null
         } catch (e) {
-          console.warn('[contato] não foi possível buscar/criar:', e)
+          console.warn('[contato] erro:', e)
         }
 
-        // Tentar mapear a categoria pelo nome
+        // Mapear CATEGORIA pelo nome
         let categoriaIdParaEstaConta = categoriaPadraoId
         if (conta.categoria) {
-          const match = todasCategorias.find(c => 
-            c.nome.toLowerCase().trim() === conta.categoria.toLowerCase().trim() ||
-            c.nome.toLowerCase().includes(conta.categoria.toLowerCase().trim())
-          )
-          if (match) {
-            categoriaIdParaEstaConta = match.id
-          }
+          const nomeBusca = conta.categoria.toLowerCase().trim()
+          const match = todasCategorias.find(c => {
+            const nomeCA = c.nome.toLowerCase().trim()
+            // Tenta match exato ou parcial (se o código da categoria estiver no nome)
+            return nomeCA === nomeBusca || nomeCA.includes(nomeBusca) || nomeBusca.includes(nomeCA)
+          })
+          if (match) categoriaIdParaEstaConta = match.id
+        }
+
+        // Mapear CONTA FINANCEIRA pelo nome
+        let contaIdParaEstaConta = contaPadraoId
+        if (conta.conta_financeira) {
+          const nomeBusca = conta.conta_financeira.toLowerCase().trim()
+          const match = todasContasFinanceiras.find(c => {
+            const nomeCA = c.nome.toLowerCase().trim()
+            return nomeCA === nomeBusca || nomeCA.includes(nomeBusca) || nomeBusca.includes(nomeCA)
+          })
+          if (match) contaIdParaEstaConta = match.id
         }
 
         const dataCompetencia = conta.emissao || conta.vencimento
         const valorNum = Number(conta.valor)
-        const payload: Record<string, any> = {
+        const payload: any = {
           descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
           data_emissao: dataCompetencia,
           data_competencia: dataCompetencia,
@@ -175,13 +183,13 @@ export async function POST(req: NextRequest) {
             valor: valorNum
           }],
           rateio: [{
-            id_categoria: categoriaIdParaEstaConta,
+            categoria_id: categoriaIdParaEstaConta,
             valor: valorNum
           }]
         }
 
         if (contatoId) payload.contato = contatoId
-        if (contaFinanceiraId) payload.conta_financeira = contaFinanceiraId
+        if (contaIdParaEstaConta) payload.conta_financeira = contaIdParaEstaConta
 
         console.log(`[enviar] payload conta ${conta.id}:`, JSON.stringify(payload).substring(0, 600))
         const resposta = await criarContaPagar(accessToken, payload as never)
