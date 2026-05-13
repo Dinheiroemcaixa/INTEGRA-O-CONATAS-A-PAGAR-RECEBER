@@ -128,13 +128,26 @@ export async function refreshToken(
 export async function listarContasFinanceiras(
   accessToken: string
 ): Promise<ContaFinanceira[]> {
-  const res = await fetch(`${BASE_URL}/financeiro/contas-financeiras`, {
-    headers: { 'Authorization': `Bearer ${accessToken}` },
-  })
-  if (!res.ok) return []
-  const data = await res.json()
-  // A resposta pode ser array direto ou { content: [...] }
-  return Array.isArray(data) ? data : (data.content ?? data.items ?? [])
+  const endpoints = [
+    `${BASE_URL}/financeiro/contas-financeiras`,
+    `${BASE_URL}/contas-financeiras`,
+  ]
+
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetch(endpoint, {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      })
+      if (!res.ok) continue
+      const data = await res.json()
+      // A resposta pode ser array direto ou { content: [...] } ou { itens: [...] }
+      const lista = Array.isArray(data) ? data : (data.content ?? data.items ?? data.itens ?? data.data ?? [])
+      if (lista.length > 0) return lista
+    } catch (e) {
+      console.warn(`[contas-financeiras] erro em ${endpoint}:`, e)
+    }
+  }
+  return []
 }
 
 // ─── Listar Categorias Financeiras ─────────────────────────────────────────────
@@ -175,6 +188,8 @@ export async function listarCategorias(
         lista = data.content
       } else if (data.items && Array.isArray(data.items)) {
         lista = data.items
+      } else if (data.itens && Array.isArray(data.itens)) {
+        lista = data.itens
       } else if (data.data && Array.isArray(data.data)) {
         lista = data.data
       }
