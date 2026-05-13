@@ -173,40 +173,47 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        // 4. Montar Payload "ROBUSTO"
         const dataCompetencia = conta.emissao || conta.vencimento
         const valorNum = Number(conta.valor)
         
-        // Payload 100% fiel à documentação oficial capturada
         const payload: any = {
-          data_competencia: dataCompetencia,
+          data_emissao: dataCompetencia,
+          data_vencimento: conta.vencimento,
           valor: valorNum,
           descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
-          observacao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
+          cliente_fornecedor_id: contatoId || undefined,
+          contato_id: contatoId || undefined,
           contato: contatoId || undefined,
+          conta_financeira_id: contaIdParaEstaConta || undefined,
+          id_conta_financeira: contaIdParaEstaConta || undefined,
           conta_financeira: contaIdParaEstaConta || undefined,
+          id_categoria: categoriaIdParaEstaConta,
+          categoria_id: categoriaIdParaEstaConta,
           rateio: [{
             id_categoria: categoriaIdParaEstaConta,
+            categoria_id: categoriaIdParaEstaConta,
             valor: valorNum
-          }],
-          condicao_pagamento: {
-            parcelas: [{
-              descricao: conta.descricao || conta.fornecedor,
-              data_vencimento: conta.vencimento,
-              conta_financeira: contaIdParaEstaConta || undefined, // Obrigatório aqui também para vincular a conta bancária
-              detalhe_valor: {
-                valor_bruto: valorNum,
-                valor_liquido: valorNum,
-                multa: 0,
-                juros: 0,
-                desconto: 0,
-                taxa: 0
-              }
-            }]
-          }
+          }]
         }
 
-        console.log(`[enviar] payload conta ${conta.id}:`, JSON.stringify(payload).substring(0, 600))
-        const resposta = await criarContaPagar(accessToken, payload as never)
+        console.log(`[enviar] Enviando payload para ${conta.id}:`, JSON.stringify(payload))
+        
+        let resposta
+        try {
+          resposta = await criarContaPagar(accessToken, payload as never)
+        } catch (errEnvio: any) {
+          // Se falhar, tenta um payload simplificado (fallback)
+          console.warn(`[enviar] Falha no payload robusto, tentando simplificado para ${conta.id}...`)
+          const fallbackPayload = {
+            descricao: payload.descricao,
+            valor: payload.valor,
+            data_vencimento: payload.data_vencimento,
+            contato_id: contatoId,
+            id_categoria: categoriaIdParaEstaConta
+          }
+          resposta = await criarContaPagar(accessToken, fallbackPayload as any)
+        }
 
         await supabaseAdmin
           .from('contas_pagar_importadas')
@@ -248,7 +255,11 @@ export async function POST(req: NextRequest) {
           conta_pagar_id: conta.id,
           acao: 'enviar_conta_azul',
           status: 'erro',
-          detalhes: { erro: msg, valor: conta.valor },
+          detalhes: { 
+            erro: msg, 
+            valor: conta.valor,
+            payload_tentado: JSON.stringify(payload).substring(0, 500)
+          },
         })
       }
     }
