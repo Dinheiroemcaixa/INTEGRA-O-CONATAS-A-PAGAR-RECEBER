@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'empresa_id obrigatório' }, { status: 400 })
     }
 
-    // Buscar empresa com tokens
+    // 1. Buscar empresa e tokens
     const { data: empresa, error: errEmp } = await supabaseAdmin
       .from('empresas')
       .select('*')
@@ -36,13 +36,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Empresa não encontrada' }, { status: 404 })
     }
 
-    if (!empresa.access_token_conta_azul) {
-      return NextResponse.json({
-        error: 'Esta empresa não está conectada ao Conta Azul. Configure em Empresas > Integrações.'
-      }, { status: 400 })
-    }
-
-    // Verificar/renovar token se necessário
     let accessToken = empresa.access_token_conta_azul
     const expiracao = empresa.data_expiracao_token ? new Date(empresa.data_expiracao_token) : null
     const agora = new Date()
@@ -65,39 +58,30 @@ export async function POST(req: NextRequest) {
           })
           .eq('id', empresa_id)
       } catch (errRefresh) {
-        console.error('[refresh token]', errRefresh)
-        return NextResponse.json({
-          error: 'Token do Conta Azul expirado. Reconecte a integração em Empresas.'
-        }, { status: 401 })
+        return NextResponse.json({ error: 'Token expirado. Reconecte.' }, { status: 401 })
       }
     }
 
-    // Buscar categorias financeiras UMA VEZ só
-    let todasCategorias: Array<{ id: string; nome: string }> = []
+    // 2. Carregar Categorias e Contas do Conta Azul
+    let todasCategorias: any[] = []
+    let todasContasFinanceiras: any[] = []
     try {
-      todasCategorias = await listarCategorias(accessToken)
+      [todasCategorias, todasContasFinanceiras] = await Promise.all([
+        listarCategorias(accessToken),
+        listarContasFinanceiras(accessToken)
+      ])
     } catch (e) {
-      console.warn('[categorias] não foi possível buscar:', e)
-    }
-
-    // Buscar contas financeiras UMA VEZ só
-    let todasContasFinanceiras: Array<{ id: string; descricao: string }> = []
-    try {
-      todasContasFinanceiras = await listarContasFinanceiras(accessToken)
-    } catch (e) {
-      console.warn('[contas_financeiras] não foi possível buscar:', e)
+      console.error('[ca/enviar] erro ao carregar metadados:', e)
     }
 
     if (todasCategorias.length === 0) {
-      return NextResponse.json({
-        error: 'Nenhuma categoria financeira encontrada no Conta Azul.'
-      }, { status: 400 })
+      return NextResponse.json({ error: 'Nenhuma categoria no Conta Azul' }, { status: 400 })
     }
 
     const categoriaPadraoId = todasCategorias[0].id
     const contaPadraoId = todasContasFinanceiras.length > 0 ? todasContasFinanceiras[0].id : null
 
-    // Buscar contas pendentes
+    // 3. Buscar contas pendentes
     let query = supabaseAdmin
       .from('contas_pagar_importadas')
       .select('*')
@@ -112,104 +96,73 @@ export async function POST(req: NextRequest) {
     const { data: contas, error: errContas } = await query
     if (errContas) throw errContas
     if (!contas || contas.length === 0) {
-      return NextResponse.json({ enviados: 0, erros: 0, mensagem: 'Nenhuma conta pendente' })
+      return NextResponse.json({ enviados: 0, mensagem: 'Sem contas' })
     }
 
     let enviados = 0
     let erros = 0
-    const resultados: { id: string; status: 'sucesso' | 'erro'; detalhe?: string }[] = []
+    const resultados: any[] = []
 
+    // 4. Processar cada conta
     for (const conta of contas) {
-      let payloadParaLog: any = null
+      let payloadFinal: any = null
       try {
-        console.log(`[enviar] Processando conta ${conta.id}: Fornecedor=${conta.fornecedor}, Categoria=${conta.categoria}, Conta=${conta.conta_financeira}`)
+        // Fornecedor
+        const contatoId = (await buscarOuCriarContato(accessToken, conta.fornecedor)) || null
 
-        // 1. Buscar ou criar contato (Fornecedor)
-        let contatoId: string | null = null
-        try {
-          contatoId = (await buscarOuCriarContato(accessToken, conta.fornecedor)) ?? null
-          console.log(`[enviar] Contato ID para ${conta.fornecedor}: ${contatoId}`)
-        } catch (e) {
-          console.warn(`[enviar] Erro ao buscar contato ${conta.fornecedor}:`, e)
-        }
-
-        // 2. Mapear CATEGORIA pelo nome
-        let categoriaIdParaEstaConta = categoriaPadraoId
+        // Categoria (Match Inteligente)
+        let catId = categoriaPadraoId
         if (conta.categoria) {
-          const nomeBuscaOriginal = conta.categoria.toLowerCase().trim()
-          const nomeBuscaLimpo = nomeBuscaOriginal.replace(/^[\d.]+\s*-\s*/, '').trim()
-          
+          const busca = conta.categoria.toLowerCase().trim()
+          const buscaLimpa = busca.replace(/^[\d.]+\s*-\s*/, '').trim()
           const match = todasCategorias.find(c => {
-            const nomeCA = c.nome.toLowerCase().trim()
-            return nomeCA === nomeBuscaLimpo || 
-                   nomeCA === nomeBuscaOriginal ||
-                   nomeCA.includes(nomeBuscaLimpo) || 
-                   nomeBuscaLimpo.includes(nomeCA)
+            const n = c.nome.toLowerCase().trim()
+            return n === busca || n === buscaLimpa || n.includes(buscaLimpa) || buscaLimpa.includes(n)
           })
-          
-          if (match) {
-            categoriaIdParaEstaConta = match.id
-            console.log(`[enviar] Categoria mapeada: ${conta.categoria} -> ${match.nome} (${match.id})`)
-          }
+          if (match) catId = match.id
         }
 
-        // 3. Mapear CONTA FINANCEIRA pelo nome
-        let contaIdParaEstaConta = contaPadraoId
+        // Conta Bancária
+        let bancoId = contaPadraoId
         if (conta.conta_financeira) {
-          const nomeBusca = conta.conta_financeira.toLowerCase().trim()
+          const busca = conta.conta_financeira.toLowerCase().trim()
           const match = todasContasFinanceiras.find(c => {
-            const nomeCA = c.descricao.toLowerCase().trim()
-            return nomeCA === nomeBusca || nomeCA.includes(nomeBusca) || nomeBusca.includes(nomeCA)
+            const d = c.descricao.toLowerCase().trim()
+            return d === busca || d.includes(busca) || busca.includes(d)
           })
-          
-          if (match) {
-            contaIdParaEstaConta = match.id
-            console.log(`[enviar] Conta financeira mapeada: ${conta.conta_financeira} -> ${match.descricao} (${match.id})`)
-          }
+          if (match) bancoId = match.id
         }
 
-        // 4. Montar Payload "ROBUSTO"
-        const dataCompetencia = conta.emissao || conta.vencimento
         const valorNum = Number(conta.valor)
-        
-        const payload: any = {
-          data_emissao: dataCompetencia,
-          data_vencimento: conta.vencimento,
+        const dataCompetencia = conta.emissao || conta.vencimento
+
+        // Payload EVENTOS (v2 oficial)
+        payloadFinal = {
+          data_competencia: dataCompetencia,
           valor: valorNum,
           descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
-          cliente_fornecedor_id: contatoId || undefined,
-          contato_id: contatoId || undefined,
+          observacao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
           contato: contatoId || undefined,
-          conta_financeira_id: contaIdParaEstaConta || undefined,
-          id_conta_financeira: contaIdParaEstaConta || undefined,
-          conta_financeira: contaIdParaEstaConta || undefined,
-          id_categoria: categoriaIdParaEstaConta,
-          categoria_id: categoriaIdParaEstaConta,
+          conta_financeira: bancoId || undefined,
           rateio: [{
-            id_categoria: categoriaIdParaEstaConta,
-            categoria_id: categoriaIdParaEstaConta,
+            id_categoria: catId,
             valor: valorNum
-          }]
+          }],
+          condicao_pagamento: {
+            parcelas: [{
+              descricao: conta.descricao || conta.fornecedor,
+              data_vencimento: conta.vencimento,
+              conta_financeira: bancoId || undefined, // CRUCIAL
+              detalhe_valor: {
+                valor_bruto: valorNum,
+                valor_liquido: valorNum,
+                multa: 0, juros: 0, desconto: 0, taxa: 0
+              }
+            }]
+          }
         }
 
-        payloadParaLog = payload
-        console.log(`[enviar] Enviando payload para ${conta.id}:`, JSON.stringify(payload))
-        
-        let resposta
-        try {
-          resposta = await criarContaPagar(accessToken, payload as never)
-        } catch (errEnvio: any) {
-          console.warn(`[enviar] Falha no payload robusto, tentando simplificado para ${conta.id}...`)
-          const fallbackPayload = {
-            descricao: payload.descricao,
-            valor: payload.valor,
-            data_vencimento: payload.data_vencimento,
-            contato_id: contatoId,
-            id_categoria: categoriaIdParaEstaConta
-          }
-          payloadParaLog = fallbackPayload
-          resposta = await criarContaPagar(accessToken, fallbackPayload as any)
-        }
+        const resposta = await criarContaPagar(accessToken, payloadFinal)
 
         await supabaseAdmin
           .from('contas_pagar_importadas')
@@ -224,16 +177,10 @@ export async function POST(req: NextRequest) {
         enviados++
         resultados.push({ id: conta.id, status: 'sucesso' })
 
-        await supabaseAdmin.from('logs_integracao').insert({
-          empresa_id,
-          conta_pagar_id: conta.id,
-          acao: 'enviar_conta_azul',
-          status: 'sucesso',
-          detalhes: { valor: conta.valor },
-        })
-      } catch (errEnvio: unknown) {
-        const msg = errEnvio instanceof Error ? errEnvio.message : String(errEnvio)
-
+      } catch (errLoop: any) {
+        erros++
+        const msg = errLoop instanceof Error ? errLoop.message : String(errLoop)
+        
         await supabaseAdmin
           .from('contas_pagar_importadas')
           .update({
@@ -243,24 +190,18 @@ export async function POST(req: NextRequest) {
           })
           .eq('id', conta.id)
 
-        erros++
-        resultados.push({ id: conta.id, status: 'erro', detalhe: msg })
-
         await supabaseAdmin.from('logs_integracao').insert({
           empresa_id,
           conta_pagar_id: conta.id,
           acao: 'enviar_conta_azul',
           status: 'erro',
-          detalhes: { 
-            erro: msg, 
-            valor: conta.valor,
-            payload_tentado: payloadParaLog ? JSON.stringify(payloadParaLog).substring(0, 500) : 'indisponível'
-          },
+          detalhes: { erro: msg, payload: payloadFinal },
         })
+
+        resultados.push({ id: conta.id, status: 'erro', detalhe: msg })
       }
     }
 
-    // Contar quantos ainda ficaram pendentes
     const { count: pendentesRestantes } = await supabaseAdmin
       .from('contas_pagar_importadas')
       .select('*', { count: 'exact', head: true })
@@ -275,8 +216,6 @@ export async function POST(req: NextRequest) {
       resultados,
     })
   } catch (err) {
-    console.error('[conta-azul/enviar]', err)
-    const msg = err instanceof Error ? err.message : 'Erro interno'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }
