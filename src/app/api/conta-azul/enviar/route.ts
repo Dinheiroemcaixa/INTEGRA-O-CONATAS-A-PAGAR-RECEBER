@@ -120,6 +120,7 @@ export async function POST(req: NextRequest) {
     const resultados: { id: string; status: 'sucesso' | 'erro'; detalhe?: string }[] = []
 
     for (const conta of contas) {
+      let payloadParaLog: any = null
       try {
         console.log(`[enviar] Processando conta ${conta.id}: Fornecedor=${conta.fornecedor}, Categoria=${conta.categoria}, Conta=${conta.conta_financeira}`)
 
@@ -136,12 +137,10 @@ export async function POST(req: NextRequest) {
         let categoriaIdParaEstaConta = categoriaPadraoId
         if (conta.categoria) {
           const nomeBuscaOriginal = conta.categoria.toLowerCase().trim()
-          // Tira códigos como "4.01.01 - " do início se houver
           const nomeBuscaLimpo = nomeBuscaOriginal.replace(/^[\d.]+\s*-\s*/, '').trim()
           
           const match = todasCategorias.find(c => {
             const nomeCA = c.nome.toLowerCase().trim()
-            // Tenta match exato no nome limpo ou se um contém o outro
             return nomeCA === nomeBuscaLimpo || 
                    nomeCA === nomeBuscaOriginal ||
                    nomeCA.includes(nomeBuscaLimpo) || 
@@ -151,8 +150,6 @@ export async function POST(req: NextRequest) {
           if (match) {
             categoriaIdParaEstaConta = match.id
             console.log(`[enviar] Categoria mapeada: ${conta.categoria} -> ${match.nome} (${match.id})`)
-          } else {
-            console.log(`[enviar] Categoria NÃO mapeada (usando padrão): ${conta.categoria}`)
           }
         }
 
@@ -168,8 +165,6 @@ export async function POST(req: NextRequest) {
           if (match) {
             contaIdParaEstaConta = match.id
             console.log(`[enviar] Conta financeira mapeada: ${conta.conta_financeira} -> ${match.descricao} (${match.id})`)
-          } else {
-            console.log(`[enviar] Conta financeira NÃO mapeada (usando padrão): ${conta.conta_financeira}`)
           }
         }
 
@@ -197,13 +192,13 @@ export async function POST(req: NextRequest) {
           }]
         }
 
+        payloadParaLog = payload
         console.log(`[enviar] Enviando payload para ${conta.id}:`, JSON.stringify(payload))
         
         let resposta
         try {
           resposta = await criarContaPagar(accessToken, payload as never)
         } catch (errEnvio: any) {
-          // Se falhar, tenta um payload simplificado (fallback)
           console.warn(`[enviar] Falha no payload robusto, tentando simplificado para ${conta.id}...`)
           const fallbackPayload = {
             descricao: payload.descricao,
@@ -212,6 +207,7 @@ export async function POST(req: NextRequest) {
             contato_id: contatoId,
             id_categoria: categoriaIdParaEstaConta
           }
+          payloadParaLog = fallbackPayload
           resposta = await criarContaPagar(accessToken, fallbackPayload as any)
         }
 
@@ -258,10 +254,11 @@ export async function POST(req: NextRequest) {
           detalhes: { 
             erro: msg, 
             valor: conta.valor,
-            payload_tentado: JSON.stringify(payload).substring(0, 500)
+            payload_tentado: payloadParaLog ? JSON.stringify(payloadParaLog).substring(0, 500) : 'indisponível'
           },
         })
       }
+    }
     }
 
     // Contar quantos ainda ficaram pendentes
