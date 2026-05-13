@@ -52,9 +52,9 @@ export interface ContaPagarPayload {
       }
     }>
   }
-  rateio: Array<{               // (obrigatório na v2 - ao menos 1)
-    categoria_id: string
-    valor: number
+  categoriesRateio: Array<{      // (obrigatório na v2 - ao menos 1)
+    categoryId: string
+    value: number
   }>
 }
 

@@ -182,9 +182,9 @@ export async function POST(req: NextRequest) {
             data_vencimento: conta.vencimento,
             valor: valorNum
           }],
-          rateio: [{
-            categoria_id: categoriaIdParaEstaConta,
-            valor: valorNum
+          categoriesRateio: [{
+            categoryId: categoriaIdParaEstaConta,
+            value: valorNum
           }]
         }
 
