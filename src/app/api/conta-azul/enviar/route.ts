@@ -84,22 +84,21 @@ export async function POST(req: NextRequest) {
     }
 
     // Buscar categorias financeiras UMA VEZ só
-    let categoriaPadraoId: string | null = null
+    let todasCategorias: Array<{ id: string; nome: string }> = []
     try {
-      const categorias = await listarCategorias(accessToken)
-      console.log('[enviar] categorias encontradas:', categorias.length, categorias.map(c => `${c.id}:${c.nome}`).join(', '))
-      if (categorias && categorias.length > 0) {
-        categoriaPadraoId = categorias[0].id
-      }
+      todasCategorias = await listarCategorias(accessToken)
+      console.log('[enviar] categorias encontradas:', todasCategorias.length, todasCategorias.map(c => `${c.id}:${c.nome}`).join(', '))
     } catch (e) {
       console.warn('[categorias] não foi possível buscar:', e)
     }
 
-    if (!categoriaPadraoId) {
+    if (todasCategorias.length === 0) {
       return NextResponse.json({
-        error: 'Nenhuma categoria financeira encontrada no Conta Azul. Acesse o Conta Azul e crie pelo menos uma categoria financeira (Ex: "Despesas Operacionais").'
+        error: 'Nenhuma categoria financeira encontrada no Conta Azul. Acesse o Conta Azul e verifique se existem categorias de DESPESA cadastradas.'
       }, { status: 400 })
     }
+
+    const categoriaPadraoId = todasCategorias[0].id
 
     // Buscar contas pendentes - limitar para evitar timeout
     let query = supabaseAdmin
@@ -133,6 +132,18 @@ export async function POST(req: NextRequest) {
           console.warn('[contato] não foi possível buscar/criar:', e)
         }
 
+        // Tentar mapear a categoria pelo nome
+        let categoriaIdParaEstaConta = categoriaPadraoId
+        if (conta.categoria) {
+          const match = todasCategorias.find(c => 
+            c.nome.toLowerCase().trim() === conta.categoria.toLowerCase().trim() ||
+            c.nome.toLowerCase().includes(conta.categoria.toLowerCase().trim())
+          )
+          if (match) {
+            categoriaIdParaEstaConta = match.id
+          }
+        }
+
         const dataCompetencia = conta.emissao || conta.vencimento
         const payload: Record<string, any> = {
           data_competencia: dataCompetencia,
@@ -154,14 +165,14 @@ export async function POST(req: NextRequest) {
 
         // Rateio é OBRIGATÓRIO na API v2 - sempre incluir
         payload.rateio = [{
-          categoria_id: categoriaPadraoId,
+          categoria_id: categoriaIdParaEstaConta,
           valor: Number(conta.valor)
         }]
 
         if (contatoId) payload.contato = contatoId
         if (contaFinanceiraId) payload.conta_financeira = contaFinanceiraId
 
-        console.log('[enviar] payload:', JSON.stringify(payload).substring(0, 500))
+        console.log(`[enviar] enviando conta ${conta.id} com categoria ${categoriaIdParaEstaConta} (${conta.categoria})`)
         const resposta = await criarContaPagar(accessToken, payload as never)
 
         await supabaseAdmin

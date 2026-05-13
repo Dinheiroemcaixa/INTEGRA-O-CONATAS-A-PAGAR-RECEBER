@@ -15,7 +15,15 @@ export async function GET(req: NextRequest) {
   const empresa_id = searchParams.get('empresa_id')
 
   if (!empresa_id) {
-    return NextResponse.json({ erro: 'Passe ?empresa_id=XXX na URL' })
+    const { data: empresas } = await supabaseAdmin
+      .from('empresas')
+      .select('id, nome')
+      .limit(20)
+    
+    return NextResponse.json({ 
+      instrucao: 'Selecione uma empresa abaixo e use ?empresa_id=ID na URL',
+      empresas 
+    })
   }
 
   const { data: empresa } = await supabaseAdmin
@@ -39,6 +47,7 @@ export async function GET(req: NextRequest) {
     '/financeiro/categorias',
     '/categorias',
     '/financeiro/categorias?tipo=DESPESA',
+    '/financeiro/categorias-financeiras',
     '/pessoas?tipo=FORNECEDOR',
   ]
 

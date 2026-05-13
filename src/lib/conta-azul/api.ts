@@ -142,10 +142,13 @@ export async function listarContasFinanceiras(
 export async function listarCategorias(
   accessToken: string
 ): Promise<Array<{ id: string; nome: string }>> {
-  // Tentar múltiplos endpoints possíveis para categorias
+  // Tentar múltiplos endpoints possíveis para categorias no Conta Azul v2
   const endpoints = [
+    `${BASE_URL}/financeiro/categorias?tipo=DESPESA`,
     `${BASE_URL}/financeiro/categorias`,
+    `${BASE_URL}/categorias?tipo=DESPESA`,
     `${BASE_URL}/categorias`,
+    `${BASE_URL}/financeiro/categorias-financeiras`,
   ]
 
   for (const endpoint of endpoints) {
@@ -156,10 +159,14 @@ export async function listarCategorias(
       
       console.log(`[categorias] ${endpoint} -> ${res.status}`)
       
-      if (!res.ok) continue
+      if (!res.ok) {
+        const errText = await res.text()
+        console.warn(`[categorias] erro em ${endpoint}: ${res.status} - ${errText}`)
+        continue
+      }
       
       const data = await res.json()
-      console.log(`[categorias] resposta:`, JSON.stringify(data).substring(0, 500))
+      console.log(`[categorias] resposta de ${endpoint.split('?')[0]}:`, JSON.stringify(data).substring(0, 500))
       
       let lista: any[] = []
       if (Array.isArray(data)) {
@@ -174,10 +181,21 @@ export async function listarCategorias(
       
       if (lista.length > 0) {
         // Normalizar campos - a API pode retornar 'name' ou 'nome', 'uuid' ou 'id'
-        return lista.map(c => ({
-          id: c.id || c.uuid || c.categoryId,
+        const categoriasNormalizadas = lista.map(c => ({
+          id: c.id || c.uuid || c.categoryId || c.guid,
           nome: c.nome || c.name || c.descricao || c.description || 'Categoria',
+          tipo: c.tipo || c.type
         })).filter(c => c.id)
+
+        // Se o endpoint não for específico de despesa, tentamos filtrar as de despesa se houver o campo tipo
+        if (!endpoint.includes('tipo=DESPESA')) {
+          const despesas = categoriasNormalizadas.filter(c => 
+            !c.tipo || c.tipo === 'DESPESA' || c.tipo === 'EXPENSE' || c.tipo === 'OUTGOING'
+          )
+          if (despesas.length > 0) return despesas
+        }
+
+        return categoriasNormalizadas
       }
     } catch (e) {
       console.warn(`[categorias] erro em ${endpoint}:`, e)
