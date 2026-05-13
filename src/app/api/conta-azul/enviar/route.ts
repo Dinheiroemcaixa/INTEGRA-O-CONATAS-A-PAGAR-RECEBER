@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Buscar contas financeiras UMA VEZ só
-    let todasContasFinanceiras: Array<{ id: string; nome: string }> = []
+    let todasContasFinanceiras: Array<{ id: string; descricao: string }> = []
     try {
       todasContasFinanceiras = await listarContasFinanceiras(accessToken)
     } catch (e) {
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
         if (conta.conta_financeira) {
           const nomeBusca = conta.conta_financeira.toLowerCase().trim()
           const match = todasContasFinanceiras.find(c => {
-            const nomeCA = c.nome.toLowerCase().trim()
+            const nomeCA = c.descricao.toLowerCase().trim()
             return nomeCA === nomeBusca || nomeCA.includes(nomeBusca) || nomeBusca.includes(nomeCA)
           })
           if (match) contaIdParaEstaConta = match.id
