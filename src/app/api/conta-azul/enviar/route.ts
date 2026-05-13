@@ -146,31 +146,23 @@ export async function POST(req: NextRequest) {
 
         const dataCompetencia = conta.emissao || conta.vencimento
         const payload: Record<string, any> = {
-          data_competencia: dataCompetencia,
-          valor: Number(conta.valor),
-          observacao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
-          descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
-          condicao_pagamento: {
-            parcelas: [{
-              descricao: conta.descricao || conta.fornecedor,
-              data_vencimento: conta.vencimento,
-              nota: conta.descricao || '',
-              detalhe_valor: {
-                valor_bruto: Number(conta.valor),
-                valor_liquido: Number(conta.valor)
-              }
-            }]
-          }
+          description: conta.descricao || `Pagamento - ${conta.fornecedor}`,
+          issue_date: dataCompetencia,
+          amount: Number(conta.valor),
+          observation: conta.descricao || `Pagamento - ${conta.fornecedor}`,
+          customer_id: contatoId || undefined,
+          financial_account_id: contaFinanceiraId || undefined,
+          installments: [{
+            number: 1,
+            value: Number(conta.valor),
+            due_date: conta.vencimento,
+            note: conta.descricao || ''
+          }],
+          categoriesRatio: [{
+            categoryId: categoriaIdParaEstaConta,
+            amount: Number(conta.valor)
+          }]
         }
-
-        // Rateio é OBRIGATÓRIO na API v2 - sempre incluir
-        payload.rateio = [{
-          categoria_id: categoriaIdParaEstaConta,
-          valor: Number(conta.valor)
-        }]
-
-        if (contatoId) payload.contato = contatoId
-        if (contaFinanceiraId) payload.conta_financeira = contaFinanceiraId
 
         console.log(`[enviar] enviando conta ${conta.id} com categoria ${categoriaIdParaEstaConta} (${conta.categoria})`)
         const resposta = await criarContaPagar(accessToken, payload as never)
