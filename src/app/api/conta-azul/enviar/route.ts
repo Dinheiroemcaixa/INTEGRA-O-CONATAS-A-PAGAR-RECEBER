@@ -148,14 +148,18 @@ export async function POST(req: NextRequest) {
         const valorNum = Number(conta.valor)
         const payload: Record<string, any> = {
           descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
-          observacao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
+          data_emissao: dataCompetencia,
           data_competencia: dataCompetencia,
           valor: valorNum,
+          valor_total: valorNum,
+          observacao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
+          cliente_fornecedor_id: contatoId || undefined,
           condicao_pagamento: {
             parcelas: [{
               descricao: conta.descricao || conta.fornecedor,
               data_vencimento: conta.vencimento,
               nota: conta.descricao || '',
+              valor: valorNum,
               detalhe_valor: {
                 valor_bruto: valorNum,
                 valor_liquido: valorNum,
@@ -166,9 +170,12 @@ export async function POST(req: NextRequest) {
               }
             }]
           },
-          // A API usa o nome em INGLÊS para categorias (confirmado pela msg de erro)
-          categoriesRatio: [{
-            categoryId: categoriaIdParaEstaConta,
+          parcelas: [{
+            data_vencimento: conta.vencimento,
+            valor: valorNum
+          }],
+          rateio: [{
+            id_categoria: categoriaIdParaEstaConta,
             valor: valorNum
           }]
         }
