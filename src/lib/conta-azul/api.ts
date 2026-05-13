@@ -30,24 +30,32 @@ export interface ContatoCA {
 }
 
 export interface ContaPagarPayload {
-  // API v2 Conta Azul - documentação atualizada: developers.contaazul.com
-  description: string           // (obrigatório)
-  issue_date: string            // YYYY-MM-DD (obrigatório)
-  amount: number                // (obrigatório)
-  customer_id?: string          // UUID do contato/fornecedor
-  financial_account_id?: string // UUID da conta financeira
-  installments: Array<{         // (obrigatório)
-    number: number
-    value: number
-    due_date: string            // YYYY-MM-DD
-    note?: string
+  // API v2 Conta Azul - campos em português conforme validação da API
+  data_competencia: string      // YYYY-MM-DD (obrigatório)
+  valor: number                 // (obrigatório)
+  observacao?: string
+  descricao: string             // (obrigatório)
+  contato?: string              // UUID do contato
+  conta_financeira?: string     // UUID da conta financeira
+  condicao_pagamento: {         // (obrigatório)
+    parcelas: Array<{
+      descricao: string
+      data_vencimento: string   // YYYY-MM-DD
+      nota?: string
+      detalhe_valor: {          // (obrigatório - "composição de valor")
+        valor_bruto: number
+        valor_liquido: number
+        multa?: number
+        juros?: number
+        desconto?: number
+        taxa?: number
+      }
+    }>
+  }
+  rateio: Array<{               // (obrigatório na v2 - ao menos 1)
+    categoria_id: string
+    valor: number
   }>
-  categoriesRatio: Array<{      // (obrigatório na v2)
-    categoryId: string
-    amount?: number
-    percentage?: number
-  }>
-  observation?: string
 }
 
 export interface ContaPagarResponse {

@@ -145,49 +145,37 @@ export async function POST(req: NextRequest) {
         }
 
         const dataCompetencia = conta.emissao || conta.vencimento
+        const valorNum = Number(conta.valor)
         const payload: Record<string, any> = {
-          // Campos em Inglês (v2 atual)
-          description: conta.descricao || `Pagamento - ${conta.fornecedor}`,
-          issue_date: dataCompetencia,
-          competenceDate: dataCompetencia, // Conforme erro da API
-          amount: Number(conta.valor),
-          customer_id: contatoId || undefined,
-          financial_account_id: contaFinanceiraId || undefined,
-          installments: [{
-            number: 1,
-            value: Number(conta.valor),
-            due_date: conta.vencimento,
-            note: conta.descricao || ''
-          }],
-          categoriesRatio: [{
-            categoryId: categoriaIdParaEstaConta,
-            amount: Number(conta.valor)
-          }],
-
-          // Campos em Português (v2 legada/híbrida - Conforme erro da API)
           descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
+          observacao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
           data_competencia: dataCompetencia,
-          valor: Number(conta.valor),
-          contato: contatoId || undefined,
-          conta_financeira: contaFinanceiraId || undefined,
+          valor: valorNum,
           condicao_pagamento: {
             parcelas: [{
               descricao: conta.descricao || conta.fornecedor,
               data_vencimento: conta.vencimento,
-              valor: Number(conta.valor),
-              valor_liquido: Number(conta.valor)
+              nota: conta.descricao || '',
+              detalhe_valor: {
+                valor_bruto: valorNum,
+                valor_liquido: valorNum,
+                multa: 0,
+                juros: 0,
+                desconto: 0,
+                taxa: 0
+              }
             }]
           },
           rateio: [{
             categoria_id: categoriaIdParaEstaConta,
-            id_categoria: categoriaIdParaEstaConta,
-            categoryId: categoriaIdParaEstaConta,
-            valor: Number(conta.valor),
-            amount: Number(conta.valor)
+            valor: valorNum
           }]
         }
 
-        console.log(`[enviar] enviando conta ${conta.id} com payload híbrido`)
+        if (contatoId) payload.contato = contatoId
+        if (contaFinanceiraId) payload.conta_financeira = contaFinanceiraId
+
+        console.log(`[enviar] payload conta ${conta.id}:`, JSON.stringify(payload).substring(0, 600))
         const resposta = await criarContaPagar(accessToken, payload as never)
 
         await supabaseAdmin
