@@ -130,8 +130,10 @@ export async function listarContasFinanceiras(
   accessToken: string
 ): Promise<ContaFinanceira[]> {
   const endpoints = [
-    `${BASE_URL}/financeiro/contas-financeiras?tamanho_pagina=50`,
-    `${BASE_URL}/contas-financeiras?tamanho_pagina=50`,
+    `${BASE_URL}/v1/conta-financeira?pagina=1&tamanho_pagina=100`,
+    `${BASE_URL}/financeiro/contas-financeiras?pagina=1&tamanho_pagina=100`,
+    `${BASE_URL}/contas-financeiras?pagina=1&tamanho_pagina=100`,
+    `${BASE_URL}/financeiro/contas-bancarias?pagina=1&tamanho_pagina=100`,
   ]
 
   for (const endpoint of endpoints) {
@@ -139,15 +141,25 @@ export async function listarContasFinanceiras(
       const res = await fetch(endpoint, {
         headers: { 'Authorization': `Bearer ${accessToken}` },
       })
+      
       if (!res.ok) continue
+      
       const data = await res.json()
-      // A resposta pode ser array direto ou { content: [...] } ou { itens: [...] }
-      const lista = Array.isArray(data) ? data : (data.content ?? data.items ?? data.itens ?? data.data ?? [])
-      if (lista.length > 0) return lista
+      // Conforme doc: o campo é 'itens' ou 'content' ou 'items'
+      const listaRaw: any[] = data.itens || data.items || data.content || (Array.isArray(data) ? data : [])
+      
+      if (listaRaw.length > 0) {
+        return listaRaw.map(c => ({
+          id: c.id || c.uuid || c.bankAccountId || c.guid,
+          descricao: c.nome || c.name || c.descricao || c.description || 'Conta',
+          tipo: c.tipo || c.type
+        })).filter(c => c.id)
+      }
     } catch (e) {
-      console.warn(`[contas-financeiras] erro em ${endpoint}:`, e)
+      console.warn(`[contas] erro em ${endpoint}:`, e)
     }
   }
+
   return []
 }
 
