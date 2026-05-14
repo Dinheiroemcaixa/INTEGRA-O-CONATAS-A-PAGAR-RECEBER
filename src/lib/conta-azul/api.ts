@@ -136,7 +136,7 @@ export async function listarContasFinanceiras(
   ]
 
   const todasContas: any[] = []
-  const idsVistos = new Set()
+  const idsVistos = new Set<string>()
 
   for (const endpoint of endpoints) {
     try {
@@ -146,6 +146,7 @@ export async function listarContasFinanceiras(
       if (!res.ok) continue
       const data = await res.json()
       const listaRaw: any[] = data.itens || data.items || data.content || (Array.isArray(data) ? data : [])
+      
       for (const c of listaRaw) {
         const id = c.id || c.uuid || c.bankAccountId || c.guid
         if (id && !idsVistos.has(id)) {
@@ -171,25 +172,18 @@ export async function listarCategorias(
 ): Promise<Array<{ id: string; nome: string }>> {
   const todasCategoriasEncontradas = new Map<string, { id: string; nome: string; tipo?: string }>()
   const endpoints = [
-    `${BASE_URL}/financeiro/categorias?tipo=DESPESA`,
-    `${BASE_URL}/financeiro/categorias`,
-    `${BASE_URL}/categorias?tipo=DESPESA`,
-    `${BASE_URL}/categorias`,
-    `${BASE_URL}/financeiro/categorias-financeiras`,
-    `${BASE_URL}/financeiro/plano-contas`,
-    // Busca direta por nome para garantir o match do fallback
-    `${BASE_URL}/categorias?nome=Materiais para Revenda`,
-    `${BASE_URL}/categorias?nome=Materiais para revenda`,
+    `${BASE_URL}/financeiro/categorias?tipo=DESPESA&size=100`,
+    `${BASE_URL}/financeiro/categorias?size=100`,
+    `${BASE_URL}/categorias?tipo=DESPESA&size=100`,
+    `${BASE_URL}/categorias?size=100`,
+    `${BASE_URL}/financeiro/categorias-financeiras?size=100`,
   ]
 
   for (const endpoint of endpoints) {
     try {
-      // Loop para buscar múltiplas páginas (até 10 páginas de 100 itens para segurança)
-      for (let page = 1; page <= 10; page++) {
-        const sep = endpoint.includes('?') ? '&' : '?'
-        // Tentar sem a restrição de apenas filhos para ver se traz mais itens
-        const urlComPagina = `${endpoint}${sep}pagina=${page}&tamanho_pagina=100`
-        
+      // Loop para buscar múltiplas páginas (até 5 páginas de 100 itens para segurança)
+      for (let page = 0; page < 5; page++) {
+        const urlComPagina = `${endpoint}${endpoint.includes('?') ? '&' : '?'}page=${page}&size=100`
         const res = await fetch(urlComPagina, {
           headers: { 'Authorization': `Bearer ${accessToken}` },
         })
@@ -198,15 +192,14 @@ export async function listarCategorias(
         
         const data = await res.json()
         let listaRaw: any[] = []
-        // Conforme doc: o campo é 'itens'
-        if (data.itens && Array.isArray(data.itens)) {
-          listaRaw = data.itens
-        } else if (Array.isArray(data)) {
+        if (Array.isArray(data)) {
           listaRaw = data
         } else if (data.content && Array.isArray(data.content)) {
           listaRaw = data.content
         } else if (data.items && Array.isArray(data.items)) {
           listaRaw = data.items
+        } else if (data.itens && Array.isArray(data.itens)) {
+          listaRaw = data.itens
         } else if (data.data && Array.isArray(data.data)) {
           listaRaw = data.data
         }
@@ -239,8 +232,8 @@ export async function listarCategorias(
           }
         }
 
-        // Se a página veio com menos itens que o solicitado (100), provavelmente é a última página
-        if (listaRaw.length < 100) break
+        // Se a resposta não tiver 'content' ou se o tamanho for menor que 100, provavelmente não há mais páginas
+        if (!data.content || listaRaw.length < 100) break
       }
     } catch (e) {
       console.warn(`[categorias] erro em ${endpoint}:`, e)
