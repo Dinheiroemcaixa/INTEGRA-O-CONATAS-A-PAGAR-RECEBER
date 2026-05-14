@@ -130,10 +130,8 @@ export async function listarContasFinanceiras(
   accessToken: string
 ): Promise<ContaFinanceira[]> {
   const endpoints = [
-    `${BASE_URL}/v1/conta-financeira?pagina=1&tamanho_pagina=100`,
-    `${BASE_URL}/financeiro/contas-financeiras?pagina=1&tamanho_pagina=100`,
-    `${BASE_URL}/contas-financeiras?pagina=1&tamanho_pagina=100`,
-    `${BASE_URL}/financeiro/contas-bancarias?pagina=1&tamanho_pagina=100`,
+    `${BASE_URL}/financeiro/contas-financeiras?tamanho_pagina=50`,
+    `${BASE_URL}/contas-financeiras?tamanho_pagina=50`,
   ]
 
   for (const endpoint of endpoints) {
@@ -141,25 +139,15 @@ export async function listarContasFinanceiras(
       const res = await fetch(endpoint, {
         headers: { 'Authorization': `Bearer ${accessToken}` },
       })
-      
       if (!res.ok) continue
-      
       const data = await res.json()
-      // Conforme doc: o campo é 'itens' ou 'content' ou 'items'
-      const listaRaw: any[] = data.itens || data.items || data.content || (Array.isArray(data) ? data : [])
-      
-      if (listaRaw.length > 0) {
-        return listaRaw.map(c => ({
-          id: c.id || c.uuid || c.bankAccountId || c.guid,
-          descricao: c.nome || c.name || c.descricao || c.description || 'Conta',
-          tipo: c.tipo || c.type
-        })).filter(c => c.id)
-      }
+      // A resposta pode ser array direto ou { content: [...] } ou { itens: [...] }
+      const lista = Array.isArray(data) ? data : (data.content ?? data.items ?? data.itens ?? data.data ?? [])
+      if (lista.length > 0) return lista
     } catch (e) {
-      console.warn(`[contas] erro em ${endpoint}:`, e)
+      console.warn(`[contas-financeiras] erro em ${endpoint}:`, e)
     }
   }
-
   return []
 }
 
@@ -258,37 +246,28 @@ export async function buscarOuCriarContato(
   nome: string
 ): Promise<string | undefined> {
   try {
-    // 1. Tentar buscar por nome usando os parâmetros exatos da doc /pessoas
-    // Nota: BASE_URL já contém '/v1', então usamos apenas '/pessoas'
+    // Buscar contato por nome usando os parâmetros em português conforme doc
     const endpointsBusca = [
-      // Padrão oficial v2 documentado pelo usuário
-      `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=20&busca=${encodeURIComponent(nome)}&tipo_perfil=Fornecedor`,
-      // Variação usando o campo 'nomes'
-      `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=20&nomes=${encodeURIComponent(nome)}&tipo_perfil=Fornecedor`,
-      // Fallback para o endpoint de contatos legados
-      `${BASE_URL}/contatos?nome=${encodeURIComponent(nome)}&pagina=1&tamanho_pagina=20`,
+      `${BASE_URL}/v1/pessoas?pagina=1&tamanho_pagina=50&busca=${encodeURIComponent(nome)}&tipo_perfil=Fornecedor`,
+      `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=50&busca=${encodeURIComponent(nome)}`,
+      `${BASE_URL}/contatos?nome=${encodeURIComponent(nome)}&pagina=1&tamanho_pagina=50`,
     ]
 
     for (const url of endpointsBusca) {
-      console.log(`[fornecedor] buscando em: ${url}`)
       const busca = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } })
       if (busca.ok) {
         const data = await busca.json()
         const lista: any[] = data.items || data.itens || data.content || (Array.isArray(data) ? data : [])
-        
         if (lista.length > 0) {
-          // Match exato para evitar pegar o fornecedor errado em buscas parciais
+          // Tentar match exato no nome se houver vários resultados
           const matchExato = lista.find(p => (p.nome || p.name || '').toLowerCase().trim() === nome.toLowerCase().trim())
-          const id = matchExato ? matchExato.id : lista[0].id
-          console.log(`[fornecedor] encontrado: ${id}`)
-          return id
+          return matchExato ? matchExato.id : lista[0].id
         }
       }
     }
 
-    // 2. Criar se não existir (POST /pessoas)
-    console.log(`[fornecedor] não encontrado, criando: ${nome}`)
-    const criar = await fetch(`${BASE_URL}/pessoas`, {
+    // Criar contato se não existir - tenta primeiro em /v1/pessoas
+    const criar = await fetch(`${BASE_URL}/v1/pessoas`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -304,11 +283,10 @@ export async function buscarOuCriarContato(
     
     if (criar.ok) {
       const novo: any = await criar.json()
-      console.log(`[fornecedor] criado com sucesso: ${novo.id}`)
       return novo.id
     }
     
-    // Fallback final: Tentar criar no endpoint legando /contatos
+    // Fallback para o endpoint de contatos antigo se o de pessoas falhar
     const criarLegado = await fetch(`${BASE_URL}/contatos`, {
       method: 'POST',
       headers: {
@@ -322,13 +300,12 @@ export async function buscarOuCriarContato(
       const novo: any = await criarLegado.json()
       return novo.id
     }
-
+    
     const errText = await criar.text()
-    console.error(`[fornecedor] erro ao criar: ${criar.status} - ${errText}`)
-    return undefined
+    throw new Error(`Erro ao criar contato '${nome}': ${criar.status} - ${errText}`)
   } catch (e: any) {
-    console.error(`[buscarOuCriarContato] erro fatal:`, e)
-    return undefined
+    console.error(`[buscarOuCriarContato] erro:`, e)
+    throw e
   }
 }
 
