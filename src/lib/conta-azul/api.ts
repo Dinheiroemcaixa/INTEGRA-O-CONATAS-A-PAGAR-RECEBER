@@ -169,9 +169,12 @@ export async function listarCategorias(
 
   for (const endpoint of endpoints) {
     try {
-      // Loop para buscar múltiplas páginas (até 5 páginas de 100 itens para segurança)
-      for (let page = 0; page < 5; page++) {
-        const urlComPagina = `${endpoint}${endpoint.includes('?') ? '&' : '?'}page=${page}&size=100`
+      // Loop para buscar múltiplas páginas (até 10 páginas de 100 itens para segurança)
+      for (let page = 1; page <= 10; page++) {
+        const sep = endpoint.includes('?') ? '&' : '?'
+        // Usar parâmetros em português conforme a documentação enviada
+        const urlComPagina = `${endpoint}${sep}pagina=${page}&tamanho_pagina=100&permite_apenas_filhos=true`
+        
         const res = await fetch(urlComPagina, {
           headers: { 'Authorization': `Bearer ${accessToken}` },
         })
@@ -180,14 +183,15 @@ export async function listarCategorias(
         
         const data = await res.json()
         let listaRaw: any[] = []
-        if (Array.isArray(data)) {
+        // Conforme doc: o campo é 'itens'
+        if (data.itens && Array.isArray(data.itens)) {
+          listaRaw = data.itens
+        } else if (Array.isArray(data)) {
           listaRaw = data
         } else if (data.content && Array.isArray(data.content)) {
           listaRaw = data.content
         } else if (data.items && Array.isArray(data.items)) {
           listaRaw = data.items
-        } else if (data.itens && Array.isArray(data.itens)) {
-          listaRaw = data.itens
         } else if (data.data && Array.isArray(data.data)) {
           listaRaw = data.data
         }
