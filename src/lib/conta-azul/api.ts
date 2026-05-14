@@ -129,9 +129,11 @@ export async function refreshToken(
 export async function listarContasFinanceiras(
   accessToken: string
 ): Promise<ContaFinanceira[]> {
+  const todasContas = new Map<string, ContaFinanceira>()
   const endpoints = [
-    `${BASE_URL}/financeiro/contas-financeiras?tamanho_pagina=50`,
-    `${BASE_URL}/contas-financeiras?tamanho_pagina=50`,
+    `${BASE_URL}/v1/conta-financeira?pagina=1&tamanho_pagina=100`,
+    `${BASE_URL}/financeiro/contas-financeiras?pagina=1&tamanho_pagina=100`,
+    `${BASE_URL}/contas-financeiras?pagina=1&tamanho_pagina=100`,
   ]
 
   for (const endpoint of endpoints) {
@@ -141,14 +143,24 @@ export async function listarContasFinanceiras(
       })
       if (!res.ok) continue
       const data = await res.json()
-      // A resposta pode ser array direto ou { content: [...] } ou { itens: [...] }
-      const lista = Array.isArray(data) ? data : (data.content ?? data.items ?? data.itens ?? data.data ?? [])
-      if (lista.length > 0) return lista
+      
+      const listaRaw = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
+      
+      for (const item of listaRaw) {
+        const id = item.id || item.uuid || item.bankAccountId || item.guid
+        if (id && !todasContas.has(id)) {
+          todasContas.set(id, {
+            id,
+            descricao: item.descricao || item.nome || item.name || item.description || 'Conta Sem Nome',
+            tipo: item.tipo || item.type
+          })
+        }
+      }
     } catch (e) {
       console.warn(`[contas-financeiras] erro em ${endpoint}:`, e)
     }
   }
-  return []
+  return Array.from(todasContas.values())
 }
 
 // ─── Listar Categorias Financeiras ─────────────────────────────────────────────
@@ -246,81 +258,71 @@ export async function buscarOuCriarContato(
   nome: string
 ): Promise<string | undefined> {
   try {
-    // 1. BUSCA EXAUSTIVA (Tenta todos os caminhos conhecidos)
-    // BASE_URL já contém '/v1'
-    const buscas = [
-      // v1/pessoas (moderno) - com busca textual (nome ou documento)
-      `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=20&busca=${encodeURIComponent(nome)}&tipo_perfil=Fornecedor`,
-      // v1/pessoas (moderno) - com filtro de nome exato (campo nomes)
-      `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=20&nomes=${encodeURIComponent(nome)}&tipo_perfil=Fornecedor`,
-      // /contatos (legado) - com filtro de nome e paginação PT
-      `${BASE_URL}/contatos?nome=${encodeURIComponent(nome)}&pagina=1&tamanho_pagina=20`,
-      // /contatos (legado) - com paginação EN
-      `${BASE_URL}/contatos?nome=${encodeURIComponent(nome)}&page=0&size=20`,
+    // Buscar contato por nome usando os parâmetros em português conforme doc
+    const endpointsBusca = [
+      `${BASE_URL}/v1/pessoas?pagina=1&tamanho_pagina=100&busca=${encodeURIComponent(nome)}&tipo_perfil=Fornecedor`,
+      `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=100&busca=${encodeURIComponent(nome)}`,
+      `${BASE_URL}/contatos?nome=${encodeURIComponent(nome)}&pagina=1&tamanho_pagina=100`,
     ]
 
-    for (const url of buscas) {
+    for (const url of endpointsBusca) {
       try {
-        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } })
-        if (res.ok) {
-          const data = await res.json()
-          const lista: any[] = data.items || data.itens || data.content || (Array.isArray(data) ? data : [])
+        const busca = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+        if (busca.ok) {
+          const data = await busca.json()
+          const lista: any[] = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
           if (lista.length > 0) {
-            // Tenta match exato para segurança
-            const match = lista.find(p => (p.nome || p.name || '').toLowerCase().trim() === nome.toLowerCase().trim())
-            return match ? match.id : lista[0].id
+            // Tentar match exato no nome se houver vários resultados para evitar erros de similaridade
+            const nomeBusca = nome.toLowerCase().trim()
+            const matchExato = lista.find(p => (p.nome || p.name || '').toLowerCase().trim() === nomeBusca)
+            return matchExato ? matchExato.id : lista[0].id
           }
         }
       } catch (e) {
-        console.warn(`[fornecedor] falha na tentativa ${url}:`, e)
+        console.warn(`[fornecedor] erro na busca em ${url}:`, e)
       }
     }
 
-    // 2. CRIAÇÃO RESILIENTE (Se não encontrou, tenta criar nos dois formatos)
+    // Criar contato se não existir - tenta primeiro em /v1/pessoas
+    const criar = await fetch(`${BASE_URL}/v1/pessoas`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        nome, 
+        tipo_pessoa: 'Jurídica', 
+        tipo_perfil: 'Fornecedor',
+        ativo: true 
+      }),
+    })
     
-    // Tentativa A: /pessoas (Moderno)
-    try {
-      const resPessoas = await fetch(`${BASE_URL}/pessoas`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          nome, 
-          tipo_pessoa: 'Jurídica', 
-          tipo_perfil: 'Fornecedor',
-          ativo: true 
-        })
-      })
-      if (resPessoas.ok) {
-        const data = await resPessoas.json()
-        return data.id
-      }
-    } catch (e) {
-      console.warn(`[fornecedor] falha ao criar em /pessoas:`, e)
+    if (criar.ok) {
+      const novo: any = await criar.json()
+      return novo.id
     }
+    
+    // Fallback para o endpoint de contatos antigo se o de pessoas falhar
+    const criarLegado = await fetch(`${BASE_URL}/contatos`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ nome, tipo_pessoa: 'PJ', ativo: true }),
+    })
 
-    // Tentativa B: /contatos (Legado)
-    try {
-      const resContatos = await fetch(`${BASE_URL}/contatos`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          nome, 
-          tipo_pessoa: 'PJ', 
-          ativo: true 
-        })
-      })
-      if (resContatos.ok) {
-        const data = await resContatos.json()
-        return data.id
-      }
-    } catch (e) {
-      console.warn(`[fornecedor] falha ao criar em /contatos:`, e)
+    if (criarLegado.ok) {
+      const novo: any = await criarLegado.json()
+      return novo.id
     }
-
-    return undefined
-  } catch (err) {
-    console.error(`[buscarOuCriarContato] Erro fatal:`, err)
-    return undefined
+    
+    const errText = await criar.text()
+    throw new Error(`Erro ao criar contato '${nome}': ${criar.status} - ${errText}`)
+  } catch (e: any) {
+    console.error(`[buscarOuCriarContato] erro:`, e)
+    throw e
   }
 }
 
