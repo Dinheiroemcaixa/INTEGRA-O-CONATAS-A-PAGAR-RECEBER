@@ -130,8 +130,8 @@ export async function listarContasFinanceiras(
   accessToken: string
 ): Promise<ContaFinanceira[]> {
   const endpoints = [
-    `${BASE_URL}/financeiro/contas-financeiras`,
-    `${BASE_URL}/contas-financeiras`,
+    `${BASE_URL}/financeiro/contas-financeiras?size=50`,
+    `${BASE_URL}/contas-financeiras?size=50`,
   ]
 
   for (const endpoint of endpoints) {
@@ -158,11 +158,11 @@ export async function listarCategorias(
 ): Promise<Array<{ id: string; nome: string }>> {
   const todasCategoriasEncontradas = new Map<string, { id: string; nome: string; tipo?: string }>()
   const endpoints = [
-    `${BASE_URL}/financeiro/categorias?tipo=DESPESA`,
-    `${BASE_URL}/financeiro/categorias`,
-    `${BASE_URL}/categorias?tipo=DESPESA`,
-    `${BASE_URL}/categorias`,
-    `${BASE_URL}/financeiro/categorias-financeiras`,
+    `${BASE_URL}/financeiro/categorias?tipo=DESPESA&size=100`,
+    `${BASE_URL}/financeiro/categorias?size=100`,
+    `${BASE_URL}/categorias?tipo=DESPESA&size=100`,
+    `${BASE_URL}/categorias?size=100`,
+    `${BASE_URL}/financeiro/categorias-financeiras?size=100`,
   ]
 
   for (const endpoint of endpoints) {
@@ -234,7 +234,7 @@ export async function buscarOuCriarContato(
   try {
     // Buscar contato por nome
     const busca = await fetch(
-      `${BASE_URL}/contatos?nome=${encodeURIComponent(nome)}&page=0&size=5`,
+      `${BASE_URL}/contatos?nome=${encodeURIComponent(nome)}&page=0&size=50`,
       { headers: { 'Authorization': `Bearer ${accessToken}` } }
     )
     if (busca.ok) {
