@@ -72,7 +72,7 @@ export default function TabelaPreview({
     
     // Filtros de texto/valor
     if (buscaFornecedor && !d.fornecedor.toLowerCase().includes(buscaFornecedor.toLowerCase())) return false
-    if (buscaCategoria && ! (d.categoria || 'Despesas a identificar').toLowerCase().includes(buscaCategoria.toLowerCase())) return false
+    if (buscaCategoria && ! (d.categoria || 'Materiais para Revenda').toLowerCase().includes(buscaCategoria.toLowerCase())) return false
     if (buscaValor && !d.valor.toString().includes(buscaValor)) return false
     
     return true
@@ -348,7 +348,7 @@ export default function TabelaPreview({
                   <td className="text-dark-300 text-xs min-w-[200px]">
                     {editingCatIdx === idx ? (
                       <SelectorCategoria 
-                        valorInicial={item.categoria || 'Despesas a identificar'}
+                        valorInicial={item.categoria || 'Materiais para Revenda'}
                         onCancel={() => setEditingCatIdx(null)}
                         onSelect={(cat) => {
                           onUpdateCategoria(idx, cat)
@@ -361,7 +361,7 @@ export default function TabelaPreview({
                         onClick={() => setEditingCatIdx(idx)}
                       >
                         <span className="truncate">
-                          {item.categoria || 'Despesas a identificar'}
+                          {item.categoria || 'Materiais para Revenda'}
                         </span>
                         <ChevronDown size={12} className="text-dark-500 group-hover:text-dark-300" />
                       </div>

@@ -196,22 +196,35 @@ export async function listarCategorias(
       }
       
       if (lista.length > 0) {
-        // Normalizar campos - a API pode retornar 'name' ou 'nome', 'uuid' ou 'id'
-        const categoriasNormalizadas = lista.map(c => ({
-          id: c.id || c.uuid || c.categoryId || c.guid,
-          nome: c.nome || c.name || c.descricao || c.description || 'Categoria',
-          tipo: c.tipo || c.type
-        })).filter(c => c.id)
+        // Função auxiliar para extrair categorias recursivamente (achatar a árvore)
+        const achatarCategorias = (itens: any[]): any[] => {
+          let resultado: any[] = []
+          for (const item of itens) {
+            resultado.push({
+              id: item.id || item.uuid || item.categoryId || item.guid,
+              nome: item.nome || item.name || item.descricao || item.description || 'Categoria',
+              tipo: item.tipo || item.type
+            })
+            // Conta Azul v2 pode retornar filhos em 'children', 'sub_categories', 'subcategorias' ou 'itens'
+            const filhos = item.children || item.sub_categories || item.subcategorias || item.itens || item.items
+            if (filhos && Array.isArray(filhos) && filhos.length > 0) {
+              resultado = resultado.concat(achatarCategorias(filhos))
+            }
+          }
+          return resultado
+        }
+
+        const categoriasAchatadas = achatarCategorias(lista).filter(c => c.id)
 
         // Se o endpoint não for específico de despesa, tentamos filtrar as de despesa se houver o campo tipo
         if (!endpoint.includes('tipo=DESPESA')) {
-          const despesas = categoriasNormalizadas.filter(c => 
+          const despesas = categoriasAchatadas.filter(c => 
             !c.tipo || c.tipo === 'DESPESA' || c.tipo === 'EXPENSE' || c.tipo === 'OUTGOING'
           )
           if (despesas.length > 0) return despesas
         }
 
-        return categoriasNormalizadas
+        return categoriasAchatadas
       }
     } catch (e) {
       console.warn(`[categorias] erro em ${endpoint}:`, e)

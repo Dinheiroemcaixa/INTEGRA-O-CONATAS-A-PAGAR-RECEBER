@@ -190,7 +190,7 @@ export default function TabelaContas({ empresaId }: Props) {
                       </td>
                       <td>
                         <span className="text-dark-400 text-xs px-2 py-0.5 rounded-full bg-brand-400/10 text-brand-400 border border-brand-400/20">
-                          {conta.categoria || 'Despesas a identificar'}
+                          {conta.categoria || 'Materiais para Revenda'}
                         </span>
                       </td>
                       <td>

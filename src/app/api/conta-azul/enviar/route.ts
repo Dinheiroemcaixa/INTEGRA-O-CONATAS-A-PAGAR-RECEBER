@@ -117,32 +117,30 @@ export async function POST(req: NextRequest) {
 
         // Categoria (Match Inteligente)
         let catId = null
-        if (conta.categoria) {
-          const busca = conta.categoria.toLowerCase().trim()
-          // Limpa prefixos como "4.05 - " ou "1.1.1.01 "
-          const buscaLimpa = busca.replace(/^[\d.]+\s*[-]\s*/, '').replace(/^[\d.]+\s+/, '').trim()
-          
-          const match = todasCategorias.find(c => {
-            const n = c.nome.toLowerCase().trim()
-            const nLimpa = n.replace(/^[\d.]+\s*[-]\s*/, '').replace(/^[\d.]+\s+/, '').trim()
-            return n === busca || n === buscaLimpa || nLimpa === buscaLimpa || n.includes(buscaLimpa) || buscaLimpa.includes(nLimpa)
+        const categoriaBusca = conta.categoria || 'Materiais para Revenda'
+        const busca = categoriaBusca.toLowerCase().trim()
+        // Limpa prefixos como "4.02 - " ou "1.1.1.01 "
+        const buscaLimpa = busca.replace(/^[\d.]+\s*[-]\s*/, '').replace(/^[\d.]+\s+/, '').trim()
+        
+        const match = todasCategorias.find(c => {
+          const n = c.nome.toLowerCase().trim()
+          const nLimpa = n.replace(/^[\d.]+\s*[-]\s*/, '').replace(/^[\d.]+\s+/, '').trim()
+          return n === busca || n === buscaLimpa || nLimpa === buscaLimpa || n.includes(buscaLimpa) || buscaLimpa.includes(nLimpa)
+        })
+        
+        if (match) {
+          catId = match.id
+        } else {
+          // Se não achou o match específico, tenta achar o ID de "Materiais para Revenda" explicitamente
+          const mpr = todasCategorias.find(c => {
+            const n = c.nome.toLowerCase()
+            return n.includes('materiais para revenda') || n.includes('mercadorias para revenda')
           })
-          
-          if (match) {
-            catId = match.id
-          } else {
-            // Tentar busca por "Outras Despesas" ou "Despesas a identificar" como fallback seguro
-            const fallbackCat = todasCategorias.find(c => 
-              c.nome.toLowerCase().includes('identificar') || 
-              c.nome.toLowerCase().includes('outras despesas') ||
-              c.nome.toLowerCase().includes('sem categoria')
-            )
-            if (fallbackCat) catId = fallbackCat.id
-          }
+          if (mpr) catId = mpr.id
         }
 
         if (!catId) {
-          throw new Error(`Categoria '${conta.categoria}' não encontrada no Conta Azul e nenhum fallback seguro disponível.`)
+          throw new Error(`Categoria '${categoriaBusca}' não encontrada no Conta Azul. Por favor, verifique se o nome no sistema coincide com o do Conta Azul.`)
         }
 
         // Conta Bancária
