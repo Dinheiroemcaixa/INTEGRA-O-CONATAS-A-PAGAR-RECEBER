@@ -136,6 +136,8 @@ export async function listarContasFinanceiras(
     `${BASE_URL}/financeiro/contas-bancarias?pagina=1&tamanho_pagina=100`,
   ]
 
+  const todasContas = new Map<string, ContaFinanceira>()
+
   for (const endpoint of endpoints) {
     try {
       const res = await fetch(endpoint, {
@@ -145,22 +147,25 @@ export async function listarContasFinanceiras(
       if (!res.ok) continue
       
       const data = await res.json()
-      // Conforme doc: o campo é 'itens' ou 'content' ou 'items'
       const listaRaw: any[] = data.itens || data.items || data.content || (Array.isArray(data) ? data : [])
       
-      if (listaRaw.length > 0) {
-        return listaRaw.map(c => ({
-          id: c.id || c.uuid || c.bankAccountId || c.guid,
-          descricao: c.nome || c.name || c.descricao || c.description || 'Conta',
-          tipo: c.tipo || c.type
-        })).filter(c => c.id)
+      for (const c of listaRaw) {
+        const id = c.id || c.uuid || c.bankAccountId || c.guid
+        if (id && !todasContas.has(id)) {
+          todasContas.set(id, {
+            id,
+            nome: c.nome || c.name || c.descricao || c.description || 'Conta',
+            descricao: c.descricao || c.nome || c.name || 'Conta',
+            tipo: c.tipo || c.type
+          })
+        }
       }
     } catch (e) {
       console.warn(`[contas] erro em ${endpoint}:`, e)
     }
   }
 
-  return []
+  return Array.from(todasContas.values())
 }
 
 // ─── Listar Categorias Financeiras ─────────────────────────────────────────────
@@ -258,48 +263,30 @@ export async function buscarOuCriarContato(
   nome: string
 ): Promise<string | undefined> {
   try {
-    // Buscar contato por nome usando os parâmetros em português conforme doc
-    const endpointsBusca = [
-      `${BASE_URL}/v1/pessoas?pagina=1&tamanho_pagina=50&busca=${encodeURIComponent(nome)}&tipo_perfil=Fornecedor`,
-      `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=50&busca=${encodeURIComponent(nome)}`,
-      `${BASE_URL}/contatos?nome=${encodeURIComponent(nome)}&pagina=1&tamanho_pagina=50`,
-    ]
-
-    for (const url of endpointsBusca) {
-      const busca = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } })
-      if (busca.ok) {
-        const data = await busca.json()
-        const lista: any[] = data.items || data.itens || data.content || (Array.isArray(data) ? data : [])
-        if (lista.length > 0) {
-          // Tentar match exato no nome se houver vários resultados
-          const matchExato = lista.find(p => (p.nome || p.name || '').toLowerCase().trim() === nome.toLowerCase().trim())
-          return matchExato ? matchExato.id : lista[0].id
-        }
-      }
+    // Restaurando a busca que funcionava (via /contatos com page/size)
+    const busca = await fetch(
+      `${BASE_URL}/contatos?nome=${encodeURIComponent(nome)}&page=0&size=50`,
+      { headers: { 'Authorization': `Bearer ${accessToken}` } }
+    )
+    if (busca.ok) {
+      const data = await busca.json()
+      const lista: any[] = data.items || data.itens || data.content || (Array.isArray(data) ? data : [])
+      if (lista.length > 0) return lista[0].id
     }
 
-    // Criar contato se não existir - tenta primeiro em /v1/pessoas
-    const criar = await fetch(`${BASE_URL}/v1/pessoas`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        nome, 
-        tipo_pessoa: 'Jurídica', 
-        tipo_perfil: 'Fornecedor',
-        ativo: true 
-      }),
-    })
-    
-    if (criar.ok) {
-      const novo: any = await criar.json()
-      return novo.id
+    // Fallback: Tentar busca via /v1/pessoas que o usuário sugeriu
+    const buscaPessoas = await fetch(
+      `${BASE_URL}/v1/pessoas?pagina=1&tamanho_pagina=50&busca=${encodeURIComponent(nome)}`,
+      { headers: { 'Authorization': `Bearer ${accessToken}` } }
+    )
+    if (buscaPessoas.ok) {
+      const data = await buscaPessoas.json()
+      const lista: any[] = data.items || data.itens || data.content || (Array.isArray(data) ? data : [])
+      if (lista.length > 0) return lista[0].id
     }
-    
-    // Fallback para o endpoint de contatos antigo se o de pessoas falhar
-    const criarLegado = await fetch(`${BASE_URL}/contatos`, {
+
+    // Criar contato se não existir - mantendo o que funcionava
+    const criar = await fetch(`${BASE_URL}/contatos`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -307,6 +294,11 @@ export async function buscarOuCriarContato(
       },
       body: JSON.stringify({ nome, tipo_pessoa: 'PJ', ativo: true }),
     })
+    if (criar.ok) {
+      const novo: any = await criar.json()
+      return novo.id
+    }
+    
 
     if (criarLegado.ok) {
       const novo: any = await criarLegado.json()

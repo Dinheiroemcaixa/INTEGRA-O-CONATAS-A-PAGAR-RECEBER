@@ -161,9 +161,15 @@ export async function POST(req: NextRequest) {
         const contaBuscaLimpa = limpar(contaOriginal)
         
         const bancoMatch = todasContasFinanceiras.find(b => {
-          const n = b.descricao.toLowerCase().trim()
+          const n = (b.nome || b.descricao || '').toLowerCase().trim()
+          const d = (b.descricao || b.nome || '').toLowerCase().trim()
           const nLimpa = limpar(n)
-          return n === contaOriginal.toLowerCase().trim() || nLimpa === contaBuscaLimpa || n.includes(contaOriginal.toLowerCase())
+          const dLimpa = limpar(d)
+          return n === contaOriginal.toLowerCase().trim() || 
+                 d === contaOriginal.toLowerCase().trim() ||
+                 nLimpa === contaBuscaLimpa || 
+                 dLimpa === contaBuscaLimpa ||
+                 n.includes(contaOriginal.toLowerCase())
         })
         
         if (bancoMatch) {
