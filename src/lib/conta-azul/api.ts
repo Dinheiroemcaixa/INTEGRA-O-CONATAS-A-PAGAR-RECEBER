@@ -133,36 +133,34 @@ export async function listarContasFinanceiras(
     `${BASE_URL}/v1/conta-financeira?pagina=1&tamanho_pagina=100`,
     `${BASE_URL}/financeiro/contas-financeiras?pagina=1&tamanho_pagina=100`,
     `${BASE_URL}/contas-financeiras?pagina=1&tamanho_pagina=100`,
+    `${BASE_URL}/financeiro/contas-bancarias?pagina=1&tamanho_pagina=100`,
   ]
-
-  const todasContas: any[] = []
-  const idsVistos = new Set<string>()
 
   for (const endpoint of endpoints) {
     try {
       const res = await fetch(endpoint, {
         headers: { 'Authorization': `Bearer ${accessToken}` },
       })
+      
       if (!res.ok) continue
+      
       const data = await res.json()
+      // Conforme doc: o campo é 'itens' ou 'content' ou 'items'
       const listaRaw: any[] = data.itens || data.items || data.content || (Array.isArray(data) ? data : [])
       
-      for (const c of listaRaw) {
-        const id = c.id || c.uuid || c.bankAccountId || c.guid
-        if (id && !idsVistos.has(id)) {
-          idsVistos.add(id)
-          todasContas.push({
-            id,
-            nome: c.nome || c.name || c.descricao || c.description || 'Conta',
-            tipo: c.tipo || c.type
-          })
-        }
+      if (listaRaw.length > 0) {
+        return listaRaw.map(c => ({
+          id: c.id || c.uuid || c.bankAccountId || c.guid,
+          descricao: c.nome || c.name || c.descricao || c.description || 'Conta',
+          tipo: c.tipo || c.type
+        })).filter(c => c.id)
       }
     } catch (e) {
       console.warn(`[contas] erro em ${endpoint}:`, e)
     }
   }
-  return todasContas
+
+  return []
 }
 
 // ─── Listar Categorias Financeiras ─────────────────────────────────────────────
@@ -172,65 +170,79 @@ export async function listarCategorias(
 ): Promise<Array<{ id: string; nome: string }>> {
   const todasCategoriasEncontradas = new Map<string, { id: string; nome: string; tipo?: string }>()
   const endpoints = [
+    `${BASE_URL}/financeiro/categorias?tipo=DESPESA`,
     `${BASE_URL}/financeiro/categorias`,
+    `${BASE_URL}/categorias?tipo=DESPESA`,
     `${BASE_URL}/categorias`,
     `${BASE_URL}/financeiro/categorias-financeiras`,
     `${BASE_URL}/financeiro/plano-contas`,
+    // Busca direta por nome para garantir o match do fallback
+    `${BASE_URL}/categorias?nome=Materiais para Revenda`,
+    `${BASE_URL}/categorias?nome=Materiais para revenda`,
   ]
 
-  for (const baseEndpoint of endpoints) {
+  for (const endpoint of endpoints) {
     try {
-      // Tentar tanto o padrão 'page/size' quanto 'pagina/tamanho_pagina'
-      const variacoes = [
-        { p: 'pagina', s: 'tamanho_pagina', start: 1 },
-        { p: 'page', s: 'size', start: 0 }
-      ]
-
-      for (const varParam of variacoes) {
-        // Loop exaustivo: até 20 páginas de 100 itens para garantir visão total
-        for (let page = varParam.start; page < (varParam.start + 20); page++) {
-          const sep = baseEndpoint.includes('?') ? '&' : '?'
-          const url = `${baseEndpoint}${sep}${varParam.p}=${page}&${varParam.s}=100`
-          
-          const res = await fetch(url, {
-            headers: { 'Authorization': `Bearer ${accessToken}` },
-          })
-          
-          if (!res.ok) break
-          
-          const data = await res.json()
-          const listaRaw: any[] = data.itens || data.items || data.content || (Array.isArray(data) ? data : [])
-          
-          if (listaRaw.length === 0) break
-          
-          const achatarCategorias = (itens: any[]): any[] => {
-            let resultado: any[] = []
-            for (const item of itens) {
-              resultado.push({
-                id: item.id || item.uuid || item.categoryId || item.guid,
-                nome: item.nome || item.name || item.descricao || item.description || 'Categoria',
-                tipo: item.tipo || item.type
-              })
-              const filhos = item.children || item.sub_categories || item.subcategorias || item.itens || item.items || item.nodes
-              if (filhos && Array.isArray(filhos) && filhos.length > 0) {
-                resultado = resultado.concat(achatarCategorias(filhos))
-              }
+      // Loop para buscar múltiplas páginas (até 10 páginas de 100 itens para segurança)
+      for (let page = 1; page <= 10; page++) {
+        const sep = endpoint.includes('?') ? '&' : '?'
+        // Tentar sem a restrição de apenas filhos para ver se traz mais itens
+        const urlComPagina = `${endpoint}${sep}pagina=${page}&tamanho_pagina=100`
+        
+        const res = await fetch(urlComPagina, {
+          headers: { 'Authorization': `Bearer ${accessToken}` },
+        })
+        
+        if (!res.ok) break // Se falhar esta página, tenta o próximo endpoint
+        
+        const data = await res.json()
+        let listaRaw: any[] = []
+        // Conforme doc: o campo é 'itens'
+        if (data.itens && Array.isArray(data.itens)) {
+          listaRaw = data.itens
+        } else if (Array.isArray(data)) {
+          listaRaw = data
+        } else if (data.content && Array.isArray(data.content)) {
+          listaRaw = data.content
+        } else if (data.items && Array.isArray(data.items)) {
+          listaRaw = data.items
+        } else if (data.data && Array.isArray(data.data)) {
+          listaRaw = data.data
+        }
+        
+        if (listaRaw.length === 0) break // Fim das páginas
+        
+        const achatarCategorias = (itens: any[]): any[] => {
+          let resultado: any[] = []
+          for (const item of itens) {
+            resultado.push({
+              id: item.id || item.uuid || item.categoryId || item.guid,
+              nome: item.nome || item.name || item.descricao || item.description || 'Categoria',
+              tipo: item.tipo || item.type
+            })
+            const filhos = item.children || item.sub_categories || item.subcategorias || item.itens || item.items || item.nodes
+            if (filhos && Array.isArray(filhos) && filhos.length > 0) {
+              resultado = resultado.concat(achatarCategorias(filhos))
             }
-            return resultado
           }
+          return resultado
+        }
 
-          const achatadas = achatarCategorias(listaRaw)
-          for (const cat of achatadas) {
-            if (cat.id && !todasCategoriasEncontradas.has(cat.id)) {
+        const achatadas = achatarCategorias(listaRaw)
+        for (const cat of achatadas) {
+          if (cat.id && !todasCategoriasEncontradas.has(cat.id)) {
+            const ehReceita = cat.tipo === 'RECEITA' || cat.tipo === 'REVENUE' || cat.tipo === 'INCOME'
+            if (!ehReceita) {
               todasCategoriasEncontradas.set(cat.id, cat)
             }
           }
-
-          if (listaRaw.length < 100) break
         }
+
+        // Se a página veio com menos itens que o solicitado (100), provavelmente é a última página
+        if (listaRaw.length < 100) break
       }
     } catch (e) {
-      console.warn(`[categorias] erro em ${baseEndpoint}:`, e)
+      console.warn(`[categorias] erro em ${endpoint}:`, e)
     }
   }
 
@@ -246,23 +258,48 @@ export async function buscarOuCriarContato(
   nome: string
 ): Promise<string | undefined> {
   try {
-    // Motor duplo: tenta 'page/size' e 'pagina/tamanho_pagina'
-    const variacoes = [
-      `${BASE_URL}/contatos?nome=${encodeURIComponent(nome)}&page=0&size=50`,
+    // Buscar contato por nome usando os parâmetros em português conforme doc
+    const endpointsBusca = [
+      `${BASE_URL}/v1/pessoas?pagina=1&tamanho_pagina=50&busca=${encodeURIComponent(nome)}&tipo_perfil=Fornecedor`,
+      `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=50&busca=${encodeURIComponent(nome)}`,
       `${BASE_URL}/contatos?nome=${encodeURIComponent(nome)}&pagina=1&tamanho_pagina=50`,
     ]
 
-    for (const url of variacoes) {
+    for (const url of endpointsBusca) {
       const busca = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } })
       if (busca.ok) {
         const data = await busca.json()
         const lista: any[] = data.items || data.itens || data.content || (Array.isArray(data) ? data : [])
-        if (lista.length > 0) return lista[0].id
+        if (lista.length > 0) {
+          // Tentar match exato no nome se houver vários resultados
+          const matchExato = lista.find(p => (p.nome || p.name || '').toLowerCase().trim() === nome.toLowerCase().trim())
+          return matchExato ? matchExato.id : lista[0].id
+        }
       }
     }
 
-    // Criar contato se não existir
-    const criar = await fetch(`${BASE_URL}/contatos`, {
+    // Criar contato se não existir - tenta primeiro em /v1/pessoas
+    const criar = await fetch(`${BASE_URL}/v1/pessoas`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        nome, 
+        tipo_pessoa: 'Jurídica', 
+        tipo_perfil: 'Fornecedor',
+        ativo: true 
+      }),
+    })
+    
+    if (criar.ok) {
+      const novo: any = await criar.json()
+      return novo.id
+    }
+    
+    // Fallback para o endpoint de contatos antigo se o de pessoas falhar
+    const criarLegado = await fetch(`${BASE_URL}/contatos`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -270,15 +307,17 @@ export async function buscarOuCriarContato(
       },
       body: JSON.stringify({ nome, tipo_pessoa: 'PJ', ativo: true }),
     })
-    if (criar.ok) {
-      const novo: any = await criar.json()
+
+    if (criarLegado.ok) {
+      const novo: any = await criarLegado.json()
       return novo.id
     }
     
-    return undefined
+    const errText = await criar.text()
+    throw new Error(`Erro ao criar contato '${nome}': ${criar.status} - ${errText}`)
   } catch (e: any) {
     console.error(`[buscarOuCriarContato] erro:`, e)
-    return undefined
+    throw e
   }
 }
 
