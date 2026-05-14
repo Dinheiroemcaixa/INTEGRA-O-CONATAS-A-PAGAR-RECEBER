@@ -258,12 +258,13 @@ export async function buscarOuCriarContato(
   nome: string
 ): Promise<string | undefined> {
   try {
-    // 1. Tentar buscar por nome usando os parâmetros exatos da doc v1/pessoas
+    // 1. Tentar buscar por nome usando os parâmetros exatos da doc /pessoas
+    // Nota: BASE_URL já contém '/v1', então usamos apenas '/pessoas'
     const endpointsBusca = [
       // Padrão oficial v2 documentado pelo usuário
-      `${BASE_URL}/v1/pessoas?pagina=1&tamanho_pagina=20&busca=${encodeURIComponent(nome)}&tipo_perfil=Fornecedor`,
+      `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=20&busca=${encodeURIComponent(nome)}&tipo_perfil=Fornecedor`,
       // Variação usando o campo 'nomes'
-      `${BASE_URL}/v1/pessoas?pagina=1&tamanho_pagina=20&nomes=${encodeURIComponent(nome)}&tipo_perfil=Fornecedor`,
+      `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=20&nomes=${encodeURIComponent(nome)}&tipo_perfil=Fornecedor`,
       // Fallback para o endpoint de contatos legados
       `${BASE_URL}/contatos?nome=${encodeURIComponent(nome)}&pagina=1&tamanho_pagina=20`,
     ]
@@ -285,9 +286,9 @@ export async function buscarOuCriarContato(
       }
     }
 
-    // 2. Criar se não existir (POST v1/pessoas)
+    // 2. Criar se não existir (POST /pessoas)
     console.log(`[fornecedor] não encontrado, criando: ${nome}`)
-    const criar = await fetch(`${BASE_URL}/v1/pessoas`, {
+    const criar = await fetch(`${BASE_URL}/pessoas`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
