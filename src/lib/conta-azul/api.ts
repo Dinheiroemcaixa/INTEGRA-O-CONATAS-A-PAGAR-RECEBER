@@ -158,11 +158,13 @@ export async function listarCategorias(
 ): Promise<Array<{ id: string; nome: string }>> {
   const todasCategoriasEncontradas = new Map<string, { id: string; nome: string; tipo?: string }>()
   const endpoints = [
-    `${BASE_URL}/financeiro/categorias?tipo=DESPESA&size=100`,
-    `${BASE_URL}/financeiro/categorias?size=100`,
-    `${BASE_URL}/categorias?tipo=DESPESA&size=100`,
-    `${BASE_URL}/categorias?size=100`,
-    `${BASE_URL}/financeiro/categorias-financeiras?size=100`,
+    `${BASE_URL}/financeiro/categorias?tipo=DESPESA`,
+    `${BASE_URL}/financeiro/categorias`,
+    `${BASE_URL}/categorias?tipo=DESPESA`,
+    `${BASE_URL}/categorias`,
+    `${BASE_URL}/financeiro/categorias-financeiras`,
+    `${BASE_URL}/financeiro/plano-contas`,
+    `${BASE_URL}/plano-contas`,
   ]
 
   for (const endpoint of endpoints) {

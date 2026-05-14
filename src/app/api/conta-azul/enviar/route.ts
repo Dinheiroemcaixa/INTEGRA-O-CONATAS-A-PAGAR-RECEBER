@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
 
         if (!catId) {
           const exemplo = todasCategorias.slice(0, 5).map(c => c.nome).join(', ')
-          throw new Error(`Categoria '${categoriaOriginal}' não encontrada. No Conta Azul temos: ${exemplo}...`)
+          throw new Error(`Categoria '${categoriaOriginal}' não encontrada. (Total de ${todasCategorias.length} categorias lidas). Exemplo das que temos: ${exemplo}...`)
         }
 
         // 2. Match Conta Bancária
@@ -172,7 +172,7 @@ export async function POST(req: NextRequest) {
         
         if (!bancoId && todasContasFinanceiras.length > 0) {
           const exemplos = todasContasFinanceiras.slice(0, 3).map(b => b.nome).join(', ')
-          throw new Error(`Conta '${contaOriginal}' não encontrada. No Conta Azul temos: ${exemplos}...`)
+          throw new Error(`Conta '${contaOriginal}' não encontrada. (Total de ${todasContasFinanceiras.length} contas lidas). Exemplo das que temos: ${exemplos}...`)
         }
 
         const valorNum = Number(conta.valor)
