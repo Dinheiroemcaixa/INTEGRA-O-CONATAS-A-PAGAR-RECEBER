@@ -172,71 +172,65 @@ export async function listarCategorias(
 ): Promise<Array<{ id: string; nome: string }>> {
   const todasCategoriasEncontradas = new Map<string, { id: string; nome: string; tipo?: string }>()
   const endpoints = [
-    `${BASE_URL}/financeiro/categorias?tipo=DESPESA&size=100`,
-    `${BASE_URL}/financeiro/categorias?size=100`,
-    `${BASE_URL}/categorias?tipo=DESPESA&size=100`,
-    `${BASE_URL}/categorias?size=100`,
-    `${BASE_URL}/financeiro/categorias-financeiras?size=100`,
+    `${BASE_URL}/financeiro/categorias`,
+    `${BASE_URL}/categorias`,
+    `${BASE_URL}/financeiro/categorias-financeiras`,
+    `${BASE_URL}/financeiro/plano-contas`,
   ]
 
-  for (const endpoint of endpoints) {
+  for (const baseEndpoint of endpoints) {
     try {
-      // Loop para buscar múltiplas páginas (até 5 páginas de 100 itens para segurança)
-      for (let page = 0; page < 5; page++) {
-        const urlComPagina = `${endpoint}${endpoint.includes('?') ? '&' : '?'}page=${page}&size=100`
-        const res = await fetch(urlComPagina, {
-          headers: { 'Authorization': `Bearer ${accessToken}` },
-        })
-        
-        if (!res.ok) break // Se falhar esta página, tenta o próximo endpoint
-        
-        const data = await res.json()
-        let listaRaw: any[] = []
-        if (Array.isArray(data)) {
-          listaRaw = data
-        } else if (data.content && Array.isArray(data.content)) {
-          listaRaw = data.content
-        } else if (data.items && Array.isArray(data.items)) {
-          listaRaw = data.items
-        } else if (data.itens && Array.isArray(data.itens)) {
-          listaRaw = data.itens
-        } else if (data.data && Array.isArray(data.data)) {
-          listaRaw = data.data
-        }
-        
-        if (listaRaw.length === 0) break // Fim das páginas
-        
-        const achatarCategorias = (itens: any[]): any[] => {
-          let resultado: any[] = []
-          for (const item of itens) {
-            resultado.push({
-              id: item.id || item.uuid || item.categoryId || item.guid,
-              nome: item.nome || item.name || item.descricao || item.description || 'Categoria',
-              tipo: item.tipo || item.type
-            })
-            const filhos = item.children || item.sub_categories || item.subcategorias || item.itens || item.items || item.nodes
-            if (filhos && Array.isArray(filhos) && filhos.length > 0) {
-              resultado = resultado.concat(achatarCategorias(filhos))
-            }
-          }
-          return resultado
-        }
+      // Tentar tanto o padrão 'page/size' quanto 'pagina/tamanho_pagina'
+      const variacoes = [
+        { p: 'pagina', s: 'tamanho_pagina', start: 1 },
+        { p: 'page', s: 'size', start: 0 }
+      ]
 
-        const achatadas = achatarCategorias(listaRaw)
-        for (const cat of achatadas) {
-          if (cat.id && !todasCategoriasEncontradas.has(cat.id)) {
-            const ehReceita = cat.tipo === 'RECEITA' || cat.tipo === 'REVENUE' || cat.tipo === 'INCOME'
-            if (!ehReceita) {
+      for (const varParam of variacoes) {
+        // Loop exaustivo: até 20 páginas de 100 itens para garantir visão total
+        for (let page = varParam.start; page < (varParam.start + 20); page++) {
+          const sep = baseEndpoint.includes('?') ? '&' : '?'
+          const url = `${baseEndpoint}${sep}${varParam.p}=${page}&${varParam.s}=100`
+          
+          const res = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+          })
+          
+          if (!res.ok) break
+          
+          const data = await res.json()
+          const listaRaw: any[] = data.itens || data.items || data.content || (Array.isArray(data) ? data : [])
+          
+          if (listaRaw.length === 0) break
+          
+          const achatarCategorias = (itens: any[]): any[] => {
+            let resultado: any[] = []
+            for (const item of itens) {
+              resultado.push({
+                id: item.id || item.uuid || item.categoryId || item.guid,
+                nome: item.nome || item.name || item.descricao || item.description || 'Categoria',
+                tipo: item.tipo || item.type
+              })
+              const filhos = item.children || item.sub_categories || item.subcategorias || item.itens || item.items || item.nodes
+              if (filhos && Array.isArray(filhos) && filhos.length > 0) {
+                resultado = resultado.concat(achatarCategorias(filhos))
+              }
+            }
+            return resultado
+          }
+
+          const achatadas = achatarCategorias(listaRaw)
+          for (const cat of achatadas) {
+            if (cat.id && !todasCategoriasEncontradas.has(cat.id)) {
               todasCategoriasEncontradas.set(cat.id, cat)
             }
           }
-        }
 
-        // Se a resposta não tiver 'content' ou se o tamanho for menor que 100, provavelmente não há mais páginas
-        if (!data.content || listaRaw.length < 100) break
+          if (listaRaw.length < 100) break
+        }
       }
     } catch (e) {
-      console.warn(`[categorias] erro em ${endpoint}:`, e)
+      console.warn(`[categorias] erro em ${baseEndpoint}:`, e)
     }
   }
 
@@ -252,15 +246,19 @@ export async function buscarOuCriarContato(
   nome: string
 ): Promise<string | undefined> {
   try {
-    // Buscar contato por nome
-    const busca = await fetch(
+    // Motor duplo: tenta 'page/size' e 'pagina/tamanho_pagina'
+    const variacoes = [
       `${BASE_URL}/contatos?nome=${encodeURIComponent(nome)}&page=0&size=50`,
-      { headers: { 'Authorization': `Bearer ${accessToken}` } }
-    )
-    if (busca.ok) {
-      const data = await busca.json()
-      const lista: ContatoCA[] = Array.isArray(data) ? data : (data.content ?? data.items ?? [])
-      if (lista.length > 0) return lista[0].id
+      `${BASE_URL}/contatos?nome=${encodeURIComponent(nome)}&pagina=1&tamanho_pagina=50`,
+    ]
+
+    for (const url of variacoes) {
+      const busca = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+      if (busca.ok) {
+        const data = await busca.json()
+        const lista: any[] = data.items || data.itens || data.content || (Array.isArray(data) ? data : [])
+        if (lista.length > 0) return lista[0].id
+      }
     }
 
     // Criar contato se não existir
@@ -273,15 +271,14 @@ export async function buscarOuCriarContato(
       body: JSON.stringify({ nome, tipo_pessoa: 'PJ', ativo: true }),
     })
     if (criar.ok) {
-      const novo: ContatoCA = await criar.json()
+      const novo: any = await criar.json()
       return novo.id
     }
     
-    const errText = await criar.text()
-    throw new Error(`Erro ao criar contato '${nome}': ${criar.status} - ${errText}`)
+    return undefined
   } catch (e: any) {
     console.error(`[buscarOuCriarContato] erro:`, e)
-    throw e
+    return undefined
   }
 }
 
