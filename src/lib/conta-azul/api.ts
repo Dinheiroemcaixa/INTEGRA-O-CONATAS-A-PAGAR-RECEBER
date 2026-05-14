@@ -258,27 +258,35 @@ export async function buscarOuCriarContato(
   nome: string
 ): Promise<string | undefined> {
   try {
-    // Buscar contato por nome usando os parâmetros em português conforme doc
+    // 1. Tentar buscar por nome usando os parâmetros exatos da doc v1/pessoas
     const endpointsBusca = [
-      `${BASE_URL}/v1/pessoas?pagina=1&tamanho_pagina=50&busca=${encodeURIComponent(nome)}&tipo_perfil=Fornecedor`,
-      `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=50&busca=${encodeURIComponent(nome)}`,
-      `${BASE_URL}/contatos?nome=${encodeURIComponent(nome)}&pagina=1&tamanho_pagina=50`,
+      // Padrão oficial v2 documentado pelo usuário
+      `${BASE_URL}/v1/pessoas?pagina=1&tamanho_pagina=20&busca=${encodeURIComponent(nome)}&tipo_perfil=Fornecedor`,
+      // Variação usando o campo 'nomes'
+      `${BASE_URL}/v1/pessoas?pagina=1&tamanho_pagina=20&nomes=${encodeURIComponent(nome)}&tipo_perfil=Fornecedor`,
+      // Fallback para o endpoint de contatos legados
+      `${BASE_URL}/contatos?nome=${encodeURIComponent(nome)}&pagina=1&tamanho_pagina=20`,
     ]
 
     for (const url of endpointsBusca) {
+      console.log(`[fornecedor] buscando em: ${url}`)
       const busca = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } })
       if (busca.ok) {
         const data = await busca.json()
         const lista: any[] = data.items || data.itens || data.content || (Array.isArray(data) ? data : [])
+        
         if (lista.length > 0) {
-          // Tentar match exato no nome se houver vários resultados
+          // Match exato para evitar pegar o fornecedor errado em buscas parciais
           const matchExato = lista.find(p => (p.nome || p.name || '').toLowerCase().trim() === nome.toLowerCase().trim())
-          return matchExato ? matchExato.id : lista[0].id
+          const id = matchExato ? matchExato.id : lista[0].id
+          console.log(`[fornecedor] encontrado: ${id}`)
+          return id
         }
       }
     }
 
-    // Criar contato se não existir - tenta primeiro em /v1/pessoas
+    // 2. Criar se não existir (POST v1/pessoas)
+    console.log(`[fornecedor] não encontrado, criando: ${nome}`)
     const criar = await fetch(`${BASE_URL}/v1/pessoas`, {
       method: 'POST',
       headers: {
@@ -295,10 +303,11 @@ export async function buscarOuCriarContato(
     
     if (criar.ok) {
       const novo: any = await criar.json()
+      console.log(`[fornecedor] criado com sucesso: ${novo.id}`)
       return novo.id
     }
     
-    // Fallback para o endpoint de contatos antigo se o de pessoas falhar
+    // Fallback final: Tentar criar no endpoint legando /contatos
     const criarLegado = await fetch(`${BASE_URL}/contatos`, {
       method: 'POST',
       headers: {
@@ -312,12 +321,13 @@ export async function buscarOuCriarContato(
       const novo: any = await criarLegado.json()
       return novo.id
     }
-    
+
     const errText = await criar.text()
-    throw new Error(`Erro ao criar contato '${nome}': ${criar.status} - ${errText}`)
+    console.error(`[fornecedor] erro ao criar: ${criar.status} - ${errText}`)
+    return undefined
   } catch (e: any) {
-    console.error(`[buscarOuCriarContato] erro:`, e)
-    throw e
+    console.error(`[buscarOuCriarContato] erro fatal:`, e)
+    return undefined
   }
 }
 
