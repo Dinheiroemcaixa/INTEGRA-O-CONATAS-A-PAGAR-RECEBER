@@ -108,29 +108,60 @@ export async function POST(req: NextRequest) {
       let payloadFinal: any = null
       try {
         // Fornecedor
-        const contatoId = (await buscarOuCriarContato(accessToken, conta.fornecedor)) || null
+        let contatoId = null
+        try {
+          contatoId = await buscarOuCriarContato(accessToken, conta.fornecedor)
+        } catch (errContato) {
+          console.error(`[ca/enviar] Erro ao buscar/criar contato ${conta.fornecedor}:`, errContato)
+        }
 
         // Categoria (Match Inteligente)
-        let catId = categoriaPadraoId
+        let catId = null
         if (conta.categoria) {
           const busca = conta.categoria.toLowerCase().trim()
-          const buscaLimpa = busca.replace(/^[\d.]+\s*-\s*/, '').trim()
+          // Limpa prefixos como "4.05 - " ou "1.1.1.01 "
+          const buscaLimpa = busca.replace(/^[\d.]+\s*[-]\s*/, '').replace(/^[\d.]+\s+/, '').trim()
+          
           const match = todasCategorias.find(c => {
             const n = c.nome.toLowerCase().trim()
-            return n === busca || n === buscaLimpa || n.includes(buscaLimpa) || buscaLimpa.includes(n)
+            const nLimpa = n.replace(/^[\d.]+\s*[-]\s*/, '').replace(/^[\d.]+\s+/, '').trim()
+            return n === busca || n === buscaLimpa || nLimpa === buscaLimpa || n.includes(buscaLimpa) || buscaLimpa.includes(nLimpa)
           })
-          if (match) catId = match.id
+          
+          if (match) {
+            catId = match.id
+          } else {
+            // Tentar busca por "Outras Despesas" ou "Despesas a identificar" como fallback seguro
+            const fallbackCat = todasCategorias.find(c => 
+              c.nome.toLowerCase().includes('identificar') || 
+              c.nome.toLowerCase().includes('outras despesas') ||
+              c.nome.toLowerCase().includes('sem categoria')
+            )
+            if (fallbackCat) catId = fallbackCat.id
+          }
+        }
+
+        if (!catId) {
+          throw new Error(`Categoria '${conta.categoria}' não encontrada no Conta Azul e nenhum fallback seguro disponível.`)
         }
 
         // Conta Bancária
-        let bancoId = contaPadraoId
+        let bancoId = null
         if (conta.conta_financeira) {
           const busca = conta.conta_financeira.toLowerCase().trim()
           const match = todasContasFinanceiras.find(c => {
             const d = c.descricao.toLowerCase().trim()
             return d === busca || d.includes(busca) || busca.includes(d)
           })
-          if (match) bancoId = match.id
+          if (match) {
+            bancoId = match.id
+          }
+        }
+
+        if (!bancoId && todasContasFinanceiras.length > 0) {
+          // Se não achou por nome, mas temos a conta_padrao_id (se existisse no banco)
+          // Como não temos, vamos dar erro se não houver match claro, para evitar conta errada
+          throw new Error(`Conta financeira '${conta.conta_financeira}' não encontrada no Conta Azul.`)
         }
 
         const valorNum = Number(conta.valor)

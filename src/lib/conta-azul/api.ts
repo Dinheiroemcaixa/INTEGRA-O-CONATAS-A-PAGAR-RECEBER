@@ -252,8 +252,13 @@ export async function buscarOuCriarContato(
       const novo: ContatoCA = await criar.json()
       return novo.id
     }
-  } catch { /* ignora - contato é opcional */ }
-  return undefined
+    
+    const errText = await criar.text()
+    throw new Error(`Erro ao criar contato '${nome}': ${criar.status} - ${errText}`)
+  } catch (e: any) {
+    console.error(`[buscarOuCriarContato] erro:`, e)
+    throw e
+  }
 }
 
 // ─── Criar Conta a Pagar ──────────────────────────────────────────────────────

@@ -63,7 +63,7 @@ export default function ContasPagarPage() {
             return {
               ...d,
               fornecedor: nomeFinal,
-              categoria: match?.categoria || sugestao || 'Materiais para Revenda',
+              categoria: match?.categoria || sugestao || 'Despesas a identificar',
               matchFornecedor: match,
             }
           })
@@ -154,7 +154,7 @@ export default function ContasPagarPage() {
           fornecedor: (d.matchFornecedor?.nomeCorrigido || d.fornecedor).trim(),
           valor: d.valor,
           vencimento: d.vencimento || new Date().toISOString().split('T')[0],
-          categoria: d.categoria || 'Materiais para Revenda',
+          categoria: d.categoria || 'Despesas a identificar',
           conta_financeira: d.conta_financeira || 'Santander Barão',
           descricao: d.descricao || null,
           doc: d.doc || null,
@@ -259,7 +259,7 @@ export default function ContasPagarPage() {
             valor: Number(c.valor),
             vencimento: c.vencimento,
             // Prioriza a categoria salva no banco, senão tenta o match, senão fallback global
-            categoria: c.categoria || match?.categoria || 'Materiais para Revenda',
+            categoria: c.categoria || match?.categoria || 'Despesas a identificar',
             descricao: c.descricao || undefined,
             doc: c.doc || undefined,
             emissao: c.emissao || undefined,
