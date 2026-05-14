@@ -164,7 +164,9 @@ export async function listarCategorias(
     `${BASE_URL}/categorias`,
     `${BASE_URL}/financeiro/categorias-financeiras`,
     `${BASE_URL}/financeiro/plano-contas`,
-    `${BASE_URL}/plano-contas`,
+    // Busca direta por nome para garantir o match do fallback
+    `${BASE_URL}/categorias?nome=Materiais para Revenda`,
+    `${BASE_URL}/categorias?nome=Materiais para revenda`,
   ]
 
   for (const endpoint of endpoints) {
@@ -172,8 +174,8 @@ export async function listarCategorias(
       // Loop para buscar múltiplas páginas (até 10 páginas de 100 itens para segurança)
       for (let page = 1; page <= 10; page++) {
         const sep = endpoint.includes('?') ? '&' : '?'
-        // Usar parâmetros em português conforme a documentação enviada
-        const urlComPagina = `${endpoint}${sep}pagina=${page}&tamanho_pagina=100&permite_apenas_filhos=true`
+        // Tentar sem a restrição de apenas filhos para ver se traz mais itens
+        const urlComPagina = `${endpoint}${sep}pagina=${page}&tamanho_pagina=100`
         
         const res = await fetch(urlComPagina, {
           headers: { 'Authorization': `Bearer ${accessToken}` },
