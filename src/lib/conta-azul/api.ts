@@ -133,29 +133,26 @@ export async function listarContasFinanceiras(
     `${BASE_URL}/v1/conta-financeira?pagina=1&tamanho_pagina=100`,
     `${BASE_URL}/financeiro/contas-financeiras?pagina=1&tamanho_pagina=100`,
     `${BASE_URL}/contas-financeiras?pagina=1&tamanho_pagina=100`,
-    `${BASE_URL}/financeiro/contas-bancarias?pagina=1&tamanho_pagina=100`,
   ]
 
-  const todasContas = new Map<string, ContaFinanceira>()
+  const todasContas: any[] = []
+  const idsVistos = new Set()
 
   for (const endpoint of endpoints) {
     try {
       const res = await fetch(endpoint, {
         headers: { 'Authorization': `Bearer ${accessToken}` },
       })
-      
       if (!res.ok) continue
-      
       const data = await res.json()
       const listaRaw: any[] = data.itens || data.items || data.content || (Array.isArray(data) ? data : [])
-      
       for (const c of listaRaw) {
         const id = c.id || c.uuid || c.bankAccountId || c.guid
-        if (id && !todasContas.has(id)) {
-          todasContas.set(id, {
+        if (id && !idsVistos.has(id)) {
+          idsVistos.add(id)
+          todasContas.push({
             id,
             nome: c.nome || c.name || c.descricao || c.description || 'Conta',
-            descricao: c.descricao || c.nome || c.name || 'Conta',
             tipo: c.tipo || c.type
           })
         }
@@ -164,8 +161,7 @@ export async function listarContasFinanceiras(
       console.warn(`[contas] erro em ${endpoint}:`, e)
     }
   }
-
-  return Array.from(todasContas.values())
+  return todasContas
 }
 
 // ─── Listar Categorias Financeiras ─────────────────────────────────────────────
@@ -263,29 +259,18 @@ export async function buscarOuCriarContato(
   nome: string
 ): Promise<string | undefined> {
   try {
-    // Restaurando a busca que funcionava (via /contatos com page/size)
+    // Buscar contato por nome
     const busca = await fetch(
       `${BASE_URL}/contatos?nome=${encodeURIComponent(nome)}&page=0&size=50`,
       { headers: { 'Authorization': `Bearer ${accessToken}` } }
     )
     if (busca.ok) {
       const data = await busca.json()
-      const lista: any[] = data.items || data.itens || data.content || (Array.isArray(data) ? data : [])
+      const lista: ContatoCA[] = Array.isArray(data) ? data : (data.content ?? data.items ?? [])
       if (lista.length > 0) return lista[0].id
     }
 
-    // Fallback: Tentar busca via /v1/pessoas que o usuário sugeriu
-    const buscaPessoas = await fetch(
-      `${BASE_URL}/v1/pessoas?pagina=1&tamanho_pagina=50&busca=${encodeURIComponent(nome)}`,
-      { headers: { 'Authorization': `Bearer ${accessToken}` } }
-    )
-    if (buscaPessoas.ok) {
-      const data = await buscaPessoas.json()
-      const lista: any[] = data.items || data.itens || data.content || (Array.isArray(data) ? data : [])
-      if (lista.length > 0) return lista[0].id
-    }
-
-    // Criar contato se não existir - mantendo o que funcionava
+    // Criar contato se não existir
     const criar = await fetch(`${BASE_URL}/contatos`, {
       method: 'POST',
       headers: {
@@ -295,13 +280,7 @@ export async function buscarOuCriarContato(
       body: JSON.stringify({ nome, tipo_pessoa: 'PJ', ativo: true }),
     })
     if (criar.ok) {
-      const novo: any = await criar.json()
-      return novo.id
-    }
-    
-
-    if (criarLegado.ok) {
-      const novo: any = await criarLegado.json()
+      const novo: ContatoCA = await criar.json()
       return novo.id
     }
     

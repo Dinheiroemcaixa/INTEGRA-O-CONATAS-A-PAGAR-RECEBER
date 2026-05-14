@@ -161,15 +161,9 @@ export async function POST(req: NextRequest) {
         const contaBuscaLimpa = limpar(contaOriginal)
         
         const bancoMatch = todasContasFinanceiras.find(b => {
-          const n = (b.nome || b.descricao || '').toLowerCase().trim()
-          const d = (b.descricao || b.nome || '').toLowerCase().trim()
+          const n = b.nome.toLowerCase().trim()
           const nLimpa = limpar(n)
-          const dLimpa = limpar(d)
-          return n === contaOriginal.toLowerCase().trim() || 
-                 d === contaOriginal.toLowerCase().trim() ||
-                 nLimpa === contaBuscaLimpa || 
-                 dLimpa === contaBuscaLimpa ||
-                 n.includes(contaOriginal.toLowerCase())
+          return n === contaOriginal.toLowerCase().trim() || nLimpa === contaBuscaLimpa || n.includes(contaOriginal.toLowerCase())
         })
         
         if (bancoMatch) {
@@ -177,7 +171,7 @@ export async function POST(req: NextRequest) {
         }
         
         if (!bancoId && todasContasFinanceiras.length > 0) {
-          const exemplos = todasContasFinanceiras.slice(0, 3).map(b => b.descricao).join(', ')
+          const exemplos = todasContasFinanceiras.slice(0, 3).map(b => b.nome).join(', ')
           throw new Error(`Conta '${contaOriginal}' não encontrada. (Total de ${todasContasFinanceiras.length} contas lidas). Exemplo das que temos: ${exemplos}...`)
         }
 
