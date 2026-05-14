@@ -218,8 +218,8 @@ export async function listarCategorias(
           }
         }
 
-        // Se a resposta não tiver 'content' ou se o tamanho for menor que 100, provavelmente não há mais páginas
-        if (!data.content || listaRaw.length < 100) break
+        // Se a página veio com menos itens que o solicitado (100), provavelmente é a última página
+        if (listaRaw.length < 100) break
       }
     } catch (e) {
       console.warn(`[categorias] erro em ${endpoint}:`, e)

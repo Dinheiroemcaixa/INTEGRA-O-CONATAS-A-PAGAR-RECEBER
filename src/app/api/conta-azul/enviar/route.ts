@@ -119,16 +119,20 @@ export async function POST(req: NextRequest) {
         let catId = null
         const categoriaOriginal = conta.categoria || 'Materiais para Revenda'
         
-        // Função para limpar profundamente o nome para comparação
-        const limpar = (t: string) => t.toLowerCase()
-          .replace(/^[\d.]+\s*[-]\s*/, '') // Remove "4.02 - "
-          .replace(/^[\d.]+\s+/, '')      // Remove "4.02 "
-          .replace(/[^a-z0-9]/g, '')      // Remove tudo que não é letra ou número
-          .trim()
+        // Função para limpeza profunda (remove acentos, prefixos, espaços e caracteres especiais)
+        const limpar = (t: string) => {
+          if (!t) return ''
+          return t.toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, "") // Remove acentos
+            .replace(/^[\d.]+\s*[-]\s*/, '')                 // Remove "4.02 - "
+            .replace(/^[\d.]+\s+/, '')                      // Remove "4.02 "
+            .replace(/[^a-z0-9]/g, '')                      // Remove tudo não alfanumérico
+            .trim()
+        }
 
         const buscaLimpa = limpar(categoriaOriginal)
         
-        // 1. Tenta Match Exato ou por Nome Limpo
+        // 1. Match Categoria
         const match = todasCategorias.find(c => {
           const n = c.nome.toLowerCase().trim()
           const nLimpa = limpar(n)
@@ -138,7 +142,7 @@ export async function POST(req: NextRequest) {
         if (match) {
           catId = match.id
         } else {
-          // 2. Fallback: Busca qualquer categoria que contenha "Materiais para Revenda" ou "Mercadorias para Revenda"
+          // Fallback: Busca "Materiais para Revenda"
           const mpr = todasCategorias.find(c => {
             const n = limpar(c.nome)
             return n.includes('materiaispararevenda') || n.includes('mercadoriaspararevenda')
@@ -147,28 +151,28 @@ export async function POST(req: NextRequest) {
         }
 
         if (!catId) {
-          // DEBUG: Logar as 5 primeiras categorias para ver o que está vindo
           const exemplo = todasCategorias.slice(0, 5).map(c => c.nome).join(', ')
-          throw new Error(`Categoria '${categoriaOriginal}' não encontrada. No Conta Azul temos categorias como: ${exemplo}... Verifique se o nome está idêntico.`)
+          throw new Error(`Categoria '${categoriaOriginal}' não encontrada. No Conta Azul temos: ${exemplo}...`)
         }
 
-        // Conta Bancária
+        // 2. Match Conta Bancária
         let bancoId = null
-        if (conta.conta_financeira) {
-          const busca = conta.conta_financeira.toLowerCase().trim()
-          const match = todasContasFinanceiras.find(c => {
-            const d = c.descricao.toLowerCase().trim()
-            return d === busca || d.includes(busca) || busca.includes(d)
-          })
-          if (match) {
-            bancoId = match.id
-          }
+        const contaOriginal = conta.conta_financeira || ''
+        const contaBuscaLimpa = limpar(contaOriginal)
+        
+        const bancoMatch = todasContasFinanceiras.find(b => {
+          const n = b.nome.toLowerCase().trim()
+          const nLimpa = limpar(n)
+          return n === contaOriginal.toLowerCase().trim() || nLimpa === contaBuscaLimpa || n.includes(contaOriginal.toLowerCase())
+        })
+        
+        if (bancoMatch) {
+          bancoId = bancoMatch.id
         }
-
+        
         if (!bancoId && todasContasFinanceiras.length > 0) {
-          // Se não achou por nome, mas temos a conta_padrao_id (se existisse no banco)
-          // Como não temos, vamos dar erro se não houver match claro, para evitar conta errada
-          throw new Error(`Conta financeira '${conta.conta_financeira}' não encontrada no Conta Azul.`)
+          const exemplos = todasContasFinanceiras.slice(0, 3).map(b => b.nome).join(', ')
+          throw new Error(`Conta '${contaOriginal}' não encontrada. No Conta Azul temos: ${exemplos}...`)
         }
 
         const valorNum = Number(conta.valor)
