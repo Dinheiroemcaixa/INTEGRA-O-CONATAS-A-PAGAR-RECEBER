@@ -167,27 +167,31 @@ export async function listarCategorias(
 
   for (const endpoint of endpoints) {
     try {
-      const res = await fetch(endpoint, {
-        headers: { 'Authorization': `Bearer ${accessToken}` },
-      })
-      
-      if (!res.ok) continue
-      
-      const data = await res.json()
-      let listaRaw: any[] = []
-      if (Array.isArray(data)) {
-        listaRaw = data
-      } else if (data.content && Array.isArray(data.content)) {
-        listaRaw = data.content
-      } else if (data.items && Array.isArray(data.items)) {
-        listaRaw = data.items
-      } else if (data.itens && Array.isArray(data.itens)) {
-        listaRaw = data.itens
-      } else if (data.data && Array.isArray(data.data)) {
-        listaRaw = data.data
-      }
-      
-      if (listaRaw.length > 0) {
+      // Loop para buscar múltiplas páginas (até 5 páginas de 100 itens para segurança)
+      for (let page = 0; page < 5; page++) {
+        const urlComPagina = `${endpoint}${endpoint.includes('?') ? '&' : '?'}page=${page}&size=100`
+        const res = await fetch(urlComPagina, {
+          headers: { 'Authorization': `Bearer ${accessToken}` },
+        })
+        
+        if (!res.ok) break // Se falhar esta página, tenta o próximo endpoint
+        
+        const data = await res.json()
+        let listaRaw: any[] = []
+        if (Array.isArray(data)) {
+          listaRaw = data
+        } else if (data.content && Array.isArray(data.content)) {
+          listaRaw = data.content
+        } else if (data.items && Array.isArray(data.items)) {
+          listaRaw = data.items
+        } else if (data.itens && Array.isArray(data.itens)) {
+          listaRaw = data.itens
+        } else if (data.data && Array.isArray(data.data)) {
+          listaRaw = data.data
+        }
+        
+        if (listaRaw.length === 0) break // Fim das páginas
+        
         const achatarCategorias = (itens: any[]): any[] => {
           let resultado: any[] = []
           for (const item of itens) {
@@ -207,13 +211,15 @@ export async function listarCategorias(
         const achatadas = achatarCategorias(listaRaw)
         for (const cat of achatadas) {
           if (cat.id && !todasCategoriasEncontradas.has(cat.id)) {
-            // Filtrar por despesa apenas se o campo tipo existir e for explicitamente outra coisa
             const ehReceita = cat.tipo === 'RECEITA' || cat.tipo === 'REVENUE' || cat.tipo === 'INCOME'
             if (!ehReceita) {
               todasCategoriasEncontradas.set(cat.id, cat)
             }
           }
         }
+
+        // Se a resposta não tiver 'content' ou se o tamanho for menor que 100, provavelmente não há mais páginas
+        if (!data.content || listaRaw.length < 100) break
       }
     } catch (e) {
       console.warn(`[categorias] erro em ${endpoint}:`, e)
