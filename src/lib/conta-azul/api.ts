@@ -156,7 +156,7 @@ export async function listarContasFinanceiras(
 export async function listarCategorias(
   accessToken: string
 ): Promise<Array<{ id: string; nome: string }>> {
-  // Tentar múltiplos endpoints possíveis para categorias no Conta Azul v2
+  const todasCategoriasEncontradas = new Map<string, { id: string; nome: string; tipo?: string }>()
   const endpoints = [
     `${BASE_URL}/financeiro/categorias?tipo=DESPESA`,
     `${BASE_URL}/financeiro/categorias`,
@@ -171,32 +171,23 @@ export async function listarCategorias(
         headers: { 'Authorization': `Bearer ${accessToken}` },
       })
       
-      console.log(`[categorias] ${endpoint} -> ${res.status}`)
-      
-      if (!res.ok) {
-        const errText = await res.text()
-        console.warn(`[categorias] erro em ${endpoint}: ${res.status} - ${errText}`)
-        continue
-      }
+      if (!res.ok) continue
       
       const data = await res.json()
-      console.log(`[categorias] resposta de ${endpoint.split('?')[0]}:`, JSON.stringify(data).substring(0, 500))
-      
-      let lista: any[] = []
+      let listaRaw: any[] = []
       if (Array.isArray(data)) {
-        lista = data
+        listaRaw = data
       } else if (data.content && Array.isArray(data.content)) {
-        lista = data.content
+        listaRaw = data.content
       } else if (data.items && Array.isArray(data.items)) {
-        lista = data.items
+        listaRaw = data.items
       } else if (data.itens && Array.isArray(data.itens)) {
-        lista = data.itens
+        listaRaw = data.itens
       } else if (data.data && Array.isArray(data.data)) {
-        lista = data.data
+        listaRaw = data.data
       }
       
-      if (lista.length > 0) {
-        // Função auxiliar para extrair categorias recursivamente (achatar a árvore)
+      if (listaRaw.length > 0) {
         const achatarCategorias = (itens: any[]): any[] => {
           let resultado: any[] = []
           for (const item of itens) {
@@ -205,8 +196,7 @@ export async function listarCategorias(
               nome: item.nome || item.name || item.descricao || item.description || 'Categoria',
               tipo: item.tipo || item.type
             })
-            // Conta Azul v2 pode retornar filhos em 'children', 'sub_categories', 'subcategorias' ou 'itens'
-            const filhos = item.children || item.sub_categories || item.subcategorias || item.itens || item.items
+            const filhos = item.children || item.sub_categories || item.subcategorias || item.itens || item.items || item.nodes
             if (filhos && Array.isArray(filhos) && filhos.length > 0) {
               resultado = resultado.concat(achatarCategorias(filhos))
             }
@@ -214,24 +204,25 @@ export async function listarCategorias(
           return resultado
         }
 
-        const categoriasAchatadas = achatarCategorias(lista).filter(c => c.id)
-
-        // Se o endpoint não for específico de despesa, tentamos filtrar as de despesa se houver o campo tipo
-        if (!endpoint.includes('tipo=DESPESA')) {
-          const despesas = categoriasAchatadas.filter(c => 
-            !c.tipo || c.tipo === 'DESPESA' || c.tipo === 'EXPENSE' || c.tipo === 'OUTGOING'
-          )
-          if (despesas.length > 0) return despesas
+        const achatadas = achatarCategorias(listaRaw)
+        for (const cat of achatadas) {
+          if (cat.id && !todasCategoriasEncontradas.has(cat.id)) {
+            // Filtrar por despesa apenas se o campo tipo existir e for explicitamente outra coisa
+            const ehReceita = cat.tipo === 'RECEITA' || cat.tipo === 'REVENUE' || cat.tipo === 'INCOME'
+            if (!ehReceita) {
+              todasCategoriasEncontradas.set(cat.id, cat)
+            }
+          }
         }
-
-        return categoriasAchatadas
       }
     } catch (e) {
       console.warn(`[categorias] erro em ${endpoint}:`, e)
     }
   }
 
-  return []
+  const resultadoFinal = Array.from(todasCategoriasEncontradas.values())
+  console.log(`[categorias] Total carregado: ${resultadoFinal.length}`)
+  return resultadoFinal
 }
 
 // ─── Listar / Criar Contato ───────────────────────────────────────────────────

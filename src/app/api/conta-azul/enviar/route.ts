@@ -117,30 +117,39 @@ export async function POST(req: NextRequest) {
 
         // Categoria (Match Inteligente)
         let catId = null
-        const categoriaBusca = conta.categoria || 'Materiais para Revenda'
-        const busca = categoriaBusca.toLowerCase().trim()
-        // Limpa prefixos como "4.02 - " ou "1.1.1.01 "
-        const buscaLimpa = busca.replace(/^[\d.]+\s*[-]\s*/, '').replace(/^[\d.]+\s+/, '').trim()
+        const categoriaOriginal = conta.categoria || 'Materiais para Revenda'
         
+        // Função para limpar profundamente o nome para comparação
+        const limpar = (t: string) => t.toLowerCase()
+          .replace(/^[\d.]+\s*[-]\s*/, '') // Remove "4.02 - "
+          .replace(/^[\d.]+\s+/, '')      // Remove "4.02 "
+          .replace(/[^a-z0-9]/g, '')      // Remove tudo que não é letra ou número
+          .trim()
+
+        const buscaLimpa = limpar(categoriaOriginal)
+        
+        // 1. Tenta Match Exato ou por Nome Limpo
         const match = todasCategorias.find(c => {
           const n = c.nome.toLowerCase().trim()
-          const nLimpa = n.replace(/^[\d.]+\s*[-]\s*/, '').replace(/^[\d.]+\s+/, '').trim()
-          return n === busca || n === buscaLimpa || nLimpa === buscaLimpa || n.includes(buscaLimpa) || buscaLimpa.includes(nLimpa)
+          const nLimpa = limpar(n)
+          return n === categoriaOriginal.toLowerCase().trim() || nLimpa === buscaLimpa || n.includes(categoriaOriginal.toLowerCase())
         })
         
         if (match) {
           catId = match.id
         } else {
-          // Se não achou o match específico, tenta achar o ID de "Materiais para Revenda" explicitamente
+          // 2. Fallback: Busca qualquer categoria que contenha "Materiais para Revenda" ou "Mercadorias para Revenda"
           const mpr = todasCategorias.find(c => {
-            const n = c.nome.toLowerCase()
-            return n.includes('materiais para revenda') || n.includes('mercadorias para revenda')
+            const n = limpar(c.nome)
+            return n.includes('materiaispararevenda') || n.includes('mercadoriaspararevenda')
           })
           if (mpr) catId = mpr.id
         }
 
         if (!catId) {
-          throw new Error(`Categoria '${categoriaBusca}' não encontrada no Conta Azul. Por favor, verifique se o nome no sistema coincide com o do Conta Azul.`)
+          // DEBUG: Logar as 5 primeiras categorias para ver o que está vindo
+          const exemplo = todasCategorias.slice(0, 5).map(c => c.nome).join(', ')
+          throw new Error(`Categoria '${categoriaOriginal}' não encontrada. No Conta Azul temos categorias como: ${exemplo}... Verifique se o nome está idêntico.`)
         }
 
         // Conta Bancária
