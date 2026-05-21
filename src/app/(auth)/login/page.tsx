@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import { Eye, EyeOff, LogIn, Loader2 } from 'lucide-react'
+import { CosmicParallaxBg } from '@/components/layout/CosmicParallaxBg'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -67,11 +68,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-dark-950 flex items-center justify-center p-4">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-brand-600 rounded-full opacity-10 blur-3xl" />
-        <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-brand-800 rounded-full opacity-10 blur-3xl" />
-      </div>
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <CosmicParallaxBg 
+        head="Connecta AI" 
+        text="BPO Financeiro, Automação Inteligente, Gestão Eficiente" 
+      />
 
       {!mostrarCard && (
         <button
