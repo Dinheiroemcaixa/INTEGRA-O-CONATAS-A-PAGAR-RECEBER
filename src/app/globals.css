@@ -201,7 +201,7 @@ body {
 /* Title */
 #title {
   position: absolute;
-  top: 50%;
+  top: 38%;
   left: 0;
   right: 0;
   transform: translateY(-50%);
@@ -215,12 +215,29 @@ body {
   text-shadow:
     0 0 20px rgba(99, 102, 241, 0.5),
     0 0 60px rgba(99, 102, 241, 0.2);
+  animation: titlePulse 3s ease-in-out infinite;
+}
+
+@keyframes titlePulse {
+  0%, 100% {
+    text-shadow:
+      0 0 20px rgba(99, 102, 241, 0.5),
+      0 0 60px rgba(99, 102, 241, 0.2);
+    opacity: 1;
+  }
+  50% {
+    text-shadow:
+      0 0 40px rgba(99, 102, 241, 0.8),
+      0 0 100px rgba(99, 102, 241, 0.4),
+      0 0 150px rgba(99, 102, 241, 0.15);
+    opacity: 0.92;
+  }
 }
 
 /* Subtitle */
 #subtitle {
   position: absolute;
-  top: calc(50% + clamp(3rem, 6vw, 5rem));
+  top: calc(38% + clamp(2.5rem, 5vw, 4rem));
   left: 0;
   right: 0;
   text-align: center;
