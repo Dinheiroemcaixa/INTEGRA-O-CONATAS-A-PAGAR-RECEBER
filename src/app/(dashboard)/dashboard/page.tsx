@@ -2,11 +2,13 @@
 
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import { createClient } from '@/lib/supabase/client'
-import { useEffect, useState } from 'react'
-import { formatCurrency } from '@/lib/utils'
+import { useEffect, useState, useCallback } from 'react'
+import { formatCurrency, formatDate } from '@/lib/utils'
 import {
-  ArrowDownCircle, Clock, CheckCircle, AlertCircle,
-  TrendingUp, Building2, Plus, Upload, Trash2, Loader2
+  Clock, CheckCircle, AlertCircle, TrendingUp,
+  Building2, Plus, Upload, Trash2, Loader2,
+  RefreshCw, Zap, X, ArrowDownCircle, ChevronRight,
+  Calendar, DollarSign, User,
 } from 'lucide-react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
@@ -19,6 +21,18 @@ interface Stats {
   valorEnviado: number
 }
 
+interface Lancamento {
+  id: string
+  fornecedor: string
+  valor: number
+  vencimento: string
+  status: string
+  descricao?: string | null
+  categoria?: string | null
+}
+
+type DrawerStatus = 'pendente' | 'enviado' | 'erro' | null
+
 export default function DashboardPage() {
   const { empresaAtiva, empresas } = useEmpresa()
   const [stats, setStats] = useState<Stats>({
@@ -27,16 +41,42 @@ export default function DashboardPage() {
   })
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+
+  // Drawer
+  const [drawerStatus, setDrawerStatus] = useState<DrawerStatus>(null)
+  const [lancamentos, setLancamentos] = useState<Lancamento[]>([])
+  const [loadingDrawer, setLoadingDrawer] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
   const supabase = createClient()
 
   useEffect(() => {
     if (!empresaAtiva) { setLoading(false); return }
     carregarStats()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [empresaAtiva])
 
-  const carregarStats = async () => {
-    setLoading(true)
+  // Fechar drawer com ESC
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setDrawerStatus(null) }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  // Travar scroll do body quando drawer aberto
+  useEffect(() => {
+    if (drawerStatus) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [drawerStatus])
+
+  const carregarStats = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true)
+    else setLoading(true)
     try {
       const { data } = await supabase
         .from('contas_pagar_importadas')
@@ -57,13 +97,55 @@ export default function DashboardPage() {
       }
     } finally {
       setLoading(false)
+      setRefreshing(false)
+    }
+  }
+
+  const abrirDrawer = useCallback(async (status: DrawerStatus) => {
+    if (!status || !empresaAtiva) return
+    setDrawerStatus(status)
+    setLoadingDrawer(true)
+    try {
+      const { data, error } = await supabase
+        .from('contas_pagar_importadas')
+        .select('id, fornecedor, valor, vencimento, status, descricao, categoria')
+        .eq('empresa_id', empresaAtiva.id)
+        .eq('status', status)
+        .order('vencimento', { ascending: true })
+
+      if (error) throw error
+      setLancamentos(data || [])
+    } catch {
+      toast.error('Erro ao carregar lançamentos')
+    } finally {
+      setLoadingDrawer(false)
+    }
+  }, [empresaAtiva, supabase])
+
+  const excluirLancamento = async (id: string) => {
+    if (!confirm('Excluir este lançamento?')) return
+    setDeletingId(id)
+    try {
+      const { error } = await supabase
+        .from('contas_pagar_importadas')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      setLancamentos(prev => prev.filter(l => l.id !== id))
+      toast.success('Lançamento excluído')
+      await carregarStats(true)
+    } catch {
+      toast.error('Erro ao excluir')
+    } finally {
+      setDeletingId(null)
     }
   }
 
   const handleLimparStatus = async (status: 'pendente' | 'erro') => {
     const label = status === 'pendente' ? 'pendentes' : 'com erro'
     if (!confirm(`Tem certeza que deseja apagar todos os registros ${label}?`)) return
-    
+
     setDeleting(status)
     try {
       const { error } = await supabase
@@ -73,9 +155,13 @@ export default function DashboardPage() {
         .eq('status', status)
 
       if (error) throw error
-      
+
       toast.success(`Registros ${label} removidos com sucesso!`)
       await carregarStats()
+      if (drawerStatus === status) {
+        setLancamentos([])
+        setDrawerStatus(null)
+      }
     } catch (err: any) {
       toast.error('Erro ao remover registros: ' + err.message)
     } finally {
@@ -86,160 +172,115 @@ export default function DashboardPage() {
   if (!empresaAtiva && empresas.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 animate-fade-in">
-        <Building2 size={48} className="text-dark-600" />
-        <h2 className="text-xl font-semibold text-white">Nenhuma empresa cadastrada</h2>
-        <p className="text-dark-400 text-sm">Crie sua primeira empresa para começar</p>
+        <div className="w-16 h-16 bg-dark-800 rounded-2xl flex items-center justify-center border border-dark-700">
+          <Building2 size={32} className="text-dark-500" />
+        </div>
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-white">Nenhuma empresa cadastrada</h2>
+          <p className="text-dark-400 text-sm mt-1">Crie sua primeira empresa para começar</p>
+        </div>
         <Link href="/empresas?new=true"
-          className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all">
+          className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all shadow-lg shadow-brand-900/30">
           <Plus size={18} /> Criar empresa
         </Link>
       </div>
     )
   }
 
+  const total = stats.totalPendente + stats.totalEnviado + stats.totalErro
+  const taxaSucesso = total > 0 ? Math.round((stats.totalEnviado / total) * 100) : 0
+
   const cards = [
     {
-      title: 'A Pagar (Pendentes)',
+      status: 'pendente' as DrawerStatus,
+      title: 'Pendentes',
+      label: 'A enviar',
       value: stats.totalPendente,
       sub: formatCurrency(stats.valorPendente),
       icon: Clock,
-      color: 'text-yellow-400',
-      bg: 'bg-yellow-400/10',
-      border: 'border-yellow-400/20',
+      color: 'text-amber-400',
+      colorHex: '#f59e0b',
+      bg: 'bg-amber-400/10',
+      border: 'border-amber-400/20',
+      hoverBorder: 'hover:border-amber-400/60',
+      gradientFrom: 'from-amber-500/10',
+      barWidth: total > 0 ? `${Math.round((stats.totalPendente / total) * 100)}%` : '0%',
+      barColor: 'bg-amber-400',
+      canDelete: stats.totalPendente > 0,
     },
     {
-      title: 'Enviados ao Conta Azul',
+      status: 'enviado' as DrawerStatus,
+      title: 'Enviados',
+      label: 'Conta Azul',
       value: stats.totalEnviado,
       sub: formatCurrency(stats.valorEnviado),
       icon: CheckCircle,
-      color: 'text-green-400',
-      bg: 'bg-green-400/10',
-      border: 'border-green-400/20',
+      color: 'text-emerald-400',
+      colorHex: '#34d399',
+      bg: 'bg-emerald-400/10',
+      border: 'border-emerald-400/20',
+      hoverBorder: 'hover:border-emerald-400/60',
+      gradientFrom: 'from-emerald-500/10',
+      barWidth: total > 0 ? `${Math.round((stats.totalEnviado / total) * 100)}%` : '0%',
+      barColor: 'bg-emerald-400',
+      canDelete: false,
     },
     {
+      status: 'erro' as DrawerStatus,
       title: 'Com Erro',
+      label: 'Falhas',
       value: stats.totalErro,
       sub: 'Necessitam atenção',
       icon: AlertCircle,
-      color: 'text-red-400',
-      bg: 'bg-red-400/10',
-      border: 'border-red-400/20',
+      color: 'text-rose-400',
+      colorHex: '#fb7185',
+      bg: 'bg-rose-400/10',
+      border: 'border-rose-400/20',
+      hoverBorder: 'hover:border-rose-400/60',
+      gradientFrom: 'from-rose-500/10',
+      barWidth: total > 0 ? `${Math.round((stats.totalErro / total) * 100)}%` : '0%',
+      barColor: 'bg-rose-400',
+      canDelete: stats.totalErro > 0,
     },
     {
-      title: 'Total Processado',
-      value: stats.totalPendente + stats.totalEnviado + stats.totalErro,
-      sub: 'Todos os registros',
+      status: null as DrawerStatus,
+      title: 'Total',
+      label: 'Processados',
+      value: total,
+      sub: formatCurrency(stats.valorPendente + stats.valorEnviado),
       icon: TrendingUp,
       color: 'text-brand-400',
+      colorHex: '#818cf8',
       bg: 'bg-brand-400/10',
       border: 'border-brand-400/20',
+      hoverBorder: 'hover:border-brand-400/60',
+      gradientFrom: 'from-brand-500/10',
+      barWidth: '100%',
+      barColor: 'bg-brand-400',
+      canDelete: false,
     },
   ]
 
+  const drawerCard = cards.find(c => c.status === drawerStatus)
+
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-        <p className="text-dark-400 text-sm mt-1">
-          {empresaAtiva ? `Empresa: ${empresaAtiva.nome}` : 'Selecione uma empresa'}
-        </p>
-      </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {cards.map((card) => {
-          const Icon = card.icon
-          const isPendente = card.title.includes('Pendentes')
-          const isErro = card.title.includes('Erro')
-          const canDelete = (isPendente && stats.totalPendente > 0) || (isErro && stats.totalErro > 0)
-          const statusParaDeletar = isPendente ? 'pendente' : 'erro'
-
-          return (
-            <div key={card.title}
-              className={`bg-dark-800 border ${card.border} rounded-xl p-5 flex flex-col gap-3 relative group`}>
-              <div className="flex items-center justify-between">
-                <p className="text-dark-400 text-sm font-medium">{card.title}</p>
-                <div className="flex items-center gap-2">
-                  {canDelete && (
-                    <button
-                      onClick={() => handleLimparStatus(statusParaDeletar as any)}
-                      disabled={deleting !== null}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
-                      title="Apagar estes registros"
-                    >
-                      {deleting === statusParaDeletar ? (
-                        <Loader2 size={16} className="animate-spin" />
-                      ) : (
-                        <Trash2 size={16} />
-                      )}
-                    </button>
-                  )}
-                  <div className={`${card.bg} rounded-lg p-2`}>
-                    <Icon size={18} className={card.color} />
-                  </div>
-                </div>
-              </div>
-              <div>
-                {loading ? (
-                  <div className="h-8 w-16 bg-dark-700 animate-pulse rounded" />
-                ) : (
-                  <p className="text-3xl font-bold text-white">{card.value}</p>
-                )}
-                <p className="text-dark-500 text-sm mt-1">{card.sub}</p>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Link href="/contas-pagar"
-          className="bg-dark-800 border border-dark-700 hover:border-brand-600 rounded-xl p-6 flex items-center gap-4 transition-all group">
-          <div className="w-12 h-12 bg-brand-600/20 rounded-xl flex items-center justify-center group-hover:bg-brand-600/30 transition-all">
-            <Upload size={22} className="text-brand-400" />
-          </div>
-          <div>
-            <p className="text-white font-semibold">Importar DataCar</p>
-            <p className="text-dark-400 text-sm">Carregar arquivo de contas a pagar</p>
-          </div>
-        </Link>
-
-        <Link href="/contas-pagar"
-          className="bg-dark-800 border border-dark-700 hover:border-green-600 rounded-xl p-6 flex items-center gap-4 transition-all group">
-          <div className="w-12 h-12 bg-green-600/20 rounded-xl flex items-center justify-center group-hover:bg-green-600/30 transition-all">
-            <ArrowDownCircle size={22} className="text-green-400" />
-          </div>
-          <div>
-            <p className="text-white font-semibold">Contas a Pagar</p>
-            <p className="text-dark-400 text-sm">Ver e enviar para o Conta Azul</p>
-          </div>
-        </Link>
-      </div>
-
-      <div className="bg-dark-800 border border-dark-700 rounded-xl p-5">
-        <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          Status da Integração
-        </h3>
-        <div className="flex flex-wrap gap-3">
-          <div className="flex items-center gap-2 bg-dark-900 rounded-lg px-3 py-2">
-            <CheckCircle size={14} className="text-green-400" />
-            <span className="text-sm text-dark-300">Supabase conectado</span>
-          </div>
-          <div className="flex items-center gap-2 bg-dark-900 rounded-lg px-3 py-2">
-            {empresaAtiva?.access_token_conta_azul ? (
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Dashboard</h1>
+          <p className="text-dark-400 text-sm mt-0.5 flex items-center gap-1.5">
+            {empresaAtiva ? (
               <>
-                <CheckCircle size={14} className="text-green-400" />
-                <span className="text-sm text-dark-300">Conta Azul conectado</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
+                {empresaAtiva.nome}
               </>
-            ) : (
-              <>
-                <AlertCircle size={14} className="text-yellow-400" />
-                <span className="text-sm text-dark-300">Conta Azul: configurar em Empresas</span>
-              </>
-            )}
-          </div>
+            ) : 'Selecione uma empresa'}
+          </p>
         </div>
-      </div>
-    </div>
-  )
-}
+        <button
+          onClick={() => carregarStats(true)}
+          disabled={refreshing}
+          className="flex items-center gap-2 text-sm text-dark-400 hover:text-white bg-dark-800 hover:bg-dark-700 border border-dark-700 px-3 py-2 rounded-lg transition-all"
+      

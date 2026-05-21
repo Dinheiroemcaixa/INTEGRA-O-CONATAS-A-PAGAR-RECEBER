@@ -9,6 +9,8 @@ export interface Empresa {
   data_expiracao_token: string | null
   conta_azul_connected: boolean
   created_at: string
+  /** E-mail de login vinculado a esta empresa no Conta Azul */
+  email_login: string | null
 }
 
 export interface UsuarioEmpresa {
@@ -76,9 +78,4 @@ export interface ContaPagarPreview {
 }
 
 export interface ResultadoImportacao {
-  total: number
-  validos: number
-  invalidos: number
-  dados: ContaPagarPreview[]
-  aviso?: string
-}
+  total: nu
