@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [mostrarSenha, setMostrarSenha] = useState(false)
   const [carregando, setCarregando] = useState(false)
   const [modoRegistro, setModoRegistro] = useState(false)
+  const [mostrarCard, setMostrarCard] = useState(false)
   const supabase = createClient()
 
   const fazerLogin = async (emailVal: string, senhaVal: string) => {
@@ -72,7 +73,18 @@ export default function LoginPage() {
         <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-brand-800 rounded-full opacity-10 blur-3xl" />
       </div>
 
-      <div className="relative w-full max-w-md animate-fade-in">
+      {!mostrarCard && (
+        <button
+          onClick={() => setMostrarCard(true)}
+          className="fixed top-6 right-8 z-30 flex items-center gap-2 bg-brand-600/80 hover:bg-brand-500 backdrop-blur-md text-white px-6 py-2.5 rounded-full font-medium transition-all duration-300 shadow-lg shadow-brand-900/40 hover:shadow-brand-900/60 hover:scale-105 border border-white/10"
+        >
+          <LogIn size={18} />
+          Login
+        </button>
+      )}
+
+      {mostrarCard && (
+        <div className="relative w-full max-w-md animate-fade-in z-20">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-600 rounded-2xl mb-4 shadow-lg shadow-brand-900/50">
             <span className="text-2xl font-bold text-white">$</span>
@@ -142,6 +154,7 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
+      )}
     </div>
   )
 }
