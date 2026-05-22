@@ -156,23 +156,28 @@ export async function POST(req: NextRequest) {
         }
 
         // 2. Match Conta Bancária
-        let bancoId = null
-        const contaOriginal = conta.conta_financeira || ''
-        const contaBuscaLimpa = limpar(contaOriginal)
-        
-        const bancoMatch = todasContasFinanceiras.find(b => {
-          const n = (b.descricao || '').toLowerCase().trim()
-          const nLimpa = limpar(n)
-          return n === contaOriginal.toLowerCase().trim() || nLimpa === contaBuscaLimpa || n.includes(contaOriginal.toLowerCase())
-        })
-        
-        if (bancoMatch) {
-          bancoId = bancoMatch.id
-        }
-        
-        if (!bancoId && todasContasFinanceiras.length > 0) {
-          const exemplos = todasContasFinanceiras.slice(0, 3).map(b => b.descricao).join(', ')
-          throw new Error(`Conta '${contaOriginal}' não encontrada. (Total de ${todasContasFinanceiras.length} contas lidas). Exemplo das que temos: ${exemplos}...`)
+        let bancoId: string | null = null
+
+        // Prioridade 1: usar o ID salvo diretamente (mais confiável)
+        if (conta.conta_financeira_id) {
+          bancoId = conta.conta_financeira_id
+        } else {
+          // Prioridade 2: match por nome
+          const contaOriginal = conta.conta_financeira || ''
+          const contaBuscaLimpa = limpar(contaOriginal)
+
+          const bancoMatch = todasContasFinanceiras.find(b => {
+            const n = (b.descricao || '').toLowerCase().trim()
+            const nLimpa = limpar(n)
+            return n === contaOriginal.toLowerCase().trim() || nLimpa === contaBuscaLimpa || n.includes(contaOriginal.toLowerCase())
+          })
+
+          if (bancoMatch) {
+            bancoId = bancoMatch.id
+          } else if (conta.conta_financeira && todasContasFinanceiras.length > 0) {
+            const exemplos = todasContasFinanceiras.slice(0, 3).map(b => b.descricao).join(', ')
+            throw new Error(`Conta '${conta.conta_financeira}' não encontrada. (Total de ${todasContasFinanceiras.length} contas lidas). Exemplo: ${exemplos}`)
+          }
         }
 
         const valorNum = Number(conta.valor)

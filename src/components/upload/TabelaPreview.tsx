@@ -5,8 +5,8 @@ import { CheckCircle, AlertCircle, Trash2, Edit2, ChevronDown } from 'lucide-rea
 import { cn } from '@/lib/utils'
 import SelectorFornecedor from './SelectorFornecedor'
 import SelectorCategoria from './SelectorCategoria'
-import SelectorContaFinanceira from './SelectorContaFinanceira'
-import { LISTA_CATEGORIAS_FLAT, CONTAS_FINANCEIRAS_PADRAO } from '@/lib/conta-azul/constants'
+import SelectorContaFinanceira, { ContaFinanceiraOpcao } from './SelectorContaFinanceira'
+import { LISTA_CATEGORIAS_FLAT } from '@/lib/conta-azul/constants'
 
 interface Props {
   dados: (ContaPagarPreview & { originalIdx?: number })[]
@@ -17,10 +17,11 @@ interface Props {
   onRemover: (idx: number) => void
   onUpdateFornecedor: (idx: number, novoNome: string) => void
   onUpdateCategoria: (idx: number, novaCategoria: string) => void
-  onUpdateConta: (idx: number, novaConta: string) => void
+  onUpdateConta: (idx: number, novaConta: string, contaId: string) => void
   onRemoverLote: (indices: number[]) => void
   onUpdateCategoriaLote: (indices: number[], novaCategoria: string) => void
   onUpdateContaLote: (indices: number[], novaConta: string) => void
+  contasFinanceiras: ContaFinanceiraOpcao[]
 }
 
 function BadgeMatch({ confianca, score }: { confianca: string; score: number }) {
@@ -50,7 +51,7 @@ function BadgeMatch({ confianca, score }: { confianca: string; score: number }) 
 
 export default function TabelaPreview({
   dados, filtro, selecionados, onToggle, onToggleTodos, onRemover, onUpdateFornecedor, onUpdateCategoria,
-  onRemoverLote, onUpdateCategoriaLote, onUpdateConta, onUpdateContaLote
+  onRemoverLote, onUpdateCategoriaLote, onUpdateConta, onUpdateContaLote, contasFinanceiras
 }: Props) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
   const [editingCatIdx, setEditingCatIdx] = useState<number | null>(null)
@@ -204,13 +205,13 @@ export default function TabelaPreview({
                       />
                       {showBulkContaList && (
                         <div className="absolute z-50 mt-1 w-full bg-dark-800 border border-dark-600 rounded-lg shadow-2xl overflow-hidden max-h-[200px] overflow-y-auto">
-                          {CONTAS_FINANCEIRAS_PADRAO.filter(c => c.toLowerCase().includes(loteConta.toLowerCase())).map((cat, i) => (
+                          {contasFinanceiras.filter(c => c.descricao.toLowerCase().includes(loteConta.toLowerCase())).map((c) => (
                             <button
-                              key={i}
-                              onClick={() => { setLoteConta(cat); setShowBulkContaList(false) }}
+                              key={c.id}
+                              onClick={() => { setLoteConta(c.descricao); setShowBulkContaList(false) }}
                               className="w-full text-left px-3 py-1.5 text-[10px] text-white hover:bg-blue-600/20 transition-colors"
                             >
-                              {cat}
+                              {c.descricao}
                             </button>
                           ))}
                         </div>
@@ -370,10 +371,11 @@ export default function TabelaPreview({
                   <td className="text-dark-300 text-xs min-w-[180px]">
                     {editingContaIdx === idx ? (
                       <SelectorContaFinanceira 
-                        valorInicial={item.conta_financeira || 'Santander Barão'}
+                        valorInicial={item.conta_financeira || ''}
+                        contas={contasFinanceiras}
                         onCancel={() => setEditingContaIdx(null)}
-                        onSelect={(conta) => {
-                          onUpdateConta(idx, conta)
+                        onSelect={(nome, id) => {
+                          onUpdateConta(idx, nome, id)
                           setEditingContaIdx(null)
                         }}
                       />
@@ -383,7 +385,7 @@ export default function TabelaPreview({
                         onClick={() => setEditingContaIdx(idx)}
                       >
                         <span className="truncate text-blue-300">
-                          {item.conta_financeira || 'Santander Barão'}
+                          {item.conta_financeira || 'Selecionar conta...'}
                         </span>
                         <ChevronDown size={12} className="text-blue-500 group-hover:text-blue-300" />
                       </div>

@@ -65,6 +65,7 @@ export interface ContaPagarPreview {
   vencimento: string
   categoria?: string
   conta_financeira?: string
+  conta_financeira_id?: string
   descricao?: string
   /** Número do documento / NF original do Datacar */
   doc?: string

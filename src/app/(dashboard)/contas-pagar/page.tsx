@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import type { ContaFinanceiraOpcao } from '@/components/upload/SelectorContaFinanceira'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import { createClient } from '@/lib/supabase/client'
 import DropZone from '@/components/upload/DropZone'
@@ -217,6 +218,7 @@ export default function ContasPagarPage() {
   const [filtroPreview, setFiltroPreview] = useState<'todos' | 'erro' | 'revisao'>('todos')
   const [showModalEnvio, setShowModalEnvio] = useState(false)
   const [userEmail, setUserEmail] = useState('')
+  const [contasFinanceirasCA, setContasFinanceirasCA] = useState<ContaFinanceiraOpcao[]>([])
   const supabase = createClient()
 
   useEffect(() => {
@@ -225,6 +227,18 @@ export default function ContasPagarPage() {
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (!empresaAtiva?.id) { setContasFinanceirasCA([]); return }
+    fetch(`/api/conta-azul/contas-financeiras?empresa_id=${empresaAtiva.id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.contas && Array.isArray(data.contas)) {
+          setContasFinanceirasCA(data.contas.map((c: any) => ({ id: c.id, descricao: c.descricao })))
+        }
+      })
+      .catch(() => {})
+  }, [empresaAtiva?.id])
 
   const handleResultado = useCallback(async (res: ResultadoImportacao) => {
     // Tentar buscar fornecedores do ContaAzul para fazer match automático de nomes
@@ -348,7 +362,8 @@ export default function ContasPagarPage() {
           valor: d.valor,
           vencimento: d.vencimento || new Date().toISOString().split('T')[0],
           categoria: d.categoria || 'Materiais para Revenda',
-          conta_financeira: d.conta_financeira || 'Santander Barão',
+          conta_financeira: d.conta_financeira || null,
+          conta_financeira_id: d.conta_financeira_id || null,
           descricao: d.descricao || null,
           doc: d.doc || null,
           emissao: d.emissao || null,
@@ -530,10 +545,10 @@ export default function ContasPagarPage() {
     }
   }, [empresaAtiva, dadosEditados, supabase])
  
-  const updateConta = useCallback(async (idx: number, novaConta: string) => {
+  const updateConta = useCallback(async (idx: number, novaConta: string, contaId: string) => {
     setDadosEditados((prev) => {
       const next = [...prev]
-      next[idx] = { ...next[idx], conta_financeira: novaConta }
+      next[idx] = { ...next[idx], conta_financeira: novaConta, conta_financeira_id: contaId }
       return next
     })
   }, [])
@@ -812,6 +827,7 @@ export default function ContasPagarPage() {
             onRemoverLote={removerEmLote}
             onUpdateCategoriaLote={updateCategoriaEmLote}
             onUpdateContaLote={updateContaEmLote}
+            contasFinanceiras={contasFinanceirasCA}
           />
 
 
