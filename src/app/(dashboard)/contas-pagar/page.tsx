@@ -616,6 +616,10 @@ export default function ContasPagarPage() {
     }
   }
 
+  const valorSelecionado = dadosEditados
+    .filter((_, i) => selecionados.has(i))
+    .reduce((sum, c) => sum + (c.valor || 0), 0)
+
   return (
     <>
     {/* Modal de confirmação de envio */}
