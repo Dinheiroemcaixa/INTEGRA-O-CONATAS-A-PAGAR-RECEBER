@@ -42,7 +42,6 @@ function PainelFornecedores({ empresa }: { empresa: Empresa }) {
         return
       }
 
-      // Apagar lista anterior desta empresa e inserir nova
       await supabase.from('fornecedores_contaazul').delete().eq('empresa_id', empresa.id)
 
       const registros = fornecedores.map((f) => ({
@@ -53,7 +52,6 @@ function PainelFornecedores({ empresa }: { empresa: Empresa }) {
         nome_normalizado: f.nomeNormalizado,
       }))
 
-      // Inserir em lotes de 500
       for (let i = 0; i < registros.length; i += 500) {
         const lote = registros.slice(i, i + 500)
         const { error } = await supabase.from('fornecedores_contaazul').insert(lote)
@@ -225,18 +223,18 @@ function EmpresasPageContent() {
           id: empresaId,
           nome: form.nome.trim(),
           cnpj: cnpjLimpo,
+          created_by: user.id,
           email_login: form.email_login.trim() || null,
-          created_by: user.id
         })
 
       if (errEmp) throw errEmp
 
       const { error: errVinc } = await supabase
         .from('usuarios_empresas')
-        .insert({ 
-          user_id: user.id, 
-          empresa_id: empresaId, 
-          papel: 'admin' 
+        .insert({
+          user_id: user.id,
+          empresa_id: empresaId,
+          papel: 'admin'
         })
 
       if (errVinc) throw errVinc
@@ -262,8 +260,7 @@ function EmpresasPageContent() {
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-lg
-                     font-semibold flex items-center gap-2 transition-all text-sm"
+          className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
         >
           <Plus size={16} /> Nova Empresa
         </button>
@@ -271,8 +268,7 @@ function EmpresasPageContent() {
 
       {showForm && (
         <div className="bg-dark-800 border border-dark-600 rounded-xl p-6 animate-fade-in">
-          <h3 className="text-white font-semibold mb-1">Cadastrar nova empresa</h3>
-          <p className="text-dark-500 text-xs mb-4">O e-mail de login é opcional, mas recomendado para evitar envios para a empresa errada.</p>
+          <h3 className="text-white font-semibold mb-4">Cadastrar nova empresa</h3>
           <form onSubmit={handleCriar} className="flex flex-col gap-3">
             <div className="flex flex-col sm:flex-row gap-3">
               <input
@@ -345,7 +341,6 @@ function EmpresasPageContent() {
             </div>
 
             <div className="space-y-4">
-              {/* E-mail de login vinculado */}
               {empresa.email_login ? (
                 <div className="flex items-center gap-2 px-3 py-2 bg-dark-900/60 rounded-lg border border-dark-700">
                   <Mail size={13} className="text-brand-400 flex-shrink-0" />
@@ -358,6 +353,7 @@ function EmpresasPageContent() {
                   <span className="text-xs text-dark-600">E-mail de login não informado</span>
                 </div>
               )}
+
               <div className="flex items-center justify-between p-3 bg-dark-900 rounded-lg border border-dark-700">
                 <div className="flex items-center gap-3">
                   <div className={`w-2 h-2 rounded-full ${empresa.access_token_conta_azul ? 'bg-green-500' : 'bg-red-500'}`} />
@@ -385,4 +381,58 @@ function EmpresasPageContent() {
                       <button
                         onClick={() => handleDesconectar(empresa.id)}
                         className="text-red-400 hover:text-red-300 transition-colors"
-       
+                        title="Desconectar"
+                      >
+                        <Unlink size={16} />
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => handleConectarContaAzul(empresa.id)}
+                      disabled={conectando === empresa.id}
+                      className="text-brand-400 hover:text-brand-300 text-sm font-semibold flex items-center gap-1 transition-all"
+                    >
+                      {conectando === empresa.id ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <ExternalLink size={14} />
+                      )}
+                      Conectar
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <PainelFornecedores empresa={empresa} />
+            </div>
+          </div>
+        ))}
+
+        {empresas.length === 0 && !showForm && (
+          <div className="lg:col-span-2 py-20 flex flex-col items-center justify-center border-2 border-dashed border-dark-700 rounded-2xl">
+            <Building2 size={48} className="text-dark-700 mb-4" />
+            <p className="text-dark-400">Nenhuma empresa cadastrada.</p>
+            <button
+              onClick={() => setShowForm(true)}
+              className="text-brand-400 font-semibold mt-2 hover:text-brand-300 transition-colors"
+            >
+              Cadastrar agora
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default function EmpresasPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="animate-spin text-brand-600" size={32} />
+      </div>
+    }>
+      <EmpresasPageContent />
+    </Suspense>
+  )
+}

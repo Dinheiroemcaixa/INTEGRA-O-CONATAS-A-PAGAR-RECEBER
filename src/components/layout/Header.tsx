@@ -122,3 +122,97 @@ export default function Header() {
                 </button>
               ))
             )}
+
+            {/* Painel Conta Azul da empresa ativa */}
+            {empresaAtiva && (
+              <div className="border-t border-dark-700 px-3 py-3 bg-dark-900/50">
+                <p className="text-xs text-dark-500 font-semibold uppercase tracking-wider mb-2">Conta Azul — {empresaAtiva.nome}</p>
+
+                <div className="flex items-center justify-between bg-dark-800 border border-dark-700 rounded-xl px-3 py-2.5">
+                  <div className="flex items-center gap-2">
+                    {contaAzulConectado ? (
+                      <>
+                        <CheckCircle size={13} className="text-emerald-400" />
+                        <span className="text-sm text-emerald-400 font-medium">API conectada</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle size={13} className="text-amber-400" />
+                        <span className="text-sm text-amber-400 font-medium">Não conectado</span>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    {contaAzulConectado ? (
+                      <>
+                        {/* Renovar */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleConectar() }}
+                          disabled={conectando}
+                          className="p-1.5 rounded-lg text-dark-400 hover:text-white hover:bg-dark-700 transition-all"
+                          title="Renovar token"
+                        >
+                          {conectando ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                        </button>
+                        {/* Desconectar */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDesconectar() }}
+                          disabled={desconectando}
+                          className="p-1.5 rounded-lg text-dark-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+                          title="Desconectar"
+                        >
+                          {desconectando ? <Loader2 size={14} className="animate-spin" /> : <Unlink size={14} />}
+                        </button>
+                      </>
+                    ) : (
+                      /* Conectar */
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleConectar() }}
+                        disabled={conectando}
+                        className="flex items-center gap-1.5 text-xs font-semibold text-brand-400 hover:text-brand-300 bg-brand-600/10 hover:bg-brand-600/20 px-3 py-1.5 rounded-lg transition-all"
+                      >
+                        {conectando ? <Loader2 size={12} className="animate-spin" /> : <ExternalLink size={12} />}
+                        Conectar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* User menu */}
+      <div ref={refUser} className="relative">
+        <button
+          onClick={() => setOpenUser(!openUser)}
+          className="flex items-center gap-2.5 hover:bg-dark-800 rounded-xl px-3 py-2 transition-all"
+        >
+          <div className="w-8 h-8 bg-brand-600 rounded-full flex items-center justify-center flex-shrink-0">
+            <User size={14} className="text-white" />
+          </div>
+          <span className="text-dark-300 text-sm hidden sm:block max-w-[160px] truncate">{userEmail}</span>
+          <ChevronDown size={13} className="text-dark-500" />
+        </button>
+
+        {openUser && (
+          <div className="absolute top-full mt-2 right-0 w-56 bg-dark-800 border border-dark-600 rounded-2xl shadow-2xl z-50 overflow-hidden animate-fade-in">
+            <div className="px-4 py-3 border-b border-dark-700">
+              <p className="text-white text-sm font-medium truncate">{userEmail}</p>
+              <p className="text-dark-500 text-xs mt-0.5">Conta ativa</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:bg-dark-700 hover:text-rose-300 transition-colors text-sm"
+            >
+              <LogOut size={16} />
+              Sair do sistema
+            </button>
+          </div>
+        )}
+      </div>
+    </header>
+  )
+}
