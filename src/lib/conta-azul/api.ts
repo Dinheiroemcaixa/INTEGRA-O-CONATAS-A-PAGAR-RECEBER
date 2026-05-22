@@ -131,9 +131,10 @@ export async function listarContasFinanceiras(
 ): Promise<ContaFinanceira[]> {
   const todasContas = new Map<string, ContaFinanceira>()
   const endpoints = [
-    `${BASE_URL}/v1/conta-financeira?pagina=1&tamanho_pagina=100`,
-    `${BASE_URL}/financeiro/contas-financeiras?pagina=1&tamanho_pagina=100`,
+    `${BASE_URL}/conta-financeira?pagina=1&tamanho_pagina=100`,
+    `${BASE_URL}/financeiro/conta-financeira?pagina=1&tamanho_pagina=100`,
     `${BASE_URL}/contas-financeiras?pagina=1&tamanho_pagina=100`,
+    `${BASE_URL}/financeiro/contas-financeiras?pagina=1&tamanho_pagina=100`,
   ]
 
   for (const endpoint of endpoints) {
@@ -368,6 +369,7 @@ export function getUrlAutorizacao(
     client_id: clientId,
     redirect_uri: redirectUri,
     scope: 'openid profile aws.cognito.signin.user.admin',
+    prompt: 'login',   // Forca novo login mesmo com sessao Cognito ativa
     ...(state ? { state } : {}),
   })
   return `${AUTHORIZE_URL}?${params}`

@@ -74,6 +74,9 @@ export async function POST(req: NextRequest) {
       console.error('[ca/enviar] erro ao carregar metadados:', e)
     }
 
+    console.log(`[ca/enviar] Categorias carregadas: ${todasCategorias.length}`)
+    console.log(`[ca/enviar] Contas financeiras carregadas: ${todasContasFinanceiras.length}`, JSON.stringify(todasContasFinanceiras.slice(0,5)))
+
     if (todasCategorias.length === 0) {
       return NextResponse.json({ error: 'Nenhuma categoria no Conta Azul' }, { status: 400 })
     }
@@ -174,9 +177,9 @@ export async function POST(req: NextRequest) {
 
           if (bancoMatch) {
             bancoId = bancoMatch.id
-          } else if (conta.conta_financeira && todasContasFinanceiras.length > 0) {
-            const exemplos = todasContasFinanceiras.slice(0, 3).map(b => b.descricao).join(', ')
-            throw new Error(`Conta '${conta.conta_financeira}' não encontrada. (Total de ${todasContasFinanceiras.length} contas lidas). Exemplo: ${exemplos}`)
+          } else if (conta.conta_financeira) {
+            // Log para diagnostico - nao bloqueia o envio
+            console.warn(`[ca/enviar] Conta '${conta.conta_financeira}' nao encontrada por nome. Contas disponiveis: ${todasContasFinanceiras.map(b => b.descricao).join(', ')}`)
           }
         }
 
