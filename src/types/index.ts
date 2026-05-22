@@ -78,4 +78,9 @@ export interface ContaPagarPreview {
 }
 
 export interface ResultadoImportacao {
-  total: nu
+  total: number
+  validos: number
+  invalidos: number
+  dados: ContaPagarPreview[]
+  aviso?: string
+}
