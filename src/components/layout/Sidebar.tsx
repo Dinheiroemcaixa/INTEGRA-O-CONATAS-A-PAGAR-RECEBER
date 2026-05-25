@@ -102,10 +102,15 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-dark-700">
+      <div className="p-4 border-t border-dark-700 space-y-2">
         <div className="bg-brand-950/50 border border-brand-800/30 rounded-lg p-3">
           <p className="text-xs text-brand-300 font-semibold mb-0.5">🚀 Sistema ativo</p>
           <p className="text-xs text-dark-500">Integração Conta Azul pronta</p>
+        </div>
+        <div className="rounded-lg p-3 bg-dark-800 border border-dark-700">
+          <p className="text-[10px] text-dark-500 uppercase tracking-wider mb-0.5">Desenvolvedor</p>
+          <p className="text-xs text-dark-300 font-semibold">AH CARDOSO</p>
+          <p className="text-[10px] text-dark-500 mt-1">Versão 01 — dev</p>
         </div>
       </div>
     </aside>
