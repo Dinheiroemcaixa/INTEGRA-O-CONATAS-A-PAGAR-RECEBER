@@ -187,18 +187,16 @@ export async function listarCategorias(
       // Loop para buscar múltiplas páginas (até 10 páginas de 100 itens para segurança)
       for (let page = 1; page <= 10; page++) {
         const sep = endpoint.includes('?') ? '&' : '?'
-        // Tentar sem a restrição de apenas filhos para ver se traz mais itens
         const urlComPagina = `${endpoint}${sep}pagina=${page}&tamanho_pagina=100`
         
         const res = await fetch(urlComPagina, {
           headers: { 'Authorization': `Bearer ${accessToken}` },
         })
         
-        if (!res.ok) break // Se falhar esta página, tenta o próximo endpoint
+        if (!res.ok) break
         
         const data = await res.json()
         let listaRaw: any[] = []
-        // Conforme doc: o campo é 'itens'
         if (data.itens && Array.isArray(data.itens)) {
           listaRaw = data.itens
         } else if (Array.isArray(data)) {
@@ -211,7 +209,7 @@ export async function listarCategorias(
           listaRaw = data.data
         }
         
-        if (listaRaw.length === 0) break // Fim das páginas
+        if (listaRaw.length === 0) break
         
         const achatarCategorias = (itens: any[]): any[] => {
           let resultado: any[] = []
@@ -239,7 +237,6 @@ export async function listarCategorias(
           }
         }
 
-        // Se a página veio com menos itens que o solicitado (100), provavelmente é a última página
         if (listaRaw.length < 100) break
       }
     } catch (e) {
@@ -259,7 +256,6 @@ export async function buscarOuCriarContato(
   nome: string
 ): Promise<string | undefined> {
   try {
-    // Buscar contato por nome usando os parâmetros em português conforme doc
     const endpointsBusca = [
       `${BASE_URL}/v1/pessoas?pagina=1&tamanho_pagina=100&busca=${encodeURIComponent(nome)}&tipo_perfil=Fornecedor`,
       `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=100&busca=${encodeURIComponent(nome)}`,
@@ -273,7 +269,6 @@ export async function buscarOuCriarContato(
           const data = await busca.json()
           const lista: any[] = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
           if (lista.length > 0) {
-            // Tentar match exato no nome se houver vários resultados para evitar erros de similaridade
             const nomeBusca = nome.toLowerCase().trim()
             const matchExato = lista.find(p => (p.nome || p.name || '').toLowerCase().trim() === nomeBusca)
             return matchExato ? matchExato.id : lista[0].id
@@ -284,7 +279,6 @@ export async function buscarOuCriarContato(
       }
     }
 
-    // Criar contato se não existir - tenta primeiro em /v1/pessoas
     const criar = await fetch(`${BASE_URL}/v1/pessoas`, {
       method: 'POST',
       headers: {
@@ -304,7 +298,6 @@ export async function buscarOuCriarContato(
       return novo.id
     }
     
-    // Fallback para o endpoint de contatos antigo se o de pessoas falhar
     const criarLegado = await fetch(`${BASE_URL}/contatos`, {
       method: 'POST',
       headers: {
@@ -349,7 +342,6 @@ export async function criarContaPagar(
 
   if (!res.ok) {
     const errBody = await res.text()
-    // Mostrar a resposta da API primeiro (mais útil para debug)
     const mensagem = `[${res.status}] ${errBody}`
     throw new Error(mensagem)
   }
@@ -369,7 +361,7 @@ export function getUrlAutorizacao(
     client_id: clientId,
     redirect_uri: redirectUri,
     scope: 'openid profile aws.cognito.signin.user.admin',
-    prompt: 'login',   // Forca novo login mesmo com sessao Cognito ativa
+    prompt: 'login',
     ...(state ? { state } : {}),
   })
   return `${AUTHORIZE_URL}?${params}`
