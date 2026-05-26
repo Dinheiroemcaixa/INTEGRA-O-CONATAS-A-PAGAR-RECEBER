@@ -169,87 +169,68 @@ export async function listarContasFinanceiras(
 export async function listarCategorias(
   accessToken: string
 ): Promise<Array<{ id: string; nome: string }>> {
-  const todasCategoriasEncontradas = new Map<string, { id: string; nome: string; tipo?: string }>()
+  // Tentar múltiplos endpoints possíveis para categorias no Conta Azul v2
   const endpoints = [
     `${BASE_URL}/financeiro/categorias?tipo=DESPESA`,
     `${BASE_URL}/financeiro/categorias`,
     `${BASE_URL}/categorias?tipo=DESPESA`,
     `${BASE_URL}/categorias`,
     `${BASE_URL}/financeiro/categorias-financeiras`,
-    `${BASE_URL}/financeiro/plano-contas`,
-    // Busca direta por nome para garantir o match do fallback
-    `${BASE_URL}/categorias?nome=Materiais para Revenda`,
-    `${BASE_URL}/categorias?nome=Materiais para revenda`,
   ]
 
   for (const endpoint of endpoints) {
     try {
-      // Loop para buscar múltiplas páginas (até 10 páginas de 100 itens para segurança)
-      for (let page = 1; page <= 10; page++) {
-        const sep = endpoint.includes('?') ? '&' : '?'
-        // Tentar sem a restrição de apenas filhos para ver se traz mais itens
-        const urlComPagina = `${endpoint}${sep}pagina=${page}&tamanho_pagina=100`
-        
-        const res = await fetch(urlComPagina, {
-          headers: { 'Authorization': `Bearer ${accessToken}` },
-        })
-        
-        if (!res.ok) break // Se falhar esta página, tenta o próximo endpoint
-        
-        const data = await res.json()
-        let listaRaw: any[] = []
-        // Conforme doc: o campo é 'itens'
-        if (data.itens && Array.isArray(data.itens)) {
-          listaRaw = data.itens
-        } else if (Array.isArray(data)) {
-          listaRaw = data
-        } else if (data.content && Array.isArray(data.content)) {
-          listaRaw = data.content
-        } else if (data.items && Array.isArray(data.items)) {
-          listaRaw = data.items
-        } else if (data.data && Array.isArray(data.data)) {
-          listaRaw = data.data
-        }
-        
-        if (listaRaw.length === 0) break // Fim das páginas
-        
-        const achatarCategorias = (itens: any[]): any[] => {
-          let resultado: any[] = []
-          for (const item of itens) {
-            resultado.push({
-              id: item.id || item.uuid || item.categoryId || item.guid,
-              nome: item.nome || item.name || item.descricao || item.description || 'Categoria',
-              tipo: item.tipo || item.type
-            })
-            const filhos = item.children || item.sub_categories || item.subcategorias || item.itens || item.items || item.nodes
-            if (filhos && Array.isArray(filhos) && filhos.length > 0) {
-              resultado = resultado.concat(achatarCategorias(filhos))
-            }
-          }
-          return resultado
+      const res = await fetch(endpoint, {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      })
+      
+      console.log(`[categorias] ${endpoint} -> ${res.status}`)
+      
+      if (!res.ok) {
+        const errText = await res.text()
+        console.warn(`[categorias] erro em ${endpoint}: ${res.status} - ${errText}`)
+        continue
+      }
+      
+      const data = await res.json()
+      
+      let lista: any[] = []
+      if (Array.isArray(data)) {
+        lista = data
+      } else if (data.content && Array.isArray(data.content)) {
+        lista = data.content
+      } else if (data.items && Array.isArray(data.items)) {
+        lista = data.items
+      } else if (data.itens && Array.isArray(data.itens)) {
+        lista = data.itens
+      } else if (data.data && Array.isArray(data.data)) {
+        lista = data.data
+      }
+      
+      if (lista.length > 0) {
+        // Normalizar campos - a API pode retornar 'name' ou 'nome', 'uuid' ou 'id'
+        const categoriasNormalizadas = lista.map(c => ({
+          id: c.id || c.uuid || c.categoryId || c.guid,
+          nome: c.nome || c.name || c.descricao || c.description || 'Categoria',
+          tipo: c.tipo || c.type
+        })).filter(c => c.id)
+
+        // Se o endpoint não for específico de despesa, tentamos filtrar as de despesa se houver o campo tipo
+        if (!endpoint.includes('tipo=DESPESA')) {
+          const despesas = categoriasNormalizadas.filter(c => 
+            !c.tipo || c.tipo === 'DESPESA' || c.tipo === 'EXPENSE' || c.tipo === 'OUTGOING'
+          )
+          if (despesas.length > 0) return despesas
         }
 
-        const achatadas = achatarCategorias(listaRaw)
-        for (const cat of achatadas) {
-          if (cat.id && !todasCategoriasEncontradas.has(cat.id)) {
-            const ehReceita = cat.tipo === 'RECEITA' || cat.tipo === 'REVENUE' || cat.tipo === 'INCOME'
-            if (!ehReceita) {
-              todasCategoriasEncontradas.set(cat.id, cat)
-            }
-          }
-        }
-
-        // Se a página veio com menos itens que o solicitado (100), provavelmente é a última página
-        if (listaRaw.length < 100) break
+        return categoriasNormalizadas
       }
     } catch (e) {
       console.warn(`[categorias] erro em ${endpoint}:`, e)
     }
   }
 
-  const resultadoFinal = Array.from(todasCategoriasEncontradas.values())
-  console.log(`[categorias] Total carregado: ${resultadoFinal.length}`)
-  return resultadoFinal
+  return []
 }
 
 // ─── Listar / Criar Contato ───────────────────────────────────────────────────
