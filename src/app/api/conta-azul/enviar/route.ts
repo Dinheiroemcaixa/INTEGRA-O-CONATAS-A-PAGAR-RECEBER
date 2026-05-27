@@ -70,8 +70,10 @@ export async function POST(req: NextRequest) {
         listarCategorias(accessToken),
         listarContasFinanceiras(accessToken)
       ])
-    } catch (e) {
-      console.error('[ca/enviar] erro ao carregar metadados:', e)
+    } catch (e: any) {
+      const msgErro = e instanceof Error ? e.message : String(e)
+      console.error('[ca/enviar] ERRO ao carregar metadados:', msgErro)
+      return NextResponse.json({ error: msgErro }, { status: 400 })
     }
 
     console.log(`[ca/enviar] Categorias carregadas: ${todasCategorias.length}`)
