@@ -186,14 +186,19 @@ export async function listarCategorias(
       for (let page = 1; page <= 10; page++) {
         const sep = endpoint.includes('?') ? '&' : '?'
         const urlComPagina = `${endpoint}${sep}pagina=${page}&tamanho_pagina=100`
-        
+
         const res = await fetch(urlComPagina, {
           headers: { 'Authorization': `Bearer ${accessToken}` },
         })
-        
-        if (!res.ok) break // Se falhar esta página, tenta o próximo endpoint
-        
+
+        if (!res.ok) {
+          const errBody = await res.text()
+          console.warn(`[categorias] ${res.status} em ${urlComPagina} → ${errBody.substring(0, 300)}`)
+          break // Tenta o próximo endpoint
+        }
+
         const data = await res.json()
+        console.log(`[categorias] ${urlComPagina} → keys: ${Object.keys(data).join(', ')} | itens: ${JSON.stringify(data).substring(0, 200)}`)
         let listaRaw: any[] = []
         // Conforme doc: o campo é 'itens'
         if (data.itens && Array.isArray(data.itens)) {
@@ -363,11 +368,3 @@ export function getUrlAutorizacao(
 ): string {
   const params = new URLSearchParams({
     response_type: 'code',
-    client_id: clientId,
-    redirect_uri: redirectUri,
-    scope: 'openid profile aws.cognito.signin.user.admin',
-    prompt: 'login',   // Forca novo login mesmo com sessao Cognito ativa
-    ...(state ? { state } : {}),
-  })
-  return `${AUTHORIZE_URL}?${params}`
-}
