@@ -119,7 +119,10 @@ export async function listarContasFinanceiras(accessToken: string): Promise<Cont
           todasContas.set(id, { id, descricao: item.descricao || item.nome || item.name || item.description || 'Conta Sem Nome', tipo: item.tipo || item.type })
         }
       }
-    } catch (e) { console.warn(`[contas-financeiras] erro em ${endpoint}:`, e) }
+    } catch (e: any) { 
+      if (e.message === 'TOKEN_EXPIRADO') throw e;
+      console.warn(`[contas-financeiras] erro em ${endpoint}:`, e) 
+    }
   }
   return Array.from(todasContas.values())
 }
@@ -181,6 +184,7 @@ export async function listarCategorias(accessToken: string): Promise<Array<{ id:
         if (listaRaw.length < 100) break
       }
     } catch (e: any) { 
+      if (e.message === 'TOKEN_EXPIRADO') throw e;
       errosDaApi.push(`[${endpoint}] Falha no fetch: ${e.message}`)
     }
   }
