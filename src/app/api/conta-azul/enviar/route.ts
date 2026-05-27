@@ -52,14 +52,16 @@ export async function POST(req: NextRequest) {
           process.env.CONTA_AZUL_CLIENT_SECRET!
         )
         accessToken = novosTokens.access_token
-        await supabaseAdmin
+        const { error: errUpdate } = await supabaseAdmin
           .from('empresas')
           .update({
             access_token_conta_azul: novosTokens.access_token,
             refresh_token_conta_azul: novosTokens.refresh_token,
-            data_expiracao_token: new Date(Date.now() + novosTokens.expires_in * 1000).toISOString(),
+            data_expiracao_token: new Date(Date.now() + (novosTokens.expires_in || 3600) * 1000).toISOString(),
           })
           .eq('id', empresa_id)
+          
+        if (errUpdate) throw new Error(`Falha ao salvar novos tokens: ${errUpdate.message}`)
       } catch (errRefresh) {
         return NextResponse.json({ error: 'Token expirado. Reconecte.' }, { status: 401 })
       }

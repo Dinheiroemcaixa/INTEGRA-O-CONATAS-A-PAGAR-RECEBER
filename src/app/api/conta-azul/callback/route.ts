@@ -34,9 +34,10 @@ export async function GET(req: NextRequest) {
       process.env.CONTA_AZUL_CLIENT_SECRET!
     )
 
-    const expiracao = new Date(Date.now() + tokens.expires_in * 1000).toISOString()
+    const expires_in = tokens.expires_in || 3600
+    const expiracao = new Date(Date.now() + expires_in * 1000).toISOString()
 
-    await supabaseAdmin
+    const { error: errUpdate } = await supabaseAdmin
       .from('empresas')
       .update({
         access_token_conta_azul: tokens.access_token,
@@ -44,6 +45,8 @@ export async function GET(req: NextRequest) {
         data_expiracao_token: expiracao,
       })
       .eq('id', state)
+      
+    if (errUpdate) throw new Error(`Falha ao salvar token: ${errUpdate.message}`)
 
     await supabaseAdmin.from('logs_integracao').insert({
       empresa_id: state,

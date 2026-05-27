@@ -3,6 +3,9 @@ import { createClient } from '@supabase/supabase-js'
 import { listarContasFinanceiras, refreshToken as refreshCA } from '@/lib/conta-azul/api'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
+export const revalidate = 0
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -44,14 +47,16 @@ export async function GET(req: NextRequest) {
         process.env.CONTA_AZUL_CLIENT_SECRET!
       )
       accessToken = novosTokens.access_token
-      await supabaseAdmin
+      const { error: errUpdate } = await supabaseAdmin
         .from('empresas')
         .update({
           access_token_conta_azul: novosTokens.access_token,
           refresh_token_conta_azul: novosTokens.refresh_token,
-          data_expiracao_token: new Date(Date.now() + novosTokens.expires_in * 1000).toISOString(),
+          data_expiracao_token: new Date(Date.now() + (novosTokens.expires_in || 3600) * 1000).toISOString(),
         })
         .eq('id', empresa_id)
+        
+      if (errUpdate) throw new Error(`Falha ao salvar novos tokens: ${errUpdate.message}`)
     } catch {
       return NextResponse.json({ error: 'Token expirado. Reconecte.' }, { status: 401 })
     }
