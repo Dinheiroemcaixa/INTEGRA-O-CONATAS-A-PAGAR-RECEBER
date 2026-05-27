@@ -123,20 +123,29 @@ export async function listarContasFinanceiras(accessToken: string): Promise<Cont
 
 export async function listarCategorias(accessToken: string): Promise<Array<{ id: string; nome: string }>> {
   const todasCategoriasEncontradas = new Map<string, { id: string; nome: string; tipo?: string }>()
-  // Conforme doc oficial da API v2: pagina, tamanho_pagina e permite_apenas_filhos são OBRIGATÓRIOS
   const endpoints = [
     `${BASE_URL}/categorias?tipo=DESPESA&permite_apenas_filhos=true`,
     `${BASE_URL}/categorias?permite_apenas_filhos=true`,
     `${BASE_URL}/categorias?tipo=DESPESA&permite_apenas_filhos=false`,
     `${BASE_URL}/categorias?permite_apenas_filhos=false`,
+    `${BASE_URL}/categorias`,
+    `${BASE_URL}/financeiro/categorias`,
   ]
+  const errosDaApi: string[] = []
+  
   for (const endpoint of endpoints) {
     try {
       for (let page = 1; page <= 10; page++) {
         const sep = endpoint.includes('?') ? '&' : '?'
         const urlComPagina = `${endpoint}${sep}pagina=${page}&tamanho_pagina=100`
         const res = await fetch(urlComPagina, { headers: { 'Authorization': `Bearer ${accessToken}` } })
-        if (!res.ok) break
+        
+        if (!res.ok) {
+          const errText = await res.text()
+          errosDaApi.push(`[${endpoint}] ${res.status}: ${errText}`)
+          break // Falhou, tenta o próximo endpoint
+        }
+        
         const data = await res.json()
         let listaRaw: any[] = []
         if (data.itens && Array.isArray(data.itens)) listaRaw = data.itens
@@ -144,7 +153,9 @@ export async function listarCategorias(accessToken: string): Promise<Array<{ id:
         else if (data.content && Array.isArray(data.content)) listaRaw = data.content
         else if (data.items && Array.isArray(data.items)) listaRaw = data.items
         else if (data.data && Array.isArray(data.data)) listaRaw = data.data
+        
         if (listaRaw.length === 0) break
+        
         const achatarCategorias = (itens: any[]): any[] => {
           let resultado: any[] = []
           for (const item of itens) {
@@ -154,6 +165,7 @@ export async function listarCategorias(accessToken: string): Promise<Array<{ id:
           }
           return resultado
         }
+        
         const achatadas = achatarCategorias(listaRaw)
         for (const cat of achatadas) {
           if (cat.id && !todasCategoriasEncontradas.has(cat.id)) {
@@ -161,12 +173,21 @@ export async function listarCategorias(accessToken: string): Promise<Array<{ id:
             if (!ehReceita) todasCategoriasEncontradas.set(cat.id, cat)
           }
         }
+        
         if (listaRaw.length < 100) break
       }
-    } catch (e) { console.warn(`[categorias] erro em ${endpoint}:`, e) }
+    } catch (e: any) { 
+      errosDaApi.push(`[${endpoint}] Falha no fetch: ${e.message}`)
+    }
   }
+  
   const resultadoFinal = Array.from(todasCategoriasEncontradas.values())
   console.log(`[categorias] Total carregado: ${resultadoFinal.length}`)
+  
+  if (resultadoFinal.length === 0) {
+    throw new Error(`Nenhuma categoria no Conta Azul. Detalhes da API: ${errosDaApi.join(' | ')}`)
+  }
+  
   return resultadoFinal
 }
 
