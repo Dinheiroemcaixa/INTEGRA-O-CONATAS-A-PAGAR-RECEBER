@@ -144,9 +144,9 @@ export async function listarContasFinanceiras(
       })
       if (!res.ok) continue
       const data = await res.json()
-      
+
       const listaRaw = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
-      
+
       for (const item of listaRaw) {
         const id = item.id || item.uuid || item.bankAccountId || item.guid
         if (id && !todasContas.has(id)) {
@@ -170,7 +170,7 @@ export async function listarCategorias(
   accessToken: string
 ): Promise<Array<{ id: string; nome: string }>> {
   const todasCategoriasEncontradas = new Map<string, { id: string; nome: string; tipo?: string }>()
-  // Conforme doc oficial da API v2: permite_apenas_filhos é obrigatório
+  // Conforme doc oficial da API v2: pagina, tamanho_pagina e permite_apenas_filhos são obrigatórios
   const endpoints = [
     `${BASE_URL}/categorias?tipo=DESPESA&permite_apenas_filhos=true`,
     `${BASE_URL}/categorias?permite_apenas_filhos=true`,
@@ -186,13 +186,13 @@ export async function listarCategorias(
       for (let page = 1; page <= 10; page++) {
         const sep = endpoint.includes('?') ? '&' : '?'
         const urlComPagina = `${endpoint}${sep}pagina=${page}&tamanho_pagina=100`
-        
+
         const res = await fetch(urlComPagina, {
           headers: { 'Authorization': `Bearer ${accessToken}` },
         })
-        
+
         if (!res.ok) break // Se falhar esta página, tenta o próximo endpoint
-        
+
         const data = await res.json()
         let listaRaw: any[] = []
         // Conforme doc: o campo é 'itens'
@@ -207,9 +207,9 @@ export async function listarCategorias(
         } else if (data.data && Array.isArray(data.data)) {
           listaRaw = data.data
         }
-        
+
         if (listaRaw.length === 0) break // Fim das páginas
-        
+
         const achatarCategorias = (itens: any[]): any[] => {
           let resultado: any[] = []
           for (const item of itens) {
@@ -288,19 +288,19 @@ export async function buscarOuCriarContato(
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ 
-        nome, 
-        tipo_pessoa: 'Jurídica', 
+      body: JSON.stringify({
+        nome,
+        tipo_pessoa: 'Jurídica',
         tipo_perfil: 'Fornecedor',
-        ativo: true 
+        ativo: true
       }),
     })
-    
+
     if (criar.ok) {
       const novo: any = await criar.json()
       return novo.id
     }
-    
+
     // Fallback para o endpoint de contatos antigo se o de pessoas falhar
     const criarLegado = await fetch(`${BASE_URL}/contatos`, {
       method: 'POST',
@@ -315,7 +315,7 @@ export async function buscarOuCriarContato(
       const novo: any = await criarLegado.json()
       return novo.id
     }
-    
+
     const errText = await criar.text()
     throw new Error(`Erro ao criar contato '${nome}': ${criar.status} - ${errText}`)
   } catch (e: any) {
