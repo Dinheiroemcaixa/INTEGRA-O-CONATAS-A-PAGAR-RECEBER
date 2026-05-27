@@ -107,7 +107,10 @@ export async function listarContasFinanceiras(accessToken: string): Promise<Cont
   for (const endpoint of endpoints) {
     try {
       const res = await fetch(endpoint, { headers: { 'Authorization': `Bearer ${accessToken}` } })
-      if (!res.ok) continue
+      if (!res.ok) {
+        if (res.status === 401) throw new Error('TOKEN_EXPIRADO')
+        continue
+      }
       const data = await res.json()
       const listaRaw = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
       for (const item of listaRaw) {
@@ -141,6 +144,7 @@ export async function listarCategorias(accessToken: string): Promise<Array<{ id:
         const res = await fetch(urlComPagina, { headers: { 'Authorization': `Bearer ${accessToken}` } })
         
         if (!res.ok) {
+          if (res.status === 401) throw new Error('TOKEN_EXPIRADO')
           const errText = await res.text()
           errosDaApi.push(`[${endpoint}] ${res.status}: ${errText}`)
           break // Falhou, tenta o próximo endpoint

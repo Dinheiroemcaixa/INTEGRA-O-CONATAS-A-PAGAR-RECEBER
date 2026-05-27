@@ -73,6 +73,11 @@ export async function POST(req: NextRequest) {
     } catch (e: any) {
       const msgErro = e instanceof Error ? e.message : String(e)
       console.error('[ca/enviar] ERRO ao carregar metadados:', msgErro)
+      
+      if (msgErro === 'TOKEN_EXPIRADO' || msgErro.includes('Token has expired') || msgErro.includes('TokenExpired')) {
+        return NextResponse.json({ error: 'Sua conexão com a Conta Azul expirou. Por favor, acesse o painel (icone de engrenagem) e clique em "Conectar Conta Azul" novamente.' }, { status: 401 })
+      }
+      
       return NextResponse.json({ error: msgErro }, { status: 400 })
     }
 
