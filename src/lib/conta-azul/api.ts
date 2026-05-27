@@ -123,13 +123,12 @@ export async function listarContasFinanceiras(accessToken: string): Promise<Cont
 
 export async function listarCategorias(accessToken: string): Promise<Array<{ id: string; nome: string }>> {
   const todasCategoriasEncontradas = new Map<string, { id: string; nome: string; tipo?: string }>()
+  // Conforme doc oficial da API v2: pagina, tamanho_pagina e permite_apenas_filhos são OBRIGATÓRIOS
   const endpoints = [
-    `${BASE_URL}/financeiro/categorias?tipo=DESPESA`,
-    `${BASE_URL}/financeiro/categorias`,
-    `${BASE_URL}/categorias?tipo=DESPESA`,
-    `${BASE_URL}/categorias`,
-    `${BASE_URL}/financeiro/categorias-financeiras`,
-    `${BASE_URL}/financeiro/plano-contas`,
+    `${BASE_URL}/categorias?tipo=DESPESA&permite_apenas_filhos=true`,
+    `${BASE_URL}/categorias?permite_apenas_filhos=true`,
+    `${BASE_URL}/categorias?tipo=DESPESA&permite_apenas_filhos=false`,
+    `${BASE_URL}/categorias?permite_apenas_filhos=false`,
   ]
   for (const endpoint of endpoints) {
     try {
