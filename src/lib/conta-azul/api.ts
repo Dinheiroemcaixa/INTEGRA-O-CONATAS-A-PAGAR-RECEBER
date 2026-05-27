@@ -170,16 +170,14 @@ export async function listarCategorias(
   accessToken: string
 ): Promise<Array<{ id: string; nome: string }>> {
   const todasCategoriasEncontradas = new Map<string, { id: string; nome: string; tipo?: string }>()
+  // Conforme doc oficial da API v2: permite_apenas_filhos é obrigatório
   const endpoints = [
-    `${BASE_URL}/financeiro/categorias?tipo=DESPESA`,
-    `${BASE_URL}/financeiro/categorias`,
-    `${BASE_URL}/categorias?tipo=DESPESA`,
-    `${BASE_URL}/categorias`,
-    `${BASE_URL}/financeiro/categorias-financeiras`,
-    `${BASE_URL}/financeiro/plano-contas`,
-    // Busca direta por nome para garantir o match do fallback
-    `${BASE_URL}/categorias?nome=Materiais para Revenda`,
-    `${BASE_URL}/categorias?nome=Materiais para revenda`,
+    `${BASE_URL}/categorias?tipo=DESPESA&permite_apenas_filhos=true`,
+    `${BASE_URL}/categorias?permite_apenas_filhos=true`,
+    `${BASE_URL}/categorias?tipo=DESPESA&permite_apenas_filhos=false`,
+    `${BASE_URL}/categorias?permite_apenas_filhos=false`,
+    `${BASE_URL}/financeiro/categorias?tipo=DESPESA&permite_apenas_filhos=true`,
+    `${BASE_URL}/financeiro/categorias?permite_apenas_filhos=true`,
   ]
 
   for (const endpoint of endpoints) {
@@ -187,7 +185,6 @@ export async function listarCategorias(
       // Loop para buscar múltiplas páginas (até 10 páginas de 100 itens para segurança)
       for (let page = 1; page <= 10; page++) {
         const sep = endpoint.includes('?') ? '&' : '?'
-        // Tentar sem a restrição de apenas filhos para ver se traz mais itens
         const urlComPagina = `${endpoint}${sep}pagina=${page}&tamanho_pagina=100`
         
         const res = await fetch(urlComPagina, {
