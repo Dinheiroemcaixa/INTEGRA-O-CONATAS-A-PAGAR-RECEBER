@@ -251,6 +251,12 @@ export async function listarCategorias(
 
   const resultadoFinal = Array.from(todasCategoriasEncontradas.values())
   console.log(`[categorias] Total carregado: ${resultadoFinal.length}`)
+  
+  // Se nenhuma categoria foi encontrada, lança erro com diagnóstico detalhado
+  if (resultadoFinal.length === 0) {
+    throw new Error(`[categorias] Nenhuma categoria retornada pela API ContaAzul. Verifique o token OAuth e as categorias cadastradas na conta. Endpoints testados: ${endpoints.join(' | ')}`)
+  }
+  
   return resultadoFinal
 }
 
