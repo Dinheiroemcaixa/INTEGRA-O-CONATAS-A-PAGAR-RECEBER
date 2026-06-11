@@ -184,8 +184,6 @@ function EmpresasPageContent() {
 
   const handleConectarContaAzul = (empresaId: string) => {
     setConectando(empresaId)
-    // A rota /api/conta-azul/autorizar agora faz logout no Cognito antes de redirecionar
-    // para a tela de login, garantindo que uma nova conta seja solicitada.
     window.location.href = `/api/conta-azul/autorizar?empresa_id=${empresaId}`
   }
 
