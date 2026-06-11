@@ -160,7 +160,7 @@ export default function TabelaContas({ empresaId }: Props) {
                   <th>Fornecedor</th>
                   <th className="text-right">Valor</th>
                   <th>Vencimento</th>
-                  <th>Emissão</th>
+                  <th>Competência</th>
                   <th>Categoria</th>
                   <th>Conta</th>
                   <th>Descrição</th>

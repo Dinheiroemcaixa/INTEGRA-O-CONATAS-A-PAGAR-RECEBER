@@ -336,7 +336,7 @@ export default function TabelaPreview({
                           {match && <BadgeMatch confianca={match.confianca} score={match.score} />}
                           <button 
                             onClick={() => setEditingIdx(idx)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1"
+                            className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1"
                             title="Editar fornecedor"
                           >
                             <Edit2 size={12} />
@@ -375,7 +375,7 @@ export default function TabelaPreview({
                       <div className="group flex items-center justify-end gap-2">
                         <button
                           onClick={() => setEditingValorIdx(idx)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 flex-shrink-0"
+                          className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 flex-shrink-0"
                           title="Editar valor"
                         >
                           <Edit2 size={12} />
@@ -407,7 +407,7 @@ export default function TabelaPreview({
                         <span>{item.vencimento ? formatDate(item.vencimento) : '---'}</span>
                         <button
                           onClick={() => setEditingVencIdx(idx)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 flex-shrink-0"
+                          className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 flex-shrink-0"
                           title="Editar vencimento"
                         >
                           <Edit2 size={12} />
@@ -438,7 +438,7 @@ export default function TabelaPreview({
                         <span>{item.emissao ? formatDate(item.emissao) : '---'}</span>
                         <button
                           onClick={() => setEditingEmissaoIdx(idx)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 flex-shrink-0"
+                          className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 flex-shrink-0"
                           title="Editar competência (emissão)"
                         >
                           <Edit2 size={12} />
@@ -514,7 +514,7 @@ export default function TabelaPreview({
                         <span className="truncate" title={item.descricao}>{item.descricao || '---'}</span>
                         <button
                           onClick={() => setEditingDescIdx(idx)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 flex-shrink-0"
+                          className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 flex-shrink-0"
                           title="Editar descrição"
                         >
                           <Edit2 size={12} />
