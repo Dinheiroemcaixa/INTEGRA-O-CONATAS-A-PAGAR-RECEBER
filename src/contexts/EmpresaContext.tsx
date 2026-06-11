@@ -27,28 +27,21 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
       if (!user) { setLoading(false); return }
 
       const { data, error } = await supabase
-        .from('usuarios_empresas')
-        .select('empresa_id, empresas(*)')
-        .eq('user_id', user.id)
+        .from('empresas')
+        .select('*')
+        .order('nome')
 
       if (error) throw error
 
-      const lista = data
-        ?.map((item: { empresa_id: string; empresas: Empresa | Empresa[] | null }) => {
-          if (!item.empresas) return null
-          return Array.isArray(item.empresas) ? item.empresas[0] : item.empresas
-        })
-        .filter(Boolean) as Empresa[]
-
-      setEmpresas(lista || [])
+      setEmpresas(data || [])
 
       // Recuperar empresa ativa do localStorage
       const savedId = localStorage.getItem('empresa_ativa_id')
-      const saved = lista?.find((e) => e.id === savedId)
+      const saved = data?.find((e) => e.id === savedId)
       if (saved) {
         setEmpresaAtivaState(saved)
-      } else if (lista?.length > 0) {
-        setEmpresaAtivaState(lista[0])
+      } else if (data && data.length > 0) {
+        setEmpresaAtivaState(data[0])
       }
     } catch (err) {
       console.error('Erro ao carregar empresas:', err)
