@@ -553,6 +553,38 @@ export default function ContasPagarPage() {
     })
   }, [])
 
+  const updateValor = useCallback((idx: number, novoValor: number) => {
+    setDadosEditados((prev) => {
+      const next = [...prev]
+      next[idx] = { ...next[idx], valor: novoValor }
+      return next
+    })
+  }, [])
+
+  const updateVencimento = useCallback((idx: number, novaData: string) => {
+    setDadosEditados((prev) => {
+      const next = [...prev]
+      next[idx] = { ...next[idx], vencimento: novaData }
+      return next
+    })
+  }, [])
+
+  const updateEmissao = useCallback((idx: number, novaData: string) => {
+    setDadosEditados((prev) => {
+      const next = [...prev]
+      next[idx] = { ...next[idx], emissao: novaData }
+      return next
+    })
+  }, [])
+
+  const updateDescricao = useCallback((idx: number, novaDesc: string) => {
+    setDadosEditados((prev) => {
+      const next = [...prev]
+      next[idx] = { ...next[idx], descricao: novaDesc }
+      return next
+    })
+  }, [])
+
   const removerEmLote = (indices: number[]) => {
     const novosDados = dadosEditados.filter((_, i) => !indices.includes(i))
     setDadosEditados(novosDados)
@@ -828,6 +860,10 @@ export default function ContasPagarPage() {
             onUpdateCategoriaLote={updateCategoriaEmLote}
             onUpdateContaLote={updateContaEmLote}
             contasFinanceiras={contasFinanceirasCA}
+            onUpdateValor={updateValor}
+            onUpdateVencimento={updateVencimento}
+            onUpdateEmissao={updateEmissao}
+            onUpdateDescricao={updateDescricao}
           />
 
 

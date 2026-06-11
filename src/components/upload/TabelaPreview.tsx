@@ -22,6 +22,10 @@ interface Props {
   onUpdateCategoriaLote: (indices: number[], novaCategoria: string) => void
   onUpdateContaLote: (indices: number[], novaConta: string) => void
   contasFinanceiras: ContaFinanceiraOpcao[]
+  onUpdateValor: (idx: number, novoValor: number) => void
+  onUpdateVencimento: (idx: number, novaData: string) => void
+  onUpdateEmissao: (idx: number, novaData: string) => void
+  onUpdateDescricao: (idx: number, novaDesc: string) => void
 }
 
 function BadgeMatch({ confianca, score }: { confianca: string; score: number }) {
@@ -51,11 +55,16 @@ function BadgeMatch({ confianca, score }: { confianca: string; score: number }) 
 
 export default function TabelaPreview({
   dados, filtro, selecionados, onToggle, onToggleTodos, onRemover, onUpdateFornecedor, onUpdateCategoria,
-  onRemoverLote, onUpdateCategoriaLote, onUpdateConta, onUpdateContaLote, contasFinanceiras
+  onRemoverLote, onUpdateCategoriaLote, onUpdateConta, onUpdateContaLote, contasFinanceiras,
+  onUpdateValor, onUpdateVencimento, onUpdateEmissao, onUpdateDescricao
 }: Props) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
   const [editingCatIdx, setEditingCatIdx] = useState<number | null>(null)
   const [editingContaIdx, setEditingContaIdx] = useState<number | null>(null)
+  const [editingValorIdx, setEditingValorIdx] = useState<number | null>(null)
+  const [editingVencIdx, setEditingVencIdx] = useState<number | null>(null)
+  const [editingEmissaoIdx, setEditingEmissaoIdx] = useState<number | null>(null)
+  const [editingDescIdx, setEditingDescIdx] = useState<number | null>(null)
   const [buscaFornecedor, setBuscaFornecedor] = useState('')
   const [buscaCategoria, setBuscaCategoria] = useState('')
   const [buscaValor, setBuscaValor] = useState('')
@@ -271,6 +280,7 @@ export default function TabelaPreview({
               <th>Fornecedor</th>
               <th className="text-right">Valor</th>
               <th>Vencimento</th>
+              <th>Competência</th>
               <th>Categoria</th>
               <th>Conta</th>
               <th>Descrição</th>
@@ -326,7 +336,7 @@ export default function TabelaPreview({
                           {match && <BadgeMatch confianca={match.confianca} score={match.score} />}
                           <button 
                             onClick={() => setEditingIdx(idx)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1"
+                            className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1"
                             title="Editar fornecedor"
                           >
                             <Edit2 size={12} />
@@ -340,11 +350,101 @@ export default function TabelaPreview({
                       </div>
                     )}
                   </td>
-                  <td className="text-right font-mono text-white">
-                    {formatCurrency(item.valor)}
+                  <td className="text-right font-mono text-white min-w-[120px]">
+                    {editingValorIdx === idx ? (
+                      <input
+                        type="number"
+                        step="0.01"
+                        defaultValue={item.valor}
+                        autoFocus
+                        onBlur={(e) => {
+                          const val = parseFloat(e.target.value)
+                          if (!isNaN(val)) onUpdateValor(idx, val)
+                          setEditingValorIdx(null)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const val = parseFloat(e.currentTarget.value)
+                            if (!isNaN(val)) onUpdateValor(idx, val)
+                            setEditingValorIdx(null)
+                          } else if (e.key === 'Escape') setEditingValorIdx(null)
+                        }}
+                        className="w-full bg-dark-900 border border-brand-500 rounded px-2 py-1 text-xs text-right outline-none"
+                      />
+                    ) : (
+                      <div className="group flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => setEditingValorIdx(idx)}
+                          className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 flex-shrink-0"
+                          title="Editar valor"
+                        >
+                          <Edit2 size={12} />
+                        </button>
+                        <span>{formatCurrency(item.valor)}</span>
+                      </div>
+                    )}
                   </td>
-                  <td className="text-dark-300 text-sm">
-                    {item.vencimento ? formatDate(item.vencimento) : '---'}
+                  <td className="text-dark-300 text-sm min-w-[140px]">
+                    {editingVencIdx === idx ? (
+                      <input
+                        type="date"
+                        defaultValue={item.vencimento || ''}
+                        autoFocus
+                        onBlur={(e) => {
+                          onUpdateVencimento(idx, e.target.value)
+                          setEditingVencIdx(null)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            onUpdateVencimento(idx, e.currentTarget.value)
+                            setEditingVencIdx(null)
+                          } else if (e.key === 'Escape') setEditingVencIdx(null)
+                        }}
+                        className="w-full bg-dark-900 border border-brand-500 rounded px-2 py-1 text-xs outline-none"
+                      />
+                    ) : (
+                      <div className="group flex items-center gap-2">
+                        <span>{item.vencimento ? formatDate(item.vencimento) : '---'}</span>
+                        <button
+                          onClick={() => setEditingVencIdx(idx)}
+                          className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 flex-shrink-0"
+                          title="Editar vencimento"
+                        >
+                          <Edit2 size={12} />
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                  <td className="text-dark-300 text-sm min-w-[140px]">
+                    {editingEmissaoIdx === idx ? (
+                      <input
+                        type="date"
+                        defaultValue={item.emissao || ''}
+                        autoFocus
+                        onBlur={(e) => {
+                          onUpdateEmissao(idx, e.target.value)
+                          setEditingEmissaoIdx(null)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            onUpdateEmissao(idx, e.currentTarget.value)
+                            setEditingEmissaoIdx(null)
+                          } else if (e.key === 'Escape') setEditingEmissaoIdx(null)
+                        }}
+                        className="w-full bg-dark-900 border border-brand-500 rounded px-2 py-1 text-xs outline-none"
+                      />
+                    ) : (
+                      <div className="group flex items-center gap-2">
+                        <span>{item.emissao ? formatDate(item.emissao) : '---'}</span>
+                        <button
+                          onClick={() => setEditingEmissaoIdx(idx)}
+                          className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 flex-shrink-0"
+                          title="Editar competência (emissão)"
+                        >
+                          <Edit2 size={12} />
+                        </button>
+                      </div>
+                    )}
                   </td>
                   <td className="text-dark-300 text-xs min-w-[200px]">
                     {editingCatIdx === idx ? (
@@ -391,8 +491,36 @@ export default function TabelaPreview({
                       </div>
                     )}
                   </td>
-                  <td className="text-dark-400 text-xs max-w-[200px] truncate" title={item.descricao}>
-                    {item.descricao || '---'}
+                  <td className="text-dark-400 text-xs max-w-[200px]">
+                    {editingDescIdx === idx ? (
+                      <input
+                        type="text"
+                        defaultValue={item.descricao || ''}
+                        autoFocus
+                        onBlur={(e) => {
+                          onUpdateDescricao(idx, e.target.value)
+                          setEditingDescIdx(null)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            onUpdateDescricao(idx, e.currentTarget.value)
+                            setEditingDescIdx(null)
+                          } else if (e.key === 'Escape') setEditingDescIdx(null)
+                        }}
+                        className="w-full bg-dark-900 border border-brand-500 rounded px-2 py-1 text-xs outline-none"
+                      />
+                    ) : (
+                      <div className="group flex items-center gap-2 truncate">
+                        <span className="truncate" title={item.descricao}>{item.descricao || '---'}</span>
+                        <button
+                          onClick={() => setEditingDescIdx(idx)}
+                          className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 flex-shrink-0"
+                          title="Editar descrição"
+                        >
+                          <Edit2 size={12} />
+                        </button>
+                      </div>
+                    )}
                   </td>
                   <td className="text-center">
                     {item.valido ? (
