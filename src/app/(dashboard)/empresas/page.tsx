@@ -18,6 +18,7 @@ function PainelFornecedores({ empresa }: { empresa: Empresa }) {
   const [aberto, setAberto] = useState(false)
   const [total, setTotal] = useState<number | null>(null)
   const [importando, setImportando] = useState(false)
+  const [sincronizando, setSincronizando] = useState(false)
   const [limpando, setLimpando] = useState(false)
   const supabase = createClient()
 
@@ -103,12 +104,46 @@ function PainelFornecedores({ empresa }: { empresa: Empresa }) {
       {aberto && (
         <div className="mt-3 space-y-2 animate-fade-in">
           <p className="text-xs text-dark-500">
-            Importe o CSV de fornecedores exportado do ContaAzul para que o app corrija
+            Sincronize os fornecedores diretamente do Conta Azul para que o app corrija
             automaticamente os nomes ao importar planilhas do Datacar.
           </p>
           <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={async () => {
+                if (!empresa.access_token_conta_azul) {
+                  toast.error('Empresa não conectada ao Conta Azul.')
+                  return
+                }
+                setSincronizando(true)
+                try {
+                  const res = await fetch('/api/conta-azul/fornecedores/sincronizar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ empresa_id: empresa.id })
+                  })
+                  const data = await res.json()
+                  if (!res.ok) throw new Error(data.error || 'Erro ao sincronizar fornecedores')
+                  toast.success(data.message || `${data.count} fornecedores sincronizados com sucesso!`)
+                  await carregarTotal()
+                } catch (err: any) {
+                  toast.error(err.message)
+                } finally {
+                  setSincronizando(false)
+                }
+              }}
+              disabled={sincronizando || importando || !empresa.access_token_conta_azul}
+              className={`flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg cursor-pointer transition-all
+                ${sincronizando || importando || !empresa.access_token_conta_azul
+                  ? 'bg-dark-700 text-dark-500 cursor-not-allowed'
+                  : 'bg-brand-600 hover:bg-brand-500 text-white'
+                }`}
+            >
+              {sincronizando ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+              {sincronizando ? 'Sincronizando...' : 'Sincronizar Conta Azul'}
+            </button>
+
             <label className={`flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg cursor-pointer transition-all
-              ${importando
+              ${importando || sincronizando
                 ? 'bg-dark-700 text-dark-500 cursor-not-allowed'
                 : 'bg-emerald-700 hover:bg-emerald-600 text-white'
               }`}>
