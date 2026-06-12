@@ -258,3 +258,72 @@ export function getUrlAutorizacao(clientId: string, redirectUri: string, state?:
   })
   return `${AUTHORIZE_URL}?${params}`
 }
+
+export async function listarFornecedores(accessToken: string): Promise<Array<{ id: string; nome: string; documento: string }>> {
+  const todosFornecedoresEncontrados = new Map<string, { id: string; nome: string; documento: string }>()
+  const errosDaApi: string[] = []
+  
+  // Como as APIs da CA podem mudar ou falhar com parâmetros específicos, vamos tentar listar todos
+  // e tratar a extração de CNPJ/CPF da resposta.
+  // A request na documentação sugere: /v1/pessoas?tipo_perfil=Fornecedor
+  const endpoints = [
+    `${BASE_URL}/pessoas?tipo_perfil=Fornecedor`,
+    `${BASE_URL}/v1/pessoas?tipo_perfil=Fornecedor`
+  ]
+
+  for (const endpoint of endpoints) {
+    try {
+      // Loop de paginação
+      for (let page = 1; page <= 50; page++) {
+        const sep = endpoint.includes('?') ? '&' : '?'
+        const urlComPagina = `${endpoint}${sep}pagina=${page}&tamanho_pagina=100`
+        const res = await fetch(urlComPagina, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+        
+        if (!res.ok) {
+          if (res.status === 401) throw new Error('TOKEN_EXPIRADO')
+          const errText = await res.text()
+          errosDaApi.push(`[${endpoint}] ${res.status}: ${errText}`)
+          break // Falhou, tenta o próximo endpoint
+        }
+        
+        const data = await res.json()
+        let listaRaw: any[] = []
+        if (data.itens && Array.isArray(data.itens)) listaRaw = data.itens
+        else if (data.items && Array.isArray(data.items)) listaRaw = data.items
+        else if (Array.isArray(data)) listaRaw = data
+        else if (data.content && Array.isArray(data.content)) listaRaw = data.content
+        else if (data.data && Array.isArray(data.data)) listaRaw = data.data
+        
+        if (listaRaw.length === 0) break
+        
+        for (const item of listaRaw) {
+          const id = item.id || item.uuid || item.guid
+          const nome = item.nome || item.name || item.nome_fantasia || ''
+          const documentoRaw = item.cnpj || item.cpf || item.documento || ''
+          const documento = documentoRaw.replace(/\D/g, '')
+
+          if (id && nome && !todosFornecedoresEncontrados.has(id)) {
+            todosFornecedoresEncontrados.set(id, { id, nome, documento })
+          }
+        }
+        
+        if (listaRaw.length < 100) break // Última página
+      }
+      
+      // Se já achou fornecedores em um endpoint, não precisa tentar o próximo
+      if (todosFornecedoresEncontrados.size > 0) break
+    } catch (e: any) { 
+      if (e.message === 'TOKEN_EXPIRADO') throw e;
+      errosDaApi.push(`[${endpoint}] Falha no fetch: ${e.message}`)
+    }
+  }
+  
+  const resultadoFinal = Array.from(todosFornecedoresEncontrados.values())
+  console.log(`[fornecedores] Total carregado via sincronização: ${resultadoFinal.length}`)
+  
+  if (resultadoFinal.length === 0 && errosDaApi.length > 0) {
+    console.warn(`Nenhum fornecedor encontrado no Conta Azul. Detalhes da API: ${errosDaApi.join(' | ')}`)
+  }
+  
+  return resultadoFinal
+}
