@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
         .from('empresas')
         .update({
           access_token_conta_azul: novosTokens.access_token,
-          refresh_token_conta_azul: novosTokens.refresh_token,
+          refresh_token_conta_azul: novosTokens.refresh_token || empresa.refresh_token_conta_azul,
           data_expiracao_token: new Date(Date.now() + (novosTokens.expires_in || 3600) * 1000).toISOString(),
         })
         .eq('id', empresa_id)

@@ -9,7 +9,7 @@
 
 const BASE_URL = 'https://api-v2.contaazul.com/v1'
 const AUTH_URL = 'https://auth.contaazul.com/oauth2/token'
-const AUTHORIZE_URL = 'https://auth.contaazul.com/oauth2/authorize'
+const AUTHORIZE_URL = 'https://auth.contaazul.com/login'
 
 export interface TokenResponse {
   access_token: string
@@ -254,8 +254,7 @@ export function getUrlAutorizacao(clientId: string, redirectUri: string, state?:
     client_id: clientId,
     redirect_uri: redirectUri,
     scope: 'openid profile aws.cognito.signin.user.admin',
-    prompt: 'login',
     ...(state ? { state } : {}),
   })
   return `${AUTHORIZE_URL}?${params}`
-  }
+}
