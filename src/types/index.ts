@@ -85,3 +85,47 @@ export interface ResultadoImportacao {
   dados: ContaPagarPreview[]
   aviso?: string
 }
+
+export interface VendaItemPreview {
+  codigo: string
+  descricao: string
+  quantidade: number
+  valor_unitario: number
+}
+
+export interface VendaPreview {
+  cliente: string
+  os_numero: string
+  data_venda: string
+  valor_total: number
+  forma_pagamento?: string
+  itens: VendaItemPreview[]
+  valido: boolean
+  erros?: string[]
+}
+
+export interface ResultadoImportacaoVendas {
+  total: number
+  validos: number
+  invalidos: number
+  dados: VendaPreview[]
+  aviso?: string
+}
+
+export interface VendaImportada {
+  id: string
+  empresa_id: string
+  cliente: string
+  os_numero: string
+  data_venda: string
+  valor_total: number
+  forma_pagamento?: string
+  itens: VendaItemPreview[]
+  status: StatusIntegracao
+  conta_azul_id: string | null
+  erro_mensagem: string | null
+  tentativas: number
+  importacao_id: string | null
+  created_at: string
+  updated_at: string
+}

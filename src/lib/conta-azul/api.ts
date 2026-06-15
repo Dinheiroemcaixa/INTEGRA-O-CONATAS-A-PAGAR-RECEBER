@@ -327,3 +327,137 @@ export async function listarFornecedores(accessToken: string): Promise<Array<{ i
   
   return resultadoFinal
 }
+
+export interface VendaPayload {
+  id_cliente: string
+  numero?: number
+  situacao: 'EM_ANDAMENTO' | 'APROVADO'
+  data_venda: string
+  id_categoria?: string
+  id_centro_custo?: string
+  id_vendedor?: string
+  observacoes?: string
+  observacoes_pagamento?: string
+  itens: Array<{
+    descricao: string
+    quantidade: number
+    valor: number
+    id?: string // uuid do produto
+    valor_custo?: number
+  }>
+  condicao_pagamento: {
+    tipo_pagamento: string
+    id_conta_financeira?: string
+    opcao_condicao_pagamento: string
+    nsu?: string
+    parcelas: Array<{
+      data_vencimento: string
+      valor: number
+      descricao?: string
+    }>
+  }
+}
+
+export async function criarVenda(accessToken: string, payload: VendaPayload): Promise<{ id: string, id_legado: number }> {
+  // Busca o próximo número de venda para não haver conflito se não informarmos
+  if (!payload.numero) {
+    try {
+      const proximo = await fetch(`${BASE_URL}/venda/proximo-numero`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+      if (proximo.ok) {
+        payload.numero = Number(await proximo.text())
+      }
+    } catch (e) {
+      console.warn('Erro ao obter proximo numero de venda', e)
+    }
+  }
+
+  const res = await fetch(`${BASE_URL}/venda`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (res.status === 401) throw new Error('TOKEN_EXPIRADO')
+  if (!res.ok) { const errBody = await res.text(); throw new Error(`[${res.status}] ${errBody}`) }
+  return res.json()
+}
+
+export async function buscarOuCriarProduto(accessToken: string, codigo: string, descricao: string, valor: number): Promise<string | undefined> {
+  // Tenta buscar o produto pelo código ou descrição
+  const urlBusca = `${BASE_URL}/produtos?termo_busca=${encodeURIComponent(codigo || descricao)}&tamanho_pagina=100`
+  try {
+    const busca = await fetch(urlBusca, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+    if (busca.ok) {
+      const data = await busca.json()
+      const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : [])
+      if (lista.length > 0) {
+        return lista[0].id || lista[0].uuid
+      }
+    }
+  } catch (e) { console.warn(`[buscarOuCriarProduto] erro na busca em ${urlBusca}:`, e) }
+
+  // Tenta criar o produto se não existir
+  try {
+    const payloadProduto = {
+      nome: descricao || codigo || 'Produto sem nome',
+      codigo: codigo || undefined,
+      valor: valor,
+      situacao: 'ATIVO',
+      tipo: 'PRODUTO'
+    }
+    const criar = await fetch(`${BASE_URL}/produtos`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payloadProduto),
+    })
+    if (criar.ok) {
+      const novo: any = await criar.json()
+      return novo.id || novo.uuid
+    }
+  } catch (e) {
+    console.warn(`[buscarOuCriarProduto] erro ao tentar criar:`, e)
+  }
+  
+  return undefined
+}
+
+export async function buscarOuCriarCliente(accessToken: string, nome: string): Promise<string | undefined> {
+  try {
+    const endpointsBusca = [
+      `${BASE_URL}/v1/pessoas?pagina=1&tamanho_pagina=100&busca=${encodeURIComponent(nome)}&tipo_perfil=Cliente`,
+      `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=100&busca=${encodeURIComponent(nome)}`,
+    ]
+    for (const url of endpointsBusca) {
+      try {
+        const busca = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+        if (busca.ok) {
+          const data = await busca.json()
+          const lista: any[] = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
+          if (lista.length > 0) {
+            const nomeBusca = nome.toLowerCase().trim()
+            const matchExato = lista.find(p => (p.nome || p.name || '').toLowerCase().trim() === nomeBusca)
+            return matchExato ? matchExato.id : lista[0].id
+          }
+        }
+      } catch (e) { console.warn(`[cliente] erro na busca em ${url}:`, e) }
+    }
+    const criar = await fetch(`${BASE_URL}/v1/pessoas`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, tipo_pessoa: 'Física', tipo_perfil: 'Cliente', ativo: true }),
+    })
+    if (criar.ok) { const novo: any = await criar.json(); return novo.id }
+    
+    // Fallback legado
+    const criarLegado = await fetch(`${BASE_URL}/contatos`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, tipo_pessoa: 'PF', ativo: true }),
+    })
+    if (criarLegado.ok) { const novo: any = await criarLegado.json(); return novo.id }
+    
+    const errText = await criar.text()
+    throw new Error(`Erro ao criar cliente '${nome}': ${criar.status} - ${errText}`)
+  } catch (e: any) { console.error(`[buscarOuCriarCliente] erro:`, e); throw e }
+}

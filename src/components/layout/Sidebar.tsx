@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, ArrowDownCircle, ArrowUpCircle,
-  Building2, Settings, ChevronRight, User, LogOut,
+  Building2, Settings, ChevronRight, User, LogOut, ShoppingCart
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useAppConfig } from '@/contexts/AppConfigContext'
@@ -15,6 +15,7 @@ import toast from 'react-hot-toast'
 
 const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Vendas', href: '/vendas', icon: ShoppingCart, badge: 'NOVO' },
   { label: 'Contas a Pagar', href: '/contas-pagar', icon: ArrowDownCircle, badge: 'ATIVO' },
   { label: 'Contas a Receber', href: '/contas-receber', icon: ArrowUpCircle, badge: 'EM BREVE', disabled: true },
   { label: 'Empresas', href: '/empresas', icon: Building2 },
