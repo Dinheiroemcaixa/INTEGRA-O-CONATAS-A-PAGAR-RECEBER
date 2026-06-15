@@ -1,25 +1,26 @@
-import { NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { buscarOuCriarCliente, buscarOuCriarProduto, criarVenda, VendaPayload } from '@/lib/conta-azul/api'
 import type { VendaPreview } from '@/types'
 
-export async function POST(req: Request) {
+export const runtime = 'nodejs'
+export const maxDuration = 60
+export const dynamic = 'force-dynamic'
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+export async function POST(req: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
-    const { data: { session } } = await supabase.auth.getSession()
-
-    if (!session) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-    }
-
     const { empresa_id, vendas } = await req.json()
 
     if (!empresa_id || !vendas || !Array.isArray(vendas)) {
       return NextResponse.json({ error: 'Dados inválidos' }, { status: 400 })
     }
 
-    const { data: empresa, error: empErr } = await supabase
+    const { data: empresa, error: empErr } = await supabaseAdmin
       .from('empresas')
       .select('access_token_conta_azul')
       .eq('id', empresa_id)
@@ -91,7 +92,7 @@ export async function POST(req: Request) {
         const vendaCriada = await criarVenda(accessToken, payload)
 
         // 5. Salva na tabela vendas_importadas
-        await supabase.from('vendas_importadas').insert({
+        await supabaseAdmin.from('vendas_importadas').insert({
           empresa_id: empresa_id,
           cliente: venda.cliente,
           valor_total: venda.valor_total,
@@ -108,7 +109,7 @@ export async function POST(req: Request) {
         erros++
         console.error(`Erro ao criar venda ${venda.os_numero}:`, e.message)
         // Salva registro com erro
-        await supabase.from('vendas_importadas').insert({
+        await supabaseAdmin.from('vendas_importadas').insert({
           empresa_id: empresa_id,
           cliente: venda.cliente,
           valor_total: venda.valor_total,
