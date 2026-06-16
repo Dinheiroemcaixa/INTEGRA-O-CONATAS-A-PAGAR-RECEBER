@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import DropZone from '@/components/upload/DropZone'
 import TabelaPreview from '@/components/upload/TabelaPreview'
 import TabelaContas from '@/components/upload/TabelaContas'
+import SelectorEmpresa from '@/components/layout/SelectorEmpresa'
 import type { ContaPagarPreview, ResultadoImportacao } from '@/types'
 import type { Empresa } from '@/types'
 import {
@@ -691,11 +692,9 @@ export default function ContasPagarPage() {
               v1.2
             </span>
           </div>
-          <p className="text-dark-400 text-sm mt-1">
-            {empresaAtiva ? `Empresa: ${empresaAtiva.nome}` : 'Selecione uma empresa no menu superior'}
-          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
+          <SelectorEmpresa />
           {etapa !== 'upload' && (
             <button
               onClick={() => { setEtapa('upload'); setResultado(null); setDadosEditados([]) }}

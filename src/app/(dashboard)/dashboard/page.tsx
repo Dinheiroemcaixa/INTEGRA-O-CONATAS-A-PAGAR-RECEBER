@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
+import SelectorEmpresa from '@/components/layout/SelectorEmpresa'
 
 interface Stats {
   totalPendente: number
@@ -270,23 +271,18 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Dashboard</h1>
-          <p className="text-dark-400 text-sm mt-0.5 flex items-center gap-1.5">
-            {empresaAtiva ? (
-              <>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
-                {empresaAtiva.nome}
-              </>
-            ) : 'Selecione uma empresa'}
-          </p>
         </div>
-        <button
-          onClick={() => carregarStats(true)}
-          disabled={refreshing}
-          className="flex items-center gap-2 text-sm text-dark-400 hover:text-white bg-dark-800 hover:bg-dark-700 border border-dark-700 px-3 py-2 rounded-lg transition-all"
-        >
-          <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-          Atualizar
-        </button>
+        <div className="flex items-center gap-4">
+          <SelectorEmpresa />
+          <button
+            onClick={() => carregarStats(true)}
+            disabled={refreshing}
+            className="flex items-center gap-2 text-sm text-dark-400 hover:text-white bg-dark-800 hover:bg-dark-700 border border-dark-700 px-3 py-2 rounded-lg transition-all"
+          >
+            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+            Atualizar
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards — clicáveis */}
