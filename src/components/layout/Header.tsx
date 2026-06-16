@@ -7,7 +7,8 @@ import {
   ChevronDown, Building2, Check,
   RefreshCw, Unlink, ExternalLink, Loader2, CheckCircle, AlertCircle,
 } from 'lucide-react'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
+import { usePathname } from 'next/navigation'
 import { formatCNPJ } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
@@ -19,6 +20,24 @@ export default function Header() {
   const [desconectando, setDesconectando] = useState(false)
   const supabase = createClient()
   const refEmpresa = useRef<HTMLDivElement>(null)
+  const pathname = usePathname() || ''
+
+  const empresasFiltradas = useMemo(() => {
+    return empresas.filter(emp => {
+      if (pathname.startsWith('/vendas')) return emp.tipo_empresa === 'vendas' || emp.tipo_empresa === 'ambos'
+      if (pathname.startsWith('/contas-pagar') || pathname.startsWith('/contas-receber')) return emp.tipo_empresa === 'financeiro' || emp.tipo_empresa === 'ambos'
+      return true
+    })
+  }, [empresas, pathname])
+
+  useEffect(() => {
+    if (empresasFiltradas.length > 0 && empresaAtiva) {
+      const isValid = empresasFiltradas.some(e => e.id === empresaAtiva.id)
+      if (!isValid) {
+        setEmpresaAtiva(empresasFiltradas[0])
+      }
+    }
+  }, [pathname, empresasFiltradas, empresaAtiva, setEmpresaAtiva])
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -84,10 +103,10 @@ export default function Header() {
             <div className="px-3 py-2 border-b border-dark-700">
               <p className="text-xs text-dark-500 font-semibold uppercase tracking-wider">Suas empresas</p>
             </div>
-            {empresas.length === 0 ? (
-              <div className="px-4 py-6 text-center text-dark-500 text-sm">Nenhuma empresa cadastrada</div>
+            {empresasFiltradas.length === 0 ? (
+              <div className="px-4 py-6 text-center text-dark-500 text-sm">Nenhuma empresa encontrada para esta seção</div>
             ) : (
-              empresas.map((emp) => (
+              empresasFiltradas.map((emp) => (
                 <button
                   key={emp.id}
                   onClick={() => { setEmpresaAtiva(emp); setOpenEmpresa(false) }}
@@ -97,7 +116,12 @@ export default function Header() {
                     <span className={`${accentClasses.text} font-bold text-xs`}>{emp.nome.charAt(0).toUpperCase()}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-medium truncate">{emp.nome}</p>
+                    <p className="text-white text-sm font-medium truncate">
+                      {emp.nome}
+                      <span className="ml-2 text-[9px] uppercase px-1.5 py-0.5 rounded-full bg-dark-600 text-dark-300">
+                        {emp.tipo_empresa}
+                      </span>
+                    </p>
                     <p className="text-dark-500 text-xs">{emp.cnpj ? formatCNPJ(emp.cnpj) : 'CNPJ nao informado'}</p>
                   </div>
                   {empresaAtiva?.id === emp.id && <Check size={14} className="text-emerald-400 flex-shrink-0" />}

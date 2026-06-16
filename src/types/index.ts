@@ -11,6 +11,8 @@ export interface Empresa {
   created_at: string
   /** E-mail de login vinculado a esta empresa no Conta Azul */
   email_login: string | null
+  /** Tipo da empresa: vendas, financeiro (contas a pagar/receber) ou ambos */
+  tipo_empresa: 'vendas' | 'financeiro' | 'ambos'
 }
 
 export interface UsuarioEmpresa {
