@@ -1,6 +1,7 @@
 /**
  * Match de fornecedores por similaridade de texto
  * Compara nomes do Datacar com nomes cadastrados no ContaAzul
+ * Também consulta regras De-Para aprendidas de correções manuais
  */
 
 import { normalizarNome, type FornecedorContaAzul } from '@/lib/parsers/fornecedores-contaazul'
@@ -14,6 +15,12 @@ export interface ResultadoMatch {
   categoria?: string
   confianca: ConfiancaMatch
   score: number               // 0-100
+}
+
+/** Regra De-Para aprendida de correções manuais do usuário */
+export interface RegraDepara {
+  nomeOriginalNormalizado: string
+  nomeCorrigido: string
 }
 
 /**
@@ -79,33 +86,32 @@ function scoreParaConfianca(score: number): ConfiancaMatch {
   return 'nenhum'
 }
 
-// Regras específicas de "De-Para" solicitadas pelo usuário
-const REGRAS_CUSTOMIZADAS: Record<string, string> = {
-  'GP CONTAGEM MG': 'GOMMA PNEUS LTDA',
-}
-
 /**
  * Busca o melhor match para um nome de fornecedor do Datacar
+ * @param regrasDepara - Regras De-Para aprendidas de correções manuais (consultadas primeiro)
  */
 export function matchFornecedor(
   nomeDatacar: string,
-  fornecedores: FornecedorContaAzul[]
+  fornecedores: FornecedorContaAzul[],
+  regrasDepara?: RegraDepara[]
 ): ResultadoMatch {
   const normalizado = normalizarNome(nomeDatacar)
 
-  // 1. Verificar regras customizadas (De-Para específico)
-  if (REGRAS_CUSTOMIZADAS[normalizado]) {
-    const nomeAlvo = REGRAS_CUSTOMIZADAS[normalizado]
-    const fEncontrado = fornecedores.find(f => 
-      f.nome === nomeAlvo || f.nomeNormalizado === normalizarNome(nomeAlvo)
-    )
-    return {
-      nomeOriginal: nomeDatacar,
-      nomeCorrigido: nomeAlvo,
-      cnpj: fEncontrado?.cnpj || '',
-      categoria: fEncontrado?.categoria,
-      confianca: 'exato',
-      score: 100,
+  // 1. Verificar regras De-Para aprendidas (correções manuais salvas no banco)
+  if (regrasDepara && regrasDepara.length > 0) {
+    const regra = regrasDepara.find(r => r.nomeOriginalNormalizado === normalizado)
+    if (regra) {
+      const fEncontrado = fornecedores.find(f => 
+        f.nome === regra.nomeCorrigido || f.nomeNormalizado === normalizarNome(regra.nomeCorrigido)
+      )
+      return {
+        nomeOriginal: nomeDatacar,
+        nomeCorrigido: regra.nomeCorrigido,
+        cnpj: fEncontrado?.cnpj || '',
+        categoria: fEncontrado?.categoria,
+        confianca: 'exato',
+        score: 100,
+      }
     }
   }
 
@@ -155,10 +161,12 @@ export function matchFornecedor(
 
 /**
  * Aplica match em lote para uma lista de fornecedores do Datacar
+ * @param regrasDepara - Regras De-Para aprendidas (consultadas antes do match por similaridade)
  */
 export function matchFornecedoresEmLote(
   nomesDatacar: string[],
-  fornecedores: FornecedorContaAzul[]
+  fornecedores: FornecedorContaAzul[],
+  regrasDepara?: RegraDepara[]
 ): Map<string, ResultadoMatch> {
   const resultado = new Map<string, ResultadoMatch>()
   // Cache para não repetir match do mesmo nome
@@ -166,7 +174,7 @@ export function matchFornecedoresEmLote(
 
   for (const nome of nomesDatacar) {
     if (!cache.has(nome)) {
-      cache.set(nome, matchFornecedor(nome, fornecedores))
+      cache.set(nome, matchFornecedor(nome, fornecedores, regrasDepara))
     }
     resultado.set(nome, cache.get(nome)!)
   }

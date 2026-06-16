@@ -18,9 +18,9 @@ import {
 import toast from 'react-hot-toast'
 import { formatCurrency, cn } from '@/lib/utils'
 import { exportarParaContaAzulXls } from '@/lib/exporters/contaazul-xls'
-import { matchFornecedoresEmLote } from '@/lib/utils/match-fornecedor'
+import { matchFornecedoresEmLote, type RegraDepara } from '@/lib/utils/match-fornecedor'
 import { sugerirCategoria } from '@/lib/utils/auto-categoria'
-import type { FornecedorContaAzul } from '@/lib/parsers/fornecedores-contaazul'
+import { normalizarNome, type FornecedorContaAzul } from '@/lib/parsers/fornecedores-contaazul'
 
 type Etapa = 'upload' | 'preview' | 'contas'
 
@@ -246,13 +246,25 @@ export default function ContasPagarPage() {
     let dadosComMatch = res.dados
     if (empresaAtiva) {
       try {
+        // Carregar fornecedores do ContaAzul
         const { data: fornecedoresDB } = await supabase
           .from('fornecedores_contaazul')
           .select('nome, cnpj, nome_normalizado, categoria_padrao')
           .eq('empresa_id', empresaAtiva.id)
 
-        if (fornecedoresDB && fornecedoresDB.length > 0) {
-          const fornecedores: FornecedorContaAzul[] = fornecedoresDB.map((f) => ({
+        // Carregar regras De-Para aprendidas de correções manuais
+        const { data: deparaDB } = await supabase
+          .from('fornecedor_depara')
+          .select('nome_original_normalizado, nome_corrigido')
+          .eq('empresa_id', empresaAtiva.id)
+
+        const regrasDepara: RegraDepara[] = (deparaDB || []).map((r) => ({
+          nomeOriginalNormalizado: r.nome_original_normalizado,
+          nomeCorrigido: r.nome_corrigido,
+        }))
+
+        if ((fornecedoresDB && fornecedoresDB.length > 0) || regrasDepara.length > 0) {
+          const fornecedores: FornecedorContaAzul[] = (fornecedoresDB || []).map((f) => ({
             nome: f.nome,
             cnpj: f.cnpj || '',
             categoria: f.categoria_padrao || undefined,
@@ -260,7 +272,7 @@ export default function ContasPagarPage() {
           }))
 
           const nomesDatacar = res.dados.map((d) => d.fornecedor)
-          const matchMap = matchFornecedoresEmLote(nomesDatacar, fornecedores)
+          const matchMap = matchFornecedoresEmLote(nomesDatacar, fornecedores, regrasDepara)
 
           dadosComMatch = res.dados.map((d) => {
             const match = matchMap.get(d.fornecedor)
@@ -436,6 +448,7 @@ export default function ContasPagarPage() {
 
         // Tentar buscar fornecedores para corrigir nomes mesmo em registros já salvos
         let fornecedores: FornecedorContaAzul[] = []
+        let regrasDepara: RegraDepara[] = []
         if (empresaAtiva) {
           const { data: fdb } = await supabase
             .from('fornecedores_contaazul')
@@ -449,11 +462,23 @@ export default function ContasPagarPage() {
               nomeNormalizado: f.nome_normalizado 
             }))
           }
+
+          // Carregar regras De-Para aprendidas
+          const { data: deparaDB } = await supabase
+            .from('fornecedor_depara')
+            .select('nome_original_normalizado, nome_corrigido')
+            .eq('empresa_id', empresaAtiva.id)
+          if (deparaDB) {
+            regrasDepara = deparaDB.map(r => ({
+              nomeOriginalNormalizado: r.nome_original_normalizado,
+              nomeCorrigido: r.nome_corrigido,
+            }))
+          }
         }
 
         const nomesParaMatch = data.map(c => c.fornecedor)
-        const matchMap = fornecedores.length > 0 
-          ? matchFornecedoresEmLote(nomesParaMatch, fornecedores)
+        const matchMap = (fornecedores.length > 0 || regrasDepara.length > 0)
+          ? matchFornecedoresEmLote(nomesParaMatch, fornecedores, regrasDepara)
           : new Map()
 
         contas = data.map((c) => {
@@ -498,8 +523,10 @@ export default function ContasPagarPage() {
     }
   }
 
-  const updateFornecedor = useCallback((idx: number, novoNome: string) => {
-    // ... (mesmo código anterior, mas incluí aqui para contexto de onde inserir a nova função)
+  const updateFornecedor = useCallback(async (idx: number, novoNome: string) => {
+    // Capturar o nome original ANTES de atualizar o estado
+    const nomeOriginal = dadosEditados[idx]?.matchFornecedor?.nomeOriginal || dadosEditados[idx]?.fornecedor
+
     setDadosEditados((prev) => {
       const next = [...prev]
       const original = next[idx].matchFornecedor?.nomeOriginal || next[idx].fornecedor
@@ -518,7 +545,29 @@ export default function ContasPagarPage() {
       }
       return next
     })
-  }, [])
+
+    // Salvar regra De-Para no banco (aprendizado)
+    if (empresaAtiva && nomeOriginal && nomeOriginal !== novoNome) {
+      try {
+        const nomeNormalizado = normalizarNome(nomeOriginal)
+        await supabase
+          .from('fornecedor_depara')
+          .upsert({
+            empresa_id: empresaAtiva.id,
+            nome_original: nomeOriginal,
+            nome_original_normalizado: nomeNormalizado,
+            nome_corrigido: novoNome,
+            updated_at: new Date().toISOString(),
+          }, {
+            onConflict: 'empresa_id,nome_original_normalizado',
+          })
+
+        toast.success(`Aprendido: "${nomeOriginal}" → "${novoNome}"`, { id: 'learn-depara', duration: 3000 })
+      } catch (err) {
+        console.error('Erro ao salvar regra De-Para:', err)
+      }
+    }
+  }, [empresaAtiva, dadosEditados, supabase])
 
   const updateCategoria = useCallback(async (idx: number, novaCategoria: string) => {
     setDadosEditados((prev) => {
