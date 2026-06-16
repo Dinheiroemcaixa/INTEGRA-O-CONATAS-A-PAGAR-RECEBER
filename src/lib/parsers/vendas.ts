@@ -17,10 +17,11 @@ export async function parseVendasExcel(file: File): Promise<ResultadoImportacaoV
   
   // Tentar encontrar colunas principais
   for (let i = 0; i < Math.min(20, rows.length); i++) {
-    const row = rows[i]?.map((c) => String(c || '').toUpperCase().trim()) || []
-    colOsPed = row.findIndex((c) => c.includes('OS/PED') || c.includes('OS / PED'))
-    colEncerr = row.findIndex((c) => c.includes('ENCERR'))
-    colCliente = row.findIndex((c) => c.includes('CLIENTE'))
+    if (!Array.isArray(rows[i])) continue;
+    const row = (rows[i] as any[]).map((c) => String(c || '').toUpperCase().trim())
+    colOsPed = row.findIndex((c) => c && (c.includes('OS/PED') || c.includes('OS / PED')))
+    colEncerr = row.findIndex((c) => c && c.includes('ENCERR'))
+    colCliente = row.findIndex((c) => c && c.includes('CLIENTE'))
     
     if (colOsPed >= 0 && colCliente >= 0) {
       break
@@ -42,7 +43,7 @@ export async function parseVendasExcel(file: File): Promise<ResultadoImportacaoV
     if (!row || row.length === 0) continue
 
     const osValue = String(row[colOsPed] || '').trim()
-    const isNovaOs = osValue.match(/^\d{4,8}$/) // Verifica se é um número de OS (ex: 12739)
+    const isNovaOs = osValue.match(/^[A-Z0-9]{4,12}$/i) // Verifica se é um número de OS (ex: 12739, 1273B)
 
     // Detecção de nova venda (OS)
     if (isNovaOs && row.length > colCliente) {
@@ -87,7 +88,8 @@ export async function parseVendasExcel(file: File): Promise<ResultadoImportacaoV
     const rowStrUpper = row.map(c => String(c || '').toUpperCase().trim())
     
     // Se achou a linha de cabeçalhos de pagamento (Crt Déb, Crt Créd, etc)
-    if (rowStrUpper.includes('CRT DÉB') || rowStrUpper.includes('CRT CRÉD') || rowStrUpper.includes('ESPÉCIE') || rowStrUpper.includes('PIX')) {
+    const hasPayment = rowStrUpper.some(c => c && (c.includes('CRT D') || c.includes('CRT C') || c.includes('ESP') || c.includes('PIX')))
+    if (hasPayment) {
       paymentHeadersFound = true
       paymentHeadersRow = rowStrUpper
       continue
@@ -111,12 +113,16 @@ export async function parseVendasExcel(file: File): Promise<ResultadoImportacaoV
     }
 
     // Identificar cabeçalho de itens
-    if (rowStrUpper.includes('TIPO') && rowStrUpper.includes('CÓDIGO') && rowStrUpper.includes('QTDE')) {
+    const hasTipo = rowStrUpper.some(c => c === 'TIPO')
+    const hasCodigo = rowStrUpper.some(c => c === 'CÓDIGO' || c === 'CODIGO' || (c && c.includes('DIGO')))
+    const hasQtde = rowStrUpper.some(c => c === 'QTDE' || c === 'QUANTIDADE')
+
+    if (hasTipo && hasCodigo && hasQtde) {
       colTipo = rowStrUpper.findIndex(c => c === 'TIPO')
-      colCodigo = rowStrUpper.findIndex(c => c === 'CÓDIGO' || c === 'CODIGO')
-      colDescricao = rowStrUpper.findIndex(c => c === 'DESCRIÇÃO' || c === 'DESCRICAO')
+      colCodigo = rowStrUpper.findIndex(c => c === 'CÓDIGO' || c === 'CODIGO' || (c && c.includes('DIGO')))
+      colDescricao = rowStrUpper.findIndex(c => c === 'DESCRIÇÃO' || c === 'DESCRICAO' || (c && c.includes('DESCRI')))
       colQtde = rowStrUpper.findIndex(c => c === 'QTDE' || c === 'QUANTIDADE')
-      colUnit = rowStrUpper.findIndex(c => c === 'UNIT' || c === 'UNITÁRIO')
+      colUnit = rowStrUpper.findIndex(c => c === 'UNIT' || c === 'UNITÁRIO' || (c && c.includes('UNIT')))
       continue
     }
 
