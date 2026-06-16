@@ -5,6 +5,7 @@ import { useEmpresa } from '@/contexts/EmpresaContext'
 import { createClient } from '@/lib/supabase/client'
 import DropZoneVendas from '@/components/upload/DropZoneVendas'
 import TabelaVendasPreview from '@/components/upload/TabelaVendasPreview'
+import SelectorEmpresa from '@/components/layout/SelectorEmpresa'
 import type { VendaPreview, ResultadoImportacaoVendas } from '@/types'
 import {
   Upload, ArrowLeft, Loader2,
@@ -111,11 +112,9 @@ export default function VendasPage() {
               Novo Módulo
             </span>
           </div>
-          <p className="text-dark-400 text-sm mt-1">
-            {empresaAtiva ? `Empresa: ${empresaAtiva.nome}` : 'Selecione uma empresa no menu superior'}
-          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
+          <SelectorEmpresa />
           {etapa !== 'upload' && (
             <button
               onClick={() => { setEtapa('upload'); setResultado(null); setDadosEditados([]) }}
