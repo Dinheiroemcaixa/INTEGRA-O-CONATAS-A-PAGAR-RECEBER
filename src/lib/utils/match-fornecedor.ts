@@ -86,6 +86,11 @@ function scoreParaConfianca(score: number): ConfiancaMatch {
   return 'nenhum'
 }
 
+// Regras específicas de "De-Para" legadas/fixas no código
+const REGRAS_CUSTOMIZADAS: Record<string, string> = {
+  'GP CONTAGEM MG': 'GOMMA PNEUS LTDA',
+}
+
 /**
  * Busca o melhor match para um nome de fornecedor do Datacar
  * @param regrasDepara - Regras De-Para aprendidas de correções manuais (consultadas primeiro)
@@ -97,7 +102,23 @@ export function matchFornecedor(
 ): ResultadoMatch {
   const normalizado = normalizarNome(nomeDatacar)
 
-  // 1. Verificar regras De-Para aprendidas (correções manuais salvas no banco)
+  // 1. Verificar regras customizadas (De-Para específico fixo)
+  if (REGRAS_CUSTOMIZADAS[normalizado]) {
+    const nomeAlvo = REGRAS_CUSTOMIZADAS[normalizado]
+    const fEncontrado = fornecedores.find(f => 
+      f.nome === nomeAlvo || f.nomeNormalizado === normalizarNome(nomeAlvo)
+    )
+    return {
+      nomeOriginal: nomeDatacar,
+      nomeCorrigido: nomeAlvo,
+      cnpj: fEncontrado?.cnpj || '',
+      categoria: fEncontrado?.categoria,
+      confianca: 'exato',
+      score: 100,
+    }
+  }
+
+  // 2. Verificar regras De-Para aprendidas (correções manuais salvas no banco)
   if (regrasDepara && regrasDepara.length > 0) {
     const regra = regrasDepara.find(r => r.nomeOriginalNormalizado === normalizado)
     if (regra) {
