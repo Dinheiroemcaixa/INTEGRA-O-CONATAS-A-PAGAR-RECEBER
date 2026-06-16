@@ -46,7 +46,7 @@ export async function parseVendasExcel(file: File): Promise<ResultadoImportacaoV
     const isNovaOs = osValue.match(/^[A-Z0-9]{4,12}$/i) // Verifica se é um número de OS (ex: 12739, 1273B)
 
     // Detecção de nova venda (OS)
-    if (isNovaOs && row.length > colCliente) {
+    if (isNovaOs) {
       // Salvar a venda anterior
       if (currentVenda) {
         if (currentVenda.itens.length > 0) {
@@ -54,13 +54,15 @@ export async function parseVendasExcel(file: File): Promise<ResultadoImportacaoV
         }
       }
 
-      // Procura cliente na linha (pode estar na colCliente ou nas colunas seguintes)
+      // Procura cliente na linha
       let cliente = String(row[colCliente] || '').trim()
-      if (!cliente && row.length > colCliente + 1) {
-        // Fallback: procura o primeiro texto longo após ENCERR
-        for (let c = colEncerr + 1; c < row.length; c++) {
-          if (typeof row[c] === 'string' && row[c].trim().length > 3) {
-            cliente = row[c].trim()
+      if (!cliente || cliente.length < 3) {
+        // Fallback: procura o primeiro texto longo após as datas
+        for (let c = 1; c < row.length; c++) {
+          const val = typeof row[c] === 'string' ? row[c].trim() : String(row[c] || '').trim()
+          // Ignora datas e nomes curtos
+          if (val.length > 5 && !val.match(/^[\d\/-]+$/)) {
+            cliente = val
             break
           }
         }
@@ -113,12 +115,12 @@ export async function parseVendasExcel(file: File): Promise<ResultadoImportacaoV
     }
 
     // Identificar cabeçalho de itens
-    const hasTipo = rowStrUpper.some(c => c === 'TIPO')
+    const hasTipo = rowStrUpper.some(c => c && c.includes('TIPO'))
     const hasCodigo = rowStrUpper.some(c => c === 'CÓDIGO' || c === 'CODIGO' || (c && c.includes('DIGO')))
     const hasQtde = rowStrUpper.some(c => c === 'QTDE' || c === 'QUANTIDADE')
 
     if (hasTipo && hasCodigo && hasQtde) {
-      colTipo = rowStrUpper.findIndex(c => c === 'TIPO')
+      colTipo = rowStrUpper.findIndex(c => c && c.includes('TIPO'))
       colCodigo = rowStrUpper.findIndex(c => c === 'CÓDIGO' || c === 'CODIGO' || (c && c.includes('DIGO')))
       colDescricao = rowStrUpper.findIndex(c => c === 'DESCRIÇÃO' || c === 'DESCRICAO' || (c && c.includes('DESCRI')))
       colQtde = rowStrUpper.findIndex(c => c === 'QTDE' || c === 'QUANTIDADE')
