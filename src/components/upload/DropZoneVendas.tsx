@@ -21,11 +21,12 @@ interface Props {
   processando?: boolean
 }
 
-function IconeArquivo({ tipo }: { tipo: string }) {
-  if (tipo.includes('sheet') || tipo.includes('excel') || tipo.includes('csv')) {
+function IconeArquivo({ tipo }: { tipo?: string }) {
+  const t = tipo || ''
+  if (t.includes('sheet') || t.includes('excel') || t.includes('csv')) {
     return <FileSpreadsheet size={32} className="text-green-400" />
   }
-  if (tipo.includes('pdf')) {
+  if (t.includes('pdf')) {
     return <FileText size={32} className="text-red-400" />
   }
   return <Image size={32} className="text-blue-400" />
