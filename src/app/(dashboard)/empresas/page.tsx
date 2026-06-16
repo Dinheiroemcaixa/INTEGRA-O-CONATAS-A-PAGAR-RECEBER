@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
-  Building2, Plus, Check, Loader2, ExternalLink,
+  Building2, Plus, Check, Loader2, ExternalLink, Edit,
   RefreshCw, Unlink, Upload, Users, ChevronDown, ChevronUp, Trash2, ShieldCheck, Mail
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -189,6 +189,7 @@ function EmpresasPageContent() {
   const [showForm, setShowForm] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [conectando, setConectando] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<{nome: string, cnpj: string, email_login: string, tipo_empresa: 'vendas' | 'financeiro' | 'ambos'}>({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos' })
   const supabase = createClient()
   const searchParams = useSearchParams()
@@ -242,7 +243,7 @@ function EmpresasPageContent() {
     }
   }
 
-  const handleCriar = async (e: React.FormEvent) => {
+  const handleSalvar = async (e: React.FormEvent) => {
     e.preventDefault()
     setSalvando(true)
     try {
@@ -250,41 +251,72 @@ function EmpresasPageContent() {
       if (!user) throw new Error('Usuário não autenticado')
 
       const cnpjLimpo = form.cnpj.replace(/\D/g, '')
-      const empresaId = crypto.randomUUID()
 
-      const { error: errEmp } = await supabase
-        .from('empresas')
-        .insert({
-          id: empresaId,
-          nome: form.nome.trim(),
-          cnpj: cnpjLimpo,
-          created_by: user.id,
-          email_login: form.email_login.trim() || null,
-          tipo_empresa: form.tipo_empresa,
-        })
+      if (editingId) {
+        // Atualiza a empresa existente
+        const { error: errEmp } = await supabase
+          .from('empresas')
+          .update({
+            nome: form.nome.trim(),
+            cnpj: cnpjLimpo,
+            email_login: form.email_login.trim() || null,
+            tipo_empresa: form.tipo_empresa,
+          })
+          .eq('id', editingId)
 
-      if (errEmp) throw errEmp
+        if (errEmp) throw errEmp
+        toast.success('Empresa atualizada com sucesso!')
+      } else {
+        // Cria uma nova empresa
+        const empresaId = crypto.randomUUID()
 
-      const { error: errVinc } = await supabase
-        .from('usuarios_empresas')
-        .insert({
-          user_id: user.id,
-          empresa_id: empresaId,
-          papel: 'admin'
-        })
+        const { error: errEmp } = await supabase
+          .from('empresas')
+          .insert({
+            id: empresaId,
+            nome: form.nome.trim(),
+            cnpj: cnpjLimpo,
+            created_by: user.id,
+            email_login: form.email_login.trim() || null,
+            tipo_empresa: form.tipo_empresa,
+          })
 
-      if (errVinc) throw errVinc
+        if (errEmp) throw errEmp
 
-      toast.success('Empresa criada com sucesso!')
+        const { error: errVinc } = await supabase
+          .from('usuarios_empresas')
+          .insert({
+            user_id: user.id,
+            empresa_id: empresaId,
+            papel: 'admin'
+          })
+
+        if (errVinc) throw errVinc
+        toast.success('Empresa criada com sucesso!')
+      }
+
       setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos' })
+      setEditingId(null)
       setShowForm(false)
       await recarregar()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao criar empresa'
+      const msg = err instanceof Error ? err.message : 'Erro ao salvar empresa'
       toast.error(msg)
     } finally {
       setSalvando(false)
     }
+  }
+
+  const handleEditClick = (empresa: Empresa) => {
+    setEditingId(empresa.id)
+    setForm({
+      nome: empresa.nome,
+      cnpj: empresa.cnpj,
+      email_login: empresa.email_login || '',
+      tipo_empresa: empresa.tipo_empresa || 'ambos'
+    })
+    setShowForm(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   return (
@@ -295,7 +327,11 @@ function EmpresasPageContent() {
           <p className="text-dark-400 text-sm mt-1">Gerencie as empresas do seu BPO</p>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => {
+            setEditingId(null)
+            setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos' })
+            setShowForm(!showForm)
+          }}
           className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
         >
           <Plus size={16} /> Nova Empresa
@@ -303,9 +339,23 @@ function EmpresasPageContent() {
       </div>
 
       {showForm && (
-        <div className="bg-dark-800 border border-dark-600 rounded-xl p-6 animate-fade-in">
-          <h3 className="text-white font-semibold mb-4">Cadastrar nova empresa</h3>
-          <form onSubmit={handleCriar} className="flex flex-col gap-3">
+        <div className="bg-dark-800 border border-brand-500/30 shadow-[0_0_15px_rgba(var(--brand-500),0.1)] rounded-xl p-6 animate-fade-in relative">
+          {editingId && (
+            <button
+              onClick={() => {
+                setEditingId(null)
+                setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos' })
+                setShowForm(false)
+              }}
+              className="absolute top-4 right-4 text-dark-400 hover:text-white transition-colors"
+            >
+              ✕
+            </button>
+          )}
+          <h3 className="text-white font-semibold mb-4">
+            {editingId ? 'Editar Empresa' : 'Cadastrar nova empresa'}
+          </h3>
+          <form onSubmit={handleSalvar} className="flex flex-col gap-3">
             <div className="flex flex-col sm:flex-row gap-3">
               <input
                 value={form.nome}
@@ -382,16 +432,25 @@ function EmpresasPageContent() {
                   <p className="text-dark-400 text-sm">{formatCNPJ(empresa.cnpj)}</p>
                 </div>
               </div>
-              <button
-                onClick={() => setEmpresaAtiva(empresa)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  empresaAtiva?.id === empresa.id
-                    ? 'bg-brand-600 text-white'
-                    : 'bg-dark-700 text-dark-400 hover:bg-dark-600'
-                }`}
-              >
-                {empresaAtiva?.id === empresa.id ? 'Ativa' : 'Selecionar'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleEditClick(empresa)}
+                  className="p-1.5 rounded-lg text-dark-400 hover:text-white hover:bg-dark-700 transition-all"
+                  title="Editar empresa"
+                >
+                  <Edit size={16} />
+                </button>
+                <button
+                  onClick={() => setEmpresaAtiva(empresa)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    empresaAtiva?.id === empresa.id
+                      ? 'bg-brand-600 text-white'
+                      : 'bg-dark-700 text-dark-400 hover:bg-dark-600'
+                  }`}
+                >
+                  {empresaAtiva?.id === empresa.id ? 'Ativa' : 'Selecionar'}
+                </button>
+              </div>
             </div>
 
             <div className="space-y-4">
