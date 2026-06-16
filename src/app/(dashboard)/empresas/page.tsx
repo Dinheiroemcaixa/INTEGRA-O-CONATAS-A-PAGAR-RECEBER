@@ -189,7 +189,7 @@ function EmpresasPageContent() {
   const [showForm, setShowForm] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [conectando, setConectando] = useState<string | null>(null)
-  const [form, setForm] = useState({ nome: '', cnpj: '', email_login: '' })
+  const [form, setForm] = useState<{nome: string, cnpj: string, email_login: string, tipo_empresa: 'vendas' | 'financeiro' | 'ambos'}>({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos' })
   const supabase = createClient()
   const searchParams = useSearchParams()
 
@@ -260,6 +260,7 @@ function EmpresasPageContent() {
           cnpj: cnpjLimpo,
           created_by: user.id,
           email_login: form.email_login.trim() || null,
+          tipo_empresa: form.tipo_empresa,
         })
 
       if (errEmp) throw errEmp
@@ -275,7 +276,7 @@ function EmpresasPageContent() {
       if (errVinc) throw errVinc
 
       toast.success('Empresa criada com sucesso!')
-      setForm({ nome: '', cnpj: '', email_login: '' })
+      setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos' })
       setShowForm(false)
       await recarregar()
     } catch (err: unknown) {
@@ -320,6 +321,15 @@ function EmpresasPageContent() {
                 required
                 className="w-full sm:w-48 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 outline-none"
               />
+              <select
+                value={form.tipo_empresa}
+                onChange={(e) => setForm({ ...form, tipo_empresa: e.target.value as any })}
+                className="w-full sm:w-48 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 outline-none"
+              >
+                <option value="ambos">Ambos (Vendas e Financeiro)</option>
+                <option value="financeiro">Apenas Financeiro</option>
+                <option value="vendas">Apenas Vendas</option>
+              </select>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1 relative">
@@ -359,7 +369,16 @@ function EmpresasPageContent() {
                   <Building2 size={24} className="text-dark-400" />
                 </div>
                 <div>
-                  <h3 className="text-white font-bold text-lg">{empresa.nome}</h3>
+                  <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                    {empresa.nome}
+                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
+                      empresa.tipo_empresa === 'vendas' ? 'bg-blue-500/20 text-blue-400' :
+                      empresa.tipo_empresa === 'financeiro' ? 'bg-emerald-500/20 text-emerald-400' :
+                      'bg-purple-500/20 text-purple-400'
+                    }`}>
+                      {empresa.tipo_empresa === 'ambos' ? 'VENDAS & FINANÇAS' : empresa.tipo_empresa}
+                    </span>
+                  </h3>
                   <p className="text-dark-400 text-sm">{formatCNPJ(empresa.cnpj)}</p>
                 </div>
               </div>
