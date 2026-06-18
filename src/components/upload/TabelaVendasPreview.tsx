@@ -128,22 +128,41 @@ export default function TabelaVendasPreview({
                   {isExpanded && (
                     <tr className="bg-dark-900/50">
                       <td colSpan={9} className="p-0 border-t border-dark-700/30">
-                        <div className="px-10 py-4 animate-fade-in">
-                          <h4 className="text-xs font-semibold text-dark-400 mb-2 uppercase tracking-wider">Itens da Venda</h4>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {venda.itens.map((item, iItem) => (
-                              <div key={iItem} className="bg-dark-800 border border-dark-700 rounded p-2 flex flex-col gap-1">
-                                <div className="flex justify-between items-start gap-2">
-                                  <span className="text-xs text-white font-medium line-clamp-2" title={item.descricao}>
-                                    {item.codigo ? `${item.codigo} - ` : ''}{item.descricao}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between items-center mt-1">
-                                  <span className="text-xs text-dark-400">{item.quantidade}x {formatCurrency(item.valor_unitario)}</span>
-                                  <span className="text-xs font-bold text-white">{formatCurrency(item.quantidade * item.valor_unitario)}</span>
-                                </div>
-                              </div>
-                            ))}
+                        <div className="px-10 py-6 animate-fade-in">
+                          <h4 className="text-xs font-semibold text-dark-400 mb-3 uppercase tracking-wider">Itens da Venda</h4>
+                          <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden shadow-sm">
+                            <table className="w-full text-left text-sm">
+                              <thead className="bg-dark-900 border-b border-dark-700">
+                                <tr>
+                                  <th className="px-4 py-2 text-xs text-dark-300 font-medium">Tipo</th>
+                                  <th className="px-4 py-2 text-xs text-dark-300 font-medium">Código</th>
+                                  <th className="px-4 py-2 text-xs text-dark-300 font-medium">Descrição</th>
+                                  <th className="px-4 py-2 text-xs text-dark-300 font-medium text-center">Qtd</th>
+                                  <th className="px-4 py-2 text-xs text-dark-300 font-medium text-right">Vl Unit (R$)</th>
+                                  <th className="px-4 py-2 text-xs text-dark-300 font-medium text-right">Desc (R$)</th>
+                                  <th className="px-4 py-2 text-xs text-dark-300 font-medium text-right">Vl Total (R$)</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-dark-700/50">
+                                {venda.itens.map((item, iItem) => (
+                                  <tr key={iItem} className="hover:bg-dark-700/30 transition-colors">
+                                    <td className="px-4 py-2 text-white">{item.tipo || '-'}</td>
+                                    <td className="px-4 py-2 text-white">{item.codigo || '-'}</td>
+                                    <td className="px-4 py-2 text-white">{item.descricao}</td>
+                                    <td className="px-4 py-2 text-white text-center">{item.quantidade}</td>
+                                    <td className="px-4 py-2 text-white text-right">
+                                      {formatCurrency(item.valor_unitario_original !== undefined ? item.valor_unitario_original : item.valor_unitario)}
+                                    </td>
+                                    <td className="px-4 py-2 text-rose-400 text-right">
+                                      {formatCurrency(item.desconto || 0)}
+                                    </td>
+                                    <td className="px-4 py-2 font-bold text-white text-right">
+                                      {formatCurrency(item.valor_total !== undefined ? item.valor_total : item.quantidade * item.valor_unitario)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
                           </div>
                         </div>
                       </td>

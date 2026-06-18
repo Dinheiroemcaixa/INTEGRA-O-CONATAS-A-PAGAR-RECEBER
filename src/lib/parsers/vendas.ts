@@ -54,10 +54,13 @@ function parseBonoPneusFormat(rows: any[][]): ResultadoImportacaoVendas {
   let currentVenda: VendaPreview | null = null
   let parsingItems = false
   
+  let idxTipo = 0
   let idxCodigo = 1
   let idxDescricao = 2
   let idxQtd = 4
-  let idxVlUnit = 5
+  let idxVlUnitOrig = 5
+  let idxDesc = 6
+  let idxVlTotal = 7
 
   for (let idx = 0; idx < rows.length; idx++) {
     const row = rows[idx]
@@ -116,10 +119,13 @@ function parseBonoPneusFormat(rows: any[][]): ResultadoImportacaoVendas {
        parsingItems = true
        for (let c=0; c<row.length; c++) {
           const head = String(_val(row, c) || '').trim().toUpperCase()
-          if (head === 'CODIGO' || head === 'CÓDIGO') idxCodigo = c
+          if (head === 'TIPO') idxTipo = c
+          else if (head === 'CODIGO' || head === 'CÓDIGO') idxCodigo = c
           else if (head === 'DESCRICAO' || head === 'DESCRIÇÃO') idxDescricao = c
           else if (head === 'QTD' || head === 'QUANTIDADE') idxQtd = c
-          else if (head.includes('VL TOTAL') || head.includes('VALOR TOTAL') || head.includes('VI TOTAL')) idxVlUnit = c // Pega o total para já incluir o desconto
+          else if (head.includes('VL UNIT') || head.includes('VALOR UNIT') || head.includes('VI UNIT')) idxVlUnitOrig = c
+          else if (head.includes('DESC') && !head.includes('DESCRI')) idxDesc = c
+          else if (head.includes('VL TOTAL') || head.includes('VALOR TOTAL') || head.includes('VI TOTAL')) idxVlTotal = c
        }
        continue
     }
@@ -127,22 +133,32 @@ function parseBonoPneusFormat(rows: any[][]): ResultadoImportacaoVendas {
        parsingItems = false
     }
     else if (parsingItems) {
+       const tipoStr = String(_val(row, idxTipo) || '').trim()
        const codigo = String(_val(row, idxCodigo) || '').trim()
        const descricao = String(_val(row, idxDescricao) || '').trim()
        const qtd = _val(row, idxQtd)
-       const vlTotalItem = _val(row, idxVlUnit) // Agora é o total do item
+       const vlUnitOrigRaw = _val(row, idxVlUnitOrig)
+       const descRaw = _val(row, idxDesc)
+       const vlTotalItem = _val(row, idxVlTotal)
        
        if (codigo && descricao && codigo.toUpperCase() !== 'TOTAIS') {
          const q = typeof qtd === 'number' ? qtd : parseFloat(String(qtd).replace(',', '.')) || 1
          const totalItem = typeof vlTotalItem === 'number' ? vlTotalItem : parseCurrency(String(vlTotalItem || '0'))
-         const u = totalItem / (q || 1) // Calcula o valor unitário já com o desconto aplicado
+         const unitOrig = typeof vlUnitOrigRaw === 'number' ? vlUnitOrigRaw : parseCurrency(String(vlUnitOrigRaw || '0'))
+         const desconto = typeof descRaw === 'number' ? descRaw : parseCurrency(String(descRaw || '0'))
+         
+         const u = totalItem / (q || 1) // Calcula o valor unitário já com o desconto aplicado (para envio)
          
          if (u >= 0) {
            currentVenda.itens.push({
              codigo,
              descricao,
              quantidade: q,
-             valor_unitario: u
+             valor_unitario: u,
+             tipo: tipoStr || 'Produto/Serviço',
+             valor_unitario_original: unitOrig,
+             desconto: desconto,
+             valor_total: totalItem
            })
            currentVenda.valor_total += totalItem
          }

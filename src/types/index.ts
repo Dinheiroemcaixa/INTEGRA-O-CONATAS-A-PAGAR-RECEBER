@@ -98,7 +98,14 @@ export interface VendaItemPreview {
   codigo: string
   descricao: string
   quantidade: number
+  /** Valor unitário com desconto aplicado (usado para envio) */
   valor_unitario: number
+  
+  // Campos extras apenas para visualização na UI:
+  tipo?: string
+  valor_unitario_original?: number
+  desconto?: number
+  valor_total?: number
 }
 
 export interface VendaPreview {
