@@ -26,14 +26,175 @@ function _val(row: any[], col: number): any {
   return v !== "" ? v : null
 }
 
+function normalizarData(raw: unknown): string {
+  if (!raw) return ''
+  if (raw instanceof Date) {
+    const y = raw.getFullYear()
+    const m = String(raw.getMonth() + 1).padStart(2, '0')
+    const d = String(raw.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+  const str = String(raw).trim()
+  const dtMatch = str.match(/^(\d{4}-\d{2}-\d{2})/)
+  if (dtMatch) return dtMatch[1]
+  
+  const parts = str.split(' ')[0].split('/')
+  if (parts.length === 3) {
+    let y = parts[2]
+    if (y.length === 2) y = '20' + y
+    if (y.length === 4) return `${y}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`
+  }
+  
+  return parseDate(str)
+}
+
+function parseBonoPneusFormat(rows: any[][]): ResultadoImportacaoVendas {
+  const vendas: VendaPreview[] = []
+  
+  let currentVenda: VendaPreview | null = null
+  let parsingItems = false
+  
+  let idxCodigo = 1
+  let idxDescricao = 2
+  let idxQtd = 4
+  let idxVlUnit = 5
+
+  for (let idx = 0; idx < rows.length; idx++) {
+    const row = rows[idx]
+    if (!Array.isArray(row)) continue
+    
+    const colA = String(_val(row, 0) || '').trim()
+    const colB = String(_val(row, 1) || '').trim()
+    const colA_upper = colA.toUpperCase()
+
+    if (colA_upper.includes('ORDEM DE SERVICO') || colA_upper.includes('ORDEM DE SERVIÇO')) {
+      if (currentVenda) {
+        vendas.push(currentVenda)
+      }
+      
+      let osNumero = ''
+      for(let c=0; c<row.length; c++) {
+        const val = String(_val(row, c) || '').trim().toUpperCase()
+        if (val.startsWith('Nº') || val.startsWith('N')) {
+           osNumero = val.replace(/[^0-9]/g, '')
+           if (osNumero) break;
+        }
+      }
+
+      currentVenda = {
+        os_numero: osNumero || 'S/N',
+        cliente: 'CLIENTE NÃO IDENTIFICADO',
+        data_venda: '',
+        itens: [],
+        valor_total: 0,
+        valido: true,
+        erros: []
+      }
+      parsingItems = false
+      continue
+    }
+
+    if (!currentVenda) continue
+
+    if (colA_upper.startsWith('DATA/HORA')) {
+       let rawDate = colB
+       if (!rawDate) rawDate = String(_val(row, 2) || '').trim()
+       if (!rawDate) rawDate = String(_val(row, 3) || '').trim()
+       currentVenda.data_venda = normalizarData(rawDate)
+    }
+    else if (colA_upper === 'CLIENTE:') {
+       currentVenda.cliente = colB || String(_val(row, 2) || '').trim()
+    }
+    else if (colA_upper.startsWith('FORMA DE') || colA_upper.startsWith('FORMA PAGAMENTO') || colA_upper.startsWith('FORMA RECEBIMENTO')) {
+       let forma = colB || String(_val(row, 2) || '').trim()
+       if (!forma && idx + 1 < rows.length) {
+          forma = String(_val(rows[idx+1], 0) || '').trim()
+       }
+       if (forma) currentVenda.forma_pagamento = forma
+    }
+    else if (colA_upper === 'TIPO' || (colA_upper.includes('CODIGO') && !parsingItems) || (colA_upper.includes('CÓDIGO') && !parsingItems)) {
+       parsingItems = true
+       for (let c=0; c<row.length; c++) {
+          const head = String(_val(row, c) || '').trim().toUpperCase()
+          if (head === 'CODIGO' || head === 'CÓDIGO') idxCodigo = c
+          else if (head === 'DESCRICAO' || head === 'DESCRIÇÃO') idxDescricao = c
+          else if (head === 'QTD' || head === 'QUANTIDADE') idxQtd = c
+          else if (head.includes('VL UNIT') || head.includes('VALOR UNIT') || head.includes('VI UNIT')) idxVlUnit = c
+       }
+       continue
+    }
+    else if (colA_upper === 'TOTAIS' || colA_upper === 'TOTAL' || colA_upper.includes('GARANTIA')) {
+       parsingItems = false
+    }
+    else if (parsingItems) {
+       const codigo = String(_val(row, idxCodigo) || '').trim()
+       const descricao = String(_val(row, idxDescricao) || '').trim()
+       const qtd = _val(row, idxQtd)
+       const vlUnit = _val(row, idxVlUnit)
+       
+       if (codigo && descricao && codigo.toUpperCase() !== 'TOTAIS') {
+         const q = typeof qtd === 'number' ? qtd : parseFloat(String(qtd).replace(',', '.')) || 1
+         const u = typeof vlUnit === 'number' ? vlUnit : parseCurrency(String(vlUnit || '0'))
+         
+         if (u >= 0) {
+           currentVenda.itens.push({
+             codigo,
+             descricao,
+             quantidade: q,
+             valor_unitario: u
+           })
+           currentVenda.valor_total += (q * u)
+         }
+       }
+    }
+  }
+
+  if (currentVenda) {
+    vendas.push(currentVenda)
+  }
+
+  vendas.forEach(venda => {
+    venda.valido = true
+    venda.erros = []
+    if (!venda.cliente || venda.cliente === 'CLIENTE NÃO IDENTIFICADO') {
+      venda.valido = false
+      venda.erros.push('Cliente não identificado')
+    }
+    if (!venda.data_venda) {
+      venda.valido = false
+      venda.erros.push('Data da venda inválida')
+    }
+    if (venda.itens.length === 0) {
+      venda.valido = false
+      venda.erros.push('Nenhum produto/serviço encontrado')
+    }
+  })
+
+  return {
+    total: vendas.length,
+    validos: vendas.filter(v => v.valido).length,
+    invalidos: vendas.filter(v => !v.valido).length,
+    dados: vendas
+  }
+}
+
 export async function parseVendasExcel(file: File): Promise<ResultadoImportacaoVendas> {
   const buffer = await file.arrayBuffer()
   const wb = XLSX.read(buffer, { type: 'array', cellDates: true })
   const ws = wb.Sheets[wb.SheetNames[0]]
   const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, dateNF: 'yyyy-mm-dd' })
 
+  // Identifica se é o formato "OS Impressa" ou o formato de relatório antigo
+  const isBonoPneusFormat = rows.some(row => {
+    const v = String(row[0] || '').trim().toUpperCase()
+    return v.includes('ORDEM DE SERVICO') || v.includes('ORDEM DE SERVIÇO')
+  })
+
+  if (isBonoPneusFormat) {
+    return parseBonoPneusFormat(rows)
+  }
+
   const vendas: VendaPreview[] = []
-  
   const os_start_rows: number[] = []
   
   for (let idx = 0; idx < rows.length; idx++) {
@@ -41,7 +202,6 @@ export async function parseVendasExcel(file: File): Promise<ResultadoImportacaoV
     if (!Array.isArray(row)) continue
     
     const v = row[0]
-    // Identifica OS por ser um número > 0 ou string alfanumérica de 4+ caracteres
     if ((typeof v === 'number' && v > 0) || (typeof v === 'string' && /^[A-Z0-9]{4,12}$/i.test(v.trim()))) {
       os_start_rows.push(idx)
     }
@@ -65,14 +225,11 @@ export async function parseVendasExcel(file: File): Promise<ResultadoImportacaoV
       erros: []
     }
 
-    // Pagamentos: procurar nas próximas linhas (até 6 linhas pra baixo)
     let formaPagamento = ''
-    
     for (let offset = 1; offset <= 6; offset++) {
       const pagRow = rows[start + offset]
       if (!pagRow) continue
       
-      // Checa L1
       for (const [colStr, nome] of Object.entries(_COL_PAG_L1)) {
         const v = _val(pagRow, parseInt(colStr))
         if (typeof v === 'number' && v > 0) {
@@ -82,7 +239,6 @@ export async function parseVendasExcel(file: File): Promise<ResultadoImportacaoV
       }
       if (formaPagamento) break
       
-      // Checa L2
       for (const [colStr, nome] of Object.entries(_COL_PAG_L2)) {
         const v = _val(pagRow, parseInt(colStr))
         if (typeof v === 'number' && v > 0) {
@@ -95,7 +251,6 @@ export async function parseVendasExcel(file: File): Promise<ResultadoImportacaoV
 
     currentVenda.forma_pagamento = formaPagamento
 
-    // Itens: somente PECAS (tipo "P")
     const fim_os = (i + 1 < os_start_rows.length) ? os_start_rows[i + 1] : rows.length
     for (let j = start + 1; j < fim_os; j++) {
       const row_item = rows[j]
@@ -128,7 +283,6 @@ export async function parseVendasExcel(file: File): Promise<ResultadoImportacaoV
     }
   }
 
-  // Validar vendas
   vendas.forEach(venda => {
     venda.valido = true
     venda.erros = []
@@ -152,18 +306,4 @@ export async function parseVendasExcel(file: File): Promise<ResultadoImportacaoV
     invalidos: vendas.filter(v => !v.valido).length,
     dados: vendas
   }
-}
-
-function normalizarData(raw: unknown): string {
-  if (!raw) return ''
-  if (raw instanceof Date) {
-    const y = raw.getFullYear()
-    const m = String(raw.getMonth() + 1).padStart(2, '0')
-    const d = String(raw.getDate()).padStart(2, '0')
-    return `${y}-${m}-${d}`
-  }
-  const str = String(raw).trim()
-  const dtMatch = str.match(/^(\d{4}-\d{2}-\d{2})/)
-  if (dtMatch) return dtMatch[1]
-  return parseDate(str)
 }
