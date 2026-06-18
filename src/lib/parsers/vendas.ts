@@ -1,161 +1,131 @@
 import * as XLSX from 'xlsx'
 import { parseDate, parseCurrency } from '@/lib/utils'
-import type { VendaPreview, VendaItemPreview, ResultadoImportacaoVendas } from '@/types'
+import type { VendaPreview, ResultadoImportacaoVendas } from '@/types'
+
+const _COL_PAG_L1 = {
+  15: "Cartão de Crédito",
+  22: "Dinheiro",
+  28: "Fatura / Boleto",
+  32: "Cheque à Vista",
+  33: "Cheque Pré-datado",
+  52: "Sucata",
+}
+const _COL_PAG_L2 = {
+  13: "Cartão de Débito",
+  37: "Outros",
+  42: "Pix",
+  49: "Abatimento de Crédito",
+}
+
+function _val(row: any[], col: number): any {
+  if (!row || row.length <= col) return null
+  let v = row[col]
+  if (typeof v === 'string') {
+    v = v.trim()
+  }
+  return v !== "" ? v : null
+}
 
 export async function parseVendasExcel(file: File): Promise<ResultadoImportacaoVendas> {
   const buffer = await file.arrayBuffer()
   const wb = XLSX.read(buffer, { type: 'array', cellDates: true })
   const ws = wb.Sheets[wb.SheetNames[0]]
-  const rows: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, dateNF: 'yyyy-mm-dd' })
+  const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, dateNF: 'yyyy-mm-dd' })
 
   const vendas: VendaPreview[] = []
   
-  // Encontrar linha de cabeçalho principal
-  let colOsPed = -1
-  let colEncerr = -1
-  let colCliente = -1
+  const os_start_rows: number[] = []
   
-  // Tentar encontrar colunas principais
-  for (let i = 0; i < Math.min(20, rows.length); i++) {
-    if (!Array.isArray(rows[i])) continue;
-    const row = (rows[i] as any[]).map((c) => String(c || '').toUpperCase().trim())
-    colOsPed = row.findIndex((c) => c && (c.includes('OS/PED') || c.includes('OS / PED')))
-    colEncerr = row.findIndex((c) => c && c.includes('ENCERR'))
-    colCliente = row.findIndex((c) => c && c.includes('CLIENTE'))
+  for (let idx = 0; idx < rows.length; idx++) {
+    const row = rows[idx]
+    if (!Array.isArray(row)) continue
     
-    if (colOsPed >= 0 && colCliente >= 0) {
-      break
+    const v = row[0]
+    // Identifica OS por ser um número > 0 ou string alfanumérica de 4+ caracteres
+    if ((typeof v === 'number' && v > 0) || (typeof v === 'string' && /^[A-Z0-9]{4,12}$/i.test(v.trim()))) {
+      os_start_rows.push(idx)
     }
   }
 
-  // Se não encontrou as colunas exatas, usar posições padrão baseadas no print
-  if (colOsPed < 0) colOsPed = 0; // Geralmente A ou B
-  if (colEncerr < 0) colEncerr = 4; // E
-  if (colCliente < 0) colCliente = 6; // G ou similar, vamos buscar o primeiro texto grande.
+  for (let i = 0; i < os_start_rows.length; i++) {
+    const start = os_start_rows[i]
+    const row_os = rows[start]
 
-  let currentVenda: VendaPreview | null = null
-  let colTipo = -1, colCodigo = -1, colDescricao = -1, colQtde = -1, colUnit = -1
-  let paymentHeadersFound = false
-  let paymentHeadersRow: string[] = []
+    const osNumero = String(_val(row_os, 0) || '').trim()
+    const cliente = String(_val(row_os, 29) || '').trim() || 'CLIENTE NÃO IDENTIFICADO'
+    const dataVenda = normalizarData(_val(row_os, 16))
 
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i] as any[]
-    if (!row || row.length === 0) continue
-
-    const osValue = String(row[colOsPed] || '').trim()
-    const isNovaOs = osValue.match(/^[A-Z0-9]{4,12}$/i) // Verifica se é um número de OS (ex: 12739, 1273B)
-
-    // Detecção de nova venda (OS)
-    if (isNovaOs) {
-      // Salvar a venda anterior
-      if (currentVenda) {
-        if (currentVenda.itens.length > 0) {
-          vendas.push(currentVenda)
-        }
-      }
-
-      // Procura cliente na linha
-      let cliente = String(row[colCliente] || '').trim()
-      if (!cliente || cliente.length < 3) {
-        // Fallback: procura o primeiro texto longo após as datas
-        for (let c = 1; c < row.length; c++) {
-          const val = typeof row[c] === 'string' ? row[c].trim() : String(row[c] || '').trim()
-          // Ignora datas e nomes curtos
-          if (val.length > 5 && !val.match(/^[\d\/-]+$/)) {
-            cliente = val
-            break
-          }
-        }
-      }
-
-      currentVenda = {
-        os_numero: osValue,
-        cliente: cliente || 'CLIENTE NÃO IDENTIFICADO',
-        data_venda: normalizarData(row[colEncerr]),
-        itens: [],
-        valor_total: 0,
-        valido: true,
-        erros: []
-      }
-      
-      // Resetar contexto para os itens da nova OS
-      colTipo = -1
-      paymentHeadersFound = false
-      continue
+    const currentVenda: VendaPreview = {
+      os_numero: osNumero,
+      cliente: cliente,
+      data_venda: dataVenda,
+      itens: [],
+      valor_total: 0,
+      valido: true,
+      erros: []
     }
 
-    if (!currentVenda) continue
-
-    // Procurar Forma de Pagamento
-    const rowStrUpper = row.map(c => String(c || '').toUpperCase().trim())
+    // Pagamentos: procurar nas próximas linhas (até 6 linhas pra baixo)
+    let formaPagamento = ''
     
-    // Se achou a linha de cabeçalhos de pagamento (Crt Déb, Crt Créd, etc)
-    const hasPayment = rowStrUpper.some(c => c && (c.includes('CRT D') || c.includes('CRT C') || c.includes('ESP') || c.includes('PIX')))
-    if (hasPayment) {
-      paymentHeadersFound = true
-      paymentHeadersRow = rowStrUpper
-      continue
-    }
-
-    // Se a linha anterior foi o cabeçalho de pagamentos, esta linha tem os valores
-    if (paymentHeadersFound) {
-      let formaPagamento = ''
-      for (let c = 0; c < row.length; c++) {
-        const val = parseFloat(String(row[c]).replace(',', '.'))
-        if (!isNaN(val) && val > 0 && paymentHeadersRow[c]) {
-          formaPagamento = formatarNomePagamento(paymentHeadersRow[c])
-          break // Pega a primeira forma de pagamento encontrada
+    for (let offset = 1; offset <= 6; offset++) {
+      const pagRow = rows[start + offset]
+      if (!pagRow) continue
+      
+      // Checa L1
+      for (const [colStr, nome] of Object.entries(_COL_PAG_L1)) {
+        const v = _val(pagRow, parseInt(colStr))
+        if (typeof v === 'number' && v > 0) {
+          formaPagamento = nome
+          break
         }
       }
-      if (formaPagamento) {
-        currentVenda.forma_pagamento = formaPagamento
-      }
-      paymentHeadersFound = false // já processou
-      continue
-    }
-
-    // Identificar cabeçalho de itens
-    const hasTipo = rowStrUpper.some(c => c && c.includes('TIPO'))
-    const hasCodigo = rowStrUpper.some(c => c === 'CÓDIGO' || c === 'CODIGO' || (c && c.includes('DIGO')))
-    const hasQtde = rowStrUpper.some(c => c === 'QTDE' || c === 'QUANTIDADE')
-
-    if (hasTipo && hasCodigo && hasQtde) {
-      colTipo = rowStrUpper.findIndex(c => c && c.includes('TIPO'))
-      colCodigo = rowStrUpper.findIndex(c => c === 'CÓDIGO' || c === 'CODIGO' || (c && c.includes('DIGO')))
-      colDescricao = rowStrUpper.findIndex(c => c === 'DESCRIÇÃO' || c === 'DESCRICAO' || (c && c.includes('DESCRI')))
-      colQtde = rowStrUpper.findIndex(c => c === 'QTDE' || c === 'QUANTIDADE')
-      colUnit = rowStrUpper.findIndex(c => c === 'UNIT' || c === 'UNITÁRIO' || (c && c.includes('UNIT')))
-      continue
-    }
-
-    // Processar item (se já temos as colunas)
-    if (colTipo >= 0 && currentVenda) {
-      const tipo = String(row[colTipo] || '').trim().toUpperCase()
+      if (formaPagamento) break
       
-      // O usuário pediu apenas produtos (P). Serviços (S) serão ignorados.
+      // Checa L2
+      for (const [colStr, nome] of Object.entries(_COL_PAG_L2)) {
+        const v = _val(pagRow, parseInt(colStr))
+        if (typeof v === 'number' && v > 0) {
+          formaPagamento = nome
+          break
+        }
+      }
+      if (formaPagamento) break
+    }
+
+    currentVenda.forma_pagamento = formaPagamento
+
+    // Itens: somente PECAS (tipo "P")
+    const fim_os = (i + 1 < os_start_rows.length) ? os_start_rows[i + 1] : rows.length
+    for (let j = start + 1; j < fim_os; j++) {
+      const row_item = rows[j]
+      if (!row_item) continue
+      
+      const tipo = String(_val(row_item, 5) || '').trim().toUpperCase()
       if (tipo === 'P') {
-        const codigo = String(row[colCodigo] || '').trim()
-        const descricao = String(row[colDescricao] || '').trim()
-        const qtde = parseFloat(String(row[colQtde]).replace(',', '.')) || 1
-        const unit = parseCurrency(String(row[colUnit] || '0'))
+        const codigo = String(_val(row_item, 7) || '').trim()
+        const descricao = String(_val(row_item, 18) || '').trim()
+        const qtdeVal = _val(row_item, 34)
+        const unitVal = _val(row_item, 38)
+        
+        const qtde = typeof qtdeVal === 'number' ? qtdeVal : parseFloat(String(qtdeVal).replace(',', '.')) || 1
+        const unit = typeof unitVal === 'number' ? unitVal : parseCurrency(String(unitVal || '0'))
         
         if (codigo) {
-          const item: VendaItemPreview = {
-            codigo: codigo,
+          currentVenda.itens.push({
+            codigo,
             descricao: descricao || codigo,
             quantidade: qtde,
             valor_unitario: unit
-          }
-          currentVenda.itens.push(item)
+          })
           currentVenda.valor_total += (qtde * unit)
         }
       }
     }
-  }
 
-  // Push da última venda
-  if (currentVenda && currentVenda.itens.length > 0) {
-    vendas.push(currentVenda)
+    if (currentVenda.itens.length > 0) {
+      vendas.push(currentVenda)
+    }
   }
 
   // Validar vendas
@@ -196,20 +166,4 @@ function normalizarData(raw: unknown): string {
   const dtMatch = str.match(/^(\d{4}-\d{2}-\d{2})/)
   if (dtMatch) return dtMatch[1]
   return parseDate(str)
-}
-
-function formatarNomePagamento(abrev: string): string {
-  switch(abrev) {
-    case 'CRT DÉB': return 'Cartão de Débito'
-    case 'CRT CRÉD': return 'Cartão de Crédito'
-    case 'ESPÉCIE': return 'Dinheiro'
-    case 'FATURA': return 'Fatura / Boleto'
-    case 'CH A VISTA': return 'Cheque à Vista'
-    case 'CH PRÉ': return 'Cheque Pré-datado'
-    case 'OUTROS': return 'Outros'
-    case 'PIX': return 'Pix'
-    case 'ABAT CRÉD': return 'Abatimento de Crédito'
-    case 'SUCATA': return 'Sucata'
-    default: return abrev
-  }
 }

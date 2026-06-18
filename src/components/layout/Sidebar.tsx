@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, ArrowDownCircle, ArrowUpCircle,
-  Building2, Settings, ChevronRight, User, LogOut, ShoppingCart
+  Building2, Settings, ChevronRight, User, LogOut, ShoppingCart, Database
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useAppConfig } from '@/contexts/AppConfigContext'
@@ -18,6 +18,7 @@ const navItems = [
   { label: 'Vendas', href: '/vendas', icon: ShoppingCart, badge: 'NOVO' },
   { label: 'Contas a Pagar', href: '/contas-pagar', icon: ArrowDownCircle, badge: 'ATIVO' },
   { label: 'Contas a Receber', href: '/contas-receber', icon: ArrowUpCircle, badge: 'EM BREVE', disabled: true },
+  { label: 'Datacar', href: '/datacar', icon: Database, badge: 'NOVO' },
   { label: 'Empresas', href: '/empresas', icon: Building2 },
   { label: 'Configuracoes', href: '/configuracoes', icon: Settings, disabled: true },
 ]

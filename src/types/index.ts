@@ -13,6 +13,12 @@ export interface Empresa {
   email_login: string | null
   /** Tipo da empresa: vendas, financeiro (contas a pagar/receber) ou ambos */
   tipo_empresa: 'vendas' | 'financeiro' | 'ambos'
+  /** Token de acesso à API do Datacar */
+  datacar_token?: string | null
+  /** Código da empresa no Datacar */
+  datacar_cod_emp?: string | null
+  /** ID do operador no Datacar */
+  datacar_id_operador?: string | null
 }
 
 export interface UsuarioEmpresa {
