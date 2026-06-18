@@ -119,7 +119,7 @@ function parseBonoPneusFormat(rows: any[][]): ResultadoImportacaoVendas {
           if (head === 'CODIGO' || head === 'CÓDIGO') idxCodigo = c
           else if (head === 'DESCRICAO' || head === 'DESCRIÇÃO') idxDescricao = c
           else if (head === 'QTD' || head === 'QUANTIDADE') idxQtd = c
-          else if (head.includes('VL UNIT') || head.includes('VALOR UNIT') || head.includes('VI UNIT')) idxVlUnit = c
+          else if (head.includes('VL TOTAL') || head.includes('VALOR TOTAL') || head.includes('VI TOTAL')) idxVlUnit = c // Pega o total para já incluir o desconto
        }
        continue
     }
@@ -130,11 +130,12 @@ function parseBonoPneusFormat(rows: any[][]): ResultadoImportacaoVendas {
        const codigo = String(_val(row, idxCodigo) || '').trim()
        const descricao = String(_val(row, idxDescricao) || '').trim()
        const qtd = _val(row, idxQtd)
-       const vlUnit = _val(row, idxVlUnit)
+       const vlTotalItem = _val(row, idxVlUnit) // Agora é o total do item
        
        if (codigo && descricao && codigo.toUpperCase() !== 'TOTAIS') {
          const q = typeof qtd === 'number' ? qtd : parseFloat(String(qtd).replace(',', '.')) || 1
-         const u = typeof vlUnit === 'number' ? vlUnit : parseCurrency(String(vlUnit || '0'))
+         const totalItem = typeof vlTotalItem === 'number' ? vlTotalItem : parseCurrency(String(vlTotalItem || '0'))
+         const u = totalItem / (q || 1) // Calcula o valor unitário já com o desconto aplicado
          
          if (u >= 0) {
            currentVenda.itens.push({
@@ -143,7 +144,7 @@ function parseBonoPneusFormat(rows: any[][]): ResultadoImportacaoVendas {
              quantidade: q,
              valor_unitario: u
            })
-           currentVenda.valor_total += (q * u)
+           currentVenda.valor_total += totalItem
          }
        }
     }

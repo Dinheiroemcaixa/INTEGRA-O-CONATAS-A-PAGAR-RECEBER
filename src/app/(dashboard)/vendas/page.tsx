@@ -5,6 +5,7 @@ import { useEmpresa } from '@/contexts/EmpresaContext'
 import { createClient } from '@/lib/supabase/client'
 import DropZoneVendas from '@/components/upload/DropZoneVendas'
 import TabelaVendasPreview from '@/components/upload/TabelaVendasPreview'
+import ModalEditarVenda from '@/components/upload/ModalEditarVenda'
 import SelectorEmpresa from '@/components/layout/SelectorEmpresa'
 import type { VendaPreview, ResultadoImportacaoVendas } from '@/types'
 import {
@@ -22,7 +23,20 @@ export default function VendasPage() {
   const [dadosEditados, setDadosEditados] = useState<VendaPreview[]>([])
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set())
   const [enviandoCA, setEnviandoCA] = useState(false)
+  const [editandoIdx, setEditandoIdx] = useState<number | null>(null)
   const supabase = createClient()
+
+  const handleSaveEdicao = (vendaAtualizada: VendaPreview) => {
+    if (editandoIdx !== null) {
+      setDadosEditados(prev => {
+        const novos = [...prev]
+        novos[editandoIdx] = vendaAtualizada
+        return novos
+      })
+      setEditandoIdx(null)
+      toast.success('Venda atualizada com sucesso!')
+    }
+  }
 
   const handleResultado = useCallback(async (res: ResultadoImportacaoVendas) => {
     setResultado(res)
@@ -194,6 +208,7 @@ export default function VendasPage() {
             onToggleSelec={toggleItem}
             onToggleTodos={toggleTodos}
             onRemover={removerItem}
+            onEditar={(idx) => setEditandoIdx(idx)}
           />
 
           <div className="flex items-center justify-between p-4 bg-dark-800 border border-dark-700 rounded-xl mt-4">
@@ -210,6 +225,15 @@ export default function VendasPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Modal Edição */}
+      {editandoIdx !== null && (
+        <ModalEditarVenda
+          venda={dadosEditados[editandoIdx]}
+          onSave={handleSaveEdicao}
+          onClose={() => setEditandoIdx(null)}
+        />
       )}
     </div>
   )
