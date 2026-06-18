@@ -22,7 +22,7 @@ const STATUS_CONFIG = {
 export default function TabelaContas({ empresaId }: Props) {
   const [contas, setContas] = useState<ContaPagarImportada[]>([])
   const [loading, setLoading] = useState(true)
-  const [filtro, setFiltro] = useState<string>('todos')
+  const [filtro, setFiltro] = useState<string>('pendente')
   const supabase = createClient()
 
   const carregar = useCallback(async () => {
@@ -102,7 +102,7 @@ export default function TabelaContas({ empresaId }: Props) {
       {/* Filtros e Ações em Lote */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
-          {['todos', 'pendente', 'enviado', 'erro'].map((f) => (
+          {['pendente', 'enviado', 'erro'].map((f) => (
             <button
               key={f}
               onClick={() => setFiltro(f)}
@@ -113,7 +113,7 @@ export default function TabelaContas({ empresaId }: Props) {
                   : 'bg-dark-800 text-dark-400 hover:text-white hover:bg-dark-700'
               )}
             >
-              {f === 'todos' ? 'Todos' : f.charAt(0).toUpperCase() + f.slice(1)}
+              {f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
           ))}
         </div>
@@ -148,7 +148,7 @@ export default function TabelaContas({ empresaId }: Props) {
           <Clock size={32} className="text-dark-600 mx-auto mb-3" />
           <p className="text-white font-medium">Nenhuma conta encontrada</p>
           <p className="text-dark-400 text-sm mt-1">
-            {filtro !== 'todos' ? `Não há contas com status "${filtro}"` : 'Faça upload de um arquivo para importar contas'}
+            Não há contas com status "{filtro}"
           </p>
         </div>
       ) : (
