@@ -137,6 +137,20 @@ export async function POST(req: NextRequest) {
       return 'DINHEIRO'
     }
 
+    // Determina a opcao_condicao_pagamento conforme exigido pela API do Conta Azul:
+    // 'À vista', '2x', '3x', ... ou padrão de dias '30', '30,60', etc.
+    const mapOpcaoCondicao = (forma: string): { opcao: string; numParcelas: number } => {
+      const f = forma?.toLowerCase() || ''
+      // Detecta parcelamentos do tipo "2x", "3x", "12x" etc.
+      const matchParcelas = f.match(/(\d+)\s*x/)
+      if (matchParcelas) {
+        const n = parseInt(matchParcelas[1], 10)
+        if (n > 1) return { opcao: `${n}x`, numParcelas: n }
+      }
+      // Pagamento padrão → à vista
+      return { opcao: 'À vista', numParcelas: 1 }
+    }
+
     for (const venda of vendas as VendaPreview[]) {
       try {
         // 1. Busca/Cria Cliente com função dedicada e URLs corretas
@@ -161,6 +175,22 @@ export async function POST(req: NextRequest) {
           : new Date().toISOString().split('T')[0]
 
         // 3. Monta Payload
+        const { opcao, numParcelas } = mapOpcaoCondicao(venda.forma_pagamento || '')
+
+        // Gera parcelas dividindo o valor total pelo número de parcelas
+        const valorParcela = parseFloat((venda.valor_total / numParcelas).toFixed(2))
+        const parcelasPayload = Array.from({ length: numParcelas }, (_, i) => {
+          // Cada parcela vence 30 dias após a anterior (para parcelado) ou na data da venda (à vista)
+          const dataVenc = new Date(dataVendaFormatada)
+          dataVenc.setMonth(dataVenc.getMonth() + i)
+          return {
+            data_vencimento: dataVenc.toISOString().split('T')[0],
+            valor: i === numParcelas - 1
+              ? parseFloat((venda.valor_total - valorParcela * (numParcelas - 1)).toFixed(2)) // última parcela absorve centavos
+              : valorParcela
+          }
+        })
+
         const payload: VendaPayload = {
           id_cliente: idCliente,
           numero: venda.os_numero ? Number(venda.os_numero.replace(/\D/g, '')) : undefined,
@@ -169,13 +199,8 @@ export async function POST(req: NextRequest) {
           itens: itensPayload,
           condicao_pagamento: {
             tipo_pagamento: mapPagamento(venda.forma_pagamento || ''),
-            opcao_condicao_pagamento: 'A_VISTA',
-            parcelas: [
-              {
-                data_vencimento: dataVendaFormatada,
-                valor: venda.valor_total
-              }
-            ]
+            opcao_condicao_pagamento: opcao,
+            parcelas: parcelasPayload
           }
         }
 
