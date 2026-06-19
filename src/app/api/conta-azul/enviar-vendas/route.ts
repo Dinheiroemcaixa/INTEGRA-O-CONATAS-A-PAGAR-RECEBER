@@ -155,9 +155,10 @@ export async function POST(req: NextRequest) {
           })
         }
 
+        // Conta Azul exige formato YYYY-MM-DD (apenas data, sem horário)
         const dataVendaFormatada = venda.data_venda
-          ? new Date(venda.data_venda).toISOString()
-          : new Date().toISOString()
+          ? new Date(venda.data_venda).toISOString().split('T')[0]
+          : new Date().toISOString().split('T')[0]
 
         // 3. Monta Payload
         const payload: VendaPayload = {
