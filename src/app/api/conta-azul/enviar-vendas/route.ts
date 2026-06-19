@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { buscarOuCriarCliente, buscarOuCriarProduto, criarVenda, VendaPayload } from '@/lib/conta-azul/api'
+import { buscarOuCriarCliente, buscarOuCriarProduto, criarVenda, VendaPayload, refreshToken as refreshCA } from '@/lib/conta-azul/api'
 import type { VendaPreview } from '@/types'
 
 export const runtime = 'nodejs'
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
     const { data: empresa, error: empErr } = await supabaseAdmin
       .from('empresas')
-      .select('access_token_conta_azul')
+      .select('*')
       .eq('id', empresa_id)
       .single()
 
@@ -30,7 +30,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Empresa não conectada ao Conta Azul' }, { status: 400 })
     }
 
-    const accessToken = empresa.access_token_conta_azul
+    let accessToken = empresa.access_token_conta_azul
+    const expiracao = empresa.data_expiracao_token ? new Date(empresa.data_expiracao_token) : null
+    const agora = new Date()
+    const tokenExpirado = expiracao && expiracao <= new Date(agora.getTime() + 5 * 60 * 1000)
+
+    if (tokenExpirado && empresa.refresh_token_conta_azul) {
+      try {
+        const novosTokens = await refreshCA(
+          empresa.refresh_token_conta_azul,
+          process.env.CONTA_AZUL_CLIENT_ID!,
+          process.env.CONTA_AZUL_CLIENT_SECRET!
+        )
+        accessToken = novosTokens.access_token
+        const { error: errUpdate } = await supabaseAdmin
+          .from('empresas')
+          .update({
+            access_token_conta_azul: novosTokens.access_token,
+            refresh_token_conta_azul: novosTokens.refresh_token || empresa.refresh_token_conta_azul,
+            data_expiracao_token: new Date(Date.now() + (novosTokens.expires_in || 3600) * 1000).toISOString(),
+          })
+          .eq('id', empresa_id)
+          
+        if (errUpdate) throw new Error(`Falha ao salvar novos tokens: ${errUpdate.message}`)
+      } catch (errRefresh) {
+        return NextResponse.json({ error: 'Token Conta Azul expirado. Acesse a engrenagem e reconecte.' }, { status: 401 })
+      }
+    }
 
     let sucessos = 0
     let erros = 0
