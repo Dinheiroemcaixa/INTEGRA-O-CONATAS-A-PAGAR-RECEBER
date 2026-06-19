@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { buscarOuCriarContato, buscarOuCriarProduto, criarVenda, VendaPayload, refreshToken as refreshCA } from '@/lib/conta-azul/api'
+import { buscarOuCriarProduto, criarVenda, VendaPayload, refreshToken as refreshCA } from '@/lib/conta-azul/api'
 import type { VendaPreview } from '@/types'
 
 export const runtime = 'nodejs'
@@ -11,6 +11,72 @@ const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
+
+// URL base da API v2 do Conta Azul (sem duplicação de /v1)
+const CA_BASE = 'https://api-v2.contaazul.com/v1'
+
+/**
+ * Busca ou cria um cliente no Conta Azul.
+ * Função dedicada para o módulo de Vendas com URLs corretas.
+ */
+async function buscarOuCriarClienteVenda(accessToken: string, nome: string): Promise<string | undefined> {
+  const headers = {
+    'Authorization': `Bearer ${accessToken}`,
+    'Content-Type': 'application/json',
+  }
+
+  // 1. Tenta buscar pelo nome
+  try {
+    const urlBusca = `${CA_BASE}/pessoas?pagina=1&tamanho_pagina=50&busca=${encodeURIComponent(nome)}`
+    const resp = await fetch(urlBusca, { headers })
+    if (resp.ok) {
+      const data = await resp.json()
+      const lista: any[] = data.itens || data.items || data.content || (Array.isArray(data) ? data : [])
+      if (lista.length > 0) {
+        const nomeBusca = nome.toLowerCase().trim()
+        const exato = lista.find((p: any) => (p.nome || p.name || '').toLowerCase().trim() === nomeBusca)
+        const id = (exato || lista[0]).id
+        if (id) return id
+      }
+    }
+  } catch (e) {
+    console.warn('[vendas/cliente] erro na busca:', e)
+  }
+
+  // 2. Tenta criar como pessoa física (cliente)
+  try {
+    const respCriar = await fetch(`${CA_BASE}/pessoas`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ nome, tipo_pessoa: 'Fisica', tipo_perfil: 'Cliente', ativo: true }),
+    })
+    if (respCriar.ok) {
+      const novo: any = await respCriar.json()
+      if (novo.id) return novo.id
+    }
+    const errBody = await respCriar.text()
+    console.warn(`[vendas/cliente] erro ao criar (${respCriar.status}):`, errBody)
+  } catch (e) {
+    console.warn('[vendas/cliente] erro ao criar pessoa:', e)
+  }
+
+  // 3. Fallback: criar via endpoint legado /contatos
+  try {
+    const respLegado = await fetch(`${CA_BASE}/contatos`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ nome, tipo_pessoa: 'PF', ativo: true }),
+    })
+    if (respLegado.ok) {
+      const novo: any = await respLegado.json()
+      if (novo.id) return novo.id
+    }
+  } catch (e) {
+    console.warn('[vendas/cliente] erro no fallback /contatos:', e)
+  }
+
+  return undefined
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,6 +96,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Empresa não conectada ao Conta Azul' }, { status: 400 })
     }
 
+    // Renovação automática de token (igual ao módulo Contas a Pagar)
     let accessToken = empresa.access_token_conta_azul
     const expiracao = empresa.data_expiracao_token ? new Date(empresa.data_expiracao_token) : null
     const agora = new Date()
@@ -43,7 +110,7 @@ export async function POST(req: NextRequest) {
           process.env.CONTA_AZUL_CLIENT_SECRET!
         )
         accessToken = novosTokens.access_token
-        const { error: errUpdate } = await supabaseAdmin
+        await supabaseAdmin
           .from('empresas')
           .update({
             access_token_conta_azul: novosTokens.access_token,
@@ -51,10 +118,8 @@ export async function POST(req: NextRequest) {
             data_expiracao_token: new Date(Date.now() + (novosTokens.expires_in || 3600) * 1000).toISOString(),
           })
           .eq('id', empresa_id)
-          
-        if (errUpdate) throw new Error(`Falha ao salvar novos tokens: ${errUpdate.message}`)
-      } catch (errRefresh) {
-        return NextResponse.json({ error: 'Token Conta Azul expirado. Acesse a engrenagem e reconecte.' }, { status: 401 })
+      } catch {
+        return NextResponse.json({ error: 'Token Conta Azul expirado. Acesse as Configurações e reconecte.' }, { status: 401 })
       }
     }
 
@@ -62,8 +127,6 @@ export async function POST(req: NextRequest) {
     let erros = 0
     let detalhesErros: string[] = []
 
-    // Mapeamento de formas de pagamento para o CA
-    // Depende da configuração do CA, por padrão vamos usar DINHEIRO e à vista para simplificar se não houver de-para
     const mapPagamento = (forma: string) => {
       const f = forma?.toLowerCase() || ''
       if (f.includes('cred') || f.includes('créd')) return 'CARTAO_CREDITO'
@@ -76,8 +139,8 @@ export async function POST(req: NextRequest) {
 
     for (const venda of vendas as VendaPreview[]) {
       try {
-        // 1. Busca/Cria Cliente (usa mesma função comprovada do módulo Contas a Pagar)
-        const idCliente = await buscarOuCriarContato(accessToken, venda.cliente)
+        // 1. Busca/Cria Cliente com função dedicada e URLs corretas
+        const idCliente = await buscarOuCriarClienteVenda(accessToken, venda.cliente)
         if (!idCliente) throw new Error(`Não foi possível criar/encontrar o cliente: ${venda.cliente}`)
 
         // 2. Busca/Cria Produtos
@@ -92,11 +155,11 @@ export async function POST(req: NextRequest) {
           })
         }
 
-        const dataVendaFormatada = venda.data_venda 
-          ? new Date(venda.data_venda).toISOString() 
+        const dataVendaFormatada = venda.data_venda
+          ? new Date(venda.data_venda).toISOString()
           : new Date().toISOString()
 
-        // 3. Monta Payload Venda
+        // 3. Monta Payload
         const payload: VendaPayload = {
           id_cliente: idCliente,
           numero: venda.os_numero ? Number(venda.os_numero.replace(/\D/g, '')) : undefined,
@@ -118,9 +181,9 @@ export async function POST(req: NextRequest) {
         // 4. Cria Venda no Conta Azul
         const vendaCriada = await criarVenda(accessToken, payload)
 
-        // 5. Salva na tabela vendas_importadas
+        // 5. Salva no banco
         await supabaseAdmin.from('vendas_importadas').insert({
-          empresa_id: empresa_id,
+          empresa_id,
           cliente: venda.cliente,
           valor_total: venda.valor_total,
           data_venda: venda.data_venda,
@@ -137,9 +200,9 @@ export async function POST(req: NextRequest) {
         const msgErro = e.message || 'Erro desconhecido'
         detalhesErros.push(`OS ${venda.os_numero || 'S/N'}: ${msgErro}`)
         console.error(`Erro ao criar venda ${venda.os_numero}:`, msgErro)
-        // Salva registro com erro
+
         await supabaseAdmin.from('vendas_importadas').insert({
-          empresa_id: empresa_id,
+          empresa_id,
           cliente: venda.cliente,
           valor_total: venda.valor_total,
           data_venda: venda.data_venda,
