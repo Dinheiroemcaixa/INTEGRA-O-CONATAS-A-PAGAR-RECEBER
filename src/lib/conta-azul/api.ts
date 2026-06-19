@@ -202,7 +202,7 @@ export async function listarCategorias(accessToken: string): Promise<Array<{ id:
 export async function buscarOuCriarContato(accessToken: string, nome: string): Promise<string | undefined> {
   try {
     const endpointsBusca = [
-      `${BASE_URL}/v1/pessoas?pagina=1&tamanho_pagina=100&busca=${encodeURIComponent(nome)}&tipo_perfil=Fornecedor`,
+      `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=100&busca=${encodeURIComponent(nome)}&tipo_perfil=Fornecedor`,
       `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=100&busca=${encodeURIComponent(nome)}`,
       `${BASE_URL}/contatos?nome=${encodeURIComponent(nome)}&pagina=1&tamanho_pagina=100`,
     ]
@@ -220,10 +220,11 @@ export async function buscarOuCriarContato(accessToken: string, nome: string): P
         }
       } catch (e) { console.warn(`[fornecedor] erro na busca em ${url}:`, e) }
     }
-    const criar = await fetch(`${BASE_URL}/v1/pessoas`, {
+    // Criar como Fornecedor
+    const criar = await fetch(`${BASE_URL}/pessoas`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome, tipo_pessoa: 'Jurídica', tipo_perfil: 'Fornecedor', ativo: true }),
+      body: JSON.stringify({ nome, tipo_pessoa: 'Juridica', tipo_perfil: 'Fornecedor', ativo: true }),
     })
     if (criar.ok) { const novo: any = await criar.json(); return novo.id }
     const criarLegado = await fetch(`${BASE_URL}/contatos`, {
@@ -425,7 +426,7 @@ export async function buscarOuCriarProduto(accessToken: string, codigo: string, 
 export async function buscarOuCriarCliente(accessToken: string, nome: string): Promise<string | undefined> {
   try {
     const endpointsBusca = [
-      `${BASE_URL}/v1/pessoas?pagina=1&tamanho_pagina=100&busca=${encodeURIComponent(nome)}&tipo_perfil=Cliente`,
+      `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=100&busca=${encodeURIComponent(nome)}&tipo_perfil=Cliente`,
       `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=100&busca=${encodeURIComponent(nome)}`,
     ]
     for (const url of endpointsBusca) {
@@ -442,10 +443,11 @@ export async function buscarOuCriarCliente(accessToken: string, nome: string): P
         }
       } catch (e) { console.warn(`[cliente] erro na busca em ${url}:`, e) }
     }
-    const criar = await fetch(`${BASE_URL}/v1/pessoas`, {
+    // Criar como Cliente
+    const criar = await fetch(`${BASE_URL}/pessoas`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome, tipo_pessoa: 'Física', tipo_perfil: 'Cliente', ativo: true }),
+      body: JSON.stringify({ nome, tipo_pessoa: 'Fisica', tipo_perfil: 'Cliente', ativo: true }),
     })
     if (criar.ok) { const novo: any = await criar.json(); return novo.id }
     
