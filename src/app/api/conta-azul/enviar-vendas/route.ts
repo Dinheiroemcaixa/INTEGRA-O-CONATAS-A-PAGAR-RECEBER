@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { buscarOuCriarCliente, buscarOuCriarProduto, criarVenda, VendaPayload, refreshToken as refreshCA } from '@/lib/conta-azul/api'
+import { buscarOuCriarContato, buscarOuCriarProduto, criarVenda, VendaPayload, refreshToken as refreshCA } from '@/lib/conta-azul/api'
 import type { VendaPreview } from '@/types'
 
 export const runtime = 'nodejs'
@@ -76,8 +76,8 @@ export async function POST(req: NextRequest) {
 
     for (const venda of vendas as VendaPreview[]) {
       try {
-        // 1. Busca/Cria Cliente
-        const idCliente = await buscarOuCriarCliente(accessToken, venda.cliente)
+        // 1. Busca/Cria Cliente (usa mesma função comprovada do módulo Contas a Pagar)
+        const idCliente = await buscarOuCriarContato(accessToken, venda.cliente)
         if (!idCliente) throw new Error(`Não foi possível criar/encontrar o cliente: ${venda.cliente}`)
 
         // 2. Busca/Cria Produtos
