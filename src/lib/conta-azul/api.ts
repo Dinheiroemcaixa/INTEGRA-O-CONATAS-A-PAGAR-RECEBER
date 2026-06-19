@@ -337,6 +337,7 @@ export interface VendaPayload {
   id_categoria?: string
   id_centro_custo?: string
   id_vendedor?: string
+  desconto?: number
   observacoes?: string
   observacoes_pagamento?: string
   itens: Array<{

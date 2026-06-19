@@ -158,16 +158,25 @@ export async function POST(req: NextRequest) {
         if (!idCliente) throw new Error(`Não foi possível criar/encontrar o cliente: ${venda.cliente}`)
 
         // 2. Busca/Cria Produtos
+        // Calcula o desconto total da OS somando os descontos de cada item
+        let descontoTotalOS = 0
         const itensPayload = []
         for (const item of venda.itens) {
-          const idProduto = await buscarOuCriarProduto(accessToken, item.codigo, item.descricao, item.valor_unitario)
+          // Usa o valor unitário ORIGINAL (antes do desconto) para cadastrar o produto e os itens
+          const valorUnitarioOriginal = item.valor_unitario_original ?? item.valor_unitario
+          const idProduto = await buscarOuCriarProduto(accessToken, item.codigo, item.descricao, valorUnitarioOriginal)
           itensPayload.push({
-            descricao: item.descricao || item.codigo || 'Produto Importado',
+            descricao: '',  // 05 - Detalhes do item em branco
             quantidade: item.quantidade,
-            valor: item.valor_unitario,
+            valor: valorUnitarioOriginal, // valor sem desconto
             id: idProduto
           })
+          // Acumula desconto: desconto por item * quantidade
+          const descontoItem = item.desconto ?? 0
+          descontoTotalOS += descontoItem * item.quantidade
         }
+        // Arredonda para 2 casas decimais
+        descontoTotalOS = parseFloat(descontoTotalOS.toFixed(2))
 
         // Conta Azul exige formato YYYY-MM-DD (apenas data, sem horário)
         const dataVendaFormatada = venda.data_venda
@@ -177,8 +186,11 @@ export async function POST(req: NextRequest) {
         // 3. Monta Payload
         const { opcao, numParcelas } = mapOpcaoCondicao(venda.forma_pagamento || '')
 
-        // Gera parcelas dividindo o valor total pelo número de parcelas
-        const valorParcela = parseFloat((venda.valor_total / numParcelas).toFixed(2))
+        // Valor líquido da venda = total com desconto aplicado (para as parcelas)
+        const valorLiquido = parseFloat((venda.valor_total).toFixed(2))
+
+        // Gera parcelas dividindo o valor LÍQUIDO (com desconto) pelo número de parcelas
+        const valorParcela = parseFloat((valorLiquido / numParcelas).toFixed(2))
         const parcelasPayload = Array.from({ length: numParcelas }, (_, i) => {
           // Cada parcela vence 30 dias após a anterior (para parcelado) ou na data da venda (à vista)
           const dataVenc = new Date(dataVendaFormatada)
@@ -186,16 +198,20 @@ export async function POST(req: NextRequest) {
           return {
             data_vencimento: dataVenc.toISOString().split('T')[0],
             valor: i === numParcelas - 1
-              ? parseFloat((venda.valor_total - valorParcela * (numParcelas - 1)).toFixed(2)) // última parcela absorve centavos
+              ? parseFloat((valorLiquido - valorParcela * (numParcelas - 1)).toFixed(2)) // última parcela absorve centavos
               : valorParcela
           }
         })
 
         const payload: VendaPayload = {
           id_cliente: idCliente,
-          numero: venda.os_numero ? Number(venda.os_numero.replace(/\D/g, '')) : undefined,
+          // 01 - Número da venda: NÃO enviamos o número da OS.
+          // A função criarVenda() busca automaticamente o próximo número disponível no Conta Azul.
+          numero: undefined,
           situacao: 'APROVADO',
           data_venda: dataVendaFormatada,
+          // 03 - Vendedor responsável: deixado em branco (sem id_vendedor)
+          desconto: descontoTotalOS > 0 ? descontoTotalOS : undefined, // 06 - Desconto total da OS
           itens: itensPayload,
           condicao_pagamento: {
             tipo_pagamento: mapPagamento(venda.forma_pagamento || ''),
