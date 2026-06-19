@@ -158,24 +158,31 @@ export async function POST(req: NextRequest) {
         if (!idCliente) throw new Error(`Não foi possível criar/encontrar o cliente: ${venda.cliente}`)
 
         // 2. Busca/Cria Produtos
-        // Calcula o desconto total da OS somando os descontos de cada item
-        let descontoTotalOS = 0
+        // Estratégia do desconto (06):
+        // O Conta Azul calcula o total como: sum(qty × unit_price) + frete - desconto
+        // Para garantir que as PARCELAS batem com esse total, calculamos o totalBruto
+        // dos itens na nossa side e aplicamos o desconto, usando esse valor nas parcelas.
+        // Isso evita o erro 400 "A soma das parcelas não corresponde ao valor total da venda".
         const itensPayload = []
+        let totalBrutoItens = 0
+        let descontoTotalOS = 0
+
         for (const item of venda.itens) {
-          // Usa o valor unitário ORIGINAL (antes do desconto) para cadastrar o produto e os itens
+          // Valor unitário ORIGINAL (antes do desconto) para enviar no item
           const valorUnitarioOriginal = item.valor_unitario_original ?? item.valor_unitario
           const idProduto = await buscarOuCriarProduto(accessToken, item.codigo, item.descricao, valorUnitarioOriginal)
           itensPayload.push({
             descricao: '',  // 05 - Detalhes do item em branco
             quantidade: item.quantidade,
-            valor: valorUnitarioOriginal, // valor sem desconto
+            valor: valorUnitarioOriginal, // preço original sem desconto
             id: idProduto
           })
-          // Acumula desconto: desconto por item * quantidade
+          // Acumula total bruto e desconto para calcular o valor líquido correto
+          totalBrutoItens += valorUnitarioOriginal * item.quantidade
           const descontoItem = item.desconto ?? 0
           descontoTotalOS += descontoItem * item.quantidade
         }
-        // Arredonda para 2 casas decimais
+        totalBrutoItens = parseFloat(totalBrutoItens.toFixed(2))
         descontoTotalOS = parseFloat(descontoTotalOS.toFixed(2))
 
         // Conta Azul exige formato YYYY-MM-DD (apenas data, sem horário)
@@ -186,10 +193,11 @@ export async function POST(req: NextRequest) {
         // 3. Monta Payload
         const { opcao, numParcelas } = mapOpcaoCondicao(venda.forma_pagamento || '')
 
-        // Valor líquido da venda = total com desconto aplicado (para as parcelas)
-        const valorLiquido = parseFloat((venda.valor_total).toFixed(2))
+        // Valor líquido = totalBruto - desconto (espelha exatamente a fórmula do Conta Azul)
+        // Assim as parcelas sempre batem com o total que o CA calcula
+        const valorLiquido = parseFloat((totalBrutoItens - descontoTotalOS).toFixed(2))
 
-        // Gera parcelas dividindo o valor LÍQUIDO (com desconto) pelo número de parcelas
+        // Gera parcelas dividindo o valor LÍQUIDO pelo número de parcelas
         const valorParcela = parseFloat((valorLiquido / numParcelas).toFixed(2))
         const parcelasPayload = Array.from({ length: numParcelas }, (_, i) => {
           // Cada parcela vence 30 dias após a anterior (para parcelado) ou na data da venda (à vista)
@@ -211,7 +219,7 @@ export async function POST(req: NextRequest) {
           situacao: 'APROVADO',
           data_venda: dataVendaFormatada,
           // 03 - Vendedor responsável: deixado em branco (sem id_vendedor)
-          desconto: descontoTotalOS > 0 ? descontoTotalOS : undefined, // 06 - Desconto total da OS
+          desconto: descontoTotalOS > 0 ? descontoTotalOS : undefined, // 06 - desconto total da OS em R$
           itens: itensPayload,
           condicao_pagamento: {
             tipo_pagamento: mapPagamento(venda.forma_pagamento || ''),
