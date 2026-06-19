@@ -98,7 +98,18 @@ export default function VendasPage() {
       if (!res.ok) throw new Error(data.error || 'Erro ao enviar vendas')
       
       if (data.sucessos > 0) toast.success(`${data.sucessos} vendas enviadas com sucesso!`)
-      if (data.erros > 0) toast.error(`${data.erros} vendas com erro. Verifique os logs.`)
+      if (data.erros > 0) {
+        toast.error(`${data.erros} vendas com erro. Verifique os logs.`)
+        if (data.detalhesErros && data.detalhesErros.length > 0) {
+          // Mostrar no máximo 3 toasts de erro para não poluir muito a tela
+          data.detalhesErros.slice(0, 3).forEach((errMsg: string) => {
+            toast.error(errMsg, { duration: 6000 })
+          })
+          if (data.detalhesErros.length > 3) {
+            toast.error(`E mais ${data.detalhesErros.length - 3} erro(s)...`, { duration: 6000 })
+          }
+        }
+      }
       
       setEtapa('upload')
       setResultado(null)

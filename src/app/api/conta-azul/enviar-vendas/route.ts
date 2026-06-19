@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
 
     let sucessos = 0
     let erros = 0
+    let detalhesErros: string[] = []
 
     // Mapeamento de formas de pagamento para o CA
     // Depende da configuração do CA, por padrão vamos usar DINHEIRO e à vista para simplificar se não houver de-para
@@ -107,7 +108,9 @@ export async function POST(req: NextRequest) {
         sucessos++
       } catch (e: any) {
         erros++
-        console.error(`Erro ao criar venda ${venda.os_numero}:`, e.message)
+        const msgErro = e.message || 'Erro desconhecido'
+        detalhesErros.push(`OS ${venda.os_numero || 'S/N'}: ${msgErro}`)
+        console.error(`Erro ao criar venda ${venda.os_numero}:`, msgErro)
         // Salva registro com erro
         await supabaseAdmin.from('vendas_importadas').insert({
           empresa_id: empresa_id,
@@ -117,12 +120,12 @@ export async function POST(req: NextRequest) {
           os_numero: venda.os_numero,
           forma_pagamento: venda.forma_pagamento,
           status: 'erro',
-          erros_importacao: [e.message]
+          erros_importacao: [msgErro]
         })
       }
     }
 
-    return NextResponse.json({ sucessos, erros })
+    return NextResponse.json({ sucessos, erros, detalhesErros })
 
   } catch (error: any) {
     console.error('Erro geral no endpoint enviar-vendas:', error)
