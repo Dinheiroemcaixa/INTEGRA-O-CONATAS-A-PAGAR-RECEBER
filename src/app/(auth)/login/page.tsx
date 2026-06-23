@@ -69,10 +69,27 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <CosmicParallaxBg 
-        head="Connecta AI" 
-        text="BPO Financeiro, Automação Inteligente, Gestão Eficiente" 
+      <CosmicParallaxBg
+        head="Connecta AI"
+        text="BPO Financeiro, Automação Inteligente, Gestão Eficiente"
       />
+
+      {/* Logo Dinheiro em Caixa — canto superior esquerdo */}
+      <div className="fixed top-5 left-6 z-30">
+        <img
+          src="/images/dinheiro-em-caixa-logo.png"
+          alt="Dinheiro em Caixa"
+          className="h-12 w-auto object-contain drop-shadow-lg"
+        />
+      </div>
+
+      {/* Nome Connecta AI — canto inferior esquerdo */}
+      <div className="fixed bottom-5 left-6 z-30 flex items-center gap-2">
+        <div className="w-6 h-6 bg-brand-600 rounded-md flex items-center justify-center shadow-sm">
+          <span className="text-white font-black text-xs">$</span>
+        </div>
+        <span className="text-white/70 text-sm font-semibold tracking-wide">Connecta AI</span>
+      </div>
 
       {!mostrarCard && (
         <button
