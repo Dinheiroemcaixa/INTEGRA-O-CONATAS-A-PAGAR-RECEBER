@@ -49,31 +49,13 @@ export default function Sidebar() {
       <aside className="w-64 bg-dark-900 border-r border-dark-700 flex flex-col">
 
         {/* Logo do app — integrado ao fundo */}
-        <div className="p-4 flex flex-col items-center justify-center gap-4 min-h-[100px] border-b border-dark-700/50 mb-2">
-          {/* Logo Dinheiro em Caixa */}
+        <div className="p-4 flex flex-col items-center justify-center gap-4 min-h-[120px] border-b border-dark-700/50 mb-2">
+          {/* Logo Dinheiro em Caixa - Grande */}
           <img 
             src="/images/dinheiro-em-caixa-logo.png" 
             alt="Dinheiro em Caixa" 
-            className="h-12 w-auto object-contain drop-shadow-md" 
+            className="w-full max-w-[180px] h-auto object-contain drop-shadow-md" 
           />
-          
-          {/* Separador */}
-          <div className="w-1/2 h-px bg-dark-700/50"></div>
-
-          {/* Logo Connecta AI */}
-          {config.appLogoUrl ? (
-            <img src={config.appLogoUrl} alt={config.appNome} className="h-10 max-w-[160px] object-contain mix-blend-screen opacity-95 hover:opacity-100 transition-opacity" />
-          ) : (
-            <div className="flex items-center gap-2">
-              <div className={`w-8 h-8 ${accentClasses.bg} rounded-lg flex items-center justify-center shadow-sm flex-shrink-0`}>
-                <span className="text-white font-black text-sm">{config.appNome.charAt(0)}</span>
-              </div>
-              <div>
-                <p className="text-white font-bold text-sm leading-tight">{config.appNome}</p>
-                <p className="text-dark-500 text-[9px] uppercase tracking-wider">Inteligencia Financeira</p>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Nav */}
@@ -128,7 +110,24 @@ export default function Sidebar() {
             <span>Sair do sistema</span>
           </button>
 
-          <p className="text-[9px] text-dark-800 text-right mt-1 pr-1 select-none">dev: AH Cardoso</p>
+          {/* Logo Connecta AI no rodapé */}
+          <div className="pt-4 border-t border-dark-700/50 flex flex-col items-center mt-2">
+            {config.appLogoUrl ? (
+              <img src={config.appLogoUrl} alt={config.appNome} className="h-8 max-w-[120px] object-contain mix-blend-screen opacity-70 hover:opacity-100 transition-opacity" />
+            ) : (
+              <div className="flex items-center gap-2 opacity-80 hover:opacity-100 transition-opacity">
+                <div className={`w-7 h-7 ${accentClasses.bg} rounded-lg flex items-center justify-center shadow-sm flex-shrink-0`}>
+                  <span className="text-white font-black text-sm">{config.appNome.charAt(0)}</span>
+                </div>
+                <div>
+                  <p className="text-white font-bold text-xs leading-tight">{config.appNome}</p>
+                  <p className="text-dark-500 text-[8px] uppercase tracking-wider">Inteligencia Financeira</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <p className="text-[9px] text-dark-800 text-center mt-2 select-none">dev: AH Cardoso</p>
         </div>
       </aside>
 
