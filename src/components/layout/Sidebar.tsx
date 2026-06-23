@@ -49,17 +49,28 @@ export default function Sidebar() {
       <aside className="w-64 bg-dark-900 border-r border-dark-700 flex flex-col">
 
         {/* Logo do app — integrado ao fundo */}
-        <div className="p-5 flex items-center justify-center min-h-[80px]">
+        <div className="p-4 flex flex-col items-center justify-center gap-4 min-h-[100px] border-b border-dark-700/50 mb-2">
+          {/* Logo Dinheiro em Caixa */}
+          <img 
+            src="/images/dinheiro-em-caixa-logo.png" 
+            alt="Dinheiro em Caixa" 
+            className="h-12 w-auto object-contain drop-shadow-md" 
+          />
+          
+          {/* Separador */}
+          <div className="w-1/2 h-px bg-dark-700/50"></div>
+
+          {/* Logo Connecta AI */}
           {config.appLogoUrl ? (
-            <img src={config.appLogoUrl} alt={config.appNome} className="h-16 max-w-[200px] object-contain mix-blend-screen opacity-95 hover:opacity-100 transition-opacity" />
+            <img src={config.appLogoUrl} alt={config.appNome} className="h-10 max-w-[160px] object-contain mix-blend-screen opacity-95 hover:opacity-100 transition-opacity" />
           ) : (
-            <div className="flex items-center gap-3">
-              <div className={`w-11 h-11 ${accentClasses.bg} rounded-xl flex items-center justify-center shadow-md flex-shrink-0`}>
-                <span className="text-white font-black text-lg">{config.appNome.charAt(0)}</span>
+            <div className="flex items-center gap-2">
+              <div className={`w-8 h-8 ${accentClasses.bg} rounded-lg flex items-center justify-center shadow-sm flex-shrink-0`}>
+                <span className="text-white font-black text-sm">{config.appNome.charAt(0)}</span>
               </div>
               <div>
-                <p className="text-white font-bold text-base leading-tight">{config.appNome}</p>
-                <p className="text-dark-500 text-[10px] uppercase tracking-wider">Inteligencia Financeira</p>
+                <p className="text-white font-bold text-sm leading-tight">{config.appNome}</p>
+                <p className="text-dark-500 text-[9px] uppercase tracking-wider">Inteligencia Financeira</p>
               </div>
             </div>
           )}

@@ -158,32 +158,27 @@ export async function POST(req: NextRequest) {
         if (!idCliente) throw new Error(`Não foi possível criar/encontrar o cliente: ${venda.cliente}`)
 
         // 2. Busca/Cria Produtos
-        // Estratégia do desconto (06):
-        // O Conta Azul calcula o total como: sum(qty × unit_price) + frete - desconto
-        // Para garantir que as PARCELAS batem com esse total, calculamos o totalBruto
-        // dos itens na nossa side e aplicamos o desconto, usando esse valor nas parcelas.
-        // Isso evita o erro 400 "A soma das parcelas não corresponde ao valor total da venda".
+        // Estratégia final (à prova de arredondamento):
+        // Enviamos cada item com quantidade=1 e valor=totalItem (já com desconto).
+        // Assim: sum(1 × totalItem) = soma exata dos itens = valor das parcelas.
+        // Isso elimina qualquer erro de divisão/arredondamento (ex: 100/3 = 33.3333...).
         const itensPayload = []
-        let totalBrutoItens = 0
-        let descontoTotalOS = 0
+        let totalLiquidoItens = 0
 
         for (const item of venda.itens) {
-          // Valor unitário ORIGINAL (antes do desconto) para enviar no item
+          // Calcula o totalItem: qty × valor_unitario (já líquido, com desconto embutido)
+          const valorUnitarioLiquido = item.valor_unitario
+          const totalItem = parseFloat((item.quantidade * valorUnitarioLiquido).toFixed(2))
           const valorUnitarioOriginal = item.valor_unitario_original ?? item.valor_unitario
           const idProduto = await buscarOuCriarProduto(accessToken, item.codigo, item.descricao, valorUnitarioOriginal)
           itensPayload.push({
-            descricao: '',  // 05 - Detalhes do item em branco
-            quantidade: item.quantidade,
-            valor: valorUnitarioOriginal, // preço original sem desconto
+            descricao: '',      // 05 - Detalhes do item em branco
+            quantidade: 1,      // Sempre 1 para evitar erro de arredondamento
+            valor: totalItem,   // Valor total do item já com desconto (qty × unit já calculado)
             id: idProduto
           })
-          // Acumula total bruto e desconto para calcular o valor líquido correto
-          totalBrutoItens += valorUnitarioOriginal * item.quantidade
-          const descontoItem = item.desconto ?? 0
-          descontoTotalOS += descontoItem * item.quantidade
+          totalLiquidoItens = parseFloat((totalLiquidoItens + totalItem).toFixed(2))
         }
-        totalBrutoItens = parseFloat(totalBrutoItens.toFixed(2))
-        descontoTotalOS = parseFloat(descontoTotalOS.toFixed(2))
 
         // Conta Azul exige formato YYYY-MM-DD (apenas data, sem horário)
         const dataVendaFormatada = venda.data_venda
@@ -193,11 +188,10 @@ export async function POST(req: NextRequest) {
         // 3. Monta Payload
         const { opcao, numParcelas } = mapOpcaoCondicao(venda.forma_pagamento || '')
 
-        // Valor líquido = totalBruto - desconto (espelha exatamente a fórmula do Conta Azul)
-        // Assim as parcelas sempre batem com o total que o CA calcula
-        const valorLiquido = parseFloat((totalBrutoItens - descontoTotalOS).toFixed(2))
+        // totalLiquidoItens = sum(1 × totalItem) = exatamente o que o Conta Azul vai calcular
+        const valorLiquido = totalLiquidoItens
 
-        // Gera parcelas dividindo o valor LÍQUIDO pelo número de parcelas
+        // Gera parcelas dividindo o valor líquido pelo número de parcelas
         const valorParcela = parseFloat((valorLiquido / numParcelas).toFixed(2))
         const parcelasPayload = Array.from({ length: numParcelas }, (_, i) => {
           // Cada parcela vence 30 dias após a anterior (para parcelado) ou na data da venda (à vista)
@@ -219,7 +213,7 @@ export async function POST(req: NextRequest) {
           situacao: 'APROVADO',
           data_venda: dataVendaFormatada,
           // 03 - Vendedor responsável: deixado em branco (sem id_vendedor)
-          desconto: descontoTotalOS > 0 ? descontoTotalOS : undefined, // 06 - desconto total da OS em R$
+          // Sem campo desconto: já embutido no valor de cada item (totalItem).
           itens: itensPayload,
           condicao_pagamento: {
             tipo_pagamento: mapPagamento(venda.forma_pagamento || ''),

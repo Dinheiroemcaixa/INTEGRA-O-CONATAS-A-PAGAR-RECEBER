@@ -87,8 +87,21 @@ export default function LoginPage() {
       {mostrarCard && (
         <div className="relative w-full max-w-md animate-fade-in z-20">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-600 rounded-2xl mb-4 shadow-lg shadow-brand-900/50">
-            <span className="text-2xl font-bold text-white">$</span>
+          <div className="flex flex-col items-center justify-center gap-4 mb-4">
+            {/* Logo Dinheiro em Caixa */}
+            <img 
+              src="/images/dinheiro-em-caixa-logo.png" 
+              alt="Dinheiro em Caixa" 
+              className="h-16 w-auto object-contain drop-shadow-md" 
+            />
+            
+            {/* Separador */}
+            <div className="w-16 h-px bg-dark-700/50"></div>
+
+            {/* Logo Connecta AI */}
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-600 rounded-2xl shadow-lg shadow-brand-900/50">
+              <span className="text-2xl font-bold text-white">$</span>
+            </div>
           </div>
           <h1 className="text-2xl font-bold text-white">Connecta AI</h1>
           <p className="text-dark-400 mt-1 text-sm">Inteligência Artificial para BPO Financeiro</p>

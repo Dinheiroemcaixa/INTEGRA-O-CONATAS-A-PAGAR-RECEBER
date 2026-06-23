@@ -70,34 +70,47 @@ export async function POST(req: NextRequest) {
       const osNumero = String(os.venda_Numero || '')
       const dataVenda = os.venda_DtEncerramento || os.venda_DtConclusao || os.venda_DtCriacao || ''
 
-      // Calcular valor total dos produtos + serviços
-      const totalProdutos = (os.produtos || []).reduce((sum: number, p: Record<string, unknown>) => {
-        const val = Number(p.valorTotal || p.vlTotal || p.valor || 0)
-        return sum + val
-      }, 0)
-
-      const totalServicos = (os.servicos || []).reduce((sum: number, s: Record<string, unknown>) => {
-        const val = Number(s.valorTotal || s.vlTotal || s.valor || 0)
-        return sum + val
-      }, 0)
-
-      const valorTotal = totalProdutos + totalServicos + (os.frete_Valor || 0)
-
       // Montar itens para o Conta Azul
+      // IMPORTANTE: usamos valorTotal/quantidade como valor_unitario (já com desconto embutido)
+      // Isso garante que sum(qty × unitPrice) = sum(valorTotal dos itens) — sem divergência de desconto.
       const itens = [
-        ...(os.produtos || []).map((p: Record<string, unknown>) => ({
-          codigo: String(p.codigo || ''),
-          descricao: String(p.descricao || 'Produto'),
-          quantidade: Number(p.quantidade || p.qtde || 1),
-          valor_unitario: Number(p.valorUnitario || p.vlUnitario || p.valor || 0),
-        })),
-        ...(os.servicos || []).map((s: Record<string, unknown>) => ({
-          codigo: String(s.codigo || ''),
-          descricao: String(s.descricao || 'Serviço'),
-          quantidade: Number(s.quantidade || s.qtde || 1),
-          valor_unitario: Number(s.valorUnitario || s.vlUnitario || s.valor || 0),
-        })),
+        ...(os.produtos || []).map((p: Record<string, unknown>) => {
+          const qtde = Number(p.quantidade || p.qtde || 1)
+          const totalItem = Number(p.valorTotal || p.vlTotal || 0)
+          const valorUnitarioOriginal = Number(p.valorUnitario || p.vlUnitario || p.valor || 0)
+          // Valor unitário com desconto já embutido (para o Conta Azul bater as parcelas)
+          const valorUnitarioLiquido = qtde > 0 ? parseFloat((totalItem / qtde).toFixed(4)) : valorUnitarioOriginal
+          return {
+            codigo: String(p.codigo || ''),
+            descricao: String(p.descricao || 'Produto'),
+            quantidade: qtde,
+            valor_unitario: valorUnitarioLiquido,
+            valor_unitario_original: valorUnitarioOriginal,
+            desconto: parseFloat(Math.max(0, valorUnitarioOriginal - valorUnitarioLiquido).toFixed(4)),
+            valor_total: totalItem,
+          }
+        }),
+        ...(os.servicos || []).map((s: Record<string, unknown>) => {
+          const qtde = Number(s.quantidade || s.qtde || 1)
+          const totalItem = Number(s.valorTotal || s.vlTotal || 0)
+          const valorUnitarioOriginal = Number(s.valorUnitario || s.vlUnitario || s.valor || 0)
+          const valorUnitarioLiquido = qtde > 0 ? parseFloat((totalItem / qtde).toFixed(4)) : valorUnitarioOriginal
+          return {
+            codigo: String(s.codigo || ''),
+            descricao: String(s.descricao || 'Serviço'),
+            quantidade: qtde,
+            valor_unitario: valorUnitarioLiquido,
+            valor_unitario_original: valorUnitarioOriginal,
+            desconto: parseFloat(Math.max(0, valorUnitarioOriginal - valorUnitarioLiquido).toFixed(4)),
+            valor_total: totalItem,
+          }
+        }),
       ]
+
+      // Valor total da venda = soma dos valorTotal dos itens + frete
+      const totalProdutos = (os.produtos || []).reduce((sum: number, p: Record<string, unknown>) => sum + Number(p.valorTotal || p.vlTotal || 0), 0)
+      const totalServicos = (os.servicos || []).reduce((sum: number, s: Record<string, unknown>) => sum + Number(s.valorTotal || s.vlTotal || 0), 0)
+      const valorTotal = parseFloat((totalProdutos + totalServicos + (os.frete_Valor || 0)).toFixed(2))
 
       return {
         cliente,
