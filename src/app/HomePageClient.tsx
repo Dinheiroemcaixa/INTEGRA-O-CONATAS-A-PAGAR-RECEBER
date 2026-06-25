@@ -70,9 +70,9 @@ export default function HomePageClient() {
     <div style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden' }}>
 
       {/* ambient background */}
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(900px 600px at 78% -8%,rgba(34,197,94,.18),transparent 60%),radial-gradient(700px 500px at 12% 8%,rgba(74,222,128,.10),transparent 55%)', zIndex: 0 }}></div>
-      <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', backgroundImage: 'radial-gradient(1px 1px at 12% 18%,#fff,transparent),radial-gradient(1px 1px at 27% 62%,#bbf7d0,transparent),radial-gradient(1.5px 1.5px at 44% 28%,#fff,transparent),radial-gradient(1px 1px at 63% 72%,#dcfce7,transparent),radial-gradient(1px 1px at 79% 22%,#fff,transparent),radial-gradient(1.5px 1.5px at 88% 58%,#fff,transparent),radial-gradient(1px 1px at 52% 88%,#bbf7d0,transparent),radial-gradient(1px 1px at 33% 8%,#fff,transparent)', animation: 'twinkle 4s ease-in-out infinite' }}></div>
-      <div style={{ position: 'absolute', left: '50%', bottom: '-62vw', transform: 'translateX(-50%)', width: '130vw', height: '130vw', borderRadius: '50%', background: 'radial-gradient(circle at 50% 30%,rgba(20,83,45,.55),rgba(10,16,38,.2) 42%,transparent 60%)', borderTop: '1px solid rgba(34,197,94,.18)', animation: 'riseGlow 8s ease-in-out infinite', zIndex: 0, pointerEvents: 'none' }}></div>
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(900px 600px at 78% -8%,rgba(91,108,255,.18),transparent 60%),radial-gradient(700px 500px at 12% 8%,rgba(34,211,238,.10),transparent 55%)', zIndex: 0 }}></div>
+      <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', backgroundImage: 'radial-gradient(1px 1px at 12% 18%,#fff,transparent),radial-gradient(1px 1px at 27% 62%,#cfd6ff,transparent),radial-gradient(1.5px 1.5px at 44% 28%,#fff,transparent),radial-gradient(1px 1px at 63% 72%,#bfe9ff,transparent),radial-gradient(1px 1px at 79% 22%,#fff,transparent),radial-gradient(1.5px 1.5px at 88% 58%,#fff,transparent),radial-gradient(1px 1px at 52% 88%,#cfd6ff,transparent),radial-gradient(1px 1px at 33% 8%,#fff,transparent)', animation: 'twinkle 4s ease-in-out infinite' }}></div>
+      <div style={{ position: 'absolute', left: '50%', bottom: '-62vw', transform: 'translateX(-50%)', width: '130vw', height: '130vw', borderRadius: '50%', background: 'radial-gradient(circle at 50% 30%,rgba(34,52,120,.55),rgba(10,16,38,.2) 42%,transparent 60%)', borderTop: '1px solid rgba(120,150,255,.18)', animation: 'riseGlow 8s ease-in-out infinite', zIndex: 0, pointerEvents: 'none' }}></div>
 
       {/* NAV */}
       <nav style={{ position: 'relative', zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '24px', maxWidth: '1200px', margin: '0 auto', padding: '22px 32px' }}>
@@ -99,7 +99,7 @@ export default function HomePageClient() {
           BPO Financeiro · Automação Inteligente
         </div>
 
-        <div style={{ margin: '34px 0 6px', fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 'clamp(40px,8vw,86px)', letterSpacing: '.06em', lineHeight: 1, color: '#fff', textShadow: '0 0 38px rgba(34,197,94,.55),0 0 90px rgba(74,222,128,.25)' }}>CONNECTA AI</div>
+        <div style={{ margin: '34px 0 6px', fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 'clamp(40px,8vw,86px)', letterSpacing: '.06em', lineHeight: 1, color: '#fff', textShadow: '0 0 38px rgba(120,140,255,.55),0 0 90px rgba(34,211,238,.25)' }}>CONNECTA AI</div>
 
         <h1 style={{ margin: '24px auto 0', maxWidth: '760px', fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 'clamp(26px,4.4vw,46px)', lineHeight: 1.1, letterSpacing: '-.01em', color: '#fff', textWrap: 'balance' }}>Do Datacar ao Conta Azul,<br/>seus lançamentos em <span style={{ background: 'linear-gradient(120deg,var(--accent-a),var(--accent-b))', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>um clique</span>.</h1>
 
@@ -118,7 +118,7 @@ export default function HomePageClient() {
         {/* FLOW STRIP */}
         <div className="flow" style={{ margin: '62px auto 0', maxWidth: '880px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0, flexWrap: 'nowrap' }}>
           <div style={{ flex: 1, minWidth: '120px', animation: 'floaty 6s ease-in-out infinite' }}>
-            <div style={{ border: '1px solid var(--bd)', background: 'rgba(5,46,22,.7)', backdropFilter: 'blur(8px)', borderRadius: '16px', padding: '18px 14px', textAlign: 'center' }}>
+            <div style={{ border: '1px solid var(--bd)', background: 'rgba(13,18,34,.7)', backdropFilter: 'blur(8px)', borderRadius: '16px', padding: '18px 14px', textAlign: 'center' }}>
               <div style={{ width: '42px', height: '42px', margin: '0 auto 10px', borderRadius: '11px', background: 'rgba(255,255,255,.06)', display: 'grid', placeItems: 'center', border: '1px solid var(--bd)' }}>
                 <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#9aa3bd" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 20h10M12 18v2"/><path d="M7 9h6M7 13h10"/></svg>
               </div>
@@ -127,28 +127,28 @@ export default function HomePageClient() {
             </div>
           </div>
 
-          <div className="flow-line" style={{ flex: .9, minWidth: '90px', position: 'relative', height: '2px', background: 'linear-gradient(90deg,transparent,rgba(34,197,94,.5),transparent)', margin: '0 -6px' }}>
+          <div className="flow-line" style={{ flex: .9, minWidth: '90px', position: 'relative', height: '2px', background: 'linear-gradient(90deg,transparent,rgba(120,140,255,.5),transparent)', margin: '0 -6px' }}>
             <div style={{ position: 'absolute', top: '-9px', left: 0, fontSize: '10.5px', letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--muted)', width: '100%', textAlign: 'center', transform: 'translateY(-12px)' }}>extrai</div>
             <span style={{ position: 'absolute', top: '-2.5px', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-b)', boxShadow: '0 0 10px var(--accent-b)', animation: 'flowDot 2.6s linear infinite' }}></span>
           </div>
 
           <div style={{ flex: 1.05, minWidth: '130px', position: 'relative', zIndex: 2 }}>
-            <div style={{ border: '1px solid rgba(34,197,94,.45)', background: 'linear-gradient(160deg,rgba(20,83,45,.85),rgba(5,46,22,.85))', backdropFilter: 'blur(8px)', borderRadius: '18px', padding: '20px 14px', textAlign: 'center', animation: 'corePulse 3.6s ease-in-out infinite' }}>
+            <div style={{ border: '1px solid rgba(120,140,255,.45)', background: 'linear-gradient(160deg,rgba(30,40,90,.85),rgba(13,18,34,.85))', backdropFilter: 'blur(8px)', borderRadius: '18px', padding: '20px 14px', textAlign: 'center', animation: 'corePulse 3.6s ease-in-out infinite' }}>
               <div style={{ width: '48px', height: '48px', margin: '0 auto 11px', borderRadius: '14px', background: 'linear-gradient(135deg,var(--accent-a),var(--accent-b))', display: 'grid', placeItems: 'center', fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: '20px', color: '#06080f' }}>C</div>
               <div style={{ fontWeight: 700, fontSize: '14.5px', color: '#fff' }}>CONNECTA AI</div>
-              <div style={{ fontSize: '11.5px', color: '#dcfce7', marginTop: '2px' }}>Confere & valida</div>
+              <div style={{ fontSize: '11.5px', color: '#bfe9ff', marginTop: '2px' }}>Confere & valida</div>
             </div>
           </div>
 
-          <div className="flow-line" style={{ flex: .9, minWidth: '90px', position: 'relative', height: '2px', background: 'linear-gradient(90deg,transparent,rgba(74,222,128,.5),transparent)', margin: '0 -6px' }}>
+          <div className="flow-line" style={{ flex: .9, minWidth: '90px', position: 'relative', height: '2px', background: 'linear-gradient(90deg,transparent,rgba(34,211,238,.5),transparent)', margin: '0 -6px' }}>
             <div style={{ position: 'absolute', top: '-9px', left: 0, fontSize: '10.5px', letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--muted)', width: '100%', textAlign: 'center', transform: 'translateY(-12px)' }}>importa</div>
             <span style={{ position: 'absolute', top: '-2.5px', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-b)', boxShadow: '0 0 10px var(--accent-b)', animation: 'flowDot 2.6s linear infinite', animationDelay: '1.3s' }}></span>
           </div>
 
           <div style={{ flex: 1, minWidth: '120px', animation: 'floaty 6s ease-in-out infinite', animationDelay: '1s' }}>
-            <div style={{ border: '1px solid var(--bd)', background: 'rgba(5,46,22,.7)', backdropFilter: 'blur(8px)', borderRadius: '16px', padding: '18px 14px', textAlign: 'center' }}>
-              <div style={{ width: '42px', height: '42px', margin: '0 auto 10px', borderRadius: '11px', background: 'rgba(74,222,128,.12)', display: 'grid', placeItems: 'center', border: '1px solid rgba(74,222,128,.3)' }}>
-                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4"/></svg>
+            <div style={{ border: '1px solid var(--bd)', background: 'rgba(13,18,34,.7)', backdropFilter: 'blur(8px)', borderRadius: '16px', padding: '18px 14px', textAlign: 'center' }}>
+              <div style={{ width: '42px', height: '42px', margin: '0 auto 10px', borderRadius: '11px', background: 'rgba(56,189,248,.12)', display: 'grid', placeItems: 'center', border: '1px solid rgba(56,189,248,.3)' }}>
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#56c8f5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4"/></svg>
               </div>
               <div style={{ fontWeight: 700, fontSize: '14.5px', color: '#fff' }}>Conta Azul</div>
               <div style={{ fontSize: '11.5px', color: 'var(--muted)', marginTop: '2px' }}>Sistema de destino</div>
@@ -166,7 +166,7 @@ export default function HomePageClient() {
         <div className="grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '20px' }}>
           <div style={{ border: '1px solid var(--bd)', background: 'var(--panel)', borderRadius: '18px', padding: '28px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
-              <div style={{ width: '46px', height: '46px', borderRadius: '13px', background: 'rgba(34,197,94,.14)', border: '1px solid rgba(34,197,94,.3)', display: 'grid', placeItems: 'center' }}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#86efac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 21l-4.3-4.3"/><circle cx="11" cy="11" r="7"/></svg></div>
+              <div style={{ width: '46px', height: '46px', borderRadius: '13px', background: 'rgba(91,108,255,.14)', border: '1px solid rgba(91,108,255,.3)', display: 'grid', placeItems: 'center' }}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9fb0ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 21l-4.3-4.3"/><circle cx="11" cy="11" r="7"/></svg></div>
               <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: '38px', color: 'rgba(255,255,255,.1)' }}>01</span>
             </div>
             <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: '19px', color: '#fff', marginBottom: '8px' }}>Conecta & busca</h3>
@@ -174,7 +174,7 @@ export default function HomePageClient() {
           </div>
           <div style={{ border: '1px solid var(--bd)', background: 'var(--panel)', borderRadius: '18px', padding: '28px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
-              <div style={{ width: '46px', height: '46px', borderRadius: '13px', background: 'rgba(74,222,128,.12)', border: '1px solid rgba(74,222,128,.3)', display: 'grid', placeItems: 'center' }}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#bbf7d0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></div>
+              <div style={{ width: '46px', height: '46px', borderRadius: '13px', background: 'rgba(34,211,238,.12)', border: '1px solid rgba(34,211,238,.3)', display: 'grid', placeItems: 'center' }}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7fe3f5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></div>
               <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: '38px', color: 'rgba(255,255,255,.1)' }}>02</span>
             </div>
             <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: '19px', color: '#fff', marginBottom: '8px' }}>Confere no painel</h3>
@@ -182,7 +182,7 @@ export default function HomePageClient() {
           </div>
           <div style={{ border: '1px solid var(--bd)', background: 'var(--panel)', borderRadius: '18px', padding: '28px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
-              <div style={{ width: '46px', height: '46px', borderRadius: '13px', background: 'rgba(74,222,128,.12)', border: '1px solid rgba(74,222,128,.3)', display: 'grid', placeItems: 'center' }}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v13"/><path d="M7 11l5 5 5-5"/><path d="M5 21h14"/></svg></div>
+              <div style={{ width: '46px', height: '46px', borderRadius: '13px', background: 'rgba(56,189,248,.12)', border: '1px solid rgba(56,189,248,.3)', display: 'grid', placeItems: 'center' }}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#56c8f5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v13"/><path d="M7 11l5 5 5-5"/><path d="M5 21h14"/></svg></div>
               <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: '38px', color: 'rgba(255,255,255,.1)' }}>03</span>
             </div>
             <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: '19px', color: '#fff', marginBottom: '8px' }}>Importa com um clique</h3>
@@ -212,7 +212,7 @@ export default function HomePageClient() {
               <svg width="34" height="18" viewBox="0 0 34 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M2 9h28M24 3l6 6-6 6"/></svg>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ width: '88px', height: '88px', borderRadius: '22px', background: 'rgba(74,222,128,.1)', border: '1px solid rgba(74,222,128,.28)', display: 'grid', placeItems: 'center' }}><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4"/></svg></div>
+              <div style={{ width: '88px', height: '88px', borderRadius: '22px', background: 'rgba(56,189,248,.1)', border: '1px solid rgba(56,189,248,.28)', display: 'grid', placeItems: 'center' }}><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#56c8f5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4"/></svg></div>
               <div style={{ marginTop: '10px', fontSize: '13px', fontWeight: 600, color: '#fff' }}>Conta Azul</div>
             </div>
           </div>
