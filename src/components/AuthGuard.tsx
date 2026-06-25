@@ -13,7 +13,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) {
-        window.location.replace('/login')
+        window.location.replace('/')
       } else {
         setUser(data.user)
         setLoading(false)
