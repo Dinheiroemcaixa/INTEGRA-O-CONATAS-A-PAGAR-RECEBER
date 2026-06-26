@@ -6,15 +6,16 @@ import { createClient } from '@/lib/supabase/client'
 import DropZoneVendas from '@/components/upload/DropZoneVendas'
 import TabelaVendasPreview from '@/components/upload/TabelaVendasPreview'
 import ModalEditarVenda from '@/components/upload/ModalEditarVenda'
+import TabelaVendas from '@/components/upload/TabelaVendas'
 import SelectorEmpresa from '@/components/layout/SelectorEmpresa'
 import type { VendaPreview, ResultadoImportacaoVendas } from '@/types'
 import {
   Upload, ArrowLeft, Loader2,
-  CheckCircle, AlertCircle, Send, ShoppingCart
+  CheckCircle, AlertCircle, Send, ShoppingCart, List
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-type Etapa = 'upload' | 'preview'
+type Etapa = 'upload' | 'preview' | 'vendas'
 
 export default function VendasPage() {
   const { empresaAtiva } = useEmpresa()
@@ -24,6 +25,7 @@ export default function VendasPage() {
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set())
   const [enviandoCA, setEnviandoCA] = useState(false)
   const [editandoIdx, setEditandoIdx] = useState<number | null>(null)
+  const [refreshVendas, setRefreshVendas] = useState(0)
   const supabase = createClient()
 
   const handleSaveEdicao = (vendaAtualizada: VendaPreview) => {
@@ -126,19 +128,18 @@ export default function VendasPage() {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-              <ShoppingCart className="text-brand-500" />
-              Vendas
-            </h1>
-            <span className="px-2 py-0.5 bg-brand-500/20 text-brand-400 text-[10px] font-bold rounded border border-brand-500/30 uppercase tracking-wider">
-              Novo Módulo
-            </span>
+          <div className="flex items-center gap-2 text-brand-400 mb-1">
+            <ShoppingCart size={20} />
+            <h1 className="text-xl font-bold text-white">Vendas</h1>
           </div>
+          <p className="text-sm text-dark-400">
+            Importação e gerenciamento de vendas.
+          </p>
         </div>
-        <div className="flex items-center gap-4">
+        
+        <div className="flex items-center gap-3">
           <SelectorEmpresa />
           {etapa !== 'upload' && (
             <button
@@ -152,26 +153,28 @@ export default function VendasPage() {
       </div>
 
       {/* Stepper */}
-      <div className="flex items-center gap-2">
-        {(['upload', 'preview'] as Etapa[]).map((e, i) => {
-          const labels = ['1. Upload da Planilha', '2. Revisão e Envio']
-          const isActive = etapa === e
-          const isDone = ['upload', 'preview'].indexOf(etapa) > i
-          return (
-            <div key={e} className="flex items-center gap-2">
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                isActive ? 'bg-brand-600 text-white' :
-                isDone ? 'bg-green-600/20 text-green-400' :
-                'bg-dark-800 text-dark-500'
-              }`}>
-                {isDone && <CheckCircle size={12} />}
-                {labels[i]}
+      {etapa !== 'vendas' && (
+        <div className="flex items-center gap-2">
+          {(['upload', 'preview'] as Etapa[]).map((e, i) => {
+            const labels = ['1. Upload da Planilha', '2. Revisão e Envio']
+            const isActive = etapa === e
+            const isDone = ['upload', 'preview'].indexOf(etapa) > i
+            return (
+              <div key={e} className="flex items-center gap-2">
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  isActive ? 'bg-brand-600 text-white' :
+                  isDone ? 'bg-green-600/20 text-green-400' :
+                  'bg-dark-800 text-dark-500'
+                }`}>
+                  {isDone && <CheckCircle size={12} />}
+                  {labels[i]}
+                </div>
+                {i < 1 && <div className="w-8 h-px bg-dark-700" />}
               </div>
-              {i < 1 && <div className="w-8 h-px bg-dark-700" />}
-            </div>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* ETAPA 1: Upload */}
       {etapa === 'upload' && (
@@ -245,6 +248,60 @@ export default function VendasPage() {
           onSave={handleSaveEdicao}
           onClose={() => setEditandoIdx(null)}
         />
+      )}
+
+      {/* ETAPA 3: Vendas Importadas */}
+      {etapa === 'vendas' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h2 className="text-lg font-semibold text-white">Vendas Importadas</h2>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={async () => {
+                  if (!empresaAtiva) { toast.error('Selecione uma empresa'); return }
+                  if (!empresaAtiva.access_token_conta_azul) {
+                    toast.error('Empresa não está conectada ao Conta Azul. Vá em Empresas e conecte primeiro.')
+                    return
+                  }
+                  if (!confirm('Enviar todas as vendas PENDENTES para o Conta Azul?')) return
+                  setEnviandoCA(true)
+                  try {
+                    const res = await fetch('/api/conta-azul/enviar-vendas', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ empresa_id: empresaAtiva.id, limite: 50 }),
+                    })
+                    const data = await res.json()
+                    if (!res.ok) throw new Error(data.error || 'Erro ao enviar')
+                    if (data.enviados > 0) {
+                      toast.success(`${data.enviados} vendas enviadas com sucesso!`, { duration: 5000 })
+                    }
+                    if (data.erros > 0) {
+                      toast.error(`${data.erros} vendas com erro. Verifique o status na tabela.`, { duration: 5000 })
+                    }
+                    if (data.enviados === 0 && data.erros === 0) {
+                      toast('Nenhuma venda pendente para enviar.', { icon: 'ℹ️' })
+                    }
+                    if (data.pendentes_restantes > 0) {
+                      toast(`Ainda restam ${data.pendentes_restantes} pendentes. Clique novamente para enviar mais.`, { icon: '📋', duration: 5000 })
+                    }
+                  } catch (err: any) {
+                    toast.error(err.message || 'Erro ao enviar para o Conta Azul')
+                  } finally {
+                    setEnviandoCA(false)
+                    setRefreshVendas(prev => prev + 1)
+                  }
+                }}
+                disabled={enviandoCA}
+                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-blue-900/20"
+              >
+                {enviandoCA ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                {enviandoCA ? 'Enviando...' : 'Enviar ao Conta Azul'}
+              </button>
+            </div>
+          </div>
+          <TabelaVendas key={refreshVendas} empresaId={empresaAtiva?.id} />
+        </div>
       )}
     </div>
   )

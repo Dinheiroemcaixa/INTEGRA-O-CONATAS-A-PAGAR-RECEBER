@@ -140,7 +140,7 @@ export async function buscarContasPagar(
 
 /**
  * Busca OS/Pedidos (vendas) do Datacar
- * tipoPeriodo: 'criacao' | 'conclusao' | 'encerramento'
+ * tipoPeriodo: 'criacao' | 'previsao' | 'conclusao' | 'encerramento' | 'cancelamento'
  */
 export async function buscarOSPedidos(
   credentials: DatacarCredentials,

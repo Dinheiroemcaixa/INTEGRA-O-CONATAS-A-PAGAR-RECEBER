@@ -62,7 +62,7 @@ export default function PainelSincronizacao({ empresa }: Props) {
   const [vendasResultado, setVendasResultado] = useState<VendaResult[] | null>(null)
   const [vendasMeta, setVendasMeta] = useState<{ total: number; validos: number; invalidos: number } | null>(null)
   const [tipoPeriodoVendas, setTipoPeriodoVendas] = useState<'abertura' | 'previsao' | 'conclusao' | 'encerramento' | 'cancelamento'>('encerramento')
-  const [situacaoVendas, setSituacaoVendas] = useState<'todas' | 'em_andamento' | 'concluidas' | 'encerradas' | 'canceladas'>('todas')
+  const [situacaoVendas, setSituacaoVendas] = useState<'todas' | 'em_andamento' | 'concluida' | 'encerrada' | 'cancelada'>('todas')
   const [filtroVendas, setFiltroVendas] = useState<'tudo' | 'produtos' | 'servicos'>('tudo')
   const [enviandoVendas, setEnviandoVendas] = useState(false)
 
@@ -390,9 +390,9 @@ export default function PainelSincronizacao({ empresa }: Props) {
               >
                 <option value="todas">Todas</option>
                 <option value="em_andamento">Em andamento</option>
-                <option value="concluidas">Concluídas</option>
-                <option value="encerradas">Encerradas</option>
-                <option value="canceladas">Canceladas</option>
+                <option value="concluida">Concluídas</option>
+                <option value="encerrada">Encerradas</option>
+                <option value="cancelada">Canceladas</option>
               </select>
             </div>
           )}
