@@ -199,12 +199,36 @@ export async function listarCategorias(accessToken: string): Promise<Array<{ id:
   return resultadoFinal
 }
 
-export async function buscarOuCriarContato(accessToken: string, nome: string): Promise<string | undefined> {
+/**
+ * Busca ou cria um Fornecedor no Conta Azul.
+ * Prioriza busca por CPF/CNPJ para evitar duplicatas.
+ */
+export async function buscarOuCriarContato(
+  accessToken: string,
+  nome: string,
+  cpfCnpj?: string | null
+): Promise<string | undefined> {
+  const docLimpo = cpfCnpj ? cpfCnpj.replace(/\D/g, '') : ''
+  const tipoPessoa = docLimpo.length === 14 ? 'Juridica' : 'Fisica'
+
   try {
+    // 1. Busca por CPF/CNPJ se disponível (mais preciso)
+    if (docLimpo) {
+      const urlDoc = `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=10&cpf_cnpj=${docLimpo}&tipo_perfil=Fornecedor`
+      try {
+        const busca = await fetch(urlDoc, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+        if (busca.ok) {
+          const data = await busca.json()
+          const lista: any[] = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
+          if (lista.length > 0 && lista[0].id) return lista[0].id
+        }
+      } catch (e) { console.warn('[fornecedor] erro na busca por doc:', e) }
+    }
+
+    // 2. Busca por nome
     const endpointsBusca = [
       `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=100&busca=${encodeURIComponent(nome)}&tipo_perfil=Fornecedor`,
       `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=100&busca=${encodeURIComponent(nome)}`,
-      `${BASE_URL}/contatos?nome=${encodeURIComponent(nome)}&pagina=1&tamanho_pagina=100`,
     ]
     for (const url of endpointsBusca) {
       try {
@@ -220,17 +244,29 @@ export async function buscarOuCriarContato(accessToken: string, nome: string): P
         }
       } catch (e) { console.warn(`[fornecedor] erro na busca em ${url}:`, e) }
     }
-    // Criar como Fornecedor
+
+    // 3. Criar como Fornecedor
+    const bodyFornecedor: Record<string, unknown> = {
+      nome,
+      tipo_pessoa: tipoPessoa,
+      tipo_perfil: 'Fornecedor',
+      ativo: true,
+    }
+    if (docLimpo) {
+      if (tipoPessoa === 'Juridica') bodyFornecedor.cnpj = docLimpo
+      else bodyFornecedor.cpf = docLimpo
+    }
     const criar = await fetch(`${BASE_URL}/pessoas`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome, tipo_pessoa: 'Juridica', tipo_perfil: 'Fornecedor', ativo: true }),
+      body: JSON.stringify(bodyFornecedor),
     })
     if (criar.ok) { const novo: any = await criar.json(); return novo.id }
+    // Fallback legado
     const criarLegado = await fetch(`${BASE_URL}/contatos`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome, tipo_pessoa: 'PJ', ativo: true }),
+      body: JSON.stringify({ nome, tipo_pessoa: tipoPessoa === 'Juridica' ? 'PJ' : 'PF', ativo: true }),
     })
     if (criarLegado.ok) { const novo: any = await criarLegado.json(); return novo.id }
     const errText = await criar.text()
@@ -424,8 +460,35 @@ export async function buscarOuCriarProduto(accessToken: string, codigo: string, 
   return undefined
 }
 
-export async function buscarOuCriarCliente(accessToken: string, nome: string): Promise<string | undefined> {
+/**
+ * Busca ou cria um Cliente no Conta Azul.
+ * Prioriza busca por CPF/CNPJ para evitar duplicatas.
+ * @param cpfCnpj - CPF (11 dígitos) ou CNPJ (14 dígitos) sem máscara, ou com máscara (será limpo)
+ */
+export async function buscarOuCriarCliente(
+  accessToken: string,
+  nome: string,
+  cpfCnpj?: string | null
+): Promise<string | undefined> {
+  const docLimpo = cpfCnpj ? cpfCnpj.replace(/\D/g, '') : ''
+  // CPF = 11 dígitos, CNPJ = 14 dígitos
+  const tipoPessoa = docLimpo.length === 14 ? 'Juridica' : 'Fisica'
+
   try {
+    // 1. Busca por CPF/CNPJ se disponível (mais preciso, evita duplicatas)
+    if (docLimpo) {
+      const urlDoc = `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=10&cpf_cnpj=${docLimpo}&tipo_perfil=Cliente`
+      try {
+        const busca = await fetch(urlDoc, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+        if (busca.ok) {
+          const data = await busca.json()
+          const lista: any[] = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
+          if (lista.length > 0 && lista[0].id) return lista[0].id
+        }
+      } catch (e) { console.warn('[cliente] erro na busca por doc:', e) }
+    }
+
+    // 2. Busca por nome
     const endpointsBusca = [
       `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=100&busca=${encodeURIComponent(nome)}&tipo_perfil=Cliente`,
       `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=100&busca=${encodeURIComponent(nome)}`,
@@ -444,22 +507,33 @@ export async function buscarOuCriarCliente(accessToken: string, nome: string): P
         }
       } catch (e) { console.warn(`[cliente] erro na busca em ${url}:`, e) }
     }
-    // Criar como Cliente
+
+    // 3. Criar como Cliente com CPF/CNPJ
+    const bodyCliente: Record<string, unknown> = {
+      nome,
+      tipo_pessoa: tipoPessoa,
+      tipo_perfil: 'Cliente',
+      ativo: true,
+    }
+    if (docLimpo) {
+      if (tipoPessoa === 'Juridica') bodyCliente.cnpj = docLimpo
+      else bodyCliente.cpf = docLimpo
+    }
     const criar = await fetch(`${BASE_URL}/pessoas`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome, tipo_pessoa: 'Fisica', tipo_perfil: 'Cliente', ativo: true }),
+      body: JSON.stringify(bodyCliente),
     })
     if (criar.ok) { const novo: any = await criar.json(); return novo.id }
-    
-    // Fallback legado
+
+    // Fallback legado sem CPF/CNPJ
     const criarLegado = await fetch(`${BASE_URL}/contatos`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome, tipo_pessoa: 'PF', ativo: true }),
+      body: JSON.stringify({ nome, tipo_pessoa: tipoPessoa === 'Juridica' ? 'PJ' : 'PF', ativo: true }),
     })
     if (criarLegado.ok) { const novo: any = await criarLegado.json(); return novo.id }
-    
+
     const errText = await criar.text()
     throw new Error(`Erro ao criar cliente '${nome}': ${criar.status} - ${errText}`)
   } catch (e: any) { console.error(`[buscarOuCriarCliente] erro:`, e); throw e }
