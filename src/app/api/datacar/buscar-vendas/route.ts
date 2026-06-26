@@ -88,6 +88,7 @@ export async function POST(req: NextRequest) {
             valor_unitario_original: valorUnitarioOriginal,
             desconto: parseFloat(Math.max(0, valorUnitarioOriginal - valorUnitarioLiquido).toFixed(4)),
             valor_total: totalItem,
+            tipo: 'produto',
           }
         }),
         ...(os.servicos || []).map((s: Record<string, unknown>) => {
@@ -103,6 +104,7 @@ export async function POST(req: NextRequest) {
             valor_unitario_original: valorUnitarioOriginal,
             desconto: parseFloat(Math.max(0, valorUnitarioOriginal - valorUnitarioLiquido).toFixed(4)),
             valor_total: totalItem,
+            tipo: 'servico',
           }
         }),
       ]
