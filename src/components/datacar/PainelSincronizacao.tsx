@@ -37,7 +37,7 @@ interface VendaResult {
   data_venda: string
   valor_total: number
   forma_pagamento?: string
-  itens: { codigo: string; descricao: string; quantidade: number; valor_unitario: number; tipo?: 'produto' | 'servico' }[]
+  itens: { codigo: string; descricao: string; quantidade: number; valor_unitario: number; valor_unitario_original?: number; desconto?: number; tipo?: 'produto' | 'servico' }[]
   valido: boolean
   erros?: string[]
   _datacar?: Record<string, unknown>
@@ -61,7 +61,8 @@ export default function PainelSincronizacao({ empresa }: Props) {
   // Vendas
   const [vendasResultado, setVendasResultado] = useState<VendaResult[] | null>(null)
   const [vendasMeta, setVendasMeta] = useState<{ total: number; validos: number; invalidos: number } | null>(null)
-  const [tipoPeriodoVendas, setTipoPeriodoVendas] = useState<'encerramento' | 'criacao' | 'conclusao'>('encerramento')
+  const [tipoPeriodoVendas, setTipoPeriodoVendas] = useState<'abertura' | 'previsao' | 'conclusao' | 'encerramento' | 'cancelamento'>('encerramento')
+  const [situacaoVendas, setSituacaoVendas] = useState<'todas' | 'em_andamento' | 'concluidas' | 'encerradas' | 'canceladas'>('todas')
   const [filtroVendas, setFiltroVendas] = useState<'tudo' | 'produtos' | 'servicos'>('tudo')
   const [enviandoVendas, setEnviandoVendas] = useState(false)
 
@@ -100,10 +101,20 @@ export default function PainelSincronizacao({ empresa }: Props) {
     setVendasResultado(null)
     setVendasMeta(null)
     try {
+      // Datacar mapeia Abertura como 'criacao', e as demais mantem o nome base
+      let mappedTipoPeriodo = tipoPeriodoVendas as string
+      if (tipoPeriodoVendas === 'abertura') mappedTipoPeriodo = 'criacao'
+
       const res = await fetch('/api/datacar/buscar-vendas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ empresa_id: empresa.id, dtIni, dtFim, tipoPeriodo: tipoPeriodoVendas }),
+        body: JSON.stringify({ 
+          empresa_id: empresa.id, 
+          dtIni, 
+          dtFim, 
+          tipoPeriodo: mappedTipoPeriodo,
+          situacao: situacaoVendas
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erro ao buscar vendas')
@@ -145,21 +156,40 @@ export default function PainelSincronizacao({ empresa }: Props) {
         metadata: d._datacar || {}
       }))
 
+      const fornecedores = itens.map(i => i.fornecedor)
+      
+      const { data: existentes } = await supabase
+        .from('contas_pagar_importadas')
+        .select('fornecedor, valor, vencimento')
+        .eq('empresa_id', empresa.id)
+        .in('fornecedor', fornecedores)
+
+      const contasNovas = itens.filter(item => {
+        const jaExiste = existentes?.some(e => 
+          e.fornecedor === item.fornecedor && 
+          Number(e.valor) === Number(item.valor) && 
+          e.vencimento === item.vencimento
+        )
+        return !jaExiste
+      })
+
+      if (contasNovas.length === 0) {
+        toast.dismiss(toastId)
+        toast.success('Sucesso! As contas já estavam salvas no Card de Contas a Pagar.')
+        setContasResultado(null)
+        setContasMeta(null)
+        setEnviandoContas(false)
+        return
+      }
+
       const { data, error } = await supabase
         .from('contas_pagar_importadas')
-        .upsert(itens, {
-          onConflict: 'empresa_id,fornecedor,valor,vencimento,doc',
-          ignoreDuplicates: true,
-        })
+        .insert(contasNovas)
         .select('id')
 
       if (error) throw error
 
-      if (data && data.length > 0) {
-        toast.success(`Sucesso! ${data.length} novas contas salvas no Card de Contas a Pagar.`)
-      } else {
-         toast.success('Sucesso! As contas já estavam salvas no Card de Contas a Pagar.')
-      }
+      toast.success(`Sucesso! ${data.length} novas contas salvas no Card de Contas a Pagar.`)
 
       toast.dismiss(toastId)
       setContasResultado(null)
@@ -205,15 +235,30 @@ export default function PainelSincronizacao({ empresa }: Props) {
 
       const toastId = toast.loading(`Salvando ${vendasParaEnviar.length} vendas no Card de Vendas...`)
       
+      const osNumeros = vendasParaEnviar.map(v => v.os_numero)
+      
+      // Verifica quais já existem
+      const { data: existentes } = await supabase
+        .from('vendas_importadas')
+        .select('os_numero')
+        .eq('empresa_id', empresa.id)
+        .in('os_numero', osNumeros)
+
+      const existentesSet = new Set(existentes?.map(e => e.os_numero) || [])
+      const novasVendas = vendasParaEnviar.filter(v => !existentesSet.has(v.os_numero))
+
+      if (novasVendas.length === 0) {
+        toast.dismiss(toastId)
+        toast.success('Sucesso! As vendas já estavam salvas no Card de Vendas.')
+        setVendasResultado(null)
+        setVendasMeta(null)
+        setEnviandoVendas(false)
+        return
+      }
+
       const { data, error } = await supabase
         .from('vendas_importadas')
-        .upsert(
-          vendasParaEnviar.map(({ valido, ...rest }) => rest), 
-          {
-            onConflict: 'empresa_id,os_numero',
-            ignoreDuplicates: true,
-          }
-        )
+        .insert(novasVendas.map(({ valido, ...rest }) => rest))
         .select('id')
       
       toast.dismiss(toastId)
@@ -222,8 +267,6 @@ export default function PainelSincronizacao({ empresa }: Props) {
       
       if (data && data.length > 0) {
         toast.success(`Sucesso! ${data.length} novas vendas salvas no Card de Vendas.`)
-      } else {
-        toast.success('Sucesso! As vendas já estavam salvas no Card de Vendas.')
       }
       
       // Limpa os resultados para obrigar nova busca
@@ -329,12 +372,30 @@ export default function PainelSincronizacao({ empresa }: Props) {
                 onChange={(e) => setTipoPeriodoVendas(e.target.value as any)}
                 className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
               >
-                <option value="encerramento">Data de Encerramento</option>
-                <option value="conclusao">Data de Conclusão</option>
-                <option value="criacao">Data de Criação</option>
+                <option value="abertura">Abertura</option>
+                <option value="previsao">Previsão</option>
+                <option value="conclusao">Conclusão</option>
+                <option value="encerramento">Encerramento</option>
+                <option value="cancelamento">Cancelamento</option>
               </select>
             )}
           </div>
+          {tab === 'vendas' && (
+            <div>
+              <label className="text-xs text-dark-400 font-medium mb-1 block">Situação:</label>
+              <select
+                value={situacaoVendas}
+                onChange={(e) => setSituacaoVendas(e.target.value as any)}
+                className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
+              >
+                <option value="todas">Todas</option>
+                <option value="em_andamento">Em andamento</option>
+                <option value="concluidas">Concluídas</option>
+                <option value="encerradas">Encerradas</option>
+                <option value="canceladas">Canceladas</option>
+              </select>
+            </div>
+          )}
           <button
             onClick={tab === 'contas' ? handleBuscarContas : handleBuscarVendas}
             disabled={buscando}
@@ -487,15 +548,23 @@ export default function PainelSincronizacao({ empresa }: Props) {
                     {venda.itens.length > 0 && (
                       <div className="mt-2">
                         <p className="text-dark-300 font-semibold mb-1">Itens ({venda.itens.length}):</p>
-                        <div className="bg-dark-900/60 rounded-lg p-2 space-y-1 max-h-32 overflow-y-auto">
+                        <div className="bg-dark-900/60 rounded-lg p-2 space-y-2 max-h-48 overflow-y-auto">
                           {venda.itens.map((item, j) => (
-                            <div key={j} className="flex items-center gap-2 text-[11px]">
-                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${item.tipo === 'produto' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-pink-500/20 text-pink-400'}`}>
-                                {item.tipo === 'produto' ? 'PEÇA' : 'SERV'}
-                              </span>
-                              <span className="text-dark-500 w-8 text-right">{item.quantidade}x</span>
-                              <span className="text-dark-300 flex-1 truncate">{item.descricao}</span>
-                              <span className="text-white tabular-nums">{formatCurrency(item.valor_unitario)}</span>
+                            <div key={j} className="flex flex-col gap-1 text-[11px] border-b border-dark-700/50 pb-1 last:border-0 last:pb-0">
+                              <div className="flex items-center gap-2">
+                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${item.tipo === 'produto' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-pink-500/20 text-pink-400'}`}>
+                                  {item.tipo === 'produto' ? 'PEÇA' : 'SERV'}
+                                </span>
+                                <span className="text-dark-500 w-8 text-right">{item.quantidade}x</span>
+                                <span className="text-dark-300 flex-1 truncate">{item.descricao}</span>
+                              </div>
+                              <div className="flex items-center justify-end gap-3 text-[10px]">
+                                <span className="text-dark-400">Bruto: {formatCurrency(item.valor_unitario_original || item.valor_unitario)}</span>
+                                {(item.desconto ?? 0) > 0 && (
+                                  <span className="text-orange-400">Desc: {formatCurrency(item.desconto || 0)}</span>
+                                )}
+                                <span className="text-white font-semibold">Líq: {formatCurrency(item.valor_unitario)}</span>
+                              </div>
                             </div>
                           ))}
                         </div>

@@ -17,7 +17,7 @@ const supabaseAdmin = createClient(
  */
 export async function POST(req: NextRequest) {
   try {
-    const { empresa_id, dtIni, dtFim, tipoPeriodo = 'encerramento' } = await req.json()
+    const { empresa_id, dtIni, dtFim, tipoPeriodo = 'encerramento', situacao = 'todas' } = await req.json()
 
     if (!empresa_id || !dtIni || !dtFim) {
       return NextResponse.json({ error: 'empresa_id, dtIni e dtFim são obrigatórios' }, { status: 400 })
@@ -147,14 +147,17 @@ export async function POST(req: NextRequest) {
       }
     })
 
-    const validos = dados.filter(d => d.valido).length
-    const invalidos = dados.filter(d => !d.valido).length
+    // Filtra pela situação solicitada antes de contar
+    const dadosFiltrados = dados.filter(d => situacao === 'todas' || d.situacao === situacao)
+
+    const validos = dadosFiltrados.filter(d => d.valido).length
+    const invalidos = dadosFiltrados.filter(d => !d.valido).length
 
     return NextResponse.json({
-      total: dados.length,
+      total: dadosFiltrados.length,
       validos,
       invalidos,
-      dados,
+      dados: dadosFiltrados,
       empresa_nome: empresa.nome,
     })
 
