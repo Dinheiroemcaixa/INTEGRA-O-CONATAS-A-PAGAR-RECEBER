@@ -61,11 +61,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Filtrar OS canceladas (sem data de cancelamento)
-    const osAtivas = allOS.filter(os => !os.venda_DtCancelamento)
-
-    // Converter para o formato VendaPreview do app
-    const dados = osAtivas.map((os) => {
+    // Converter para o formato VendaPreview do app (sem filtrar canceladas — o frontend filtra pela situação)
+    const dados = allOS.map((os) => {
+      // Determinar situação da OS com base nas datas disponíveis
+      let situacao: 'em_andamento' | 'concluida' | 'encerrada' | 'cancelada' = 'em_andamento'
+      if (os.venda_DtCancelamento) situacao = 'cancelada'
+      else if (os.venda_DtEncerramento) situacao = 'encerrada'
+      else if (os.venda_DtConclusao) situacao = 'concluida'
       const cliente = os.cliente_Nome?.trim() || os.cliente_RazaoSocial?.trim() || 'Cliente não informado'
       const osNumero = String(os.venda_Numero || '')
       const dataVenda = os.venda_DtEncerramento || os.venda_DtConclusao || os.venda_DtCriacao || ''
@@ -120,11 +122,12 @@ export async function POST(req: NextRequest) {
         data_venda: dataVenda,
         valor_total: valorTotal,
         forma_pagamento: os.venda_Parcelamento || undefined,
+        situacao,
         itens,
         valido: !!cliente && valorTotal > 0,
         erros: [
           !cliente ? 'Cliente não informado' : null,
-          valorTotal <= 0 ? 'Valor total zerado' : null,
+          valorTotal <= 0 ? `Valor total zerado (Produtos: ${totalProdutos}, Serviços: ${totalServicos})` : null,
         ].filter(Boolean) as string[],
         // Dados extras para referência
         _datacar: {
@@ -133,6 +136,7 @@ export async function POST(req: NextRequest) {
           vendedor: os.vendedor_Nome,
           veiculo: os.veiculo_Placa ? `${os.veiculo_Marca || ''} ${os.veiculo_Modelo || ''} - ${os.veiculo_Placa}`.trim() : null,
           cliente_cpf_cnpj: os.cliente_Cpf_Cnpj,
+          raw: os // Salvando o raw completo para a revisão
         }
       }
     })
