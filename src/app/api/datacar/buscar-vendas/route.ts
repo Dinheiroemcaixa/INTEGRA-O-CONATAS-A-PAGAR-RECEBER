@@ -73,48 +73,54 @@ export async function POST(req: NextRequest) {
       const dataVenda = os.venda_DtEncerramento || os.venda_DtConclusao || os.venda_DtCriacao || ''
 
       // Montar itens para o Conta Azul
-      // IMPORTANTE: usamos valorTotal/quantidade como valor_unitario (já com desconto embutido)
-      // Isso garante que sum(qty × unitPrice) = sum(valorTotal dos itens) — sem divergência de desconto.
+      // Campos reais da API Datacar:
+      //   Produtos: produto_Codigo, produto_CodigoFabric, produto_Descricao, venda_Qtde, venda_VlBruto, venda_VlDesc, venda_Custo
+      //   Serviços: servico_Codigo, servico_Descricao, venda_Qtde, venda_VlBruto, venda_Custo
+      // venda_VlBruto = valor unitário bruto (antes do desconto)
+      // venda_VlDesc = valor do desconto unitário
+      // Valor líquido unitário = venda_VlBruto - venda_VlDesc
+      // Valor total do item = quantidade * valor líquido unitário
       const itens = [
         ...(os.produtos || []).map((p: Record<string, unknown>) => {
-          const qtde = Number(p.quantidade || p.qtde || 1)
-          const totalItem = Number(p.valorTotal || p.vlTotal || 0)
-          const valorUnitarioOriginal = Number(p.valorUnitario || p.vlUnitario || p.valor || 0)
-          // Valor unitário com desconto já embutido (para o Conta Azul bater as parcelas)
-          const valorUnitarioLiquido = qtde > 0 ? parseFloat((totalItem / qtde).toFixed(4)) : valorUnitarioOriginal
+          const qtde = Number(p.venda_Qtde || p.quantidade || p.qtde || 1)
+          const vlBruto = Number(p.venda_VlBruto || p.valorUnitario || p.vlUnitario || 0)
+          const vlDesc = Number(p.venda_VlDesc || 0)
+          const valorUnitarioLiquido = parseFloat(Math.max(0, vlBruto - vlDesc).toFixed(4))
+          const totalItem = parseFloat((qtde * valorUnitarioLiquido).toFixed(2))
           return {
-            codigo: String(p.codigo || ''),
-            descricao: String(p.descricao || 'Produto'),
+            codigo: String(p.produto_Codigo || p.codigo || ''),
+            descricao: String(p.produto_Descricao || p.descricao || 'Produto'),
             quantidade: qtde,
             valor_unitario: valorUnitarioLiquido,
-            valor_unitario_original: valorUnitarioOriginal,
-            desconto: parseFloat(Math.max(0, valorUnitarioOriginal - valorUnitarioLiquido).toFixed(4)),
+            valor_unitario_original: vlBruto,
+            desconto: vlDesc,
             valor_total: totalItem,
             tipo: 'produto',
           }
         }),
         ...(os.servicos || []).map((s: Record<string, unknown>) => {
-          const qtde = Number(s.quantidade || s.qtde || 1)
-          const totalItem = Number(s.valorTotal || s.vlTotal || 0)
-          const valorUnitarioOriginal = Number(s.valorUnitario || s.vlUnitario || s.valor || 0)
-          const valorUnitarioLiquido = qtde > 0 ? parseFloat((totalItem / qtde).toFixed(4)) : valorUnitarioOriginal
+          const qtde = Number(s.venda_Qtde || s.quantidade || s.qtde || 1)
+          const vlBruto = Number(s.venda_VlBruto || s.valorUnitario || s.vlUnitario || 0)
+          const vlDesc = Number(s.venda_VlDesc || 0)
+          const valorUnitarioLiquido = parseFloat(Math.max(0, vlBruto - vlDesc).toFixed(4))
+          const totalItem = parseFloat((qtde * valorUnitarioLiquido).toFixed(2))
           return {
-            codigo: String(s.codigo || ''),
-            descricao: String(s.descricao || 'Serviço'),
+            codigo: String(s.servico_Codigo || s.codigo || ''),
+            descricao: String(s.servico_Descricao || s.descricao || 'Serviço'),
             quantidade: qtde,
             valor_unitario: valorUnitarioLiquido,
-            valor_unitario_original: valorUnitarioOriginal,
-            desconto: parseFloat(Math.max(0, valorUnitarioOriginal - valorUnitarioLiquido).toFixed(4)),
+            valor_unitario_original: vlBruto,
+            desconto: vlDesc,
             valor_total: totalItem,
             tipo: 'servico',
           }
         }),
       ]
 
-      // Valor total da venda = soma dos valorTotal dos itens + frete
-      const totalProdutos = (os.produtos || []).reduce((sum: number, p: Record<string, unknown>) => sum + Number(p.valorTotal || p.vlTotal || 0), 0)
-      const totalServicos = (os.servicos || []).reduce((sum: number, s: Record<string, unknown>) => sum + Number(s.valorTotal || s.vlTotal || 0), 0)
-      const valorTotal = parseFloat((totalProdutos + totalServicos + (os.frete_Valor || 0)).toFixed(2))
+      // Valor total da venda = soma dos valores totais de cada item
+      const totalProdutos = itens.filter(i => i.tipo === 'produto').reduce((sum, i) => sum + i.valor_total, 0)
+      const totalServicos = itens.filter(i => i.tipo === 'servico').reduce((sum, i) => sum + i.valor_total, 0)
+      const valorTotal = parseFloat((totalProdutos + totalServicos).toFixed(2))
 
       return {
         cliente,
