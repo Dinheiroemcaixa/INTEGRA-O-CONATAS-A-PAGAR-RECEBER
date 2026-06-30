@@ -142,6 +142,14 @@ export async function POST(req: NextRequest) {
           vendedor: os.vendedor_Nome,
           veiculo: os.veiculo_Placa ? `${os.veiculo_Marca || ''} ${os.veiculo_Modelo || ''} - ${os.veiculo_Placa}`.trim() : null,
           cliente_cpf_cnpj: os.cliente_Cpf_Cnpj,
+          // Endereço completo do cliente
+          cliente_logradouro: os.cliente_Logradouro || os.cliente_Endereco || null,
+          cliente_numero: os.cliente_Numero || null,
+          cliente_complemento: os.cliente_Complemento || null,
+          cliente_bairro: os.cliente_Bairro || null,
+          cliente_cidade: os.cliente_Cidade || os.cliente_Municipio || null,
+          cliente_uf: os.cliente_Uf || os.cliente_Estado || os.cliente_UF || null,
+          cliente_cep: os.cliente_Cep || os.cliente_CEP || null,
           raw: os // Salvando o raw completo para a revisão
         }
       }

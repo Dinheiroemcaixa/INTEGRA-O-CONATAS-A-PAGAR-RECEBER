@@ -217,13 +217,15 @@ export default function PainelSincronizacao({ empresa }: Props) {
           empresa_id: empresa.id,
           cliente: v.cliente,
           os_numero: v.os_numero,
-          data_venda: v.data_venda,
+          // data_venda pode ser string ISO — convertemos para data simples YYYY-MM-DD
+          data_venda: v.data_venda ? v.data_venda.split('T')[0] : null,
           valor_total: parseFloat(valorTotalRecalculado.toFixed(2)),
           forma_pagamento: v.forma_pagamento || null,
           itens: itensFiltrados,
           status: 'pendente',
-          metadata: v._datacar || {},
-          // Flag temporária
+          // Coluna correta na tabela: dados_datacar (JSONB)
+          dados_datacar: v._datacar || {},
+          // Flag temporária (não vai para o banco)
           valido: v.valido && itensFiltrados.length > 0 && valorTotalRecalculado > 0
         }
       }).filter(v => v.valido)
@@ -256,6 +258,7 @@ export default function PainelSincronizacao({ empresa }: Props) {
         return
       }
 
+      // Remove a flag 'valido' antes de inserir (não é coluna da tabela)
       const { data, error } = await supabase
         .from('vendas_importadas')
         .insert(novasVendas.map(({ valido, ...rest }) => rest))
@@ -266,7 +269,7 @@ export default function PainelSincronizacao({ empresa }: Props) {
       if (error) throw error
       
       if (data && data.length > 0) {
-        toast.success(`Sucesso! ${data.length} novas vendas salvas no Card de Vendas.`)
+        toast.success(`Sucesso! ${data.length} novas vendas salvas no Card de Vendas. Acesse a aba Vendas para conferir e enviar ao Conta Azul.`)
       }
       
       // Limpa os resultados para obrigar nova busca
@@ -495,10 +498,10 @@ export default function PainelSincronizacao({ empresa }: Props) {
             </span>
           </div>
 
-          {/* Filtro e Botão de Envio Conta Azul */}
+          {/* Filtro e Botão Salvar no Card Vendas */}
           <div className="p-4 bg-blue-900/10 border-b border-dark-700 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <span className="text-sm text-dark-300 font-medium">Importar para Conta Azul:</span>
+              <span className="text-sm text-dark-300 font-medium">Filtrar para Card Vendas:</span>
               <select
                 value={filtroVendas}
                 onChange={(e) => setFiltroVendas(e.target.value as any)}
@@ -544,6 +547,17 @@ export default function PainelSincronizacao({ empresa }: Props) {
                     {venda._datacar?.vendedor ? <p><strong className="text-dark-300">Vendedor:</strong> {String(venda._datacar.vendedor)}</p> : null}
                     {venda._datacar?.veiculo ? <p><strong className="text-dark-300">Veículo:</strong> {String(venda._datacar.veiculo)}</p> : null}
                     {venda._datacar?.cliente_cpf_cnpj ? <p><strong className="text-dark-300">CPF/CNPJ:</strong> {String(venda._datacar.cliente_cpf_cnpj)}</p> : null}
+                    {/* Endereço completo do cliente */}
+                    {(venda._datacar?.cliente_logradouro || venda._datacar?.cliente_cidade) ? (
+                      <p>
+                        <strong className="text-dark-300">Endereço:</strong>{' '}
+                        {[venda._datacar.cliente_logradouro, venda._datacar.cliente_numero, venda._datacar.cliente_complemento].filter(Boolean).map(String).join(', ')}
+                        {venda._datacar.cliente_bairro ? ` — ${String(venda._datacar.cliente_bairro)}` : ''}
+                        {venda._datacar.cliente_cidade ? ` — ${String(venda._datacar.cliente_cidade)}` : ''}
+                        {venda._datacar.cliente_uf ? `/${String(venda._datacar.cliente_uf)}` : ''}
+                        {venda._datacar.cliente_cep ? ` CEP: ${String(venda._datacar.cliente_cep)}` : ''}
+                      </p>
+                    ) : null}
                     {venda.forma_pagamento && <p><strong className="text-dark-300">Pagamento:</strong> {venda.forma_pagamento}</p>}
                     {venda.itens.length > 0 && (
                       <div className="mt-2">

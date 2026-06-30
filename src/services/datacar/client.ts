@@ -84,6 +84,18 @@ export interface DatacarOSPedido {
   cliente_Fone2: string | null
   cliente_Fone3: string | null
   cliente_Email: string | null
+  cliente_Logradouro?: string | null
+  cliente_Endereco?: string | null
+  cliente_Numero?: string | null
+  cliente_Complemento?: string | null
+  cliente_Bairro?: string | null
+  cliente_Cidade?: string | null
+  cliente_Municipio?: string | null
+  cliente_Uf?: string | null
+  cliente_Estado?: string | null
+  cliente_UF?: string | null
+  cliente_Cep?: string | null
+  cliente_CEP?: string | null
   vendedor_Nome: string | null
   veiculo_Placa: string | null
   veiculo_Marca: string | null
