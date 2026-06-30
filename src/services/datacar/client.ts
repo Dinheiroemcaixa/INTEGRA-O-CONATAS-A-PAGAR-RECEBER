@@ -96,6 +96,13 @@ export interface DatacarOSPedido {
   cliente_UF?: string | null
   cliente_Cep?: string | null
   cliente_CEP?: string | null
+  end_Rua?: string | null
+  end_Numero?: string | null
+  end_Bairro?: string | null
+  end_Cidade?: string | null
+  end_Uf?: string | null
+  end_Cep?: string | null
+  end_Complemento?: string | null
   vendedor_Nome: string | null
   veiculo_Placa: string | null
   veiculo_Marca: string | null
