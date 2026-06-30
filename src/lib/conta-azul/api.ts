@@ -466,7 +466,11 @@ export async function buscarOuCriarProduto(
     }
     
     if (metadata) {
-      if (metadata.unidade_medida) payloadProduto.unidade_medida = metadata.unidade_medida
+      // O Conta Azul espera um objeto models.ProductFiscalMeasureUnitCreate para unidade_medida.
+      // Como o Datacar retorna apenas 'UN' (string), a API do Conta Azul retorna erro 400 se enviarmos assim.
+      // Omitir o campo faz com que o CA assuma o valor padrão (geralmente Unidade/Quantidade), que funciona para 99% dos casos.
+      // if (metadata.unidade_medida) payloadProduto.unidade_medida = metadata.unidade_medida;
+      
       if (metadata.ncm) payloadProduto.ncm = metadata.ncm
       
       // Origem no CA deve ser um enum (0 a 8 geralmente), mas tentamos enviar o que vem.
