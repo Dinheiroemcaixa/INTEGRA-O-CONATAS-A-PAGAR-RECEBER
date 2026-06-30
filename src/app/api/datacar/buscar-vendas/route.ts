@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     const codigosProdutos = new Set<string>()
     allOS.forEach(os => {
       os.produtos?.forEach(p => {
-        const cod = String(p.produto_Codigo || p.codigo || '').trim()
+        const cod = String(p.produto_CodigoFabric || p.produto_Codigo || p.codigo || '').trim()
         if (cod) codigosProdutos.add(cod)
       })
     })
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
           const vlDesc = Number(p.venda_VlDesc || 0)
           const valorUnitarioLiquido = parseFloat(Math.max(0, vlBruto - vlDesc).toFixed(4))
           const totalItem = parseFloat((qtde * valorUnitarioLiquido).toFixed(2))
-          const codigoItem = String(p.produto_Codigo || p.codigo || '').trim()
+          const codigoItem = String(p.produto_CodigoFabric || p.produto_Codigo || p.codigo || '').trim()
           const metadata = produtosMetadata.get(codigoItem)
 
           return {
@@ -132,7 +132,8 @@ export async function POST(req: NextRequest) {
             tipo: 'produto',
             ncm: metadata?.ncm || undefined,
             origem: metadata?.origem || undefined,
-            unidade_medida: 'UN' // Datacar getProdutos não expõe a unidade
+            cest: metadata?.cest || undefined,
+            unidade_medida: metadata?.unidade_medida || 'UN'
           }
         }),
         ...(os.servicos || []).map((s: Record<string, unknown>) => {
@@ -161,6 +162,16 @@ export async function POST(req: NextRequest) {
 
       return {
         cliente,
+        cliente_cpf_cnpj: os.cliente_Cpf_Cnpj || null,
+        cliente_endereco: {
+          logradouro: os.end_Rua || os.cliente_Logradouro || os.cliente_Endereco || null,
+          numero: os.end_Numero || os.cliente_Numero || null,
+          complemento: os.end_Complemento || os.cliente_Complemento || null,
+          bairro: os.end_Bairro || os.cliente_Bairro || null,
+          cidade: os.end_Cidade || os.cliente_Cidade || os.cliente_Municipio || null,
+          estado: os.end_Uf || os.cliente_Uf || os.cliente_Estado || os.cliente_UF || null,
+          cep: os.end_Cep || os.cliente_Cep || os.cliente_CEP || null,
+        },
         os_numero: osNumero,
         data_venda: dataVenda,
         valor_total: valorTotal,

@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
     for (const venda of vendas as VendaPreview[]) {
       try {
         // 1. Busca/Cria Cliente com função dedicada e URLs corretas
-        const idCliente = await buscarOuCriarCliente(accessToken, venda.cliente, (venda as any).cliente_cpf_cnpj)
+        const idCliente = await buscarOuCriarCliente(accessToken, venda.cliente, venda.cliente_cpf_cnpj, venda.cliente_endereco)
         if (!idCliente) throw new Error(`Não foi possível criar/encontrar o cliente: ${venda.cliente}`)
 
         // 2. Busca/Cria Produtos
@@ -111,6 +111,7 @@ export async function POST(req: NextRequest) {
             {
               ncm: item.ncm,
               origem: item.origem,
+              cest: item.cest,
               unidade_medida: item.unidade_medida
             }
           )

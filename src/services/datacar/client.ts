@@ -193,6 +193,8 @@ export interface DatacarProdutoResponse {
   ncm: string | null
   origem: string | null
   grupo: string | null
+  cest?: string | null
+  unidade_medida?: string | null
 }
 
 export async function buscarProdutos(

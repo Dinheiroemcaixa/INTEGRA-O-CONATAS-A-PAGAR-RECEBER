@@ -110,6 +110,7 @@ export interface VendaItemPreview {
   // Metadados do Produto para Conta Azul
   ncm?: string
   origem?: string
+  cest?: string
   unidade_medida?: string
 }
 

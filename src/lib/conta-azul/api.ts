@@ -239,7 +239,7 @@ export async function buscarOuCriarContato(
           if (lista.length > 0) {
             const nomeBusca = nome.toLowerCase().trim()
             const matchExato = lista.find(p => (p.nome || p.name || '').toLowerCase().trim() === nomeBusca)
-            return matchExato ? matchExato.id : lista[0].id
+            if (matchExato) return matchExato.id || matchExato.uuid
           }
         }
       } catch (e) { console.warn(`[fornecedor] erro na busca em ${url}:`, e) }
@@ -432,7 +432,7 @@ export async function buscarOuCriarProduto(
   codigo: string,
   descricao: string,
   valor: number,
-  metadata?: { ncm?: string, origem?: string, unidade_medida?: string }
+  metadata?: { ncm?: string, origem?: string, unidade_medida?: string, cest?: string }
 ): Promise<string | undefined> {
   // Tenta buscar o produto pelo código ou descrição
   const urlBusca = `${BASE_URL}/produtos?termo_busca=${encodeURIComponent(codigo || descricao)}&tamanho_pagina=100`
@@ -472,10 +472,8 @@ export async function buscarOuCriarProduto(
     }
     
     if (metadata) {
-      // O Conta Azul espera um objeto models.ProductFiscalMeasureUnitCreate para unidade_medida.
-      // Como o Datacar retorna apenas 'UN' (string), a API do Conta Azul retorna erro 400 se enviarmos assim.
-      // Omitir o campo faz com que o CA assuma o valor padrão (geralmente Unidade/Quantidade), que funciona para 99% dos casos.
-      // if (metadata.unidade_medida) payloadProduto.unidade_medida = metadata.unidade_medida;
+      if (metadata.unidade_medida) payloadProduto.unidade_medida = metadata.unidade_medida;
+      if (metadata.cest) payloadProduto.cest = metadata.cest;
       
       if (metadata.ncm) payloadProduto.ncm = metadata.ncm
       
@@ -518,7 +516,16 @@ export async function buscarOuCriarProduto(
 export async function buscarOuCriarCliente(
   accessToken: string,
   nome: string,
-  cpfCnpj?: string | null
+  cpfCnpj?: string | null,
+  endereco?: {
+    logradouro?: string | null
+    numero?: string | null
+    bairro?: string | null
+    cidade?: string | null
+    estado?: string | null
+    cep?: string | null
+    complemento?: string | null
+  }
 ): Promise<string | undefined> {
   const docLimpo = cpfCnpj ? cpfCnpj.replace(/\D/g, '') : ''
   // CPF = 11 dígitos, CNPJ = 14 dígitos
@@ -552,7 +559,7 @@ export async function buscarOuCriarCliente(
           if (lista.length > 0) {
             const nomeBusca = nome.toLowerCase().trim()
             const matchExato = lista.find(p => (p.nome || p.name || '').toLowerCase().trim() === nomeBusca)
-            return matchExato ? matchExato.id : lista[0].id
+            if (matchExato) return matchExato.id || matchExato.uuid
           }
         }
       } catch (e) { console.warn(`[cliente] erro na busca em ${url}:`, e) }
@@ -568,6 +575,18 @@ export async function buscarOuCriarCliente(
     if (docLimpo) {
       if (tipoPessoa === 'Juridica') bodyCliente.cnpj = docLimpo
       else bodyCliente.cpf = docLimpo
+    }
+    if (endereco && (endereco.logradouro || endereco.cidade || endereco.cep)) {
+      bodyCliente.enderecos = [{
+        logradouro: endereco.logradouro || undefined,
+        numero: endereco.numero || 'S/N',
+        complemento: endereco.complemento || undefined,
+        bairro: endereco.bairro || undefined,
+        cidade: endereco.cidade || undefined,
+        estado: endereco.estado || undefined,
+        cep: endereco.cep || undefined,
+        pais: 'Brasil'
+      }]
     }
     const criar = await fetch(`${BASE_URL}/pessoas`, {
       method: 'POST',
