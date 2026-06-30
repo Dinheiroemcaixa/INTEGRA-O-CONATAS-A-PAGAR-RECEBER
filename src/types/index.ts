@@ -110,6 +110,15 @@ export interface VendaItemPreview {
 
 export interface VendaPreview {
   cliente: string
+  cliente_cpf_cnpj?: string
+  cliente_endereco?: {
+    logradouro?: string
+    numero?: string
+    bairro?: string
+    cidade?: string
+    estado?: string
+    cep?: string
+  }
   os_numero: string
   data_venda: string
   valor_total: number

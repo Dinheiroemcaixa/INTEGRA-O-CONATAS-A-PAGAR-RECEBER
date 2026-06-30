@@ -213,12 +213,24 @@ export default function PainelSincronizacao({ empresa }: Props) {
         
         const valorTotalRecalculado = itensFiltrados.reduce((acc, i) => acc + (i.quantidade * i.valor_unitario), 0)
         
+        let dataFormatada = null
+        if (v.data_venda) {
+          const dataStr = v.data_venda.split('T')[0].split(' ')[0]
+          if (dataStr.includes('/')) {
+            const [dia, mes, ano] = dataStr.split('/')
+            if (dia && mes && ano) dataFormatada = `${ano}-${mes}-${dia}`
+            else dataFormatada = dataStr
+          } else {
+            dataFormatada = dataStr
+          }
+        }
+        
         return {
           empresa_id: empresa.id,
           cliente: v.cliente,
           os_numero: v.os_numero,
-          // data_venda pode ser string ISO — convertemos para data simples YYYY-MM-DD
-          data_venda: v.data_venda ? v.data_venda.split('T')[0] : null,
+          // Convertemos para data simples YYYY-MM-DD
+          data_venda: dataFormatada,
           valor_total: parseFloat(valorTotalRecalculado.toFixed(2)),
           forma_pagamento: v.forma_pagamento || null,
           itens: itensFiltrados,
