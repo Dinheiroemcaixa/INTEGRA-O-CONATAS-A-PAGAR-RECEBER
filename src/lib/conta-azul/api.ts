@@ -429,8 +429,13 @@ export async function buscarOuCriarProduto(accessToken: string, codigo: string, 
     if (busca.ok) {
       const data = await busca.json()
       const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : [])
-      if (lista.length > 0) {
-        return lista[0].id || lista[0].uuid
+      
+      // Filter for exact name match (case insensitive) to prevent picking random products
+      const searchName = (descricao || codigo || '').toLowerCase().trim()
+      const match = lista.find(p => (p.nome || p.name || '').toLowerCase().trim() === searchName)
+      
+      if (match) {
+        return match.id || match.uuid
       }
     }
   } catch (e) { console.warn(`[buscarOuCriarProduto] erro na busca em ${urlBusca}:`, e) }

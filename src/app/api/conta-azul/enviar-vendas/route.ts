@@ -96,27 +96,29 @@ export async function POST(req: NextRequest) {
         if (!idCliente) throw new Error(`Não foi possível criar/encontrar o cliente: ${venda.cliente}`)
 
         // 2. Busca/Cria Produtos
-        // Estratégia final (à prova de arredondamento):
-        // Enviamos cada item com quantidade=1 e valor=totalItem (já com desconto).
-        // Assim: sum(1 × totalItem) = soma exata dos itens = valor das parcelas.
-        // Isso elimina qualquer erro de divisão/arredondamento (ex: 100/3 = 33.3333...).
         const itensPayload = []
+        let totalDescontoVenda = 0
         let totalLiquidoItens = 0
 
         for (const item of venda.itens) {
-          // Calcula o totalItem: qty × valor_unitario (já líquido, com desconto embutido)
-          const valorUnitarioLiquido = item.valor_unitario
-          const totalItem = parseFloat((item.quantidade * valorUnitarioLiquido).toFixed(2))
           const valorUnitarioOriginal = item.valor_unitario_original ?? item.valor_unitario
+          const descontoUnitario = item.desconto ?? 0
+          
+          totalDescontoVenda += (descontoUnitario * item.quantidade)
+          
           const idProduto = await buscarOuCriarProduto(accessToken, item.codigo, item.descricao, valorUnitarioOriginal)
           itensPayload.push({
-            descricao: '',      // 05 - Detalhes do item em branco
-            quantidade: 1,      // Sempre 1 para evitar erro de arredondamento
-            valor: totalItem,   // Valor total do item já com desconto (qty × unit já calculado)
+            descricao: item.descricao || '',
+            quantidade: item.quantidade,
+            valor: valorUnitarioOriginal,
             id: idProduto
           })
+          
+          const totalItem = parseFloat((item.quantidade * item.valor_unitario).toFixed(2))
           totalLiquidoItens = parseFloat((totalLiquidoItens + totalItem).toFixed(2))
         }
+        
+        totalDescontoVenda = parseFloat(totalDescontoVenda.toFixed(2))
 
         // Conta Azul exige formato YYYY-MM-DD (apenas data, sem horário)
         const dataVendaFormatada = venda.data_venda
@@ -151,7 +153,7 @@ export async function POST(req: NextRequest) {
           situacao: 'APROVADO',
           data_venda: dataVendaFormatada,
           // 03 - Vendedor responsável: deixado em branco (sem id_vendedor)
-          // Sem campo desconto: já embutido no valor de cada item (totalItem).
+          desconto: totalDescontoVenda > 0 ? totalDescontoVenda : undefined,
           itens: itensPayload,
           condicao_pagamento: {
             tipo_pagamento: mapPagamento(venda.forma_pagamento || ''),
