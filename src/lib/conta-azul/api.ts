@@ -473,11 +473,30 @@ export async function buscarOuCriarProduto(
     
     if (metadata) {
       if (metadata.unidade_medida) {
-        const sigla = metadata.unidade_medida.toUpperCase().trim();
-        payloadProduto.unidade_medida = {
-          descricao: (sigla === 'UN' || sigla === 'UNIDADE') ? 'Unidade' : sigla,
-          sigla: sigla
-        };
+        try {
+          const res = await fetch(`${BASE_URL}/produtos?tamanho_pagina=50`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          })
+          if (res.ok) {
+            const data = await res.json()
+            const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : [])
+            const siglaBusca = metadata.unidade_medida.toUpperCase().trim()
+            
+            const produtoComUnidade = lista.find(p => 
+              p.unidade_medida && 
+              p.unidade_medida.id && 
+              (p.unidade_medida.sigla?.toUpperCase() === siglaBusca || p.unidade_medida.descricao?.toUpperCase() === siglaBusca)
+            )
+            const produtoFallback = lista.find(p => p.unidade_medida && p.unidade_medida.id)
+            const unidadeAlvo = produtoComUnidade?.unidade_medida || produtoFallback?.unidade_medida
+            
+            if (unidadeAlvo && unidadeAlvo.id) {
+              payloadProduto.unidade_medida = { id: unidadeAlvo.id }
+            }
+          }
+        } catch (e) {
+          console.warn('[buscarOuCriarProduto] Falha ao tentar buscar ID da unidade de medida:', e)
+        }
       }
       if (metadata.cest) payloadProduto.cest = metadata.cest;
       
@@ -503,7 +522,13 @@ export async function buscarOuCriarProduto(
     } else {
       const errBody = await criar.text()
       console.error(`[buscarOuCriarProduto] falha ao criar produto "${descricao}" (${codigo}):`, criar.status, errBody)
-      throw new Error(`Não foi possível criar o produto "${descricao}" no Conta Azul: [${criar.status}] ${errBody}`)
+      
+      let msg = `Não foi possível criar o produto "${descricao}" no Conta Azul: [${criar.status}] ${errBody}`
+      if (errBody.includes('O ID da unidade de medida é obrigatório')) {
+        msg = `Erro no Conta Azul: Para cadastrar impostos (NCM/CEST) no produto "${descricao}", é obrigatório enviar o ID da Unidade de Medida. Como solução paliativa, crie ao menos 1 produto manualmente no Conta Azul com a unidade 'UN' para que o sistema consiga mapear o ID automaticamente nas próximas vendas.`
+      }
+      
+      throw new Error(msg)
     }
   } catch (e) {
     // Re-lança erros informativos (como falha na criação)
