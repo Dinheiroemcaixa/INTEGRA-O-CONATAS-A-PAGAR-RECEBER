@@ -117,6 +117,9 @@ export async function POST(req: NextRequest) {
               unidade_medida: item.unidade_medida
             }
           )
+          if (!idProduto) {
+            throw new Error(`Produto "${item.descricao}" (código: ${item.codigo || 'sem código'}) não encontrado e não pôde ser criado no Conta Azul. Verifique o cadastro do produto.`)
+          }
           itensPayload.push({
             descricao: item.descricao || '',
             quantidade: item.quantidade,

@@ -486,8 +486,14 @@ export async function buscarOuCriarProduto(
     if (criar.ok) {
       const novo: any = await criar.json()
       return novo.id || novo.uuid
+    } else {
+      const errBody = await criar.text()
+      console.error(`[buscarOuCriarProduto] falha ao criar produto "${descricao}" (${codigo}):`, criar.status, errBody)
+      throw new Error(`Não foi possível criar o produto "${descricao}" no Conta Azul: [${criar.status}] ${errBody}`)
     }
   } catch (e) {
+    // Re-lança erros informativos (como falha na criação)
+    if (e instanceof Error) throw e
     console.warn(`[buscarOuCriarProduto] erro ao tentar criar:`, e)
   }
   

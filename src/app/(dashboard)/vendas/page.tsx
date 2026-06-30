@@ -525,17 +525,24 @@ export default function VendasPage() {
                                 <p className="text-dark-300 text-xs font-semibold mb-1">Itens ({venda.itens.length}):</p>
                                 <div className="bg-dark-900/60 rounded-lg p-2 space-y-1.5 max-h-40 overflow-y-auto">
                                   {venda.itens.map((item, j) => (
-                                    <div key={j} className="flex items-center gap-2 text-[11px] border-b border-dark-700/50 pb-1 last:border-0 last:pb-0">
-                                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold flex-shrink-0 ${
-                                        item.tipo === 'produto' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-pink-500/20 text-pink-400'
-                                      }`}>
-                                        {item.tipo === 'produto' ? 'PEÇA' : 'SERV'}
-                                      </span>
-                                      <span className="text-dark-500 w-6 text-right flex-shrink-0">{item.quantidade}x</span>
-                                      <span className="text-dark-300 flex-1 truncate">{item.descricao}</span>
-                                      <span className="text-white font-semibold tabular-nums flex-shrink-0">
-                                        {formatCurrency(item.quantidade * item.valor_unitario)}
-                                      </span>
+                                    <div key={j} className="flex flex-col gap-1 text-[11px] border-b border-dark-700/50 pb-1.5 last:border-0 last:pb-0">
+                                      <div className="flex items-center gap-2">
+                                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold flex-shrink-0 ${
+                                          item.tipo === 'produto' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-pink-500/20 text-pink-400'
+                                        }`}>
+                                          {item.tipo === 'produto' ? 'PEÇA' : 'SERV'}
+                                        </span>
+                                        <span className="text-dark-500 w-6 text-right flex-shrink-0">{item.quantidade}x</span>
+                                        <span className="text-dark-300 flex-1 truncate">{item.descricao}</span>
+                                        {item.codigo ? <span className="text-dark-600 text-[9px] flex-shrink-0 font-mono">#{item.codigo}</span> : null}
+                                      </div>
+                                      <div className="flex items-center justify-end gap-3 text-[10px] pl-8">
+                                        <span className="text-dark-400">Bruto: {formatCurrency((item.valor_unitario_original ?? item.valor_unitario) * item.quantidade)}</span>
+                                        {(item.desconto ?? 0) > 0 && (
+                                          <span className="text-orange-400">Desc: {formatCurrency((item.desconto ?? 0) * item.quantidade)}</span>
+                                        )}
+                                        <span className="text-white font-semibold">Líq: {formatCurrency(item.valor_unitario * item.quantidade)}</span>
+                                      </div>
                                     </div>
                                   ))}
                                 </div>
