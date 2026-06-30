@@ -97,14 +97,11 @@ export async function POST(req: NextRequest) {
 
         // 2. Busca/Cria Produtos
         const itensPayload = []
-        let totalDescontoVenda = 0
+        let totalBrutoItens = 0
         let totalLiquidoItens = 0
 
         for (const item of venda.itens) {
-          const valorUnitarioOriginal = item.valor_unitario_original ?? item.valor_unitario
-          const descontoUnitario = item.desconto ?? 0
-          
-          totalDescontoVenda += (descontoUnitario * item.quantidade)
+          const valorUnitarioOriginal = parseFloat(Number(item.valor_unitario_original ?? item.valor_unitario).toFixed(4))
           
           const idProduto = await buscarOuCriarProduto(
             accessToken, 
@@ -120,6 +117,7 @@ export async function POST(req: NextRequest) {
           if (!idProduto) {
             throw new Error(`Produto "${item.descricao}" (código: ${item.codigo || 'sem código'}) não encontrado e não pôde ser criado no Conta Azul. Verifique o cadastro do produto.`)
           }
+          
           itensPayload.push({
             descricao: item.descricao || '',
             quantidade: item.quantidade,
@@ -127,11 +125,21 @@ export async function POST(req: NextRequest) {
             id: idProduto
           })
           
-          const totalItem = parseFloat((item.quantidade * item.valor_unitario).toFixed(2))
-          totalLiquidoItens = parseFloat((totalLiquidoItens + totalItem).toFixed(2))
+          const totalItemBruto = item.quantidade * valorUnitarioOriginal
+          totalBrutoItens += totalItemBruto
+          
+          const totalItem = item.quantidade * item.valor_unitario
+          totalLiquidoItens += totalItem
         }
         
-        totalDescontoVenda = parseFloat(totalDescontoVenda.toFixed(2))
+        totalBrutoItens = parseFloat(totalBrutoItens.toFixed(2))
+        totalLiquidoItens = parseFloat(totalLiquidoItens.toFixed(2))
+        
+        // Em vez de somar os descontos unitários e multiplicar pela quantidade (o que pode dar divergência de centavos),
+        // O desconto global enviado ao Conta Azul é exatamente a diferença entre o Bruto e o Líquido.
+        // Assim, a matemática do CA (Bruto - Desconto = Líquido) sempre baterá perfeitamente com a soma das parcelas (Líquido).
+        const descontoCalculado = parseFloat((totalBrutoItens - totalLiquidoItens).toFixed(2))
+        let totalDescontoVenda = Math.max(0, descontoCalculado)
 
         // Conta Azul exige formato YYYY-MM-DD (apenas data, sem horário)
         const dataVendaFormatada = venda.data_venda
