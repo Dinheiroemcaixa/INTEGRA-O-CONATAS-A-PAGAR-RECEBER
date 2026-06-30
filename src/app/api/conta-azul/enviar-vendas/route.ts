@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { buscarOuCriarProduto, criarVenda, VendaPayload, refreshToken as refreshCA } from '@/lib/conta-azul/api'
+import { buscarOuCriarProduto, criarVenda, VendaPayload, buscarOuCriarCliente, refreshToken as refreshCA } from '@/lib/conta-azul/api'
 import type { VendaPreview } from '@/types'
 
 export const runtime = 'nodejs'
@@ -15,68 +15,6 @@ const supabaseAdmin = createClient(
 // URL base da API v2 do Conta Azul (sem duplicação de /v1)
 const CA_BASE = 'https://api-v2.contaazul.com/v1'
 
-/**
- * Busca ou cria um cliente no Conta Azul.
- * Função dedicada para o módulo de Vendas com URLs corretas.
- */
-async function buscarOuCriarClienteVenda(accessToken: string, nome: string): Promise<string | undefined> {
-  const headers = {
-    'Authorization': `Bearer ${accessToken}`,
-    'Content-Type': 'application/json',
-  }
-
-  // 1. Tenta buscar pelo nome
-  try {
-    const urlBusca = `${CA_BASE}/pessoas?pagina=1&tamanho_pagina=50&busca=${encodeURIComponent(nome)}`
-    const resp = await fetch(urlBusca, { headers })
-    if (resp.ok) {
-      const data = await resp.json()
-      const lista: any[] = data.itens || data.items || data.content || (Array.isArray(data) ? data : [])
-      if (lista.length > 0) {
-        const nomeBusca = nome.toLowerCase().trim()
-        const exato = lista.find((p: any) => (p.nome || p.name || '').toLowerCase().trim() === nomeBusca)
-        const id = (exato || lista[0]).id
-        if (id) return id
-      }
-    }
-  } catch (e) {
-    console.warn('[vendas/cliente] erro na busca:', e)
-  }
-
-  // 2. Tenta criar como pessoa física (cliente)
-  try {
-    const respCriar = await fetch(`${CA_BASE}/pessoas`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ nome, tipo_pessoa: 'Fisica', tipo_perfil: 'Cliente', ativo: true }),
-    })
-    if (respCriar.ok) {
-      const novo: any = await respCriar.json()
-      if (novo.id) return novo.id
-    }
-    const errBody = await respCriar.text()
-    console.warn(`[vendas/cliente] erro ao criar (${respCriar.status}):`, errBody)
-  } catch (e) {
-    console.warn('[vendas/cliente] erro ao criar pessoa:', e)
-  }
-
-  // 3. Fallback: criar via endpoint legado /contatos
-  try {
-    const respLegado = await fetch(`${CA_BASE}/contatos`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ nome, tipo_pessoa: 'PF', ativo: true }),
-    })
-    if (respLegado.ok) {
-      const novo: any = await respLegado.json()
-      if (novo.id) return novo.id
-    }
-  } catch (e) {
-    console.warn('[vendas/cliente] erro no fallback /contatos:', e)
-  }
-
-  return undefined
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -154,7 +92,7 @@ export async function POST(req: NextRequest) {
     for (const venda of vendas as VendaPreview[]) {
       try {
         // 1. Busca/Cria Cliente com função dedicada e URLs corretas
-        const idCliente = await buscarOuCriarClienteVenda(accessToken, venda.cliente)
+        const idCliente = await buscarOuCriarCliente(accessToken, venda.cliente, (venda as any).cliente_cpf_cnpj)
         if (!idCliente) throw new Error(`Não foi possível criar/encontrar o cliente: ${venda.cliente}`)
 
         // 2. Busca/Cria Produtos

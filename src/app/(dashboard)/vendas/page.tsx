@@ -132,6 +132,7 @@ export default function VendasPage() {
       // Converte para o formato esperado pelo endpoint de envio do CA
       const vendasFormatadas = vendasSelecionadas.map(v => ({
         cliente: v.cliente,
+        cliente_cpf_cnpj: v.dados_datacar?.cliente_cpf_cnpj as string | undefined,
         os_numero: v.os_numero,
         data_venda: v.data_venda,
         valor_total: v.valor_total,
