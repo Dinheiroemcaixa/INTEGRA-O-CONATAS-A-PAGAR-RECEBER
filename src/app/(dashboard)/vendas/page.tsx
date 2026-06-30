@@ -512,16 +512,7 @@ export default function VendasPage() {
                                   {venda.dados_datacar.cliente_uf ? `/${String(venda.dados_datacar.cliente_uf)}` : ''}
                                   {venda.dados_datacar.cliente_cep ? ` CEP: ${String(venda.dados_datacar.cliente_cep)}` : ''}
                                 </p>
-                              ) : (
-                                <div className="bg-red-500/10 p-2 rounded border border-red-500/20 mt-2">
-                                  <strong className="text-red-400 block mb-1">⚠️ Endereço não encontrado. Campos disponíveis do Datacar:</strong>
-                                  <p className="text-xs text-dark-400 break-all">
-                                    {venda.dados_datacar?.raw ? 
-                                      Object.keys(venda.dados_datacar.raw as object).join(', ') : 
-                                      'Nenhum dado bruto encontrado'}
-                                  </p>
-                                </div>
-                              )}
+                              ) : null}
                               {venda.forma_pagamento && (
                                 <p><strong className="text-dark-300">Pagamento:</strong> {venda.forma_pagamento}</p>
                               )}
