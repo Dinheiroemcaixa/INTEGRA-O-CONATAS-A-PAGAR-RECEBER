@@ -472,7 +472,13 @@ export async function buscarOuCriarProduto(
     }
     
     if (metadata) {
-      if (metadata.unidade_medida) payloadProduto.unidade_medida = metadata.unidade_medida;
+      if (metadata.unidade_medida) {
+        const sigla = metadata.unidade_medida.toUpperCase().trim();
+        payloadProduto.unidade_medida = {
+          descricao: (sigla === 'UN' || sigla === 'UNIDADE') ? 'Unidade' : sigla,
+          sigla: sigla
+        };
+      }
       if (metadata.cest) payloadProduto.cest = metadata.cest;
       
       if (metadata.ncm) payloadProduto.ncm = metadata.ncm
