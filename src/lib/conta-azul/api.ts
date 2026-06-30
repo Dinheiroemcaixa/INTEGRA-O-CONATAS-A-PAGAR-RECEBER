@@ -373,7 +373,6 @@ export interface VendaPayload {
   id_categoria?: string
   id_centro_custo?: string
   id_vendedor?: string
-  desconto?: number
   observacoes?: string
   observacoes_pagamento?: string
   itens: Array<{
@@ -383,6 +382,13 @@ export interface VendaPayload {
     id?: string // uuid do produto
     valor_custo?: number
   }>
+  composicao_de_valor?: {
+    frete?: number
+    desconto?: {
+      tipo: 'PORCENTAGEM' | 'VALOR'
+      valor: number
+    }
+  }
   condicao_pagamento: {
     tipo_pagamento: string
     id_conta_financeira?: string

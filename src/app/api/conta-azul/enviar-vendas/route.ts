@@ -174,8 +174,16 @@ export async function POST(req: NextRequest) {
           situacao: 'APROVADO',
           data_venda: dataVendaFormatada,
           // 03 - Vendedor responsável: deixado em branco (sem id_vendedor)
-          desconto: totalDescontoVenda > 0 ? totalDescontoVenda : undefined,
           itens: itensPayload,
+          // Desconto conforme API v1: composicao_de_valor.desconto { tipo, valor }
+          // O CA calcula: valor_total = (qty × preço_unit) + frete - desconto
+          // Parcelas devem somar ao valor_total (líquido)
+          composicao_de_valor: totalDescontoVenda > 0 ? {
+            desconto: {
+              tipo: 'VALOR' as const,
+              valor: totalDescontoVenda
+            }
+          } : undefined,
           condicao_pagamento: {
             tipo_pagamento: mapPagamento(venda.forma_pagamento || ''),
             opcao_condicao_pagamento: opcao,
