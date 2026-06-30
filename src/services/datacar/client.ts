@@ -178,3 +178,22 @@ export async function testarConexao(credentials: DatacarCredentials): Promise<{ 
     return { ok: false, mensagem: msg }
   }
 }
+
+export interface DatacarProdutoResponse {
+  codigo: string | null
+  descricao: string | null
+  precoVenda: number | null
+  ncm: string | null
+  origem: string | null
+  grupo: string | null
+}
+
+export async function buscarProdutos(
+  credentials: DatacarCredentials,
+  codigo: string,
+  noPagina?: string,
+): Promise<DatacarProdutoResponse[]> {
+  const extra: Record<string, string> = { codigo }
+  if (noPagina) extra.noPagina = noPagina
+  return fetchDatacar<DatacarProdutoResponse[]>('/produtos', credentials, extra)
+}

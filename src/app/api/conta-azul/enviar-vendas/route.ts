@@ -106,7 +106,17 @@ export async function POST(req: NextRequest) {
           
           totalDescontoVenda += (descontoUnitario * item.quantidade)
           
-          const idProduto = await buscarOuCriarProduto(accessToken, item.codigo, item.descricao, valorUnitarioOriginal)
+          const idProduto = await buscarOuCriarProduto(
+            accessToken, 
+            item.codigo, 
+            item.descricao, 
+            valorUnitarioOriginal,
+            {
+              ncm: item.ncm,
+              origem: item.origem,
+              unidade_medida: item.unidade_medida
+            }
+          )
           itensPayload.push({
             descricao: item.descricao || '',
             quantidade: item.quantidade,

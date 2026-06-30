@@ -421,7 +421,13 @@ export async function criarVenda(accessToken: string, payload: VendaPayload): Pr
   return res.json()
 }
 
-export async function buscarOuCriarProduto(accessToken: string, codigo: string, descricao: string, valor: number): Promise<string | undefined> {
+export async function buscarOuCriarProduto(
+  accessToken: string,
+  codigo: string,
+  descricao: string,
+  valor: number,
+  metadata?: { ncm?: string, origem?: string, unidade_medida?: string }
+): Promise<string | undefined> {
   // Tenta buscar o produto pelo código ou descrição
   const urlBusca = `${BASE_URL}/produtos?termo_busca=${encodeURIComponent(codigo || descricao)}&tamanho_pagina=100`
   try {
@@ -430,9 +436,18 @@ export async function buscarOuCriarProduto(accessToken: string, codigo: string, 
       const data = await busca.json()
       const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : [])
       
-      // Filter for exact name match (case insensitive) to prevent picking random products
-      const searchName = (descricao || codigo || '').toLowerCase().trim()
-      const match = lista.find(p => (p.nome || p.name || '').toLowerCase().trim() === searchName)
+      let match = null
+      if (codigo) {
+        // Se temos código, buscar exatamente pelo código (SKU) - Prioridade máxima
+        const codigoTrim = codigo.trim()
+        match = lista.find(p => p.codigo?.trim() === codigoTrim)
+      }
+      
+      if (!match) {
+        // Fallback para nome exato caso o código não tenha encontrado (ou não exista código)
+        const searchName = (descricao || '').toLowerCase().trim()
+        match = lista.find(p => (p.nome || p.name || '').toLowerCase().trim() === searchName)
+      }
       
       if (match) {
         return match.id || match.uuid
@@ -442,12 +457,26 @@ export async function buscarOuCriarProduto(accessToken: string, codigo: string, 
 
   // Tenta criar o produto se não existir
   try {
-    const payloadProduto = {
+    const payloadProduto: any = {
       nome: descricao || codigo || 'Produto sem nome',
       codigo: codigo || undefined,
       valor: valor,
       situacao: 'ATIVO',
       tipo: 'PRODUTO'
+    }
+    
+    if (metadata) {
+      if (metadata.unidade_medida) payloadProduto.unidade_medida = metadata.unidade_medida
+      if (metadata.ncm) payloadProduto.ncm = metadata.ncm
+      
+      // Origem no CA deve ser um enum (0 a 8 geralmente), mas tentamos enviar o que vem.
+      // Se for algo como '0 - Nacional', precisamos pegar apenas o número.
+      if (metadata.origem) {
+        const origemNum = parseInt(metadata.origem.split('-')[0].trim(), 10)
+        if (!isNaN(origemNum)) {
+          payloadProduto.origem = origemNum
+        }
+      }
     }
     const criar = await fetch(`${BASE_URL}/produtos`, {
       method: 'POST',

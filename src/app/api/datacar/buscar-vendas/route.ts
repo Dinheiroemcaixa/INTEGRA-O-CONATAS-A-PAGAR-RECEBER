@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { buscarOSPedidos } from '@/services/datacar/client'
+import { buscarOSPedidos, buscarProdutos, DatacarProdutoResponse } from '@/services/datacar/client'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -61,6 +61,37 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Extrair códigos únicos de produtos
+    const codigosProdutos = new Set<string>()
+    allOS.forEach(os => {
+      os.produtos?.forEach(p => {
+        const cod = String(p.produto_Codigo || p.codigo || '').trim()
+        if (cod) codigosProdutos.add(cod)
+      })
+    })
+
+    // Buscar metadados dos produtos no Datacar (NCM, Origem)
+    const produtosMetadata = new Map<string, DatacarProdutoResponse>()
+    const codigosArray = Array.from(codigosProdutos)
+    
+    // Chunk requests in groups of 10 para evitar timeouts e sobrecarga
+    for (let i = 0; i < codigosArray.length; i += 10) {
+      const chunk = codigosArray.slice(i, i + 10)
+      const promessas = chunk.map(async (codigo) => {
+        try {
+          const res = await buscarProdutos(credentials, codigo)
+          if (res && res.length > 0) {
+            // Find exact match just in case
+            const match = res.find(p => p.codigo?.trim() === codigo)
+            if (match) produtosMetadata.set(codigo, match)
+          }
+        } catch (e) {
+          console.warn(`Erro ao buscar metadados do produto ${codigo} no Datacar:`, e)
+        }
+      })
+      await Promise.all(promessas)
+    }
+
     // Converter para o formato VendaPreview do app (sem filtrar canceladas — o frontend filtra pela situação)
     const dados = allOS.map((os) => {
       // Determinar situação da OS com base nas datas disponíveis
@@ -87,8 +118,11 @@ export async function POST(req: NextRequest) {
           const vlDesc = Number(p.venda_VlDesc || 0)
           const valorUnitarioLiquido = parseFloat(Math.max(0, vlBruto - vlDesc).toFixed(4))
           const totalItem = parseFloat((qtde * valorUnitarioLiquido).toFixed(2))
+          const codigoItem = String(p.produto_Codigo || p.codigo || '').trim()
+          const metadata = produtosMetadata.get(codigoItem)
+
           return {
-            codigo: String(p.produto_Codigo || p.codigo || ''),
+            codigo: codigoItem,
             descricao: String(p.produto_Descricao || p.descricao || 'Produto'),
             quantidade: qtde,
             valor_unitario: valorUnitarioLiquido,
@@ -96,6 +130,9 @@ export async function POST(req: NextRequest) {
             desconto: vlDesc,
             valor_total: totalItem,
             tipo: 'produto',
+            ncm: metadata?.ncm || undefined,
+            origem: metadata?.origem || undefined,
+            unidade_medida: 'UN' // Datacar getProdutos não expõe a unidade
           }
         }),
         ...(os.servicos || []).map((s: Record<string, unknown>) => {

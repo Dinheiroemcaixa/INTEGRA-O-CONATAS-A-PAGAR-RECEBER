@@ -106,6 +106,11 @@ export interface VendaItemPreview {
   valor_unitario_original?: number
   desconto?: number
   valor_total?: number
+  
+  // Metadados do Produto para Conta Azul
+  ncm?: string
+  origem?: string
+  unidade_medida?: string
 }
 
 export interface VendaPreview {
