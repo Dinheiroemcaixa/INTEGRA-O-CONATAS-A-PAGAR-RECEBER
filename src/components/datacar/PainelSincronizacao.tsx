@@ -569,7 +569,16 @@ export default function PainelSincronizacao({ empresa }: Props) {
                         {venda._datacar.cliente_uf ? `/${String(venda._datacar.cliente_uf)}` : ''}
                         {venda._datacar.cliente_cep ? ` CEP: ${String(venda._datacar.cliente_cep)}` : ''}
                       </p>
-                    ) : null}
+                    ) : (
+                      <div className="bg-red-500/10 p-2 rounded border border-red-500/20 mt-2">
+                        <strong className="text-red-400 block mb-1">⚠️ Endereço não encontrado. Campos retornados pelo Datacar:</strong>
+                        <p className="text-xs text-dark-400 break-all">
+                          {venda._datacar?.raw ? 
+                            Object.keys(venda._datacar.raw as object).join(', ') : 
+                            'Nenhum dado bruto encontrado'}
+                        </p>
+                      </div>
+                    )}
                     {venda.forma_pagamento && <p><strong className="text-dark-300">Pagamento:</strong> {venda.forma_pagamento}</p>}
                     {venda.itens.length > 0 && (
                       <div className="mt-2">
