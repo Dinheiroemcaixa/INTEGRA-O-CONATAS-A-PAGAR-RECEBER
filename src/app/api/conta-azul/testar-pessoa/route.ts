@@ -113,12 +113,37 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Clean up
     for (const id of idsParaDeletar) {
-      try { await fetch(`${CA_BASE}/pessoas/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${accessToken}` } }) } catch {}
+      try {
+        await fetch(`${CA_BASE}/pessoas/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${accessToken}` } })
+      } catch {}
     }
 
     return NextResponse.json({ empresa: empresa.nome, total_testes: resultados.length, resultados, ids_deletados: idsParaDeletar })
+
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  try {
+    const { url } = await req.json()
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+    const { data: empresa } = await supabase.from('empresas').select('*').limit(1).single()
+    if (!empresa?.access_token_conta_azul) return NextResponse.json({ error: 'Sem token' })
+    
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${empresa.access_token_conta_azul}` } })
+    const text = await res.text()
+    let json = null
+    try { json = JSON.parse(text) } catch {}
+    
+    return NextResponse.json({ status: res.status, json, text })
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message })
   }
 }
