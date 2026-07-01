@@ -255,7 +255,7 @@ export async function buscarOuCriarContato(
     const bodyFornecedor: Record<string, unknown> = {
       nome,
       tipo_pessoa: tipoPessoa,
-      tipos_perfil: ['Fornecedor'],
+      tipo_perfil: 'Fornecedor',
       ativo: true,
     }
     if (docLimpo) {
@@ -611,10 +611,13 @@ export async function buscarOuCriarCliente(
     }
 
     // 3. Criar como Cliente com CPF/CNPJ
+    // Enviamos múltiplas variações do campo perfil para garantir compatibilidade
     const bodyCliente: Record<string, unknown> = {
       nome,
       tipo_pessoa: tipoPessoa,
+      tipo_perfil: 'Cliente',
       tipos_perfil: ['Cliente'],
+      perfil: 'Cliente',
       ativo: true,
     }
     if (docLimpo) {
@@ -633,6 +636,7 @@ export async function buscarOuCriarCliente(
         pais: 'Brasil'
       }]
     }
+    console.log('[buscarOuCriarCliente] Body enviado para POST /pessoas:', JSON.stringify(bodyCliente))
     const criar = await fetch(`${BASE_URL}/pessoas`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
@@ -640,7 +644,32 @@ export async function buscarOuCriarCliente(
     })
     if (criar.ok) { const novo: any = await criar.json(); return novo.id }
 
-    // Fallback legado sem CPF/CNPJ
+    const errTextPrincipal = await criar.text()
+    console.error('[buscarOuCriarCliente] Erro POST /pessoas:', criar.status, errTextPrincipal)
+
+    // Tentativa 2: Sem campo tipo_perfil, usando apenas perfis
+    const bodyCliente2: Record<string, unknown> = {
+      nome,
+      tipo_pessoa: tipoPessoa,
+      perfis: ['Cliente'],
+      ativo: true,
+    }
+    if (docLimpo) {
+      if (tipoPessoa === 'Jurídica') bodyCliente2.cnpj = docLimpo
+      else bodyCliente2.cpf = docLimpo
+    }
+    console.log('[buscarOuCriarCliente] Tentativa 2 com perfis:', JSON.stringify(bodyCliente2))
+    const criar2 = await fetch(`${BASE_URL}/pessoas`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyCliente2),
+    })
+    if (criar2.ok) { const novo: any = await criar2.json(); return novo.id }
+
+    const errText2 = await criar2.text()
+    console.error('[buscarOuCriarCliente] Erro tentativa 2:', criar2.status, errText2)
+
+    // Tentativa 3: Fallback legado /contatos
     const criarLegado = await fetch(`${BASE_URL}/contatos`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
@@ -648,7 +677,6 @@ export async function buscarOuCriarCliente(
     })
     if (criarLegado.ok) { const novo: any = await criarLegado.json(); return novo.id }
 
-    const errText = await criar.text()
-    throw new Error(`Erro ao criar cliente '${nome}': ${criar.status} - ${errText}`)
+    throw new Error(`Erro ao criar cliente '${nome}': ${criar.status} - ${errTextPrincipal}`)
   } catch (e: any) { console.error(`[buscarOuCriarCliente] erro:`, e); throw e }
 }
