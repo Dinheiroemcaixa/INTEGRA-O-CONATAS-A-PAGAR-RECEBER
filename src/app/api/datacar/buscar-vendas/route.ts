@@ -61,6 +61,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // === LOG DE DIAGNÓSTICO: ver campos reais retornados pelo Datacar ===
+    if (allOS.length > 0 && allOS[0].produtos?.length > 0) {
+      const primeiroProduto = allOS[0].produtos[0]
+      console.log('[DIAG] Campos do primeiro produto Datacar:', JSON.stringify(Object.keys(primeiroProduto)))
+      console.log('[DIAG] Valores do primeiro produto Datacar:', JSON.stringify(primeiroProduto))
+    }
+    if (allOS.length > 0 && allOS[0].servicos?.length > 0) {
+      const primeiroServico = allOS[0].servicos[0]
+      console.log('[DIAG] Campos do primeiro servico Datacar:', JSON.stringify(Object.keys(primeiroServico)))
+      console.log('[DIAG] Valores do primeiro servico Datacar:', JSON.stringify(primeiroServico))
+    }
+    // === FIM LOG DE DIAGNÓSTICO ===
     // Extrair códigos únicos de produtos
     const codigosProdutos = new Set<string>()
     allOS.forEach(os => {
@@ -209,12 +221,26 @@ export async function POST(req: NextRequest) {
     const validos = dadosFiltrados.filter(d => d.valido).length
     const invalidos = dadosFiltrados.filter(d => !d.valido).length
 
+    // Montar diagnóstico dos campos reais vindos do Datacar
+    const _diagnostico: Record<string, unknown> = {}
+    if (allOS.length > 0) {
+      if (allOS[0].produtos?.length > 0) {
+        _diagnostico.primeiro_produto_campos = Object.keys(allOS[0].produtos[0])
+        _diagnostico.primeiro_produto_valores = allOS[0].produtos[0]
+      }
+      if (allOS[0].servicos?.length > 0) {
+        _diagnostico.primeiro_servico_campos = Object.keys(allOS[0].servicos[0])
+        _diagnostico.primeiro_servico_valores = allOS[0].servicos[0]
+      }
+    }
+
     return NextResponse.json({
       total: dadosFiltrados.length,
       validos,
       invalidos,
       dados: dadosFiltrados,
       empresa_nome: empresa.nome,
+      _diagnostico,
     })
 
   } catch (err: unknown) {
