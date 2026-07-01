@@ -192,12 +192,31 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 4. Cria Venda no Conta Azul
+        // 4. Cria Venda no Conta Azul (com retry para eventual consistência do cliente)
         let vendaCriada;
-        try {
-          vendaCriada = await criarVenda(accessToken, payload)
-        } catch (e: any) {
-          throw new Error(`Erro ao criar venda (Cliente ID: ${idCliente}): ${e.message}`)
+        let tentativas = 0;
+        let sucesso = false;
+        let ultimaMensagemErro = '';
+
+        while (tentativas < 3 && !sucesso) {
+          try {
+            vendaCriada = await criarVenda(accessToken, payload)
+            sucesso = true;
+          } catch (e: any) {
+            ultimaMensagemErro = e.message || 'Erro desconhecido';
+            // Se o erro indicar que o cliente ainda não foi encontrado no Conta Azul
+            if (ultimaMensagemErro.includes('Cliente da venda não encontrado') || ultimaMensagemErro.includes('Cliente não encontrado')) {
+              tentativas++;
+              console.log(`[Tentativa ${tentativas}/3] Cliente ${idCliente} ainda não sincronizado no Conta Azul. Aguardando 2s...`);
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            } else {
+              break; // Outro tipo de erro, interrompe o retry
+            }
+          }
+        }
+
+        if (!sucesso) {
+          throw new Error(`Erro ao criar venda (Cliente ID: ${idCliente}): ${ultimaMensagemErro}`)
         }
 
         // 5. Salva no banco
@@ -209,7 +228,7 @@ export async function POST(req: NextRequest) {
           os_numero: venda.os_numero,
           forma_pagamento: venda.forma_pagamento,
           status: 'concluido',
-          conta_azul_id: vendaCriada.id,
+          conta_azul_id: vendaCriada!.id,
           payload_contaazul: payload
         })
 

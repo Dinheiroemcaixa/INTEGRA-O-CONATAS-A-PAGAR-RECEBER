@@ -622,16 +622,23 @@ export async function buscarOuCriarCliente(
       else bodyCliente.cpf = docLimpo
     }
     if (endereco && (endereco.logradouro || endereco.cidade || endereco.cep)) {
-      bodyCliente.enderecos = [{
-        logradouro: endereco.logradouro || undefined,
-        numero: endereco.numero || 'S/N',
-        complemento: endereco.complemento || undefined,
-        bairro: endereco.bairro || undefined,
-        cidade: endereco.cidade || undefined,
-        estado: endereco.estado || undefined,
-        cep: endereco.cep || undefined,
-        pais: 'Brasil'
-      }]
+      const endCA: any = {};
+      if (endereco.logradouro) endCA.logradouro = endereco.logradouro;
+      endCA.numero = endereco.numero || 'S/N';
+      if (endereco.complemento) endCA.complemento = endereco.complemento;
+      if (endereco.bairro) endCA.bairro = endereco.bairro;
+      if (endereco.cidade) endCA.cidade = endereco.cidade;
+      if (endereco.estado) endCA.estado = endereco.estado;
+      if (endereco.cep) {
+        let cepStr = endereco.cep.replace(/\D/g, '');
+        if (cepStr.length === 8) {
+          cepStr = `${cepStr.substring(0, 5)}-${cepStr.substring(5)}`;
+        }
+        endCA.cep = cepStr;
+      }
+      endCA.pais = 'Brasil';
+      
+      bodyCliente.enderecos = [endCA];
     }
     const criar = await fetch(`${BASE_URL}/pessoas`, {
       method: 'POST',
