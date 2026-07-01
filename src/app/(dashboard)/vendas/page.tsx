@@ -533,8 +533,10 @@ export default function VendasPage() {
                                           {item.tipo === 'produto' ? 'PEÇA' : 'SERV'}
                                         </span>
                                         <span className="text-dark-500 w-6 text-right flex-shrink-0">{item.quantidade}x</span>
-                                        <span className="text-dark-300 flex-1 truncate">{item.descricao}</span>
-                                        {item.codigo ? <span className="text-dark-600 text-[9px] flex-shrink-0 font-mono">#{item.codigo}</span> : null}
+                                        <span className="text-dark-300 flex-1 truncate">
+                                          {item.codigo && <span className="text-blue-400 font-mono mr-2">[{item.codigo}]</span>}
+                                          {item.descricao}
+                                        </span>
                                       </div>
                                       <div className="flex items-center justify-end gap-3 text-[10px] pl-8">
                                         <span className="text-dark-400">Bruto: {formatCurrency((item.valor_unitario_original ?? item.valor_unitario) * item.quantidade)}</span>
