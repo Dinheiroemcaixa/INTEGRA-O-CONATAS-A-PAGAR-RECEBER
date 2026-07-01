@@ -46,8 +46,38 @@ export async function GET(req: NextRequest) {
     // Testar diferentes formatos do objeto interno
     const payloads = [
       {
-        label: 'TESTE_RESPOSTA_CRIACAO',
-        body: { nome: `TESTE_RESPOSTA_${ts}`, tipo_pessoa: 'Física', perfis: [{ tipo_perfil: 'Cliente' }], ativo: true }
+        label: 'TESTE_ENDERECO_SINGULAR',
+        body: { 
+          nome: `TESTE_END_${ts}_SING`, 
+          tipo_pessoa: 'Física', 
+          perfis: [{ tipo_perfil: 'Cliente' }], 
+          ativo: true,
+          endereco: {
+            logradouro: 'Rua Teste',
+            numero: '123',
+            bairro: 'Centro',
+            cep: '01001-000',
+            cidade: 'São Paulo',
+            estado: 'SP'
+          }
+        }
+      },
+      {
+        label: 'TESTE_ENDERECO_PLURAL',
+        body: { 
+          nome: `TESTE_END_${ts}_PLU`, 
+          tipo_pessoa: 'Física', 
+          perfis: [{ tipo_perfil: 'Cliente' }], 
+          ativo: true,
+          enderecos: [{
+            logradouro: 'Rua Teste',
+            numero: '123',
+            bairro: 'Centro',
+            cep: '01001-000',
+            cidade: 'São Paulo',
+            estado: 'SP'
+          }]
+        }
       }
     ]
 
