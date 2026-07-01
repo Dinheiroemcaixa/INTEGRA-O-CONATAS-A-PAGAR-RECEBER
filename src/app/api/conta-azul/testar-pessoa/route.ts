@@ -53,37 +53,9 @@ export async function GET(req: NextRequest) {
     // Testar diferentes formatos do objeto interno
     const payloads = [
       {
-        label: '1_perfis_array_tipo_Cliente',
-        body: { nome: `TESTE_${ts}_1`, tipo_pessoa: 'Física', perfis: [{ tipo: 'Cliente' }], ativo: true, cpf: '00000000191' }
-      },
-      {
-        label: '2_perfis_array_tipo_perfil_Cliente',
-        body: { nome: `TESTE_${ts}_2`, tipo_pessoa: 'Física', perfis: [{ tipo_perfil: 'Cliente' }], ativo: true, cpf: '00000000272' }
-      },
-      {
-        label: '3_perfis_array_perfil_Cliente',
-        body: { nome: `TESTE_${ts}_3`, tipo_pessoa: 'Física', perfis: [{ perfil: 'Cliente' }], ativo: true, cpf: '00000000353' }
-      },
-      {
-        label: '4_perfis_array_nome_Cliente',
-        body: { nome: `TESTE_${ts}_4`, tipo_pessoa: 'Física', perfis: [{ nome: 'Cliente' }], ativo: true, cpf: '00000000434' }
-      },
-      {
-        label: '5_perfis_array_descricao_Cliente',
-        body: { nome: `TESTE_${ts}_5`, tipo_pessoa: 'Física', perfis: [{ descricao: 'Cliente' }], ativo: true, cpf: '00000000515' }
-      },
-      {
-        label: '6_perfis_array_valor_CLIENTE',
-        body: { nome: `TESTE_${ts}_6`, tipo_pessoa: 'Física', perfis: [{ valor: 'CLIENTE' }], ativo: true, cpf: '00000000604' }
-      },
-      {
-        label: '7_perfis_array_string_Cliente',
-        body: { nome: `TESTE_${ts}_7`, tipo_pessoa: 'Física', perfis: ['Cliente'], ativo: true, cpf: '00000000787' }
-      },
-      {
-        label: '8_perfis_array_string_CLIENTE_upper',
-        body: { nome: `TESTE_${ts}_8`, tipo_pessoa: 'Física', perfis: ['CLIENTE'], ativo: true, cpf: '00000000868' }
-      },
+        label: 'TESTE_RESPOSTA_CRIACAO',
+        body: { nome: `TESTE_RESPOSTA_${ts}`, tipo_pessoa: 'Física', perfis: [{ tipo_perfil: 'Cliente' }], ativo: true, cpf: `00000${Math.floor(100000+Math.random()*900000)}` }
+      }
     ]
 
     const idsParaDeletar: string[] = []
@@ -98,8 +70,8 @@ export async function GET(req: NextRequest) {
         const resText = await res.text()
         let resJson: any = null
         try { resJson = JSON.parse(resText) } catch {}
-        if (res.ok && resJson?.id) idsParaDeletar.push(resJson.id)
-        resultados.push({ teste: label, status: res.status, SUCESSO: res.ok, body_enviado: body, resposta: resJson || resText })
+        if (res.ok && (resJson?.id || resJson?.uuid)) idsParaDeletar.push(resJson.id || resJson.uuid)
+        resultados.push({ teste: label, status: res.status, SUCESSO: res.ok, body_enviado: body, resposta_json: resJson, resposta_texto: resText })
       } catch (e: any) {
         resultados.push({ teste: label, SUCESSO: false, erro: e.message })
       }
