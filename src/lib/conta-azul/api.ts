@@ -643,13 +643,37 @@ export async function buscarOuCriarCliente(
     const errTextPrincipal = await criar.text()
     console.error('[buscarOuCriarCliente] Erro POST /pessoas:', criar.status, errTextPrincipal)
 
-    // Tentativa: Fallback legado /contatos
-    const criarLegado = await fetch(`${BASE_URL}/contatos`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome, tipo_pessoa: tipoPessoa === 'Jurídica' ? 'PJ' : 'PF', ativo: true }),
-    })
-    if (criarLegado.ok) { const novo: any = await criarLegado.json(); return novo.id }
+    // Se o erro for "já existe pessoa com esse CPF/CNPJ", buscar essa pessoa pelo doc
+    if (criar.status === 400 && errTextPrincipal.includes('CPF') && docLimpo) {
+      console.log('[buscarOuCriarCliente] CPF/CNPJ duplicado, tentando buscar pessoa existente...')
+      // Busca sem filtro de perfil para encontrar qualquer pessoa com esse doc
+      const urlBuscaDoc = `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=10&cpf_cnpj=${docLimpo}`
+      try {
+        const buscaDoc = await fetch(urlBuscaDoc, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+        if (buscaDoc.ok) {
+          const dataDoc = await buscaDoc.json()
+          const listaDoc: any[] = dataDoc.itens || dataDoc.items || dataDoc.content || dataDoc.data || (Array.isArray(dataDoc) ? dataDoc : [])
+          if (listaDoc.length > 0) {
+            console.log('[buscarOuCriarCliente] Pessoa encontrada por CPF/CNPJ duplicado:', listaDoc[0].id, listaDoc[0].nome)
+            return listaDoc[0].id || listaDoc[0].uuid
+          }
+        }
+      } catch (e) { console.warn('[buscarOuCriarCliente] erro ao buscar por doc duplicado:', e) }
+    }
+
+    // Se o erro for por CPF inválido, tentar criar sem CPF
+    if (criar.status === 400 && (errTextPrincipal.includes('CPF') || errTextPrincipal.includes('CNPJ')) && errTextPrincipal.includes('inválido')) {
+      console.log('[buscarOuCriarCliente] CPF/CNPJ inválido, criando sem documento...')
+      const bodySemDoc = { nome, tipo_pessoa: tipoPessoa, perfis: [{ tipo_perfil: 'Cliente' }], ativo: true }
+      const criarSemDoc = await fetch(`${BASE_URL}/pessoas`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodySemDoc),
+      })
+      if (criarSemDoc.ok) { const novo: any = await criarSemDoc.json(); return novo.id }
+      const errSemDoc = await criarSemDoc.text()
+      console.error('[buscarOuCriarCliente] Erro criar sem doc:', criarSemDoc.status, errSemDoc)
+    }
 
     throw new Error(`Erro ao criar cliente '${nome}': ${criar.status} - ${errTextPrincipal}`)
   } catch (e: any) { console.error(`[buscarOuCriarCliente] erro:`, e); throw e }
