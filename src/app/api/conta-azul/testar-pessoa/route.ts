@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
     const payloads = [
       {
         label: 'TESTE_RESPOSTA_CRIACAO',
-        body: { nome: `TESTE_RESPOSTA_${ts}`, tipo_pessoa: 'Física', perfis: [{ tipo_perfil: 'Cliente' }], ativo: true, cpf: `00000${Math.floor(100000+Math.random()*900000)}` }
+        body: { nome: `TESTE_RESPOSTA_${ts}`, tipo_pessoa: 'Física', perfis: [{ tipo_perfil: 'Cliente' }], ativo: true }
       }
     ]
 
