@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { refreshToken as refreshCA } from '@/lib/conta-azul/api'
+import { getValidToken, TokenError } from '@/lib/conta-azul/token-manager'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -16,34 +16,27 @@ export async function GET(req: NextRequest) {
   try {
     const { data: empresas } = await supabaseAdmin
       .from('empresas')
-      .select('*')
+      .select('id')
       .not('access_token_conta_azul', 'is', null)
       .limit(1)
 
     const empresa = empresas?.[0]
-    if (!empresa?.access_token_conta_azul) {
+    if (!empresa) {
       return NextResponse.json({ error: 'Nenhuma empresa conectada ao CA' }, { status: 400 })
     }
 
-    let accessToken = empresa.access_token_conta_azul
-
-    const expiracao = empresa.data_expiracao_token ? new Date(empresa.data_expiracao_token) : null
-    const agora = new Date()
-    const tokenExpirado = expiracao && expiracao <= new Date(agora.getTime() + 5 * 60 * 1000)
-    if (tokenExpirado && empresa.refresh_token_conta_azul) {
-      try {
-        const novosTokens = await refreshCA(
-          empresa.refresh_token_conta_azul,
-          process.env.CONTA_AZUL_CLIENT_ID!,
-          process.env.CONTA_AZUL_CLIENT_SECRET!
-        )
-        accessToken = novosTokens.access_token
-        await supabaseAdmin.from('empresas').update({
-          access_token_conta_azul: novosTokens.access_token,
-          refresh_token_conta_azul: novosTokens.refresh_token || empresa.refresh_token_conta_azul,
-          data_expiracao_token: new Date(Date.now() + (novosTokens.expires_in || 3600) * 1000).toISOString(),
-        }).eq('id', empresa.id)
-      } catch { /* ignore */ }
+    // Obter token válido (com renovação automática)
+    let accessToken: string
+    let empresaCompleta: Record<string, any>
+    try {
+      const result = await getValidToken(empresa.id)
+      accessToken = result.accessToken
+      empresaCompleta = result.empresa
+    } catch (e) {
+      if (e instanceof TokenError) {
+        return NextResponse.json({ error: e.message }, { status: e.statusCode })
+      }
+      throw e
     }
 
     const resultados: Record<string, unknown>[] = []
@@ -120,7 +113,7 @@ export async function GET(req: NextRequest) {
       } catch {}
     }
 
-    return NextResponse.json({ empresa: empresa.nome, total_testes: resultados.length, resultados, ids_deletados: idsParaDeletar })
+    return NextResponse.json({ empresa: empresaCompleta.nome || empresa.id, total_testes: resultados.length, resultados, ids_deletados: idsParaDeletar })
 
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -134,10 +127,13 @@ export async function PUT(req: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
-    const { data: empresa } = await supabase.from('empresas').select('*').limit(1).single()
-    if (!empresa?.access_token_conta_azul) return NextResponse.json({ error: 'Sem token' })
+    const { data: empresaBase } = await supabase.from('empresas').select('id').not('access_token_conta_azul', 'is', null).limit(1).single()
+    if (!empresaBase) return NextResponse.json({ error: 'Nenhuma empresa com token' })
     
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${empresa.access_token_conta_azul}` } })
+    // Obter token válido (com renovação automática)
+    const { accessToken } = await getValidToken(empresaBase.id)
+    
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } })
     const text = await res.text()
     let json = null
     try { json = JSON.parse(text) } catch {}

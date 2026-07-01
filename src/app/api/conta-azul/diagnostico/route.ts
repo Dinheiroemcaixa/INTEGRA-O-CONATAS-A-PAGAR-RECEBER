@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getValidToken, TokenError } from '@/lib/conta-azul/token-manager'
 
 export const runtime = 'nodejs'
 
@@ -26,19 +27,21 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  const { data: empresa } = await supabaseAdmin
-    .from('empresas')
-    .select('*')
-    .eq('id', empresa_id)
-    .single()
-
-  if (!empresa?.access_token_conta_azul) {
-    return NextResponse.json({ erro: 'Empresa nao encontrada ou sem token' })
+  // Obter token válido (com renovação automática)
+  let token: string
+  let empresaNome: string
+  try {
+    const result = await getValidToken(empresa_id)
+    token = result.accessToken
+    empresaNome = result.empresa.nome || empresa_id
+  } catch (e) {
+    if (e instanceof TokenError) {
+      return NextResponse.json({ erro: e.message }, { status: e.statusCode })
+    }
+    return NextResponse.json({ erro: 'Erro ao obter token' }, { status: 500 })
   }
-
-  const token = empresa.access_token_conta_azul
   const results: any = {
-    empresa: empresa.nome,
+    empresa: empresaNome,
     endpoints_testados: []
   }
 

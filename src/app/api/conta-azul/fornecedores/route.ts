@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { refreshToken as refreshCA } from '@/lib/conta-azul/api'
+import { getValidToken, TokenError } from '@/lib/conta-azul/token-manager'
 
 export const runtime = 'nodejs'
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 const BASE_URL = 'https://api-v2.contaazul.com/v1'
 
@@ -44,28 +38,16 @@ export async function GET(req: NextRequest) {
 
   if (!empresa_id) return NextResponse.json({ error: 'empresa_id obrigatório' }, { status: 400 })
 
-  const { data: empresa, error: errEmp } = await supabaseAdmin
-    .from('empresas').select('*').eq('id', empresa_id).single()
-
-  if (errEmp || !empresa) return NextResponse.json({ error: 'Empresa não encontrada' }, { status: 404 })
-  if (!empresa.access_token_conta_azul) return NextResponse.json({ error: 'Empresa sem token CA' }, { status: 401 })
-
-  let accessToken = empresa.access_token_conta_azul
-  const expiracao = empresa.data_expiracao_token ? new Date(empresa.data_expiracao_token) : null
-  const tokenExpirado = expiracao && expiracao <= new Date(Date.now() + 5 * 60 * 1000)
-
-  if (tokenExpirado && empresa.refresh_token_conta_azul) {
-    try {
-      const novos = await refreshCA(empresa.refresh_token_conta_azul, process.env.CONTA_AZUL_CLIENT_ID!, process.env.CONTA_AZUL_CLIENT_SECRET!)
-      accessToken = novos.access_token
-      await supabaseAdmin.from('empresas').update({
-        access_token_conta_azul: novos.access_token,
-        refresh_token_conta_azul: novos.refresh_token,
-        data_expiracao_token: new Date(Date.now() + novos.expires_in * 1000).toISOString(),
-      }).eq('id', empresa_id)
-    } catch {
-      return NextResponse.json({ error: 'Token expirado. Reconecte o Conta Azul.' }, { status: 401 })
+  // Obter token válido (com renovação automática)
+  let accessToken: string
+  try {
+    const result = await getValidToken(empresa_id)
+    accessToken = result.accessToken
+  } catch (e) {
+    if (e instanceof TokenError) {
+      return NextResponse.json({ error: e.message }, { status: e.statusCode })
     }
+    throw e
   }
 
   try {

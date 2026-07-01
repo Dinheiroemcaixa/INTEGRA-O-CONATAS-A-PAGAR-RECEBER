@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { buscarOuCriarProduto, criarVenda, VendaPayload, buscarOuCriarCliente, refreshToken as refreshCA } from '@/lib/conta-azul/api'
+import { buscarOuCriarProduto, criarVenda, VendaPayload, buscarOuCriarCliente } from '@/lib/conta-azul/api'
+import { getValidToken, TokenError } from '@/lib/conta-azul/token-manager'
 import type { VendaPreview } from '@/types'
 
 export const runtime = 'nodejs'
@@ -24,41 +25,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Dados inválidos' }, { status: 400 })
     }
 
-    const { data: empresa, error: empErr } = await supabaseAdmin
-      .from('empresas')
-      .select('*')
-      .eq('id', empresa_id)
-      .single()
-
-    if (empErr || !empresa?.access_token_conta_azul) {
-      return NextResponse.json({ error: 'Empresa não conectada ao Conta Azul' }, { status: 400 })
-    }
-
-    // Renovação automática de token (igual ao módulo Contas a Pagar)
-    let accessToken = empresa.access_token_conta_azul
-    const expiracao = empresa.data_expiracao_token ? new Date(empresa.data_expiracao_token) : null
-    const agora = new Date()
-    const tokenExpirado = expiracao && expiracao <= new Date(agora.getTime() + 5 * 60 * 1000)
-
-    if (tokenExpirado && empresa.refresh_token_conta_azul) {
-      try {
-        const novosTokens = await refreshCA(
-          empresa.refresh_token_conta_azul,
-          process.env.CONTA_AZUL_CLIENT_ID!,
-          process.env.CONTA_AZUL_CLIENT_SECRET!
-        )
-        accessToken = novosTokens.access_token
-        await supabaseAdmin
-          .from('empresas')
-          .update({
-            access_token_conta_azul: novosTokens.access_token,
-            refresh_token_conta_azul: novosTokens.refresh_token || empresa.refresh_token_conta_azul,
-            data_expiracao_token: new Date(Date.now() + (novosTokens.expires_in || 3600) * 1000).toISOString(),
-          })
-          .eq('id', empresa_id)
-      } catch {
-        return NextResponse.json({ error: 'Token Conta Azul expirado. Acesse as Configurações e reconecte.' }, { status: 401 })
+    // Obter token válido (com renovação automática)
+    let accessToken: string
+    try {
+      const result = await getValidToken(empresa_id)
+      accessToken = result.accessToken
+    } catch (e) {
+      if (e instanceof TokenError) {
+        return NextResponse.json({ error: e.message }, { status: e.statusCode })
       }
+      throw e
     }
 
     let sucessos = 0
