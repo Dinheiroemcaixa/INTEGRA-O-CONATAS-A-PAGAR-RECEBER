@@ -220,7 +220,13 @@ export async function buscarOuCriarContato(
         if (busca.ok) {
           const data = await busca.json()
           const lista: any[] = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
-          if (lista.length > 0 && lista[0].id) return lista[0].id
+          if (lista.length > 0) {
+            const matchDoc = lista.find(p => {
+              const pDoc = (p.cpf || p.cnpj || p.documento || '').replace(/\D/g, '')
+              return pDoc === docLimpo
+            })
+            if (matchDoc) return matchDoc.id || matchDoc.uuid
+          }
         }
       } catch (e) { console.warn('[fornecedor] erro na busca por doc:', e) }
     }
@@ -573,7 +579,13 @@ export async function buscarOuCriarCliente(
         if (busca.ok) {
           const data = await busca.json()
           const lista: any[] = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
-          if (lista.length > 0 && lista[0].id) return lista[0].id
+          if (lista.length > 0) {
+            const matchDoc = lista.find(p => {
+              const pDoc = (p.cpf || p.cnpj || p.documento || '').replace(/\D/g, '')
+              return pDoc === docLimpo
+            })
+            if (matchDoc) return matchDoc.id || matchDoc.uuid
+          }
         }
       } catch (e) { console.warn('[cliente] erro na busca por doc:', e) }
     }
