@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
               ncm: item.ncm,
               origem: item.origem,
               cest: item.cest,
-              unidade_medida: item.unidade_medida
+              unidade_medida: item.unidade_medida || 'UN'
             }
           )
           if (!idProduto) {

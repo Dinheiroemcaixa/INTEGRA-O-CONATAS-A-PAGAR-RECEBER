@@ -466,7 +466,9 @@ export async function buscarOuCriarProduto(
     const payloadProduto: any = {
       nome: descricao || codigo || 'Produto sem nome',
       codigo: codigo || undefined,
+      codigo_sku: codigo || undefined,
       valor: valor,
+      valor_venda: valor,
       situacao: 'ATIVO',
       tipo: 'PRODUTO'
     }
