@@ -582,7 +582,10 @@ export default function PainelSincronizacao({ empresa }: Props) {
                                   {item.tipo === 'produto' ? 'PEÇA' : 'SERV'}
                                 </span>
                                 <span className="text-dark-500 w-8 text-right">{item.quantidade}x</span>
-                                <span className="text-dark-300 flex-1 truncate">{item.descricao}</span>
+                                <span className="text-dark-300 flex-1 truncate">
+                                  {item.codigo && <span className="text-blue-400 font-mono mr-2">[{item.codigo}]</span>}
+                                  {item.descricao}
+                                </span>
                               </div>
                               <div className="flex items-center justify-end gap-3 text-[10px]">
                                 <span className="text-dark-400">Bruto: {formatCurrency(item.valor_unitario_original || item.valor_unitario)}</span>
