@@ -49,56 +49,40 @@ export async function GET(req: NextRequest) {
     const resultados: Record<string, unknown>[] = []
     const ts = Date.now()
 
-    // Buscar sem filtro de tipo_perfil para ver pessoas existentes
-    try {
-      const busca = await fetch(`${CA_BASE}/pessoas?pagina=1&tamanho_pagina=3`, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
-      })
-      const buscaText = await busca.text()
-      let buscaData: any = null
-      try { buscaData = JSON.parse(buscaText) } catch {}
-      if (buscaData) {
-        const lista = buscaData.itens || buscaData.items || (Array.isArray(buscaData) ? buscaData : [])
-        resultados.push({
-          teste: '0_BUSCA_PESSOAS_SEM_FILTRO',
-          status: busca.status,
-          total: lista.length,
-          primeiro_pessoa: lista.length > 0 ? lista[0] : null,
-          campos: lista.length > 0 ? Object.keys(lista[0]) : [],
-        })
-      } else {
-        resultados.push({ teste: '0_BUSCA_PESSOAS_SEM_FILTRO', status: busca.status, raw: buscaText?.substring(0, 500) })
-      }
-    } catch (e: any) {
-      resultados.push({ teste: '0_BUSCA_PESSOAS_SEM_FILTRO', erro: e.message })
-    }
-
-    // O campo correto é "perfis" e deve ser um objeto PersonProfilesCreate
-    // Vamos testar diferentes formatos de objeto
+    // perfis é []models.PersonProfilesCreate — array de objetos
+    // Testar diferentes formatos do objeto interno
     const payloads = [
       {
-        label: '1_perfis_objeto_cliente_true',
-        body: { nome: `TESTE_${ts}_1`, tipo_pessoa: 'Física', perfis: { cliente: true }, ativo: true, cpf: '00000000191' }
+        label: '1_perfis_array_tipo_Cliente',
+        body: { nome: `TESTE_${ts}_1`, tipo_pessoa: 'Física', perfis: [{ tipo: 'Cliente' }], ativo: true, cpf: '00000000191' }
       },
       {
-        label: '2_perfis_objeto_Cliente_true',
-        body: { nome: `TESTE_${ts}_2`, tipo_pessoa: 'Física', perfis: { Cliente: true }, ativo: true, cpf: '00000000272' }
+        label: '2_perfis_array_tipo_perfil_Cliente',
+        body: { nome: `TESTE_${ts}_2`, tipo_pessoa: 'Física', perfis: [{ tipo_perfil: 'Cliente' }], ativo: true, cpf: '00000000272' }
       },
       {
-        label: '3_perfis_objeto_is_cliente',
-        body: { nome: `TESTE_${ts}_3`, tipo_pessoa: 'Física', perfis: { is_cliente: true }, ativo: true, cpf: '00000000353' }
+        label: '3_perfis_array_perfil_Cliente',
+        body: { nome: `TESTE_${ts}_3`, tipo_pessoa: 'Física', perfis: [{ perfil: 'Cliente' }], ativo: true, cpf: '00000000353' }
       },
       {
-        label: '4_perfis_objeto_isCliente',
-        body: { nome: `TESTE_${ts}_4`, tipo_pessoa: 'Física', perfis: { isCliente: true }, ativo: true, cpf: '00000000434' }
+        label: '4_perfis_array_nome_Cliente',
+        body: { nome: `TESTE_${ts}_4`, tipo_pessoa: 'Física', perfis: [{ nome: 'Cliente' }], ativo: true, cpf: '00000000434' }
       },
       {
-        label: '5_perfis_objeto_eh_cliente',
-        body: { nome: `TESTE_${ts}_5`, tipo_pessoa: 'Física', perfis: { eh_cliente: true }, ativo: true, cpf: '00000000515' }
+        label: '5_perfis_array_descricao_Cliente',
+        body: { nome: `TESTE_${ts}_5`, tipo_pessoa: 'Física', perfis: [{ descricao: 'Cliente' }], ativo: true, cpf: '00000000515' }
       },
       {
-        label: '6_perfis_objeto_tipo_cliente',
-        body: { nome: `TESTE_${ts}_6`, tipo_pessoa: 'Física', perfis: { tipo: 'Cliente' }, ativo: true, cpf: '00000000604' }
+        label: '6_perfis_array_valor_CLIENTE',
+        body: { nome: `TESTE_${ts}_6`, tipo_pessoa: 'Física', perfis: [{ valor: 'CLIENTE' }], ativo: true, cpf: '00000000604' }
+      },
+      {
+        label: '7_perfis_array_string_Cliente',
+        body: { nome: `TESTE_${ts}_7`, tipo_pessoa: 'Física', perfis: ['Cliente'], ativo: true, cpf: '00000000787' }
+      },
+      {
+        label: '8_perfis_array_string_CLIENTE_upper',
+        body: { nome: `TESTE_${ts}_8`, tipo_pessoa: 'Física', perfis: ['CLIENTE'], ativo: true, cpf: '00000000868' }
       },
     ]
 
