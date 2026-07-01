@@ -616,8 +616,6 @@ export async function buscarOuCriarCliente(
       nome,
       tipo_pessoa: tipoPessoa,
       tipo_perfil: 'Cliente',
-      tipos_perfil: ['Cliente'],
-      perfil: 'Cliente',
       ativo: true,
     }
     if (docLimpo) {
