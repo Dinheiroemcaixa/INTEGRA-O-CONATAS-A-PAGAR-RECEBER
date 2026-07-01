@@ -79,6 +79,7 @@ export async function GET(req: NextRequest) {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
+              numero: 9999999,
               id_cliente: cliId,
               situacao: 'APROVADO',
               data_venda: new Date().toISOString().split('T')[0],
@@ -93,6 +94,7 @@ export async function GET(req: NextRequest) {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
+              numero: 9999998,
               cliente_id: cliId,
               situacao: 'APROVADO',
               data_venda: new Date().toISOString().split('T')[0],
