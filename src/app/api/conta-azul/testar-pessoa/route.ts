@@ -70,8 +70,42 @@ export async function GET(req: NextRequest) {
         const resText = await res.text()
         let resJson: any = null
         try { resJson = JSON.parse(resText) } catch {}
-        if (res.ok && (resJson?.id || resJson?.uuid)) idsParaDeletar.push(resJson.id || resJson.uuid)
-        resultados.push({ teste: label, status: res.status, SUCESSO: res.ok, body_enviado: body, resposta_json: resJson, resposta_texto: resText })
+        if (res.ok && (resJson?.id || resJson?.uuid)) {
+          const cliId = resJson.id || resJson.uuid
+          idsParaDeletar.push(cliId)
+          
+          // Testar venda com id_cliente
+          const venda1 = await fetch(`${CA_BASE}/venda`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id_cliente: cliId,
+              situacao: 'APROVADO',
+              data_venda: new Date().toISOString().split('T')[0],
+              itens: [{ descricao: 'Item', quantidade: 1, valor: 10 }],
+              condicao_pagamento: { tipo_pagamento: 'A_VISTA', opcao_condicao_pagamento: 'DINHEIRO', parcelas: [{ data_vencimento: new Date().toISOString().split('T')[0], valor: 10 }] }
+            })
+          })
+          const v1Text = await venda1.text()
+          
+          // Testar venda com cliente_id
+          const venda2 = await fetch(`${CA_BASE}/venda`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              cliente_id: cliId,
+              situacao: 'APROVADO',
+              data_venda: new Date().toISOString().split('T')[0],
+              itens: [{ descricao: 'Item', quantidade: 1, valor: 10 }],
+              condicao_pagamento: { tipo_pagamento: 'A_VISTA', opcao_condicao_pagamento: 'DINHEIRO', parcelas: [{ data_vencimento: new Date().toISOString().split('T')[0], valor: 10 }] }
+            })
+          })
+          const v2Text = await venda2.text()
+
+          resultados.push({ teste: label, status: res.status, SUCESSO: res.ok, resposta_json: resJson, teste_venda_id_cliente: v1Text, teste_venda_cliente_id: v2Text })
+        } else {
+          resultados.push({ teste: label, status: res.status, SUCESSO: res.ok, body_enviado: body, resposta_json: resJson, resposta_texto: resText })
+        }
       } catch (e: any) {
         resultados.push({ teste: label, SUCESSO: false, erro: e.message })
       }
