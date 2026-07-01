@@ -193,7 +193,12 @@ export async function POST(req: NextRequest) {
         }
 
         // 4. Cria Venda no Conta Azul
-        const vendaCriada = await criarVenda(accessToken, payload)
+        let vendaCriada;
+        try {
+          vendaCriada = await criarVenda(accessToken, payload)
+        } catch (e: any) {
+          throw new Error(`Erro ao criar venda (Cliente ID: ${idCliente}): ${e.message}`)
+        }
 
         // 5. Salva no banco
         await supabaseAdmin.from('vendas_importadas').insert({
