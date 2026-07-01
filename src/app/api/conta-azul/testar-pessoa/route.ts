@@ -12,10 +12,8 @@ const supabaseAdmin = createClient(
 
 const CA_BASE = 'https://api-v2.contaazul.com/v1'
 
-// GET para poder testar direto no navegador (basta abrir a URL)
 export async function GET(req: NextRequest) {
   try {
-    // Pega a primeira empresa conectada ao Conta Azul
     const { data: empresas } = await supabaseAdmin
       .from('empresas')
       .select('*')
@@ -29,7 +27,6 @@ export async function GET(req: NextRequest) {
 
     let accessToken = empresa.access_token_conta_azul
 
-    // Refresh token se necessário
     const expiracao = empresa.data_expiracao_token ? new Date(empresa.data_expiracao_token) : null
     const agora = new Date()
     const tokenExpirado = expiracao && expiracao <= new Date(agora.getTime() + 5 * 60 * 1000)
@@ -50,8 +47,9 @@ export async function GET(req: NextRequest) {
     }
 
     const resultados: Record<string, unknown>[] = []
+    const ts = Date.now()
 
-    // 1. Buscar clientes existentes para ver o formato que a CA retorna
+    // Buscar sem filtro de tipo_perfil para ver pessoas existentes
     try {
       const busca = await fetch(`${CA_BASE}/pessoas?pagina=1&tamanho_pagina=3`, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
@@ -59,45 +57,48 @@ export async function GET(req: NextRequest) {
       const buscaText = await busca.text()
       let buscaData: any = null
       try { buscaData = JSON.parse(buscaText) } catch {}
-      
       if (buscaData) {
         const lista = buscaData.itens || buscaData.items || (Array.isArray(buscaData) ? buscaData : [])
         resultados.push({
-          teste: '0_BUSCA_PESSOAS_EXISTENTES',
+          teste: '0_BUSCA_PESSOAS_SEM_FILTRO',
           status: busca.status,
           total: lista.length,
-          primeiro_pessoa_COMPLETA: lista.length > 0 ? lista[0] : null,
+          primeiro_pessoa: lista.length > 0 ? lista[0] : null,
           campos: lista.length > 0 ? Object.keys(lista[0]) : [],
         })
       } else {
-        resultados.push({ teste: '0_BUSCA_PESSOAS_EXISTENTES', status: busca.status, resposta_raw: buscaText })
+        resultados.push({ teste: '0_BUSCA_PESSOAS_SEM_FILTRO', status: busca.status, raw: buscaText?.substring(0, 500) })
       }
     } catch (e: any) {
-      resultados.push({ teste: '0_BUSCA_PESSOAS_EXISTENTES', erro: e.message })
+      resultados.push({ teste: '0_BUSCA_PESSOAS_SEM_FILTRO', erro: e.message })
     }
 
-    // 2. Testar diferentes payloads de criação
-    const ts = Date.now()
+    // O campo correto é "perfis" e deve ser um objeto PersonProfilesCreate
+    // Vamos testar diferentes formatos de objeto
     const payloads = [
       {
-        label: '1_tipo_perfil_string_Cliente',
-        body: { nome: `TESTE_${ts}_1`, tipo_pessoa: 'Física', tipo_perfil: 'Cliente', ativo: true, cpf: '00000000191' }
+        label: '1_perfis_objeto_cliente_true',
+        body: { nome: `TESTE_${ts}_1`, tipo_pessoa: 'Física', perfis: { cliente: true }, ativo: true, cpf: '00000000191' }
       },
       {
-        label: '2_tipos_perfil_array',
-        body: { nome: `TESTE_${ts}_2`, tipo_pessoa: 'Física', tipos_perfil: ['Cliente'], ativo: true, cpf: '00000000272' }
+        label: '2_perfis_objeto_Cliente_true',
+        body: { nome: `TESTE_${ts}_2`, tipo_pessoa: 'Física', perfis: { Cliente: true }, ativo: true, cpf: '00000000272' }
       },
       {
-        label: '3_perfis_array',
-        body: { nome: `TESTE_${ts}_3`, tipo_pessoa: 'Física', perfis: ['Cliente'], ativo: true, cpf: '00000000353' }
+        label: '3_perfis_objeto_is_cliente',
+        body: { nome: `TESTE_${ts}_3`, tipo_pessoa: 'Física', perfis: { is_cliente: true }, ativo: true, cpf: '00000000353' }
       },
       {
-        label: '4_sem_perfil',
-        body: { nome: `TESTE_${ts}_4`, tipo_pessoa: 'Física', ativo: true, cpf: '00000000434' }
+        label: '4_perfis_objeto_isCliente',
+        body: { nome: `TESTE_${ts}_4`, tipo_pessoa: 'Física', perfis: { isCliente: true }, ativo: true, cpf: '00000000434' }
       },
       {
-        label: '5_cliente_sem_acento_fisica',
-        body: { nome: `TESTE_${ts}_5`, tipo_pessoa: 'Fisica', tipo_perfil: 'Cliente', ativo: true, cpf: '00000000515' }
+        label: '5_perfis_objeto_eh_cliente',
+        body: { nome: `TESTE_${ts}_5`, tipo_pessoa: 'Física', perfis: { eh_cliente: true }, ativo: true, cpf: '00000000515' }
+      },
+      {
+        label: '6_perfis_objeto_tipo_cliente',
+        body: { nome: `TESTE_${ts}_6`, tipo_pessoa: 'Física', perfis: { tipo: 'Cliente' }, ativo: true, cpf: '00000000604' }
       },
     ]
 
@@ -113,41 +114,18 @@ export async function GET(req: NextRequest) {
         const resText = await res.text()
         let resJson: any = null
         try { resJson = JSON.parse(resText) } catch {}
-        
-        if (res.ok && resJson?.id) {
-          idsParaDeletar.push(resJson.id)
-        }
-
-        resultados.push({
-          teste: label,
-          status: res.status,
-          SUCESSO: res.ok,
-          body_enviado: body,
-          resposta: resJson || resText,
-        })
+        if (res.ok && resJson?.id) idsParaDeletar.push(resJson.id)
+        resultados.push({ teste: label, status: res.status, SUCESSO: res.ok, body_enviado: body, resposta: resJson || resText })
       } catch (e: any) {
-        resultados.push({ teste: label, SUCESSO: false, erro: e.message, body_enviado: body })
+        resultados.push({ teste: label, SUCESSO: false, erro: e.message })
       }
     }
 
-    // Limpar: deletar os contatos de teste criados
     for (const id of idsParaDeletar) {
-      try {
-        await fetch(`${CA_BASE}/pessoas/${id}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${accessToken}` },
-        })
-      } catch { /* ignore */ }
+      try { await fetch(`${CA_BASE}/pessoas/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${accessToken}` } }) } catch {}
     }
 
-    return NextResponse.json({
-      mensagem: '🔍 Resultado do teste de criação de pessoa na API Conta Azul',
-      empresa: empresa.nome,
-      total_testes: resultados.length,
-      resultados,
-      ids_criados_e_deletados: idsParaDeletar,
-    }, { status: 200 })
-
+    return NextResponse.json({ empresa: empresa.nome, total_testes: resultados.length, resultados, ids_deletados: idsParaDeletar })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
