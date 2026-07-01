@@ -209,7 +209,7 @@ export async function buscarOuCriarContato(
   cpfCnpj?: string | null
 ): Promise<string | undefined> {
   const docLimpo = cpfCnpj ? cpfCnpj.replace(/\D/g, '') : ''
-  const tipoPessoa = docLimpo.length === 14 ? 'Juridica' : 'Fisica'
+  const tipoPessoa = docLimpo.length === 14 ? 'Jurídica' : 'Física'
 
   try {
     // 1. Busca por CPF/CNPJ se disponível (mais preciso)
@@ -259,7 +259,7 @@ export async function buscarOuCriarContato(
       ativo: true,
     }
     if (docLimpo) {
-      if (tipoPessoa === 'Juridica') bodyFornecedor.cnpj = docLimpo
+      if (tipoPessoa === 'Jurídica') bodyFornecedor.cnpj = docLimpo
       else bodyFornecedor.cpf = docLimpo
     }
     const criar = await fetch(`${BASE_URL}/pessoas`, {
@@ -272,7 +272,7 @@ export async function buscarOuCriarContato(
     const criarLegado = await fetch(`${BASE_URL}/contatos`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome, tipo_pessoa: tipoPessoa === 'Juridica' ? 'PJ' : 'PF', ativo: true }),
+      body: JSON.stringify({ nome, tipo_pessoa: tipoPessoa === 'Jurídica' ? 'PJ' : 'PF', ativo: true }),
     })
     if (criarLegado.ok) { const novo: any = await criarLegado.json(); return novo.id }
     const errText = await criar.text()
@@ -568,7 +568,7 @@ export async function buscarOuCriarCliente(
 ): Promise<string | undefined> {
   const docLimpo = cpfCnpj ? cpfCnpj.replace(/\D/g, '') : ''
   // CPF = 11 dígitos, CNPJ = 14 dígitos
-  const tipoPessoa = docLimpo.length === 14 ? 'Juridica' : 'Fisica'
+  const tipoPessoa = docLimpo.length === 14 ? 'Jurídica' : 'Física'
 
   try {
     // 1. Busca por CPF/CNPJ se disponível (mais preciso, evita duplicatas)
@@ -618,7 +618,7 @@ export async function buscarOuCriarCliente(
       ativo: true,
     }
     if (docLimpo) {
-      if (tipoPessoa === 'Juridica') bodyCliente.cnpj = docLimpo
+      if (tipoPessoa === 'Jurídica') bodyCliente.cnpj = docLimpo
       else bodyCliente.cpf = docLimpo
     }
     if (endereco && (endereco.logradouro || endereco.cidade || endereco.cep)) {
@@ -644,7 +644,7 @@ export async function buscarOuCriarCliente(
     const criarLegado = await fetch(`${BASE_URL}/contatos`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome, tipo_pessoa: tipoPessoa === 'Juridica' ? 'PJ' : 'PF', ativo: true }),
+      body: JSON.stringify({ nome, tipo_pessoa: tipoPessoa === 'Jurídica' ? 'PJ' : 'PF', ativo: true }),
     })
     if (criarLegado.ok) { const novo: any = await criarLegado.json(); return novo.id }
 
