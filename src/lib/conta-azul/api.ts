@@ -255,7 +255,7 @@ export async function buscarOuCriarContato(
     const bodyFornecedor: Record<string, unknown> = {
       nome,
       tipo_pessoa: tipoPessoa,
-      tipo_perfil: 'Fornecedor',
+      tipos_perfil: ['Fornecedor'],
       ativo: true,
     }
     if (docLimpo) {
@@ -614,7 +614,7 @@ export async function buscarOuCriarCliente(
     const bodyCliente: Record<string, unknown> = {
       nome,
       tipo_pessoa: tipoPessoa,
-      tipo_perfil: 'Cliente',
+      tipos_perfil: ['Cliente'],
       ativo: true,
     }
     if (docLimpo) {
