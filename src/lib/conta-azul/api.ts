@@ -438,7 +438,7 @@ export async function buscarOuCriarProduto(
   codigo: string,
   descricao: string,
   valor: number,
-  metadata?: { ncm?: string, origem?: string, unidade_medida?: string, cest?: string }
+  metadata?: { ncm?: string, origem?: string, unidade_medida?: string, cest?: string, tipo_produto?: string }
 ): Promise<string | undefined> {
   // Tenta buscar o produto pelo código ou descrição
   const urlBusca = `${BASE_URL}/produtos?termo_busca=${encodeURIComponent(codigo || descricao)}&tamanho_pagina=100`
@@ -516,6 +516,14 @@ export async function buscarOuCriarProduto(
         const origemNum = parseInt(metadata.origem.split('-')[0].trim(), 10)
         if (!isNaN(origemNum)) {
           payloadProduto.origem = origemNum
+        }
+      }
+      
+      // Tipo de Produto (SPED)
+      if (metadata.tipo_produto) {
+        const tipoProdutoNum = metadata.tipo_produto.split('-')[0].trim()
+        if (tipoProdutoNum) {
+          payloadProduto.tipo_produto = tipoProdutoNum
         }
       }
     }

@@ -112,6 +112,7 @@ export interface VendaItemPreview {
   origem?: string
   cest?: string
   unidade_medida?: string
+  tipo_produto?: string
 }
 
 export interface VendaPreview {
