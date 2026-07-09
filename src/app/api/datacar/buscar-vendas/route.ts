@@ -73,12 +73,16 @@ export async function POST(req: NextRequest) {
       console.log('[DIAG] Valores do primeiro servico Datacar:', JSON.stringify(primeiroServico))
     }
     // === FIM LOG DE DIAGNÓSTICO ===
-    // Extrair códigos únicos de produtos
     const codigosProdutos = new Set<string>()
+    const descricoesProdutos = new Map<string, string>() // Para a busca na Brasil API
     allOS.forEach(os => {
       os.produtos?.forEach(p => {
-        const cod = String(p.produto_CodigoFabric || p.produto_Codigo || p.codigo || '').trim()
-        if (cod) codigosProdutos.add(cod)
+        // CORREÇÃO: Priorizando o código interno (produto_Codigo) sobre o código do fabricante (produto_CodigoFabric)
+        const cod = String(p.produto_Codigo || p.produto_CodigoFabric || p.codigo || '').trim()
+        if (cod) {
+          codigosProdutos.add(cod)
+          descricoesProdutos.set(cod, String(p.produto_Descricao || p.descricao || ''))
+        }
       })
     })
 
@@ -103,6 +107,92 @@ export async function POST(req: NextRequest) {
       })
       await Promise.all(promessas)
     }
+
+    // --- NOVA LÓGICA: MEMÓRIA FISCAL E BRASIL API ---
+    // 1. Busca os códigos na nossa Memória Fiscal (Banco de Dados Local)
+    let memoriaFiscal: Record<string, any> = {}
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      const memoriaRes = await fetch(`${baseUrl}/api/memoria-fiscal?empresa_id=${empresa_id}&codigos=${codigosArray.join(',')}`)
+      if (memoriaRes.ok) {
+        const json = await memoriaRes.json()
+        memoriaFiscal = json.memoria || {}
+      }
+    } catch (e) {
+      console.warn('Erro ao buscar memória fiscal:', e)
+    }
+
+    // 2. Para os códigos que não estão na memória, vamos tentar buscar na Brasil API pelo NCM
+    const brasilApiCache = new Map<string, string>() // NCM encontrado -> CEST deduizido se houver na memória
+    
+    // Preparar um mapa de NCM para CEST usando a memória fiscal inteira da empresa (para dedução)
+    const ncmParaCest = new Map<string, string>()
+    try {
+      const { data: todosMemoria } = await supabaseAdmin.from('memoria_fiscal').select('ncm, cest').eq('empresa_id', empresa_id).not('cest', 'is', null)
+      if (todosMemoria) {
+        todosMemoria.forEach(m => {
+          if (m.ncm && m.cest) ncmParaCest.set(m.ncm, m.cest)
+        })
+      }
+    } catch (e) {}
+
+    const inteligenciaFiscal = new Map<string, any>()
+
+    for (const codigo of codigosArray) {
+      let ncm = null
+      let cest = null
+      let tipo = null
+      let origem = null
+      let unidade = 'UN'
+
+      // Prioridade 1: Nossa Memória Fiscal
+      if (memoriaFiscal[codigo]) {
+        const mem = memoriaFiscal[codigo]
+        ncm = mem.ncm
+        cest = mem.cest
+        tipo = mem.tipo_produto
+        origem = mem.origem
+        unidade = mem.unidade_medida || 'UN'
+      } else {
+        // Prioridade 2: Brasil API (apenas para NCM se não temos na memória)
+        const descricao = descricoesProdutos.get(codigo) || ''
+        if (descricao) {
+          try {
+            const firstWord = descricao.split(' ')[0] // Busca por palavra chave para ter mais precisão, ou a frase toda
+            // A Brasil API é bem rápida, mas procuramos a primeira palavra (ex: "PASTILHA")
+            const termoBusca = encodeURIComponent(firstWord)
+            const brasilRes = await fetch(`https://brasilapi.com.br/api/ncm/v1?search=${termoBusca}`)
+            if (brasilRes.ok) {
+              const resultados = await brasilRes.json()
+              if (resultados && Array.isArray(resultados) && resultados.length > 0) {
+                // Procura o primeiro resultado que tenha exatamente 8 dígitos (evita pegar Capítulos genéricos como "40.11")
+                const ncmValido = resultados.find((r: any) => r.codigo && r.codigo.replace(/\./g, '').length === 8)
+                if (ncmValido) {
+                  ncm = ncmValido.codigo.replace(/\./g, '')
+                  
+                  // Prioridade 3: Se achou NCM na Brasil API, verifica se temos um CEST conhecido para esse NCM
+                  if (ncm && ncmParaCest.has(ncm)) {
+                    cest = ncmParaCest.get(ncm)
+                  }
+                }
+              }
+            }
+          } catch (e) {
+             console.warn(`Erro na Brasil API para ${descricao}:`, e)
+          }
+        }
+      }
+
+      // Prioridade 4: Datacar (último caso)
+      const metadados = produtosMetadata.get(codigo)
+      if (!ncm) ncm = metadados?.ncm || undefined
+      if (!cest) cest = metadados?.cest || undefined
+      if (!origem) origem = metadados?.origem || undefined
+      if (!unidade) unidade = metadados?.unidade_medida || 'UN'
+
+      inteligenciaFiscal.set(codigo, { ncm, cest, tipo, origem, unidade })
+    }
+    // --- FIM DA NOVA LÓGICA ---
 
     // Converter para o formato VendaPreview do app (sem filtrar canceladas — o frontend filtra pela situação)
     const dados = allOS.map((os) => {
@@ -130,8 +220,9 @@ export async function POST(req: NextRequest) {
           const vlDesc = Number(p.venda_VlDesc || 0)
           const valorUnitarioLiquido = parseFloat(Math.max(0, vlBruto - vlDesc).toFixed(4))
           const totalItem = parseFloat((qtde * valorUnitarioLiquido).toFixed(2))
-          const codigoItem = String(p.produto_CodigoFabric || p.produto_Codigo || p.codigo || '').trim()
-          const metadata = produtosMetadata.get(codigoItem)
+          const codigoItem = String(p.produto_Codigo || p.produto_CodigoFabric || p.codigo || '').trim()
+          
+          const infoFiscal = inteligenciaFiscal.get(codigoItem) || {}
 
           return {
             codigo: codigoItem,
@@ -142,10 +233,11 @@ export async function POST(req: NextRequest) {
             desconto: vlDesc,
             valor_total: totalItem,
             tipo: 'produto',
-            ncm: metadata?.ncm || undefined,
-            origem: metadata?.origem || undefined,
-            cest: metadata?.cest || undefined,
-            unidade_medida: metadata?.unidade_medida || 'UN'
+            ncm: infoFiscal.ncm || undefined,
+            origem: infoFiscal.origem || undefined,
+            cest: infoFiscal.cest || undefined,
+            tipo_produto: infoFiscal.tipo || undefined,
+            unidade_medida: infoFiscal.unidade || 'UN'
           }
         }),
         ...(os.servicos || []).map((s: Record<string, unknown>) => {

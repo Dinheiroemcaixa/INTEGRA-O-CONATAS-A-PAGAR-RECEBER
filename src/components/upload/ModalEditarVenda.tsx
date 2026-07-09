@@ -7,9 +7,10 @@ interface ModalEditarVendaProps {
   venda: VendaPreview | null
   onSave: (vendaAtualizada: VendaPreview) => void
   onClose: () => void
+  empresaId?: string
 }
 
-export default function ModalEditarVenda({ venda, onSave, onClose }: ModalEditarVendaProps) {
+export default function ModalEditarVenda({ venda, onSave, onClose, empresaId }: ModalEditarVendaProps) {
   const [formData, setFormData] = useState<VendaPreview | null>(null)
 
   useEffect(() => {
@@ -274,6 +275,16 @@ export default function ModalEditarVenda({ venda, onSave, onClose }: ModalEditar
             onClick={() => {
               // Revalida a venda antes de salvar
               const isValid = formData.cliente && formData.data_venda && formData.itens.length > 0
+              
+              // Salvar na Memória Fiscal (aprende com as edições do usuário)
+              if (empresaId && formData.itens.length > 0) {
+                fetch('/api/memoria-fiscal', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ empresa_id: empresaId, itens: formData.itens })
+                }).catch(e => console.warn('[ModalEditarVenda] Erro ao salvar memória fiscal:', e))
+              }
+
               onSave({
                 ...formData,
                 valido: !!isValid,

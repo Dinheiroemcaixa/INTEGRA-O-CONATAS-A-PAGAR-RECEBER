@@ -699,6 +699,7 @@ export default function VendasPage() {
           venda={dadosEditados[editandoIdx]}
           onSave={handleSaveEdicao}
           onClose={() => setEditandoIdx(null)}
+          empresaId={empresaAtiva?.id}
         />
       )}
 

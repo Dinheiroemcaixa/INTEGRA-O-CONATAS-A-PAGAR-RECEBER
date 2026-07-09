@@ -86,6 +86,20 @@ export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSucc
 
       if (error) throw error
 
+      // Salvar na Memória Fiscal (aprende com as edições do usuário)
+      try {
+        const empresa_id = venda.empresa_id
+        if (empresa_id && formData.itens.length > 0) {
+          await fetch('/api/memoria-fiscal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ empresa_id, itens: formData.itens })
+          })
+        }
+      } catch (e) {
+        console.warn('[ModalEditarDatacar] Erro ao salvar memória fiscal (não crítico):', e)
+      }
+
       toast.success('Venda atualizada com sucesso!')
       onSaveSuccess()
       onClose()
