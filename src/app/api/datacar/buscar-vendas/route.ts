@@ -109,17 +109,22 @@ export async function POST(req: NextRequest) {
     }
 
     // --- NOVA LÓGICA: MEMÓRIA FISCAL E BRASIL API ---
-    // 1. Busca os códigos na nossa Memória Fiscal (Banco de Dados Local)
+    // 1. Busca os códigos na nossa Memória Fiscal (Banco de Dados Local) usando consulta direta
     let memoriaFiscal: Record<string, any> = {}
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-      const memoriaRes = await fetch(`${baseUrl}/api/memoria-fiscal?empresa_id=${empresa_id}&codigos=${codigosArray.join(',')}`)
-      if (memoriaRes.ok) {
-        const json = await memoriaRes.json()
-        memoriaFiscal = json.memoria || {}
+      const { data: memoriaDb } = await supabaseAdmin
+        .from('memoria_fiscal')
+        .select('*')
+        .eq('empresa_id', empresa_id)
+        .in('codigo', codigosArray)
+        
+      if (memoriaDb) {
+        memoriaDb.forEach(m => {
+          memoriaFiscal[m.codigo] = m
+        })
       }
     } catch (e) {
-      console.warn('Erro ao buscar memória fiscal:', e)
+      console.warn('Erro ao buscar memória fiscal no banco:', e)
     }
 
     // 2. Para os códigos que não estão na memória, vamos tentar buscar na Brasil API pelo NCM
