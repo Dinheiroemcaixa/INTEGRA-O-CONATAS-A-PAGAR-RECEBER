@@ -441,47 +441,130 @@ export async function buscarOuCriarProduto(
   metadata?: { ncm?: string, origem?: string, unidade_medida?: string, cest?: string, tipo_produto?: string }
 ): Promise<string | undefined> {
   
-  // Monta o objeto fiscal para uso em criação e atualização
-  const montarFiscal = () => {
-    if (!metadata) return undefined
-    const fiscal: any = {}
-    if (metadata.ncm) fiscal.ncm_code = metadata.ncm
-    if (metadata.cest) fiscal.cest_code = metadata.cest
-    if (metadata.origem) {
-      const origemNum = parseInt(metadata.origem.split('-')[0].trim(), 10)
-      if (!isNaN(origemNum)) fiscal.origin_code = origemNum
-    }
-    return Object.keys(fiscal).length > 0 ? fiscal : undefined
-  }
-
-  // Helper para buscar o ID da unidade de medida
-  const buscarUnidadeMedidaId = async (): Promise<{ id: string } | undefined> => {
+  // Helper: busca o ID de uma unidade de medida pela sigla (ex: "UN", "PC", "KG")
+  const buscarUnidadeMedidaId = async (): Promise<number | undefined> => {
     if (!metadata?.unidade_medida) return undefined
+    const sigla = metadata.unidade_medida.toUpperCase().trim()
     try {
-      const res = await fetch(`${BASE_URL}/produtos?tamanho_pagina=50`, {
+      const res = await fetch(`${BASE_URL}/produtos/unidades-medida?busca_textual=${encodeURIComponent(sigla)}&tamanho_pagina=100`, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
       })
       if (res.ok) {
         const data = await res.json()
         const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : [])
-        const siglaBusca = metadata.unidade_medida.toUpperCase().trim()
-        
-        const produtoComUnidade = lista.find(p => 
-          p.unidade_medida && 
-          p.unidade_medida.id && 
-          (p.unidade_medida.sigla?.toUpperCase() === siglaBusca || p.unidade_medida.descricao?.toUpperCase() === siglaBusca)
+        // Tenta match exato pela sigla, senão pega o primeiro
+        const exato = lista.find((u: any) => 
+          (u.sigla || u.descricao || '').toUpperCase().trim() === sigla
         )
-        const produtoFallback = lista.find(p => p.unidade_medida && p.unidade_medida.id)
-        const unidadeAlvo = produtoComUnidade?.unidade_medida || produtoFallback?.unidade_medida
-        
-        if (unidadeAlvo && unidadeAlvo.id) {
-          return { id: unidadeAlvo.id }
+        const alvo = exato || lista[0]
+        if (alvo?.id) {
+          console.log(`[buscarOuCriarProduto] Unidade '${sigla}' => ID ${alvo.id}`)
+          return alvo.id
         }
       }
     } catch (e) {
-      console.warn('[buscarOuCriarProduto] Falha ao buscar ID da unidade de medida:', e)
+      console.warn('[buscarOuCriarProduto] Falha ao buscar unidade de medida:', e)
     }
     return undefined
+  }
+
+  // Monta o objeto fiscal completo conforme a API v2 do Conta Azul
+  const montarFiscal = async () => {
+    if (!metadata) return undefined
+    const fiscal: any = {}
+
+    // 1. Busca ID do NCM pela API
+    if (metadata.ncm) {
+      try {
+        const ncmCode = metadata.ncm.replace(/\D/g, '')
+        const res = await fetch(`${BASE_URL}/produtos/ncm?busca_textual=${ncmCode}&tamanho_pagina=50`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : [])
+          const match = lista.find((n: any) => (n.codigo || '').replace(/\D/g, '') === ncmCode)
+          if (match?.id) {
+            fiscal.ncm = { id: match.id }
+            console.log(`[montarFiscal] NCM '${ncmCode}' => ID ${match.id}`)
+          } else if (lista.length > 0 && lista[0].id) {
+            fiscal.ncm = { id: lista[0].id }
+            console.log(`[montarFiscal] NCM '${ncmCode}' => fallback ID ${lista[0].id} (${lista[0].codigo})`)
+          }
+        }
+      } catch (e) { console.warn('[montarFiscal] Erro busca NCM:', e) }
+    }
+
+    // 2. Busca ID do CEST pela API
+    if (metadata.cest) {
+      try {
+        const cestCode = metadata.cest.replace(/\D/g, '')
+        const res = await fetch(`${BASE_URL}/produtos/cest?busca_textual=${cestCode}&tamanho_pagina=50`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : [])
+          const match = lista.find((c: any) => (c.codigo || '').replace(/\D/g, '') === cestCode)
+          if (match?.id) {
+            fiscal.cest = { id: match.id }
+            console.log(`[montarFiscal] CEST '${cestCode}' => ID ${match.id}`)
+          } else if (lista.length > 0 && lista[0].id) {
+            fiscal.cest = { id: lista[0].id }
+            console.log(`[montarFiscal] CEST '${cestCode}' => fallback ID ${lista[0].id}`)
+          }
+        }
+      } catch (e) { console.warn('[montarFiscal] Erro busca CEST:', e) }
+    }
+
+    // 3. Origem (enum string conforme API v2)
+    if (metadata.origem) {
+      const origemCode = metadata.origem.split('-')[0].trim()
+      const mapaOrigem: Record<string, string> = {
+        '0': 'NACIONAL',
+        '1': 'ESTRANGEIRA_IMPORTACAO_DIRETA',
+        '2': 'ESTRANGEIRA_ADQUIRIDA_INTERNAMENTE',
+        '3': 'NACIONAL_IMPORTACAO_SUPERIOR_40',
+        '4': 'NACIONAL_PRODUCAO_CONFORMIDADE',
+        '5': 'NACIONAL_IMPORTACAO_INFERIOR_40',
+        '6': 'ESTRANGEIRA_IMPORTACAO_DIRETA_CAMEX',
+        '7': 'ESTRANGEIRA_ADQUIRIDA_INTERNAMENTE_CAMEX',
+        '8': 'NACIONAL_MERCDORIA_BEM_IMPORTACAO_SUPERIOR_70'
+      }
+      fiscal.origem = mapaOrigem[origemCode] || 'NACIONAL'
+    } else {
+      fiscal.origem = 'NACIONAL'
+    }
+
+    // 4. Tipo Produto (enum string conforme API v2)
+    if (metadata.tipo_produto) {
+      const tipoCode = metadata.tipo_produto.split('-')[0].trim()
+      const mapaTipo: Record<string, string> = {
+        '00': 'MERCADORIA_PARA_REVENDA',
+        '01': 'MATERIA_PRIMA',
+        '02': 'EMBALAGEM',
+        '03': 'PRODUTO_EM_PROCESSO',
+        '04': 'PRODUTO_ACABADO',
+        '05': 'SUBPRODUTO',
+        '06': 'PRODUTO_INTERMEDIARIO',
+        '07': 'MATERIAL_DE_USO_E_CONSUMO',
+        '08': 'ATIVO_IMOBILIZADO',
+        '09': 'SERVICOS',
+        '10': 'OUTROS_INSUMOS',
+        '99': 'OUTRAS'
+      }
+      fiscal.tipo_produto = mapaTipo[tipoCode] || 'MERCADORIA_PARA_REVENDA'
+    } else {
+      fiscal.tipo_produto = 'MERCADORIA_PARA_REVENDA'
+    }
+
+    // 5. Unidade de medida DENTRO do fiscal (obrigatório na API v2)
+    const unidadeId = await buscarUnidadeMedidaId()
+    if (unidadeId) {
+      fiscal.unidade_medida = { id: unidadeId }
+    }
+
+    return Object.keys(fiscal).length > 0 ? fiscal : undefined
   }
 
   // 1. Tenta buscar o produto pelo código ou descrição
@@ -495,7 +578,7 @@ export async function buscarOuCriarProduto(
       let match = null
       if (codigo) {
         const codigoTrim = codigo.trim()
-        match = lista.find(p => p.codigo?.trim() === codigoTrim)
+        match = lista.find(p => p.codigo_sku?.trim() === codigoTrim || p.codigo?.trim() === codigoTrim)
       }
       
       if (!match) {
@@ -507,12 +590,14 @@ export async function buscarOuCriarProduto(
         const produtoId = match.id || match.uuid
         
         // Se temos dados fiscais, faz PUT para atualizar o produto existente
-        const fiscal = montarFiscal()
+        const fiscal = await montarFiscal()
         if (fiscal && produtoId) {
           try {
             const updatePayload: any = { fiscal }
-            const unidade = await buscarUnidadeMedidaId()
-            if (unidade) updatePayload.unidade_medida = unidade
+            const unidadeId = await buscarUnidadeMedidaId()
+            if (unidadeId) updatePayload.unidade_medida = { id: unidadeId }
+            
+            console.log(`[buscarOuCriarProduto] Atualizando produto ${produtoId} com:`, JSON.stringify(updatePayload))
             
             const updateRes = await fetch(`${BASE_URL}/produtos/${produtoId}`, {
               method: 'PUT',
@@ -523,7 +608,7 @@ export async function buscarOuCriarProduto(
               const errBody = await updateRes.text()
               console.warn(`[buscarOuCriarProduto] Falha ao atualizar fiscal do produto existente ${produtoId}:`, updateRes.status, errBody)
             } else {
-              console.log(`[buscarOuCriarProduto] Produto ${produtoId} atualizado com dados fiscais:`, JSON.stringify(fiscal))
+              console.log(`[buscarOuCriarProduto] Produto ${produtoId} atualizado com dados fiscais com sucesso!`)
             }
           } catch (e) {
             console.warn('[buscarOuCriarProduto] Erro ao tentar atualizar fiscal:', e)
@@ -537,23 +622,28 @@ export async function buscarOuCriarProduto(
 
   // 2. Tenta criar o produto se não existir
   try {
+    const fiscal = await montarFiscal()
+    const unidadeId = await buscarUnidadeMedidaId()
+    
     const payloadProduto: any = {
       nome: descricao || codigo || 'Produto sem nome',
-      codigo: codigo || undefined,
       codigo_sku: codigo || undefined,
-      valor: valor,
-      valor_venda: valor,
-      situacao: 'ATIVO',
-      tipo: 'PRODUTO'
+      status: 'ATIVO',
+      formato: 'SIMPLES',
+      estoque: {
+        valor_venda: valor
+      }
     }
     
-    // Unidade de medida
-    const unidade = await buscarUnidadeMedidaId()
-    if (unidade) payloadProduto.unidade_medida = unidade
+    // Unidade de medida no nível raiz do produto
+    if (unidadeId) {
+      payloadProduto.unidade_medida = { id: unidadeId }
+    }
     
-    // Dados fiscais dentro do objeto "fiscal" (conforme API do CA)
-    const fiscal = montarFiscal()
-    if (fiscal) payloadProduto.fiscal = fiscal
+    // Dados fiscais (ncm, cest, origem, tipo_produto, unidade_medida)
+    if (fiscal) {
+      payloadProduto.fiscal = fiscal
+    }
     
     console.log(`[buscarOuCriarProduto] Criando produto com payload:`, JSON.stringify(payloadProduto))
     
@@ -564,14 +654,15 @@ export async function buscarOuCriarProduto(
     })
     if (criar.ok) {
       const novo: any = await criar.json()
+      console.log(`[buscarOuCriarProduto] Produto criado com sucesso! ID: ${novo.id}`)
       return novo.id || novo.uuid
     } else {
       const errBody = await criar.text()
       console.error(`[buscarOuCriarProduto] falha ao criar produto "${descricao}" (${codigo}):`, criar.status, errBody)
       
       let msg = `Não foi possível criar o produto "${descricao}" no Conta Azul: [${criar.status}] ${errBody}`
-      if (errBody.includes('O ID da unidade de medida é obrigatório')) {
-        msg = `Erro no Conta Azul: Para cadastrar impostos (NCM/CEST) no produto "${descricao}", é obrigatório enviar o ID da Unidade de Medida. Como solução paliativa, crie ao menos 1 produto manualmente no Conta Azul com a unidade 'UN' para que o sistema consiga mapear o ID automaticamente nas próximas vendas.`
+      if (errBody.includes('unidade de medida')) {
+        msg = `Erro no Conta Azul: Para cadastrar o produto "${descricao}", é obrigatório enviar o ID da Unidade de Medida. Verifique se a unidade "${metadata?.unidade_medida || 'UN'}" existe no seu Conta Azul.`
       }
       
       throw new Error(msg)
