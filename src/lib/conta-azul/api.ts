@@ -506,9 +506,16 @@ export async function buscarOuCriarProduto(
           console.warn('[buscarOuCriarProduto] Falha ao tentar buscar ID da unidade de medida:', e)
         }
       }
-      if (metadata.cest) payloadProduto.cest = metadata.cest;
+      // Documentação oficial da Conta Azul exige ncm_code e cest_code
+      if (metadata.cest) {
+        payloadProduto.cest_code = metadata.cest
+        payloadProduto.cest = metadata.cest // Fallback caso seja v2/v1 diferente
+      }
       
-      if (metadata.ncm) payloadProduto.ncm = metadata.ncm
+      if (metadata.ncm) {
+        payloadProduto.ncm_code = metadata.ncm
+        payloadProduto.ncm = metadata.ncm // Fallback
+      }
       
       // Origem no CA deve ser um enum (0 a 8 geralmente), mas tentamos enviar o que vem.
       // Se for algo como '0 - Nacional', precisamos pegar apenas o número.
@@ -516,6 +523,7 @@ export async function buscarOuCriarProduto(
         const origemNum = parseInt(metadata.origem.split('-')[0].trim(), 10)
         if (!isNaN(origemNum)) {
           payloadProduto.origem = origemNum
+          payloadProduto.origin_code = origemNum
         }
       }
       
