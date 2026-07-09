@@ -112,15 +112,14 @@ export async function POST(req: NextRequest) {
     // Buscar memória fiscal para todos os produtos encontrados nestas OS
     let memoriaFiscalExata: Record<string, any> = {}
     let memoriaFiscalFamilia: Record<string, any> = {}
-    
-    if (codigosProdutosUnicos.size > 0) {
+    if (codigosProdutos.size > 0) {
       try {
-        const codigosQuery = Array.from(codigosProdutosUnicos).join(',')
+        const codigosQuery = Array.from(codigosProdutos).join(',')
         const host = req.headers.get('host')
         const protocol = req.headers.get('x-forwarded-proto') || 'http'
         const baseUrl = `${protocol}://${host}`
         const urlMemoria = new URL('/api/memoria-fiscal', baseUrl)
-        urlMemoria.searchParams.set('empresa_id', credenciaisDatacar.empresa_id)
+        urlMemoria.searchParams.set('empresa_id', empresa_id)
         urlMemoria.searchParams.set('codigos', codigosQuery)
         
         const resMemoria = await fetch(urlMemoria.toString())
@@ -147,7 +146,7 @@ export async function POST(req: NextRequest) {
 
     // Pré-calcular dados fiscais de cada produto
     const inteligenciaFiscal = new Map<string, any>()
-    for (const codigo of Array.from(codigosProdutosUnicos)) {
+    for (const codigo of Array.from(codigosProdutos)) {
       let ncm = null
       let cest = null
       let tipo = null

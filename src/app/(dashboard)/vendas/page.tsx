@@ -35,6 +35,11 @@ interface VendaImportada {
     valor_unitario_original?: number
     desconto?: number
     tipo?: 'produto' | 'servico'
+    ncm?: string
+    cest?: string
+    origem?: string
+    tipo_produto?: string
+    unidade_medida?: string
   }>
   status: string
   dados_datacar: Record<string, unknown> | null
