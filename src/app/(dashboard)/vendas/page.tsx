@@ -557,6 +557,39 @@ export default function VendasPage() {
                                           {item.descricao}
                                         </span>
                                       </div>
+                                      {/* Badges fiscais */}
+                                      <div className="flex items-center gap-1.5 pl-8 flex-wrap">
+                                        {item.ncm && (
+                                          <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                                            NCM: {item.ncm}
+                                          </span>
+                                        )}
+                                        {item.cest && (
+                                          <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">
+                                            CEST: {item.cest}
+                                          </span>
+                                        )}
+                                        {item.origem && (
+                                          <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                                            Orig: {item.origem}
+                                          </span>
+                                        )}
+                                        {item.tipo_produto && (
+                                          <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-purple-500/15 text-purple-400 border border-purple-500/20">
+                                            Tipo: {item.tipo_produto}
+                                          </span>
+                                        )}
+                                        {item.unidade_medida && (
+                                          <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-dark-700 text-dark-300">
+                                            UN: {item.unidade_medida}
+                                          </span>
+                                        )}
+                                        {!item.ncm && !item.cest && (
+                                          <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                                            ⚠ Sem dados fiscais
+                                          </span>
+                                        )}
+                                      </div>
                                       <div className="flex items-center justify-end gap-3 text-[10px] pl-8">
                                         <span className="text-dark-400">Bruto: {formatCurrency((item.valor_unitario_original ?? item.valor_unitario) * item.quantidade)}</span>
                                         {(item.desconto ?? 0) > 0 && (

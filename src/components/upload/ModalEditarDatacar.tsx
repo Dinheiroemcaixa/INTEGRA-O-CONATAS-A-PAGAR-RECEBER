@@ -90,10 +90,29 @@ export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSucc
       try {
         const empresa_id = venda.empresa_id
         if (empresa_id && formData.itens.length > 0) {
+          
+          // Verifica se há dados fiscais preenchidos para justificar a pergunta
+          const temFiscal = formData.itens.some((i: any) => i.ncm || i.cest)
+          
+          let salvarParaFamilia = false
+          if (temFiscal) {
+            salvarParaFamilia = window.confirm(
+              "Deseja que o sistema aprenda esses dados fiscais (NCM/CEST) para aplicar em todos os produtos similares (mesma família/palavra-chave) nas próximas importações?\n\n" +
+              "OK = Aplicar para todos similares\n" +
+              "Cancelar = Somente para este código exato"
+            )
+          }
+
+          // Adiciona a flag nos itens
+          const itensPayload = formData.itens.map((i: any) => ({
+            ...i,
+            salvarParaFamilia
+          }))
+
           await fetch('/api/memoria-fiscal', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ empresa_id, itens: formData.itens })
+            body: JSON.stringify({ empresa_id, itens: itensPayload })
           })
         }
       } catch (e) {

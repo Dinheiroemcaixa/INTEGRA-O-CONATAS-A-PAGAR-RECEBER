@@ -108,28 +108,32 @@ export async function POST(req: NextRequest) {
       await Promise.all(promessas)
     }
 
-    // --- NOVA LÓGICA: MEMÓRIA FISCAL E BRASIL API ---
-    // 1. Busca os códigos na nossa Memória Fiscal (Banco de Dados Local) usando consulta direta
-    let memoriaFiscal: Record<string, any> = {}
-    try {
-      const { data: memoriaDb } = await supabaseAdmin
-        .from('memoria_fiscal')
-        .select('*')
-        .eq('empresa_id', empresa_id)
-        .in('codigo', codigosArray)
+    // --- NOVA LÓGICA DE INTELIGÊNCIA FISCAL ---
+    // Buscar memória fiscal para todos os produtos encontrados nestas OS
+    let memoriaFiscalExata: Record<string, any> = {}
+    let memoriaFiscalFamilia: Record<string, any> = {}
+    
+    if (codigosProdutosUnicos.size > 0) {
+      try {
+        const codigosQuery = Array.from(codigosProdutosUnicos).join(',')
+        const host = req.headers.get('host')
+        const protocol = req.headers.get('x-forwarded-proto') || 'http'
+        const baseUrl = `${protocol}://${host}`
+        const urlMemoria = new URL('/api/memoria-fiscal', baseUrl)
+        urlMemoria.searchParams.set('empresa_id', credenciaisDatacar.empresa_id)
+        urlMemoria.searchParams.set('codigos', codigosQuery)
         
-      if (memoriaDb) {
-        memoriaDb.forEach(m => {
-          memoriaFiscal[m.codigo] = m
-        })
+        const resMemoria = await fetch(urlMemoria.toString())
+        if (resMemoria.ok) {
+          const dataMem = await resMemoria.json()
+          if (dataMem.memoria) memoriaFiscalExata = dataMem.memoria
+          if (dataMem.memoria_familia) memoriaFiscalFamilia = dataMem.memoria_familia
+        }
+      } catch (e) {
+        console.warn('Erro ao buscar memória fiscal via API:', e)
       }
-    } catch (e) {
-      console.warn('Erro ao buscar memória fiscal no banco:', e)
     }
 
-    // 2. Para os códigos que não estão na memória, vamos tentar buscar na Brasil API pelo NCM
-    const brasilApiCache = new Map<string, string>() // NCM encontrado -> CEST deduizido se houver na memória
-    
     // Preparar um mapa de NCM para CEST usando a memória fiscal inteira da empresa (para dedução)
     const ncmParaCest = new Map<string, string>()
     try {
@@ -141,41 +145,50 @@ export async function POST(req: NextRequest) {
       }
     } catch (e) {}
 
+    // Pré-calcular dados fiscais de cada produto
     const inteligenciaFiscal = new Map<string, any>()
-
-    for (const codigo of codigosArray) {
+    for (const codigo of Array.from(codigosProdutosUnicos)) {
       let ncm = null
       let cest = null
       let tipo = null
       let origem = null
       let unidade = 'UN'
+      const descricao = descricoesProdutos.get(codigo) || ''
+      const primeiraPalavra = descricao.split(' ')[0]?.toUpperCase()
 
-      // Prioridade 1: Nossa Memória Fiscal
-      if (memoriaFiscal[codigo]) {
-        const mem = memoriaFiscal[codigo]
+      // Prioridade 1: Nossa Memória Fiscal Exata (por código)
+      if (memoriaFiscalExata[codigo]) {
+        const mem = memoriaFiscalExata[codigo]
         ncm = mem.ncm
         cest = mem.cest
         tipo = mem.tipo_produto
         origem = mem.origem
         unidade = mem.unidade_medida || 'UN'
-      } else {
-        // Prioridade 2: Brasil API (apenas para NCM se não temos na memória)
-        const descricao = descricoesProdutos.get(codigo) || ''
+      } 
+      // Prioridade 2: Nossa Memória Fiscal por Família (primeira palavra)
+      else if (primeiraPalavra && memoriaFiscalFamilia[primeiraPalavra]) {
+        const mem = memoriaFiscalFamilia[primeiraPalavra]
+        ncm = mem.ncm
+        cest = mem.cest
+        tipo = mem.tipo_produto
+        origem = mem.origem
+        unidade = mem.unidade_medida || 'UN'
+      }
+      else {
+        // Prioridade 3: Brasil API (apenas para NCM se não temos na memória)
         if (descricao) {
           try {
-            const firstWord = descricao.split(' ')[0] // Busca por palavra chave para ter mais precisão, ou a frase toda
-            // A Brasil API é bem rápida, mas procuramos a primeira palavra (ex: "PASTILHA")
+            const firstWord = descricao.split(' ')[0]
             const termoBusca = encodeURIComponent(firstWord)
             const brasilRes = await fetch(`https://brasilapi.com.br/api/ncm/v1?search=${termoBusca}`)
             if (brasilRes.ok) {
               const resultados = await brasilRes.json()
               if (resultados && Array.isArray(resultados) && resultados.length > 0) {
-                // Procura o primeiro resultado que tenha exatamente 8 dígitos (evita pegar Capítulos genéricos como "40.11")
                 const ncmValido = resultados.find((r: any) => r.codigo && r.codigo.replace(/\./g, '').length === 8)
                 if (ncmValido) {
                   ncm = ncmValido.codigo.replace(/\./g, '')
                   
-                  // Prioridade 3: Se achou NCM na Brasil API, verifica se temos um CEST conhecido para esse NCM
+                  // Se achou NCM na Brasil API, verifica se temos um CEST conhecido para esse NCM
                   if (ncm && ncmParaCest.has(ncm)) {
                     cest = ncmParaCest.get(ncm)
                   }
