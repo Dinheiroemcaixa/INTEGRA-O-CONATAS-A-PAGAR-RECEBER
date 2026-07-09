@@ -637,8 +637,7 @@ export async function buscarOuCriarCliente(
         endCA.cep = cepStr;
       }
       endCA.pais = 'Brasil';
-      
-      bodyCliente.endereco = endCA;
+      bodyCliente.enderecos = [endCA];
     }
     const criar = await fetch(`${BASE_URL}/pessoas`, {
       method: 'POST',

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import DropZoneVendas from '@/components/upload/DropZoneVendas'
 import TabelaVendasPreview from '@/components/upload/TabelaVendasPreview'
 import ModalEditarVenda from '@/components/upload/ModalEditarVenda'
+import ModalEditarDatacar from '@/components/upload/ModalEditarDatacar'
 import SelectorEmpresa from '@/components/layout/SelectorEmpresa'
 import type { VendaPreview, ResultadoImportacaoVendas } from '@/types'
 import {
@@ -54,6 +55,7 @@ export default function VendasPage() {
   const [expandidoDatacar, setExpandidoDatacar] = useState<string | null>(null)
   const [enviandoDatacar, setEnviandoDatacar] = useState(false)
   const [filtroStatusDatacar, setFiltroStatusDatacar] = useState<'pendente' | 'enviado' | 'todos'>('pendente')
+  const [editandoDatacarId, setEditandoDatacarId] = useState<string | null>(null)
 
   // ─── Estado da sub-aba Planilha ──────────────────────────────
   const [etapa, setEtapa] = useState<Etapa>('upload')
@@ -133,6 +135,15 @@ export default function VendasPage() {
       const vendasFormatadas = vendasSelecionadas.map(v => ({
         cliente: v.cliente,
         cliente_cpf_cnpj: v.dados_datacar?.cliente_cpf_cnpj as string | undefined,
+        cliente_endereco: {
+          logradouro: v.dados_datacar?.cliente_logradouro as string | undefined,
+          numero: v.dados_datacar?.cliente_numero as string | undefined,
+          complemento: v.dados_datacar?.cliente_complemento as string | undefined,
+          bairro: v.dados_datacar?.cliente_bairro as string | undefined,
+          cidade: v.dados_datacar?.cliente_cidade as string | undefined,
+          estado: v.dados_datacar?.cliente_uf as string | undefined,
+          cep: v.dados_datacar?.cliente_cep as string | undefined,
+        },
         os_numero: v.os_numero,
         data_venda: v.data_venda,
         valor_total: v.valor_total,
@@ -492,8 +503,9 @@ export default function VendasPage() {
                         {/* Detalhes expandidos */}
                         {expandidoDatacar === venda.id && (
                           <div className="px-4 pb-3 pt-1 border-t border-dark-700/30 mx-4 mb-2 animate-fade-in">
-                            {/* Informações do cliente */}
-                            <div className="text-xs text-dark-400 space-y-0.5 mb-2">
+                            <div className="flex justify-between items-start">
+                              {/* Informações do cliente */}
+                              <div className="text-xs text-dark-400 space-y-0.5 mb-2">
                               {venda.dados_datacar?.vendedor ? (
                                 <p><strong className="text-dark-300">Vendedor:</strong> {String(venda.dados_datacar.vendedor)}</p>
                               ) : null}
@@ -518,6 +530,13 @@ export default function VendasPage() {
                                 <p><strong className="text-dark-300">Pagamento:</strong> {venda.forma_pagamento}</p>
                               )}
                             </div>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setEditandoDatacarId(venda.id) }}
+                              className="text-[11px] font-semibold flex items-center gap-1.5 bg-dark-800 hover:bg-dark-700 text-brand-400 px-3 py-1.5 rounded border border-dark-600 transition-colors"
+                            >
+                              Editar Dados
+                            </button>
+                          </div>
 
                             {/* Itens */}
                             {venda.itens.length > 0 && (
@@ -680,6 +699,16 @@ export default function VendasPage() {
           venda={dadosEditados[editandoIdx]}
           onSave={handleSaveEdicao}
           onClose={() => setEditandoIdx(null)}
+        />
+      )}
+
+      {/* Modal Edição (Datacar) */}
+      {editandoDatacarId !== null && (
+        <ModalEditarDatacar
+          vendaId={editandoDatacarId}
+          venda={vendasDatacar.find(v => v.id === editandoDatacarId)}
+          onSaveSuccess={carregarVendasDatacar}
+          onClose={() => setEditandoDatacarId(null)}
         />
       )}
     </div>
