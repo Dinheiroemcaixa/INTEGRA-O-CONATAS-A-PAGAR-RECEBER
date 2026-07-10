@@ -43,14 +43,15 @@ export async function POST(req: NextRequest) {
 
     const mapPagamento = (forma: string) => {
       const f = forma?.toLowerCase() || ''
-      if (f.includes('cred') || f.includes('créd')) return 'CARTAO_CREDITO'
-      if (f.includes('deb') || f.includes('déb')) return 'CARTAO_DEBITO'
+      // PIX e conta bancária ANTES de cartão de crédito (ex: "Crédito em conta bancária/PIX" deve ser PIX)
       if (f.includes('pix')) return 'PIX'
-      if (f.includes('boleto')) return 'BOLETO_BANCARIO'
+      if (f.includes('conta bancária') || f.includes('conta bancaria')) return 'PIX'
       if (f.includes('transf') || f.includes('depósito') || f.includes('deposito')) return 'TRANSFERENCIA_BANCARIA'
+      if (f.includes('boleto')) return 'BOLETO_BANCARIO'
+      if (f.includes('deb') || f.includes('déb')) return 'CARTAO_DEBITO'
+      if (f.includes('cred') || f.includes('créd')) return 'CARTAO_CREDITO'
       
-      // Se tiver a palavra "parcela" ou "vez", por padrão vamos assumir Cartão de Crédito se não especificado (ou Boleto, mas Cartão é mais comum)
-      // O usuário pediu para corrigir, então vamos garantir que o parcelamento funcione
+      // Se tiver a palavra "parcela" ou "vez", por padrão vamos assumir Cartão de Crédito
       if (f.includes('parcela') || f.match(/(\d+)\s*x/)) return 'CARTAO_CREDITO'
       
       return 'DINHEIRO'
@@ -174,7 +175,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 4. Cria Venda no Conta Azul (com retry para eventual consistência do cliente)
+        // 4. Cria Venda no Conta Azul (com retry para eventual consistência de cliente/produto)
         let vendaCriada;
         let tentativas = 0;
         let sucesso = false;
@@ -186,11 +187,19 @@ export async function POST(req: NextRequest) {
             sucesso = true;
           } catch (e: any) {
             ultimaMensagemErro = e.message || 'Erro desconhecido';
-            // Se o erro indicar que o cliente ainda não foi encontrado no Conta Azul
-            if (ultimaMensagemErro.includes('Cliente da venda não encontrado') || ultimaMensagemErro.includes('Cliente não encontrado')) {
+            const msgLower = ultimaMensagemErro.toLowerCase()
+            // Verifica se o erro é de consistência eventual (cliente ou produto recém-criado ainda não disponível)
+            const erroConsistencia = 
+              msgLower.includes('cliente') && (msgLower.includes('não encontrad') || msgLower.includes('not found')) ||
+              msgLower.includes('produto') && (msgLower.includes('não encontrad') || msgLower.includes('not found')) ||
+              msgLower.includes('item') && (msgLower.includes('não encontrad') || msgLower.includes('not found')) ||
+              msgLower.includes('not_found') ||
+              msgLower.includes('422') // Unprocessable - comum em consistência eventual
+
+            if (erroConsistencia) {
               tentativas++;
-              console.log(`[Tentativa ${tentativas}/3] Cliente ${idCliente} ainda não sincronizado no Conta Azul. Aguardando 2s...`);
-              await new Promise(resolve => setTimeout(resolve, 2000));
+              console.log(`[Tentativa ${tentativas}/3] Erro de consistência eventual: ${ultimaMensagemErro.substring(0, 200)}. Aguardando 3s...`);
+              await new Promise(resolve => setTimeout(resolve, 3000));
             } else {
               break; // Outro tipo de erro, interrompe o retry
             }
