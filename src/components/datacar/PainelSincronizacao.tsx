@@ -345,31 +345,12 @@ export default function PainelSincronizacao({ empresa }: Props) {
 
       {/* Filtros */}
       <div className="p-4 border-b border-dark-700 bg-dark-900/30">
-        <div className="flex items-end gap-3 flex-wrap">
+        <div className="flex items-end gap-4 flex-wrap">
+          {/* 1. Tipo Período / Pesquisar por */}
           <div>
-            <label className="text-xs text-dark-400 font-medium mb-1 flex items-center gap-1">
-              <Calendar size={12} /> Data Início
+            <label className="text-xs text-dark-400 font-medium mb-1 block">
+              {tab === 'contas' ? 'Pesquisar por:' : 'Tipo período:'}
             </label>
-            <input
-              type="date"
-              value={dtIni}
-              onChange={(e) => setDtIni(e.target.value)}
-              className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-orange-500/50 outline-none"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-dark-400 font-medium mb-1 flex items-center gap-1">
-              <Calendar size={12} /> Data Fim
-            </label>
-            <input
-              type="date"
-              value={dtFim}
-              onChange={(e) => setDtFim(e.target.value)}
-              className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-orange-500/50 outline-none"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-dark-400 font-medium mb-1 block">Pesquisar por:</label>
             {tab === 'contas' ? (
               <select
                 value={tipoPeriodoContas}
@@ -395,6 +376,34 @@ export default function PainelSincronizacao({ empresa }: Props) {
               </select>
             )}
           </div>
+
+          {/* 2. Período (Data Início e Fim) */}
+          <div className="flex items-end gap-3">
+            <div>
+              <label className="text-xs text-dark-400 font-medium mb-1 flex items-center gap-1">
+                <Calendar size={12} /> Data Início
+              </label>
+              <input
+                type="date"
+                value={dtIni}
+                onChange={(e) => setDtIni(e.target.value)}
+                className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-dark-400 font-medium mb-1 flex items-center gap-1">
+                <Calendar size={12} /> Data Fim
+              </label>
+              <input
+                type="date"
+                value={dtFim}
+                onChange={(e) => setDtFim(e.target.value)}
+                className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
+              />
+            </div>
+          </div>
+
+          {/* 3. Situação (Apenas Vendas) */}
           {tab === 'vendas' && (
             <div>
               <label className="text-xs text-dark-400 font-medium mb-1 block">Situação:</label>
@@ -411,16 +420,18 @@ export default function PainelSincronizacao({ empresa }: Props) {
               </select>
             </div>
           )}
+
+          {/* Botão Buscar */}
           <button
             onClick={tab === 'contas' ? handleBuscarContas : handleBuscarVendas}
             disabled={buscando}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-all text-white ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-all text-white ml-auto sm:ml-0 ${
               buscando ? 'bg-dark-700 text-dark-500' :
               tab === 'contas' ? 'bg-orange-600 hover:bg-orange-500' : 'bg-blue-600 hover:bg-blue-500'
             }`}
           >
             {buscando ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-            {buscando ? 'Buscando no Datacar...' : `Buscar ${tab === 'contas' ? 'Contas a Pagar' : 'Vendas'}`}
+            {buscando ? 'Buscando no Datacar...' : `Buscar ${tab === 'contas' ? 'Contas' : 'Vendas'}`}
           </button>
         </div>
       </div>
