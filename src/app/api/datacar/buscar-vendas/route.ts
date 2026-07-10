@@ -17,7 +17,7 @@ const supabaseAdmin = createClient(
  */
 export async function POST(req: NextRequest) {
   try {
-    const { empresa_id, dtIni, dtFim, tipoPeriodo = 'encerramento', situacao = 'todas' } = await req.json()
+    const { empresa_id, dtIni, dtFim, tipoPeriodo = 'encerramento', situacao = 'todas', numeroOS } = await req.json()
 
     if (!empresa_id || !dtIni || !dtFim) {
       return NextResponse.json({ error: 'empresa_id, dtIni e dtFim são obrigatórios' }, { status: 400 })
@@ -59,6 +59,11 @@ export async function POST(req: NextRequest) {
       } else {
         continuar = false
       }
+    }
+
+    // Se um número de OS específico foi informado, filtra os resultados logo de início
+    if (numeroOS) {
+      allOS = allOS.filter(os => String(os.venda_Numero) === String(numeroOS))
     }
 
     // === LOG DE DIAGNÓSTICO: ver campos reais retornados pelo Datacar ===

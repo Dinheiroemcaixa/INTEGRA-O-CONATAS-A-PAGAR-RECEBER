@@ -63,8 +63,10 @@ export default function PainelSincronizacao({ empresa }: Props) {
   const [vendasMeta, setVendasMeta] = useState<{ total: number; validos: number; invalidos: number } | null>(null)
   const [tipoPeriodoVendas, setTipoPeriodoVendas] = useState<'abertura' | 'previsao' | 'conclusao' | 'encerramento' | 'cancelamento'>('encerramento')
   const [situacaoVendas, setSituacaoVendas] = useState<'todas' | 'em_andamento' | 'concluida' | 'encerrada' | 'cancelada'>('todas')
+  const [numeroOS, setNumeroOS] = useState('')
   const [filtroVendas, setFiltroVendas] = useState<'tudo' | 'produtos' | 'servicos'>('tudo')
   const [enviandoVendas, setEnviandoVendas] = useState(false)
+  const [selecionadasVendas, setSelecionadasVendas] = useState<Set<string>>(new Set())
 
   // Expandir detalhes
   const [expandido, setExpandido] = useState<number | null>(null)
@@ -113,7 +115,8 @@ export default function PainelSincronizacao({ empresa }: Props) {
           dtIni, 
           dtFim, 
           tipoPeriodo: mappedTipoPeriodo,
-          situacao: situacaoVendas
+          situacao: situacaoVendas,
+          numeroOS: numeroOS.trim() || undefined
         }),
       })
       const data = await res.json()
@@ -121,6 +124,11 @@ export default function PainelSincronizacao({ empresa }: Props) {
 
       setVendasResultado(data.dados)
       setVendasMeta({ total: data.total, validos: data.validos, invalidos: data.invalidos })
+      
+      // Seleciona todas as válidas por padrão
+      const validas = data.dados.filter((d: any) => d.valido).map((d: any) => d.os_numero)
+      setSelecionadasVendas(new Set(validas))
+
       toast.success(`${data.total} OS/Pedidos encontrados!`)
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Erro ao buscar vendas')
@@ -240,10 +248,10 @@ export default function PainelSincronizacao({ empresa }: Props) {
           // Flag temporária (não vai para o banco)
           valido: v.valido && itensFiltrados.length > 0 && valorTotalRecalculado > 0
         }
-      }).filter(v => v.valido)
+      }).filter(v => v.valido && selecionadasVendas.has(v.os_numero))
 
       if (vendasParaEnviar.length === 0) {
-        toast.error('Nenhuma OS válida para o filtro selecionado.')
+        toast.error('Nenhuma OS selecionada/válida para o filtro.')
         return
       }
 
@@ -287,6 +295,7 @@ export default function PainelSincronizacao({ empresa }: Props) {
       // Limpa os resultados para obrigar nova busca
       setVendasResultado(null)
       setVendasMeta(null)
+      setSelecionadasVendas(new Set())
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Erro ao salvar vendas no Card')
     } finally {
@@ -403,22 +412,34 @@ export default function PainelSincronizacao({ empresa }: Props) {
             </div>
           </div>
 
-          {/* 3. Situação (Apenas Vendas) */}
+          {/* 3. Situação (Apenas Vendas) e Número OS */}
           {tab === 'vendas' && (
-            <div>
-              <label className="text-xs text-dark-400 font-medium mb-1 block">Situação:</label>
-              <select
-                value={situacaoVendas}
-                onChange={(e) => setSituacaoVendas(e.target.value as any)}
-                className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
-              >
-                <option value="todas">Todas</option>
-                <option value="em_andamento">Em andamento</option>
-                <option value="concluida">Concluídas</option>
-                <option value="encerrada">Encerradas</option>
-                <option value="cancelada">Canceladas</option>
-              </select>
-            </div>
+            <>
+              <div>
+                <label className="text-xs text-dark-400 font-medium mb-1 block">Situação:</label>
+                <select
+                  value={situacaoVendas}
+                  onChange={(e) => setSituacaoVendas(e.target.value as any)}
+                  className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
+                >
+                  <option value="todas">Todas</option>
+                  <option value="em_andamento">Em andamento</option>
+                  <option value="concluida">Concluídas</option>
+                  <option value="encerrada">Encerradas</option>
+                  <option value="cancelada">Canceladas</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-dark-400 font-medium mb-1 block">Nº da OS:</label>
+                <input
+                  type="text"
+                  placeholder="Ex: 12345"
+                  value={numeroOS}
+                  onChange={(e) => setNumeroOS(e.target.value)}
+                  className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-28"
+                />
+              </div>
+            </>
           )}
 
           {/* Botão Buscar */}
@@ -537,16 +558,38 @@ export default function PainelSincronizacao({ empresa }: Props) {
             </div>
             <button
               onClick={handleSincronizarVendas}
-              disabled={enviandoVendas || (vendasMeta.validos === 0)}
+              disabled={enviandoVendas || selecionadasVendas.size === 0}
               className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-5 py-2 rounded-lg text-sm font-bold text-white transition-all flex items-center gap-2"
             >
               {enviandoVendas ? <Loader2 size={16} className="animate-spin" /> : <ShoppingCart size={16} />}
-              Salvar no Card Vendas
+              Salvar {selecionadasVendas.size} OS no Card Vendas
             </button>
           </div>
 
           {/* Lista */}
           <div className="max-h-[500px] overflow-y-auto">
+            {/* Header da Tabela com Master Checkbox */}
+            {vendasResultado && vendasResultado.length > 0 && (
+              <div className="flex items-center gap-3 px-4 py-2.5 bg-dark-900/60 border-b border-dark-700 text-xs text-dark-400 font-semibold sticky top-0 z-10 backdrop-blur-sm">
+                <input
+                  type="checkbox"
+                  checked={selecionadasVendas.size > 0 && selecionadasVendas.size === vendasResultado.filter(v => v.valido).length}
+                  onChange={() => {
+                    const validas = vendasResultado.filter(v => v.valido).map(v => v.os_numero)
+                    if (selecionadasVendas.size === validas.length) setSelecionadasVendas(new Set())
+                    else setSelecionadasVendas(new Set(validas))
+                  }}
+                  className="accent-blue-500"
+                />
+                <span className="w-14 text-center">STATUS</span>
+                <span className="w-14">OS Nº</span>
+                <span className="flex-1">CLIENTE</span>
+                <span className="w-24 text-right">VALOR TOTAL</span>
+                <span className="w-24 text-right">DATA</span>
+                <span className="w-4"></span>
+              </div>
+            )}
+
             {(vendasResultado || []).map((venda, i) => (
               <div key={i} className={`border-b border-dark-700/50 hover:bg-dark-700/20 transition-colors ${
                 !venda.valido ? 'bg-red-500/5' : ''
@@ -555,15 +598,33 @@ export default function PainelSincronizacao({ empresa }: Props) {
                   className="flex items-center gap-3 px-4 py-3 cursor-pointer"
                   onClick={() => setExpandido(expandido === i ? null : i)}
                 >
+                  <input
+                    type="checkbox"
+                    checked={selecionadasVendas.has(venda.os_numero)}
+                    disabled={!venda.valido}
+                    onChange={(e) => {
+                      e.stopPropagation()
+                      setSelecionadasVendas(prev => {
+                        const next = new Set(prev)
+                        if (next.has(venda.os_numero)) next.delete(venda.os_numero)
+                        else next.add(venda.os_numero)
+                        return next
+                      })
+                    }}
+                    onClick={e => e.stopPropagation()}
+                    className="accent-blue-500 disabled:opacity-30"
+                  />
                   {venda.valido
                     ? <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0" />
                     : <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
                   }
                   <span className="text-dark-500 text-xs font-mono w-14">#{venda.os_numero}</span>
                   <span className="text-white text-sm font-medium flex-1 truncate">{venda.cliente}</span>
-                  <span className="text-white text-sm font-bold tabular-nums">{formatCurrency(venda.valor_total)}</span>
+                  <span className="text-white text-sm font-bold tabular-nums w-24 text-right">{formatCurrency(venda.valor_total)}</span>
                   <span className="text-dark-400 text-xs tabular-nums w-24 text-right">{formatDate(venda.data_venda)}</span>
-                  {expandido === i ? <ChevronUp size={14} className="text-dark-500" /> : <ChevronDown size={14} className="text-dark-500" />}
+                  <div className="w-4 flex justify-end">
+                    {expandido === i ? <ChevronUp size={14} className="text-dark-500" /> : <ChevronDown size={14} className="text-dark-500" />}
+                  </div>
                 </div>
                 {expandido === i && (
                   <div className="px-4 pb-3 pt-0 text-xs text-dark-400 space-y-1 animate-fade-in border-t border-dark-700/30 mx-4">
