@@ -46,8 +46,13 @@ export async function POST(req: NextRequest) {
       if (f.includes('cred') || f.includes('créd')) return 'CARTAO_CREDITO'
       if (f.includes('deb') || f.includes('déb')) return 'CARTAO_DEBITO'
       if (f.includes('pix')) return 'PIX'
-      if (f.includes('boleto')) return 'BOLETO'
-      if (f.includes('transf')) return 'TRANSFERENCIA_BANCARIA'
+      if (f.includes('boleto')) return 'BOLETO_BANCARIO'
+      if (f.includes('transf') || f.includes('depósito') || f.includes('deposito')) return 'TRANSFERENCIA_BANCARIA'
+      
+      // Se tiver a palavra "parcela" ou "vez", por padrão vamos assumir Cartão de Crédito se não especificado (ou Boleto, mas Cartão é mais comum)
+      // O usuário pediu para corrigir, então vamos garantir que o parcelamento funcione
+      if (f.includes('parcela') || f.match(/(\d+)\s*x/)) return 'CARTAO_CREDITO'
+      
       return 'DINHEIRO'
     }
 
@@ -55,8 +60,8 @@ export async function POST(req: NextRequest) {
     // 'À vista', '2x', '3x', ... ou padrão de dias '30', '30,60', etc.
     const mapOpcaoCondicao = (forma: string): { opcao: string; numParcelas: number } => {
       const f = forma?.toLowerCase() || ''
-      // Detecta parcelamentos do tipo "2x", "3x", "12x" etc.
-      const matchParcelas = f.match(/(\d+)\s*x/)
+      // Detecta parcelamentos do tipo "2x", "3x", "12x", "4 parcelas", "4 vezes"
+      const matchParcelas = f.match(/(\d+)\s*(?:x|parcela|vez)/)
       if (matchParcelas) {
         const n = parseInt(matchParcelas[1], 10)
         if (n > 1) return { opcao: `${n}x`, numParcelas: n }
