@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { buscarContasPagar } from '@/services/datacar/client'
+import { buscarCnpj } from '@/services/brasil-api/client'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -50,10 +51,38 @@ export async function POST(req: NextRequest) {
       dtFim,
     )
 
+    // --- INTELIGÊNCIA DE FORNECEDORES (BRASIL API) ---
+    const cnpjsUnicos = new Set<string>()
+
+    contasDatacar.forEach(c => {
+      if (c.cnpjEmit) cnpjsUnicos.add(c.cnpjEmit.replace(/\D/g, ''))
+    })
+
+    const dadosCnpjMap = new Map<string, any>()
+
+    // Buscar CNPJs únicos em lotes de 10
+    const cnpjsArray = Array.from(cnpjsUnicos).filter(c => c.length === 14) // Só buscar CNPJ (14 dígitos)
+    for (let i = 0; i < cnpjsArray.length; i += 10) {
+      const chunk = cnpjsArray.slice(i, i + 10)
+      await Promise.all(chunk.map(async (cnpj) => {
+        const dados = await buscarCnpj(cnpj)
+        if (dados) dadosCnpjMap.set(cnpj, dados)
+      }))
+    }
+    // --- FIM DA INTELIGÊNCIA DE FORNECEDORES ---
+
     // Converter para o formato do app (ContaPagarPreview)
-    const dados = contasDatacar.map((c) => {
+    const dados = await Promise.all(contasDatacar.map(async (c) => {
       const valor = c.vlParc ?? 0
-      const fornecedor = c.nomeEmit?.trim() || 'Fornecedor não informado'
+      
+      let fornecedor = c.nomeEmit?.trim() || 'Fornecedor não informado'
+      const cnpjLimpo = c.cnpjEmit ? c.cnpjEmit.replace(/\D/g, '') : ''
+      
+      // Enriquecer nome do fornecedor se achou na Brasil API
+      const dadosCnpjEncontrados = cnpjLimpo.length === 14 ? dadosCnpjMap.get(cnpjLimpo) : null
+      if (dadosCnpjEncontrados?.razao_social) {
+        fornecedor = dadosCnpjEncontrados.razao_social
+      }
       const vencimento = c.dtVenc || ''
       const emissao = c.dtEmis || ''
       const doc = [c.numNF, c.doc].filter(Boolean).join(' - ') || null
@@ -82,7 +111,7 @@ export async function POST(req: NextRequest) {
           bancoPgto: c.bancoPgto,
         }
       }
-    })
+    }))
 
     const validos = dados.filter(d => d.valido).length
     const invalidos = dados.filter(d => !d.valido).length

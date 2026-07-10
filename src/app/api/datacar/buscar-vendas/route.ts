@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { buscarOSPedidos, buscarProdutos, DatacarProdutoResponse } from '@/services/datacar/client'
+import { buscarCnpj, buscarCep, enriquecerEndereco, EnderecoDatacar } from '@/services/brasil-api/client'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -266,14 +267,60 @@ export async function POST(req: NextRequest) {
     }
     // --- FIM DA NOVA LÓGICA ---
 
+    // --- INTELIGÊNCIA DE CLIENTES (BRASIL API) ---
+    const cpfsCnpjsUnicos = new Set<string>()
+    const cepsUnicos = new Set<string>()
+
+    allOS.forEach(os => {
+      if (os.cliente_Cpf_Cnpj) cpfsCnpjsUnicos.add(os.cliente_Cpf_Cnpj.replace(/\D/g, ''))
+      const cep = os.end_Cep || os.cliente_Cep || os.cliente_CEP
+      if (cep) cepsUnicos.add(cep.replace(/\D/g, ''))
+    })
+
+    const dadosCnpjMap = new Map<string, any>()
+    const dadosCepMap = new Map<string, any>()
+
+    // Buscar CNPJs únicos em lotes de 10
+    const cnpjsArray = Array.from(cpfsCnpjsUnicos).filter(c => c.length === 14) // Só buscar CNPJ (14 dígitos)
+    for (let i = 0; i < cnpjsArray.length; i += 10) {
+      const chunk = cnpjsArray.slice(i, i + 10)
+      await Promise.all(chunk.map(async (cnpj) => {
+        const dados = await buscarCnpj(cnpj)
+        if (dados) dadosCnpjMap.set(cnpj, dados)
+      }))
+    }
+
+    // Buscar CEPs únicos em lotes de 10
+    const cepsArray = Array.from(cepsUnicos).filter(c => c.length === 8) // Só buscar CEP válido (8 dígitos)
+    for (let i = 0; i < cepsArray.length; i += 10) {
+      const chunk = cepsArray.slice(i, i + 10)
+      await Promise.all(chunk.map(async (cep) => {
+        const dados = await buscarCep(cep)
+        if (dados) dadosCepMap.set(cep, dados)
+      }))
+    }
+    // --- FIM DA INTELIGÊNCIA DE CLIENTES ---
+
     // Converter para o formato VendaPreview do app (sem filtrar canceladas — o frontend filtra pela situação)
-    const dados = allOS.map((os) => {
+    const dados = await Promise.all(allOS.map(async (os) => {
       // Determinar situação da OS com base nas datas disponíveis
       let situacao: 'em_andamento' | 'concluida' | 'encerrada' | 'cancelada' = 'em_andamento'
       if (os.venda_DtCancelamento) situacao = 'cancelada'
       else if (os.venda_DtEncerramento) situacao = 'encerrada'
       else if (os.venda_DtConclusao) situacao = 'concluida'
-      const cliente = os.cliente_Nome?.trim() || os.cliente_RazaoSocial?.trim() || 'Cliente não informado'
+      
+      let cliente = os.cliente_Nome?.trim() || os.cliente_RazaoSocial?.trim() || 'Cliente não informado'
+      const cliente_cpf_cnpj = os.cliente_Cpf_Cnpj || null
+      
+      // Obter dados enriquecidos se for CNPJ
+      const cnpjLimpo = cliente_cpf_cnpj ? cliente_cpf_cnpj.replace(/\D/g, '') : ''
+      const dadosCnpjEncontrados = cnpjLimpo.length === 14 ? dadosCnpjMap.get(cnpjLimpo) : null
+      
+      // Se for CNPJ válido e retornou razao_social, prioriza o nome oficial
+      if (dadosCnpjEncontrados?.razao_social) {
+        cliente = dadosCnpjEncontrados.razao_social
+      }
+
       const osNumero = String(os.venda_Numero || '')
       const dataVenda = os.venda_DtEncerramento || os.venda_DtConclusao || os.venda_DtCriacao || ''
 
@@ -336,18 +383,44 @@ export async function POST(req: NextRequest) {
       const totalServicos = itens.filter(i => i.tipo === 'servico').reduce((sum, i) => sum + i.valor_total, 0)
       const valorTotal = parseFloat((totalProdutos + totalServicos).toFixed(2))
 
+      const enderecoBase: EnderecoDatacar = {
+        logradouro: os.end_Rua || os.cliente_Logradouro || os.cliente_Endereco || null,
+        numero: os.end_Numero || os.cliente_Numero || null,
+        complemento: os.end_Complemento || os.cliente_Complemento || null,
+        bairro: os.end_Bairro || os.cliente_Bairro || null,
+        cidade: os.end_Cidade || os.cliente_Cidade || os.cliente_Municipio || null,
+        estado: os.end_Uf || os.cliente_Uf || os.cliente_Estado || os.cliente_UF || null,
+        cep: os.end_Cep || os.cliente_Cep || os.cliente_CEP || null,
+      }
+
+      // Enriquecer endereço se tiver CEP (lembrando que enriquecerEndereco lida com dadosCnpj tb)
+      if (enderecoBase.cep && enderecoBase.cep.length >= 8) {
+        const cepLimpo = enderecoBase.cep.replace(/\D/g, '')
+        const dadosCep = dadosCepMap.get(cepLimpo)
+        if (dadosCep) {
+          // Atualiza dados base usando os dados de CEP da Brasil API (mantém numero/complemento)
+          enderecoBase.logradouro = dadosCep.street || enderecoBase.logradouro
+          enderecoBase.bairro = dadosCep.neighborhood || enderecoBase.bairro
+          enderecoBase.cidade = dadosCep.city || enderecoBase.cidade
+          enderecoBase.estado = dadosCep.state || enderecoBase.estado
+        }
+      }
+      
+      // Enriquecer endereço via CNPJ se tiver (tem precedência)
+      if (dadosCnpjEncontrados) {
+        enderecoBase.logradouro = dadosCnpjEncontrados.logradouro || enderecoBase.logradouro
+        enderecoBase.numero = dadosCnpjEncontrados.numero || enderecoBase.numero
+        enderecoBase.complemento = dadosCnpjEncontrados.complemento || enderecoBase.complemento
+        enderecoBase.bairro = dadosCnpjEncontrados.bairro || enderecoBase.bairro
+        enderecoBase.cidade = dadosCnpjEncontrados.municipio || enderecoBase.cidade
+        enderecoBase.estado = dadosCnpjEncontrados.uf || enderecoBase.estado
+        enderecoBase.cep = dadosCnpjEncontrados.cep || enderecoBase.cep
+      }
+
       return {
         cliente,
         cliente_cpf_cnpj: os.cliente_Cpf_Cnpj || null,
-        cliente_endereco: {
-          logradouro: os.end_Rua || os.cliente_Logradouro || os.cliente_Endereco || null,
-          numero: os.end_Numero || os.cliente_Numero || null,
-          complemento: os.end_Complemento || os.cliente_Complemento || null,
-          bairro: os.end_Bairro || os.cliente_Bairro || null,
-          cidade: os.end_Cidade || os.cliente_Cidade || os.cliente_Municipio || null,
-          estado: os.end_Uf || os.cliente_Uf || os.cliente_Estado || os.cliente_UF || null,
-          cep: os.end_Cep || os.cliente_Cep || os.cliente_CEP || null,
-        },
+        cliente_endereco: enderecoBase,
         os_numero: osNumero,
         data_venda: dataVenda,
         valor_total: valorTotal,
@@ -377,7 +450,7 @@ export async function POST(req: NextRequest) {
           raw: os // Salvando o raw completo para a revisão
         }
       }
-    })
+    }))
 
     // Filtra pela situação solicitada antes de contar
     const dadosFiltrados = dados.filter(d => situacao === 'todas' || d.situacao === situacao)
