@@ -90,16 +90,23 @@ export async function POST(req: NextRequest) {
         continue
       }
 
-      // Extrair a primeira palavra como palavra-chave (família)
-      const palavraChave = descricao.split(/[\s/,;()-]+/)[0]?.toUpperCase()
-      if (!palavraChave || palavraChave.length < 2) {
+      // Extrair a primeira palavra como fallback
+      const primeiraPalavra = descricao.split(/[\s/,;()-]+/)[0]?.toUpperCase()
+      const descricaoCompleta = descricao.toUpperCase().replace(/\s+/g, ' ').trim()
+
+      if (!primeiraPalavra || primeiraPalavra.length < 2) {
         ignorados++
         continue
       }
 
-      // Guardar a família se é a primeira vez ou se tem CEST mais completo
-      if (!familiasProcessadas.has(palavraChave) || (cest && !familiasProcessadas.get(palavraChave)?.cest)) {
-        familiasProcessadas.set(palavraChave, { ncm, cest })
+      // Guardar a descrição completa
+      if (!familiasProcessadas.has(descricaoCompleta) || (cest && !familiasProcessadas.get(descricaoCompleta)?.cest)) {
+        familiasProcessadas.set(descricaoCompleta, { ncm, cest })
+      }
+
+      // Guardar a primeira palavra como fallback (se já não houver, ou se esta tiver CEST e a anterior não)
+      if (!familiasProcessadas.has(primeiraPalavra) || (cest && !familiasProcessadas.get(primeiraPalavra)?.cest)) {
+        familiasProcessadas.set(primeiraPalavra, { ncm, cest })
       }
 
       // Se tiver código, salva também na memoria_fiscal (por código exato)

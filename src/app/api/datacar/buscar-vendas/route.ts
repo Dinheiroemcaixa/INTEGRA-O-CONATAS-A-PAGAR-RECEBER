@@ -197,7 +197,18 @@ export async function POST(req: NextRequest) {
       let origem = null
       let unidade = 'UN'
       const descricao = descricoesProdutos.get(codigo) || ''
-      const primeiraPalavra = descricao.split(' ')[0]?.toUpperCase()
+      const descNormalizada = descricao.toUpperCase().replace(/\s+/g, ' ').trim()
+      const palavras = descNormalizada.split(' ')
+      
+      // Encontrar melhor match de família (do mais longo para o mais curto)
+      let matchFamilia = null
+      for (let i = palavras.length; i > 0; i--) {
+        const prefixo = palavras.slice(0, i).join(' ')
+        if (memoriaFiscalFamilia[prefixo]) {
+          matchFamilia = memoriaFiscalFamilia[prefixo]
+          break
+        }
+      }
 
       // Prioridade 1: Nossa Memória Fiscal Exata (por código)
       if (memoriaFiscalExata[codigo]) {
@@ -208,14 +219,13 @@ export async function POST(req: NextRequest) {
         origem = mem.origem
         unidade = mem.unidade_medida || 'UN'
       } 
-      // Prioridade 2: Nossa Memória Fiscal por Família (primeira palavra)
-      else if (primeiraPalavra && memoriaFiscalFamilia[primeiraPalavra]) {
-        const mem = memoriaFiscalFamilia[primeiraPalavra]
-        ncm = mem.ncm
-        cest = mem.cest
-        tipo = mem.tipo_produto
-        origem = mem.origem
-        unidade = mem.unidade_medida || 'UN'
+      // Prioridade 2: Nossa Memória Fiscal por Família (match do maior prefixo)
+      else if (matchFamilia) {
+        ncm = matchFamilia.ncm
+        cest = matchFamilia.cest
+        tipo = matchFamilia.tipo_produto
+        origem = matchFamilia.origem
+        unidade = matchFamilia.unidade_medida || 'UN'
       }
       else {
         // Prioridade 3: Brasil API (apenas para NCM se não temos na memória)
