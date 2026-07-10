@@ -423,6 +423,9 @@ export async function criarVenda(accessToken: string, payload: VendaPayload): Pr
     }
   }
 
+  // Garante que id_vendedor NÃO seja enviado (vendedor responsável deve ficar em branco)
+  delete (payload as any).id_vendedor
+
   const res = await fetch(`${BASE_URL}/venda`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },

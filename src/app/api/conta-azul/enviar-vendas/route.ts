@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
           }
           
           itensPayload.push({
-            descricao: item.descricao || '',
+            descricao: '', // Deixar em branco - o produto já é identificado pelo id
             quantidade: item.quantidade,
             valor: valorUnitarioOriginal,
             id: idProduto
