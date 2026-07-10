@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { buscarOSPedidos, buscarProdutos, DatacarProdutoResponse } from '@/services/datacar/client'
 import { buscarCnpj, buscarCep, enriquecerEndereco, EnderecoDatacar } from '@/services/brasil-api/client'
+import { buscarVendasContaAzul, verificarNfeEmitidaDaVenda } from '@/lib/conta-azul/api'
+import { getValidToken } from '@/lib/conta-azul/token-manager'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -454,6 +456,86 @@ export async function POST(req: NextRequest) {
 
     // Filtra pela situação solicitada antes de contar
     const dadosFiltrados = dados.filter(d => situacao === 'todas' || d.situacao === situacao)
+
+    // --- DETECÇÃO DE DUPLICIDADE NO CONTA AZUL ---
+    // Tenta buscar vendas no CA para o mesmo período. Se não conseguir (ex: CA não conectado),
+    // simplesmente segue sem marcação de duplicidade — NÃO interfere no fluxo principal.
+    try {
+      const { accessToken: caToken } = await getValidToken(empresa_id)
+
+      // Converter datas do formato DD/MM/YYYY para YYYY-MM-DD
+      let dtIniISO = dtIni
+      let dtFimISO = dtFim
+      if (dtIni.includes('/')) {
+        const [d, m, y] = dtIni.split('/')
+        dtIniISO = `${y}-${m}-${d}`
+      }
+      if (dtFim.includes('/')) {
+        const [d, m, y] = dtFim.split('/')
+        dtFimISO = `${y}-${m}-${d}`
+      }
+
+      const vendasCA = await buscarVendasContaAzul(caToken, dtIniISO, dtFimISO)
+      console.log(`[duplicidade] Encontradas ${vendasCA.length} vendas no CA para o período ${dtIniISO} a ${dtFimISO}`)
+
+      if (vendasCA.length > 0) {
+        // Montar mapa de chaves para cruzar: normaliza CPF/CNPJ + Data + Valor
+        const vendasCAMap = new Map<string, { id: string; valor: number }[]>()
+        for (const vc of vendasCA) {
+          const cpfCnpj = vc.cliente?.cpf_cnpj?.replace(/\D/g, '') || ''
+          const dataVenda = vc.data_venda?.split('T')[0] || ''
+          const valor = Math.round((vc.valor_total || 0) * 100) // centavos para evitar float
+          if (cpfCnpj && dataVenda) {
+            const chave = `${cpfCnpj}_${dataVenda}_${valor}`
+            if (!vendasCAMap.has(chave)) vendasCAMap.set(chave, [])
+            vendasCAMap.get(chave)!.push({ id: vc.id, valor })
+          }
+        }
+
+        // Para cada venda do Datacar, verificar se já existe no CA
+        const vendasComNfe: string[] = [] // IDs de vendas CA para verificar NFe em lote
+        for (const venda of dadosFiltrados) {
+          const cpfCnpj = (venda as any).cliente_cpf_cnpj?.replace(/\D/g, '') || ''
+          let dataVendaISO = venda.data_venda?.split('T')[0]?.split(' ')[0] || ''
+          if (dataVendaISO.includes('/')) {
+            const [d, m, y] = dataVendaISO.split('/')
+            dataVendaISO = `${y}-${m}-${d}`
+          }
+          const valor = Math.round((venda.valor_total || 0) * 100)
+
+          if (cpfCnpj && dataVendaISO) {
+            const chave = `${cpfCnpj}_${dataVendaISO}_${valor}`
+            const match = vendasCAMap.get(chave)
+            if (match && match.length > 0) {
+              ;(venda as any).ca_status = 'enviado_sem_nota'
+              ;(venda as any)._ca_venda_id = match[0].id
+              vendasComNfe.push(match[0].id)
+            }
+          }
+        }
+
+        // Verificar NFe para vendas que deram match (em lotes de 5 para não sobrecarregar)
+        for (let i = 0; i < vendasComNfe.length; i += 5) {
+          const chunk = vendasComNfe.slice(i, i + 5)
+          const resultados = await Promise.all(
+            chunk.map(vendaId => verificarNfeEmitidaDaVenda(caToken, vendaId))
+          )
+          for (let j = 0; j < chunk.length; j++) {
+            if (resultados[j].temNfe) {
+              const vendaEncontrada = dadosFiltrados.find((v: any) => v._ca_venda_id === chunk[j])
+              if (vendaEncontrada) {
+                ;(vendaEncontrada as any).ca_status = 'enviado_com_nota'
+                ;(vendaEncontrada as any).ca_nfe_numero = resultados[j].numeroNota || null
+              }
+            }
+          }
+        }
+      }
+    } catch (caErr) {
+      // Se o CA não está conectado ou deu qualquer erro, simplesmente segue sem marcação
+      console.log('[duplicidade] Não foi possível verificar duplicidade no CA (pode não estar conectado):', (caErr as any)?.message || caErr)
+    }
+    // --- FIM DA DETECÇÃO DE DUPLICIDADE ---
 
     const validos = dadosFiltrados.filter(d => d.valido).length
     const invalidos = dadosFiltrados.filter(d => !d.valido).length

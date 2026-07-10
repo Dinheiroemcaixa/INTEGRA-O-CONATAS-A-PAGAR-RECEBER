@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   Search, Loader2, FileText, ShoppingCart, Calendar,
-  Download, AlertCircle, CheckCircle2, ChevronDown, ChevronUp
+  Download, AlertCircle, CheckCircle2, ChevronDown, ChevronUp,
+  AlertTriangle, Eye, X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -41,6 +42,8 @@ interface VendaResult {
   valido: boolean
   erros?: string[]
   _datacar?: Record<string, unknown>
+  ca_status?: 'nao_enviado' | 'enviado_sem_nota' | 'enviado_com_nota'
+  ca_nfe_numero?: string
 }
 
 export default function PainelSincronizacao({ empresa }: Props) {
@@ -67,6 +70,7 @@ export default function PainelSincronizacao({ empresa }: Props) {
   const [filtroVendas, setFiltroVendas] = useState<'tudo' | 'produtos' | 'servicos'>('tudo')
   const [enviandoVendas, setEnviandoVendas] = useState(false)
   const [selecionadasVendas, setSelecionadasVendas] = useState<Set<string>>(new Set())
+  const [ocultadasVendas, setOcultadasVendas] = useState<Set<string>>(new Set())
 
   // Expandir detalhes
   const [expandido, setExpandido] = useState<number | null>(null)
@@ -129,9 +133,12 @@ export default function PainelSincronizacao({ empresa }: Props) {
       setVendasResultado(data.dados)
       setVendasMeta({ total: data.total, validos: data.validos, invalidos: data.invalidos })
       
-      // Seleciona todas as válidas por padrão
-      const validas = data.dados.filter((d: any) => d.valido).map((d: any) => d.os_numero)
+      // Seleciona todas as válidas que NÃO possuem alerta de duplicidade
+      const validas = data.dados
+        .filter((d: any) => d.valido && !d.ca_status)
+        .map((d: any) => d.os_numero)
       setSelecionadasVendas(new Set(validas))
+      setOcultadasVendas(new Set())
 
       toast.success(`${data.total} OS/Pedidos encontrados!`)
     } catch (err: unknown) {
@@ -599,9 +606,9 @@ export default function PainelSincronizacao({ empresa }: Props) {
               </div>
             )}
 
-            {(vendasResultado || []).map((venda, i) => (
+            {(vendasResultado || []).filter(v => !ocultadasVendas.has(v.os_numero)).map((venda, i) => (
               <div key={i} className={`border-b border-dark-700/50 hover:bg-dark-700/20 transition-colors ${
-                !venda.valido ? 'bg-red-500/5' : ''
+                !venda.valido ? 'bg-red-500/5' : venda.ca_status === 'enviado_com_nota' ? 'bg-emerald-500/5' : venda.ca_status === 'enviado_sem_nota' ? 'bg-amber-500/5' : ''
               }`}>
                 <div
                   className="flex items-center gap-3 px-4 py-3 cursor-pointer"
@@ -623,15 +630,46 @@ export default function PainelSincronizacao({ empresa }: Props) {
                     onClick={e => e.stopPropagation()}
                     className="accent-blue-500 disabled:opacity-30"
                   />
-                  {venda.valido
-                    ? <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0" />
-                    : <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
-                  }
+                  {venda.ca_status === 'enviado_com_nota' ? (
+                    <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400 whitespace-nowrap" title={venda.ca_nfe_numero ? `NFe ${venda.ca_nfe_numero}` : 'NFe emitida'}>
+                      <CheckCircle2 size={10} /> NFe {venda.ca_nfe_numero || 'Emitida'}
+                    </span>
+                  ) : venda.ca_status === 'enviado_sem_nota' ? (
+                    <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-400 whitespace-nowrap" title="Venda encontrada no CA sem nota">
+                      <AlertTriangle size={10} /> No CA
+                    </span>
+                  ) : venda.valido ? (
+                    <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0" />
+                  ) : (
+                    <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
+                  )}
                   <span className="text-dark-500 text-xs font-mono w-14">#{venda.os_numero}</span>
                   <span className="text-white text-sm font-medium flex-1 truncate">{venda.cliente}</span>
                   <span className="text-white text-sm font-bold tabular-nums w-24 text-right">{formatCurrency(venda.valor_total)}</span>
                   <span className="text-dark-400 text-xs tabular-nums w-24 text-right">{formatDate(venda.data_venda)}</span>
-                  <div className="w-4 flex justify-end">
+                  <div className="flex items-center gap-1 w-8 justify-end">
+                    {venda.ca_status && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setOcultadasVendas(prev => {
+                            const next = new Set(prev)
+                            next.add(venda.os_numero)
+                            return next
+                          })
+                          // Remove da seleção também
+                          setSelecionadasVendas(prev => {
+                            const next = new Set(prev)
+                            next.delete(venda.os_numero)
+                            return next
+                          })
+                        }}
+                        title="Ocultar da lista (já está no CA)"
+                        className="text-dark-600 hover:text-red-400 transition-colors"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
                     {expandido === i ? <ChevronUp size={14} className="text-dark-500" /> : <ChevronDown size={14} className="text-dark-500" />}
                   </div>
                 </div>

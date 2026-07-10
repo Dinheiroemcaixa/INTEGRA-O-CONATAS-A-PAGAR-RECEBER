@@ -816,3 +816,104 @@ export async function buscarOuCriarCliente(
     throw new Error(`Erro ao criar cliente '${nome}': ${criar.status} - ${errTextPrincipal}`)
   } catch (e: any) { console.error(`[buscarOuCriarCliente] erro:`, e); throw e }
 }
+
+// =====================================================================
+// BUSCA DE VENDAS E NOTAS FISCAIS (para detecção de duplicidade)
+// =====================================================================
+
+export interface VendaContaAzul {
+  id: string
+  numero?: number
+  data_venda?: string
+  situacao?: string
+  valor_total?: number
+  cliente?: {
+    id?: string
+    nome?: string
+    cpf_cnpj?: string
+  }
+}
+
+export interface NotaFiscalContaAzul {
+  id: string
+  numero_nota?: string
+  status?: string
+  data_emissao?: string
+}
+
+/**
+ * Busca vendas no Conta Azul dentro de um período.
+ * Varre todas as páginas automaticamente.
+ */
+export async function buscarVendasContaAzul(
+  accessToken: string,
+  dataInicial: string, // YYYY-MM-DD
+  dataFinal: string    // YYYY-MM-DD
+): Promise<VendaContaAzul[]> {
+  const todas: VendaContaAzul[] = []
+  let pagina = 1
+  let continuar = true
+
+  while (continuar) {
+    try {
+      const url = `${BASE_URL}/venda?data_emissao_inicial=${dataInicial}&data_emissao_final=${dataFinal}&pagina=${pagina}&tamanho_pagina=100`
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+
+      if (!res.ok) {
+        console.warn(`[buscarVendasCA] Erro ao buscar vendas página ${pagina}: ${res.status}`)
+        break
+      }
+
+      const data = await res.json()
+      const itens: VendaContaAzul[] = data.itens || data.items || data.content || (Array.isArray(data) ? data : [])
+
+      if (itens.length === 0) {
+        continuar = false
+      } else {
+        todas.push(...itens)
+        pagina++
+        // Se retornou menos que o tamanho da página, é a última
+        if (itens.length < 100) continuar = false
+      }
+    } catch (e) {
+      console.warn('[buscarVendasCA] Erro de rede ao buscar vendas:', e)
+      break
+    }
+  }
+
+  return todas
+}
+
+/**
+ * Busca notas fiscais associadas a uma venda específica pelo id da venda.
+ * Retorna true se existe pelo menos uma NFe com status EMITIDA.
+ */
+export async function verificarNfeEmitidaDaVenda(
+  accessToken: string,
+  vendaId: string
+): Promise<{ temNfe: boolean; numeroNota?: string }> {
+  try {
+    // Precisamos de data_inicial e data_final para a API de notas fiscais
+    // Usamos um período amplo para garantir que encontramos a nota
+    const url = `${BASE_URL}/notas-fiscais?id_venda=${vendaId}&data_inicial=2020-01-01&data_final=2030-12-31&tamanho_pagina=10`
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    })
+
+    if (!res.ok) return { temNfe: false }
+
+    const data = await res.json()
+    const itens: NotaFiscalContaAzul[] = data.itens || data.items || []
+
+    if (itens.length > 0) {
+      return { temNfe: true, numeroNota: itens[0].numero_nota || undefined }
+    }
+
+    return { temNfe: false }
+  } catch (e) {
+    console.warn(`[verificarNfeEmitidaDaVenda] Erro ao verificar NFe da venda ${vendaId}:`, e)
+    return { temNfe: false }
+  }
+}

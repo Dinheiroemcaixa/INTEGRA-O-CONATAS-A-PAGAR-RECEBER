@@ -134,6 +134,10 @@ export interface VendaPreview {
   itens: VendaItemPreview[]
   valido: boolean
   erros?: string[]
+  /** Status de duplicidade no Conta Azul */
+  ca_status?: 'nao_enviado' | 'enviado_sem_nota' | 'enviado_com_nota'
+  /** Número da NFe emitida no CA (se houver) */
+  ca_nfe_numero?: string
 }
 
 export interface ResultadoImportacaoVendas {
