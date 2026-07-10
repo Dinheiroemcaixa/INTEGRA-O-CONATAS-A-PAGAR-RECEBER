@@ -99,6 +99,10 @@ export default function PainelSincronizacao({ empresa }: Props) {
   }
 
   const handleBuscarVendas = async () => {
+    if (!numeroOS && (!dtIni || !dtFim)) {
+      toast.error('Preencha a data de início e fim, ou informe um Número de OS.')
+      return
+    }
     setBuscando(true)
     setVendasResultado(null)
     setVendasMeta(null)
@@ -357,57 +361,61 @@ export default function PainelSincronizacao({ empresa }: Props) {
         <div className="flex items-end gap-4 flex-wrap">
           {/* 1. Tipo Período / Pesquisar por */}
           <div>
-            <label className="text-xs text-dark-400 font-medium mb-1 block">
+            <label className={`text-xs font-medium mb-1 flex items-center gap-2 ${numeroOS && tab === 'vendas' ? 'text-dark-600' : 'text-dark-400'}`}>
               {tab === 'contas' ? 'Pesquisar por:' : 'Tipo período:'}
             </label>
-            {tab === 'contas' ? (
-              <select
-                value={tipoPeriodoContas}
-                onChange={(e) => setTipoPeriodoContas(e.target.value as any)}
-                className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-orange-500/50 outline-none"
-              >
-                <option value="venc">Vencimento</option>
-                <option value="emis">Emissão</option>
-                <option value="pgto">Pagamento</option>
-                <option value="digit">Digitação no Sistema</option>
-              </select>
-            ) : (
-              <select
-                value={tipoPeriodoVendas}
-                onChange={(e) => setTipoPeriodoVendas(e.target.value as any)}
-                className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
-              >
-                <option value="abertura">Abertura</option>
-                <option value="previsao">Previsão</option>
-                <option value="conclusao">Conclusão</option>
-                <option value="encerramento">Encerramento</option>
-                <option value="cancelamento">Cancelamento</option>
-              </select>
-            )}
+            <select
+              value={tab === 'contas' ? tipoPeriodoContas : tipoPeriodoVendas}
+              onChange={(e) => {
+                if (tab === 'contas') setTipoPeriodoContas(e.target.value as any)
+                else setTipoPeriodoVendas(e.target.value as any)
+              }}
+              disabled={tab === 'vendas' && !!numeroOS}
+              className={`bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none ${(tab === 'vendas' && !!numeroOS) ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {tab === 'contas' ? (
+                <>
+                  <option value="venc">Vencimento</option>
+                  <option value="emis">Emissão</option>
+                  <option value="pgto">Pagamento</option>
+                  <option value="digit">Digitação no Sistema</option>
+                </>
+              ) : (
+                <>
+                  <option value="abertura">Abertura</option>
+                  <option value="previsao">Previsão</option>
+                  <option value="conclusao">Conclusão</option>
+                  <option value="encerramento">Encerramento</option>
+                  <option value="cancelamento">Cancelamento</option>
+                </>
+              )}
+            </select>
           </div>
 
-          {/* 2. Período (Data Início e Fim) */}
-          <div className="flex items-end gap-3">
-            <div>
-              <label className="text-xs text-dark-400 font-medium mb-1 flex items-center gap-1">
-                <Calendar size={12} /> Data Início
-              </label>
+          {/* 2. Datas */}
+          <div>
+            <label className={`text-xs font-medium mb-1 block ${numeroOS && tab === 'vendas' ? 'text-dark-600' : 'text-dark-400'}`}>Data Início</label>
+            <div className="relative">
+              <Calendar size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${numeroOS && tab === 'vendas' ? 'text-dark-600' : 'text-dark-400'}`} />
               <input
                 type="date"
                 value={dtIni}
                 onChange={(e) => setDtIni(e.target.value)}
-                className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
+                disabled={tab === 'vendas' && !!numeroOS}
+                className={`bg-dark-900 border border-dark-600 rounded-lg pl-10 pr-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-40 ${(tab === 'vendas' && !!numeroOS) ? 'opacity-50 cursor-not-allowed' : ''}`}
               />
             </div>
-            <div>
-              <label className="text-xs text-dark-400 font-medium mb-1 flex items-center gap-1">
-                <Calendar size={12} /> Data Fim
-              </label>
+          </div>
+          <div>
+            <label className={`text-xs font-medium mb-1 block ${numeroOS && tab === 'vendas' ? 'text-dark-600' : 'text-dark-400'}`}>Data Fim</label>
+            <div className="relative">
+              <Calendar size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${numeroOS && tab === 'vendas' ? 'text-dark-600' : 'text-dark-400'}`} />
               <input
                 type="date"
                 value={dtFim}
                 onChange={(e) => setDtFim(e.target.value)}
-                className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
+                disabled={tab === 'vendas' && !!numeroOS}
+                className={`bg-dark-900 border border-dark-600 rounded-lg pl-10 pr-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-40 ${(tab === 'vendas' && !!numeroOS) ? 'opacity-50 cursor-not-allowed' : ''}`}
               />
             </div>
           </div>
@@ -416,11 +424,12 @@ export default function PainelSincronizacao({ empresa }: Props) {
           {tab === 'vendas' && (
             <>
               <div>
-                <label className="text-xs text-dark-400 font-medium mb-1 block">Situação:</label>
+                <label className={`text-xs font-medium mb-1 block ${numeroOS ? 'text-dark-600' : 'text-dark-400'}`}>Situação:</label>
                 <select
                   value={situacaoVendas}
                   onChange={(e) => setSituacaoVendas(e.target.value as any)}
-                  className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
+                  disabled={!!numeroOS}
+                  className={`bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none ${numeroOS ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <option value="todas">Todas</option>
                   <option value="em_andamento">Em andamento</option>

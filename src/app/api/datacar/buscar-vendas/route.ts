@@ -17,10 +17,14 @@ const supabaseAdmin = createClient(
  */
 export async function POST(req: NextRequest) {
   try {
-    const { empresa_id, dtIni, dtFim, tipoPeriodo = 'encerramento', situacao = 'todas', numeroOS } = await req.json()
+    let { empresa_id, dtIni, dtFim, tipoPeriodo = 'encerramento', situacao = 'todas', numeroOS } = await req.json()
 
-    if (!empresa_id || !dtIni || !dtFim) {
-      return NextResponse.json({ error: 'empresa_id, dtIni e dtFim são obrigatórios' }, { status: 400 })
+    if (!empresa_id) {
+      return NextResponse.json({ error: 'empresa_id é obrigatório' }, { status: 400 })
+    }
+
+    if (!numeroOS && (!dtIni || !dtFim)) {
+      return NextResponse.json({ error: 'dtIni e dtFim são obrigatórios se número da OS não for informado' }, { status: 400 })
     }
 
     // Buscar credenciais do Datacar
@@ -44,6 +48,19 @@ export async function POST(req: NextRequest) {
       idOperador: empresa.datacar_id_operador,
     }
 
+    // Se um número de OS específico foi informado, ignora os filtros do usuário
+    // e busca em um período amplo (desde 2022 até hoje)
+    if (numeroOS) {
+      tipoPeriodo = 'criacao'
+      dtIni = '01/01/2022'
+      
+      const hoje = new Date()
+      const dia = String(hoje.getDate()).padStart(2, '0')
+      const mes = String(hoje.getMonth() + 1).padStart(2, '0')
+      const ano = hoje.getFullYear()
+      dtFim = `${dia}/${mes}/${ano}`
+    }
+
     // Buscar todas as páginas (Datacar retorna max 50 por página)
     let allOS: Awaited<ReturnType<typeof buscarOSPedidos>> = []
     let pagina = 1
@@ -52,6 +69,16 @@ export async function POST(req: NextRequest) {
     while (continuar) {
       const resultado = await buscarOSPedidos(credentials, tipoPeriodo, dtIni, dtFim, String(pagina))
       if (resultado && resultado.length > 0) {
+        
+        // Se estamos buscando uma OS específica, paramos logo que encontrá-la
+        if (numeroOS) {
+          const found = resultado.find(os => String(os.venda_Numero) === String(numeroOS))
+          if (found) {
+            allOS = [found]
+            break
+          }
+        }
+
         allOS = [...allOS, ...resultado]
         pagina++
         // Se retornou menos de 50, é a última página
@@ -61,7 +88,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Se um número de OS específico foi informado, filtra os resultados logo de início
+    // Garante que só retorne a OS buscada, caso tenha percorrido tudo e achado no meio
     if (numeroOS) {
       allOS = allOS.filter(os => String(os.venda_Numero) === String(numeroOS))
     }
