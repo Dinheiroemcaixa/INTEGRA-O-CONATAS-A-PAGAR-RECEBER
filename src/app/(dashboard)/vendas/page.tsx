@@ -13,7 +13,7 @@ import {
   Upload, ArrowLeft, Loader2,
   CheckCircle, AlertCircle, Send, ShoppingCart,
   Database, RefreshCw, ChevronDown, ChevronUp,
-  Trash2
+  Trash2, FileSpreadsheet, BookOpen
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -61,6 +61,45 @@ export default function VendasPage() {
   const [enviandoDatacar, setEnviandoDatacar] = useState(false)
   const [filtroStatusDatacar, setFiltroStatusDatacar] = useState<'pendente' | 'enviado' | 'todos'>('pendente')
   const [editandoDatacarId, setEditandoDatacarId] = useState<string | null>(null)
+
+  // ─── Estado do Upload de Planilha Fiscal ───────────────────
+  const [showPlanilhaFiscal, setShowPlanilhaFiscal] = useState(false)
+  const [uploadingPlanilha, setUploadingPlanilha] = useState(false)
+  const [resultadoPlanilha, setResultadoPlanilha] = useState<{
+    salvos: number; erros: number; ignorados: number;
+    totalLinhas: number; familiasEncontradas: number;
+    exemplos: string[];
+  } | null>(null)
+
+  const handleUploadPlanilhaFiscal = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !empresaAtiva) return
+
+    setUploadingPlanilha(true)
+    setResultadoPlanilha(null)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('empresa_id', empresaAtiva.id)
+
+      const res = await fetch('/api/memoria-fiscal/importar-planilha', {
+        method: 'POST',
+        body: formData
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao importar')
+
+      setResultadoPlanilha(data)
+      toast.success(`${data.salvos} famílias de produtos aprendidas com sucesso!`)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro ao importar planilha'
+      toast.error(msg)
+    } finally {
+      setUploadingPlanilha(false)
+      // Reset o input para permitir reimportar
+      e.target.value = ''
+    }
+  }
 
   // ─── Estado da sub-aba Planilha ──────────────────────────────
   const [etapa, setEtapa] = useState<Etapa>('upload')
@@ -412,6 +451,78 @@ export default function VendasPage() {
                     {enviandoDatacar ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                     {enviandoDatacar ? 'Enviando...' : `Criar ${selecionadosDatacar.size} Venda(s) no Conta Azul`}
                   </button>
+                )}
+              </div>
+
+              {/* ── Seção: Planilha Fiscal (NCM/CEST) ── */}
+              <div className="bg-dark-800/50 border border-dark-700 rounded-xl overflow-hidden">
+                <button
+                  onClick={() => setShowPlanilhaFiscal(!showPlanilhaFiscal)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-dark-300 hover:text-white hover:bg-dark-800/80 transition-all"
+                >
+                  <div className="flex items-center gap-2">
+                    <BookOpen size={15} className="text-amber-400" />
+                    <span>Base Fiscal (NCM / CEST) — Importar Planilha do Fiscal</span>
+                  </div>
+                  {showPlanilhaFiscal
+                    ? <ChevronUp size={14} className="text-dark-500" />
+                    : <ChevronDown size={14} className="text-dark-500" />
+                  }
+                </button>
+
+                {showPlanilhaFiscal && (
+                  <div className="px-4 pb-4 pt-1 border-t border-dark-700/50 animate-fade-in space-y-3">
+                    <p className="text-xs text-dark-400">
+                      Importe a planilha do seu fiscal contendo as colunas <strong className="text-amber-400">DESCRIÇÃO</strong>, <strong className="text-emerald-400">NCM</strong> e <strong className="text-cyan-400">CEST</strong>.
+                      O sistema vai aprender os dados e aplicar automaticamente nas próximas importações do Datacar.
+                    </p>
+
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 px-4 py-2 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 rounded-lg text-amber-300 text-sm font-medium cursor-pointer transition-all">
+                        <FileSpreadsheet size={16} />
+                        {uploadingPlanilha ? 'Importando...' : 'Selecionar Planilha (.xlsx)'}
+                        <input
+                          type="file"
+                          accept=".xlsx,.xls"
+                          className="hidden"
+                          onChange={handleUploadPlanilhaFiscal}
+                          disabled={uploadingPlanilha}
+                        />
+                      </label>
+                      {uploadingPlanilha && <Loader2 size={16} className="animate-spin text-amber-400" />}
+                    </div>
+
+                    {resultadoPlanilha && (
+                      <div className="bg-dark-900/60 rounded-lg p-3 space-y-2 animate-fade-in">
+                        <div className="flex items-center gap-3 text-xs">
+                          <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-medium">
+                            ✓ {resultadoPlanilha.salvos} famílias aprendidas
+                          </span>
+                          {resultadoPlanilha.erros > 0 && (
+                            <span className="px-2 py-0.5 rounded bg-red-500/15 text-red-400 font-medium">
+                              ✗ {resultadoPlanilha.erros} erros
+                            </span>
+                          )}
+                          {resultadoPlanilha.ignorados > 0 && (
+                            <span className="px-2 py-0.5 rounded bg-dark-700 text-dark-400 font-medium">
+                              {resultadoPlanilha.ignorados} linhas ignoradas
+                            </span>
+                          )}
+                          <span className="text-dark-500">
+                            {resultadoPlanilha.totalLinhas} linhas na planilha
+                          </span>
+                        </div>
+                        {resultadoPlanilha.exemplos.length > 0 && (
+                          <div className="text-[10px] text-dark-400 space-y-0.5">
+                            <p className="text-dark-300 font-semibold">Exemplos aprendidos:</p>
+                            {resultadoPlanilha.exemplos.map((ex, i) => (
+                              <p key={i} className="font-mono">• {ex}</p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 

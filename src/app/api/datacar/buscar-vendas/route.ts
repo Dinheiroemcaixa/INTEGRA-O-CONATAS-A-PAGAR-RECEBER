@@ -142,26 +142,38 @@ export async function POST(req: NextRequest) {
 
     // --- NOVA LÓGICA DE INTELIGÊNCIA FISCAL ---
     // Buscar memória fiscal para todos os produtos encontrados nestas OS
+    // Usando consulta direta ao Supabase em vez de fetch interno (evita timeout)
     let memoriaFiscalExata: Record<string, any> = {}
     let memoriaFiscalFamilia: Record<string, any> = {}
     if (codigosProdutos.size > 0) {
       try {
-        const codigosQuery = Array.from(codigosProdutos).join(',')
-        const host = req.headers.get('host')
-        const protocol = req.headers.get('x-forwarded-proto') || 'http'
-        const baseUrl = `${protocol}://${host}`
-        const urlMemoria = new URL('/api/memoria-fiscal', baseUrl)
-        urlMemoria.searchParams.set('empresa_id', empresa_id)
-        urlMemoria.searchParams.set('codigos', codigosQuery)
-        
-        const resMemoria = await fetch(urlMemoria.toString())
-        if (resMemoria.ok) {
-          const dataMem = await resMemoria.json()
-          if (dataMem.memoria) memoriaFiscalExata = dataMem.memoria
-          if (dataMem.memoria_familia) memoriaFiscalFamilia = dataMem.memoria_familia
+        // Busca exata por código
+        const listaCodigos = Array.from(codigosProdutos)
+        const { data: dataExata } = await supabaseAdmin
+          .from('memoria_fiscal')
+          .select('*')
+          .eq('empresa_id', empresa_id)
+          .in('codigo', listaCodigos)
+
+        if (dataExata) {
+          for (const item of dataExata) {
+            memoriaFiscalExata[item.codigo] = item
+          }
+        }
+
+        // Busca por família (todas as famílias da empresa)
+        const { data: dataFamilia } = await supabaseAdmin
+          .from('memoria_fiscal_familia')
+          .select('*')
+          .eq('empresa_id', empresa_id)
+
+        if (dataFamilia) {
+          for (const item of dataFamilia) {
+            memoriaFiscalFamilia[item.palavra_chave] = item
+          }
         }
       } catch (e) {
-        console.warn('Erro ao buscar memória fiscal via API:', e)
+        console.warn('Erro ao buscar memória fiscal:', e)
       }
     }
 
