@@ -236,7 +236,8 @@ export async function POST(req: NextRequest) {
       const metadados = produtosMetadata.get(codigo)
       if (!ncm) ncm = metadados?.ncm || undefined
       if (!cest) cest = metadados?.cest || undefined
-      if (!origem) origem = metadados?.origem || undefined
+      if (!origem) origem = metadados?.origem || '0 - Nacional'
+      if (!tipo) tipo = '00 - Merc. para Revenda'
       if (!unidade) unidade = metadados?.unidade_medida || 'UN'
 
       inteligenciaFiscal.set(codigo, { ncm, cest, tipo, origem, unidade })
