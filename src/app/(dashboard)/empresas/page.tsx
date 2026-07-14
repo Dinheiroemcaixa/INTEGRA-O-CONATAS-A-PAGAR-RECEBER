@@ -410,7 +410,11 @@ function EmpresasPageContent() {
       </div>
 
       {showForm && (
-        <div className="bg-dark-800 border border-brand-500/30 shadow-[0_0_15px_rgba(var(--brand-500),0.1)] rounded-xl p-6 animate-fade-in relative">
+        <div className="bg-dark-800/60 backdrop-blur-md border border-brand-500/20 shadow-[0_8px_32px_rgba(var(--brand-500),0.15)] rounded-2xl p-6 sm:p-8 animate-fade-in relative overflow-hidden">
+          {/* Decorative background elements */}
+          <div className="absolute -top-24 -right-24 w-48 h-48 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
           {editingId && (
             <button
               onClick={() => {
@@ -419,166 +423,207 @@ function EmpresasPageContent() {
                 setDadosCnpj(null)
                 setShowForm(false)
               }}
-              className="absolute top-4 right-4 text-dark-400 hover:text-white transition-colors"
+              className="absolute top-4 right-4 sm:top-6 sm:right-6 text-dark-400 hover:text-white transition-colors bg-dark-900/50 p-2 rounded-full hover:bg-dark-900 z-10"
             >
               ✕
             </button>
           )}
-          <h3 className="text-white font-semibold mb-4">
-            {editingId ? 'Editar Empresa' : 'Cadastrar nova empresa'}
-          </h3>
-          <form onSubmit={handleSalvar} className="flex flex-col gap-3">
-            {/* 1ª LINHA: Nome Popular */}
-            <div>
-              <label className="text-xs text-dark-400 font-medium mb-1.5 block">Nome Popular (como você chama a empresa)</label>
-              <input
-                value={form.nome}
-                onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                placeholder="Ex: Auto Peças Silva, Oficina João, etc."
-                required
-                className="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 outline-none"
-              />
-            </div>
 
-            {/* 2ª LINHA: CNPJ + Buscar + Tipo */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex flex-1 gap-2">
-                <input
-                  value={form.cnpj}
-                  onChange={(e) => {
-                    const raw = e.target.value.replace(/\D/g, '').slice(0, 14)
-                    const masked = raw
-                      .replace(/^(\d{2})(\d)/, '$1.$2')
-                      .replace(/^(\d{2}\.\d{3})(\d)/, '$1.$2')
-                      .replace(/^(\d{2}\.\d{3}\.\d{3})(\d)/, '$1/$2')
-                      .replace(/^(\d{2}\.\d{3}\.\d{3}\/\d{4})(\d)/, '$1-$2')
-                    setForm({ ...form, cnpj: masked })
-                  }}
-                  placeholder="00.000.000/0000-00"
-                  required
-                  className="flex-1 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 outline-none font-mono"
-                />
-                <button
-                  type="button"
-                  onClick={handleBuscarCnpj}
-                  disabled={buscandoCnpj || form.cnpj.replace(/\D/g, '').length < 14}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-sm transition-all whitespace-nowrap ${
-                    buscandoCnpj || form.cnpj.replace(/\D/g, '').length < 14
-                      ? 'bg-dark-700 text-dark-500 cursor-not-allowed'
-                      : 'bg-amber-600 hover:bg-amber-500 text-white shadow-lg shadow-amber-900/20'
-                  }`}
-                >
-                  {buscandoCnpj ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-                  {buscandoCnpj ? 'Buscando...' : 'Buscar'}
-                </button>
-              </div>
-              <select
-                value={form.tipo_empresa}
-                onChange={(e) => setForm({ ...form, tipo_empresa: e.target.value as any })}
-                className="w-full sm:w-52 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 outline-none"
-              >
-                <option value="ambos">Ambos (Vendas e Financeiro)</option>
-                <option value="financeiro">Apenas Financeiro</option>
-                <option value="vendas">Apenas Vendas</option>
-              </select>
-            </div>
+          <div className="mb-8 relative z-10">
+            <h3 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-white to-dark-300 bg-clip-text text-transparent">
+              {editingId ? 'Editar Empresa' : 'Nova Empresa'}
+            </h3>
+            <p className="text-dark-400 text-xs sm:text-sm mt-1">Preencha os dados abaixo para configurar uma nova integração.</p>
+          </div>
 
-            {/* PAINEL DE RESULTADO DA BUSCA CNPJ */}
-            {(dadosCnpj || form.razao_social) && (
-              <div className="bg-dark-900/80 border border-emerald-500/20 rounded-xl p-4 animate-fade-in">
-                <div className="flex items-center gap-2 mb-3">
-                  <Building2 size={16} className="text-emerald-400" />
-                  <span className="text-sm font-semibold text-emerald-400">Dados da Empresa</span>
-                  {dadosCnpj && (
-                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ml-auto ${
-                      dadosCnpj.descricao_situacao_cadastral === 'ATIVA'
-                        ? 'bg-emerald-500/20 text-emerald-400'
-                        : 'bg-red-500/20 text-red-400'
-                    }`}>
-                      {dadosCnpj.descricao_situacao_cadastral}
-                    </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[11px] text-dark-500 uppercase tracking-wide">Razão Social</label>
-                    <p className="text-white text-sm font-medium mt-0.5">{form.razao_social || '—'}</p>
+          <form onSubmit={handleSalvar} className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
+            
+            {/* COLUNA ESQUERDA: Identidade (7 colunas em lg) */}
+            <div className="lg:col-span-7 space-y-6">
+              {/* O PROTAGONISTA: CNPJ */}
+              <div className="bg-dark-900/40 p-1.5 rounded-xl border border-dark-700/50 shadow-inner focus-within:border-brand-500/50 focus-within:bg-dark-900/60 transition-all group">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center">
+                  <div className="hidden sm:block pl-4 pr-2 text-brand-500">
+                    <Search size={20} className={buscandoCnpj ? 'animate-pulse' : ''} />
                   </div>
-                  <div>
-                    <label className="text-[11px] text-dark-500 uppercase tracking-wide">Nome Fantasia</label>
-                    <p className="text-white text-sm font-medium mt-0.5">{form.nome_fantasia || '—'}</p>
-                  </div>
-                  {dadosCnpj && (
-                    <>
-                      <div>
-                        <label className="text-[11px] text-dark-500 uppercase tracking-wide">CNAE Principal</label>
-                        <p className="text-dark-300 text-xs mt-0.5">{dadosCnpj.cnae_fiscal} — {dadosCnpj.cnae_fiscal_descricao}</p>
-                      </div>
-                      <div>
-                        <label className="text-[11px] text-dark-500 uppercase tracking-wide">Porte / Capital Social</label>
-                        <p className="text-dark-300 text-xs mt-0.5">
-                          {dadosCnpj.descricao_porte} — R$ {dadosCnpj.capital_social?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </p>
-                      </div>
-                      <div className="sm:col-span-2">
-                        <label className="text-[11px] text-dark-500 uppercase tracking-wide">Endereço</label>
-                        <p className="text-dark-300 text-xs mt-0.5">
-                          {[dadosCnpj.descricao_tipo_de_logradouro, dadosCnpj.logradouro, dadosCnpj.numero].filter(Boolean).join(' ')}
-                          {dadosCnpj.complemento ? `, ${dadosCnpj.complemento}` : ''}
-                          {' — '}{dadosCnpj.bairro} — {dadosCnpj.municipio}/{dadosCnpj.uf} — CEP {dadosCnpj.cep}
-                        </p>
-                      </div>
-                    </>
-                  )}
+                  <input
+                    value={form.cnpj}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, '').slice(0, 14)
+                      const masked = raw
+                        .replace(/^(\d{2})(\d)/, '$1.$2')
+                        .replace(/^(\d{2}\.\d{3})(\d)/, '$1.$2')
+                        .replace(/^(\d{2}\.\d{3}\.\d{3})(\d)/, '$1/$2')
+                        .replace(/^(\d{2}\.\d{3}\.\d{3}\/\d{4})(\d)/, '$1-$2')
+                      setForm({ ...form, cnpj: masked })
+                    }}
+                    placeholder="CNPJ (00.000.000/0000-00)"
+                    required
+                    className="flex-1 bg-transparent border-none px-4 py-3 sm:px-2 sm:text-lg text-white focus:ring-0 outline-none font-mono placeholder:text-dark-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleBuscarCnpj}
+                    disabled={buscandoCnpj || form.cnpj.replace(/\D/g, '').length < 14}
+                    className={`mt-2 sm:mt-0 sm:mr-1.5 px-6 py-3 sm:py-2.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap flex items-center justify-center gap-2 ${
+                      buscandoCnpj || form.cnpj.replace(/\D/g, '').length < 14
+                        ? 'bg-dark-800 text-dark-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                    }`}
+                  >
+                    {buscandoCnpj ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} className="sm:hidden" />}
+                    {buscandoCnpj ? 'Buscando...' : 'Buscar Dados'}
+                  </button>
                 </div>
               </div>
-            )}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1 relative">
-                <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-500" />
+
+              {/* PAINEL DE RESULTADO GLASSMORPHISM */}
+              {(dadosCnpj || form.razao_social) && (
+                <div className="bg-gradient-to-br from-emerald-500/10 to-transparent border border-emerald-500/20 backdrop-blur-xl rounded-xl p-5 animate-fade-in shadow-[0_8px_32px_rgba(16,185,129,0.05)]">
+                  <div className="flex items-center gap-3 mb-4 border-b border-emerald-500/10 pb-3">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                      <Building2 size={16} className="text-emerald-400" />
+                    </div>
+                    <div>
+                      <span className="text-sm font-bold text-emerald-400 block">Identidade Oficial</span>
+                      <span className="text-[10px] text-emerald-500/70 uppercase tracking-wider">Brasil API</span>
+                    </div>
+                    {dadosCnpj && (
+                      <span className={`text-[10px] uppercase font-bold px-3 py-1 rounded-full ml-auto border hidden sm:block ${
+                        dadosCnpj.descricao_situacao_cadastral === 'ATIVA'
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                          : 'bg-red-500/10 text-red-400 border-red-500/20'
+                      }`}>
+                        {dadosCnpj.descricao_situacao_cadastral}
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
+                    <div>
+                      <label className="text-[10px] text-emerald-400/60 uppercase tracking-widest font-semibold block mb-1">Razão Social</label>
+                      <p className="text-white text-sm font-medium">{form.razao_social || '—'}</p>
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-emerald-400/60 uppercase tracking-widest font-semibold block mb-1">Nome Fantasia</label>
+                      <p className="text-white text-sm font-medium">{form.nome_fantasia || '—'}</p>
+                    </div>
+                    {dadosCnpj && (
+                      <>
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] text-emerald-400/60 uppercase tracking-widest font-semibold block mb-1">CNAE Principal</label>
+                          <p className="text-dark-200 text-xs">{dadosCnpj.cnae_fiscal} — {dadosCnpj.cnae_fiscal_descricao}</p>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] text-emerald-400/60 uppercase tracking-widest font-semibold block mb-1">Endereço</label>
+                          <p className="text-dark-200 text-xs">
+                            {[dadosCnpj.descricao_tipo_de_logradouro, dadosCnpj.logradouro, dadosCnpj.numero].filter(Boolean).join(' ')}
+                            {dadosCnpj.complemento ? `, ${dadosCnpj.complemento}` : ''}
+                            {' — '}{dadosCnpj.bairro} — {dadosCnpj.municipio}/{dadosCnpj.uf} — CEP {dadosCnpj.cep}
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* NOME POPULAR & TIPO */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-dark-300 font-medium ml-1">Nome Popular (Como você chama)</label>
+                  <input
+                    value={form.nome}
+                    onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                    placeholder="Ex: Auto Peças Silva"
+                    required
+                    className="w-full bg-dark-900/50 border border-dark-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 outline-none transition-all placeholder:text-dark-600 shadow-inner"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-dark-300 font-medium ml-1">Tipo de Integração</label>
+                  <select
+                    value={form.tipo_empresa}
+                    onChange={(e) => setForm({ ...form, tipo_empresa: e.target.value as any })}
+                    className="w-full bg-dark-900/50 border border-dark-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 outline-none transition-all appearance-none shadow-inner"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 1rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem' }}
+                  >
+                    <option value="ambos">Ambos (Vendas e Financeiro)</option>
+                    <option value="financeiro">Apenas Financeiro</option>
+                    <option value="vendas">Apenas Vendas</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* COLUNA DIREITA: Integrações (5 colunas em lg) */}
+            <div className="lg:col-span-5 space-y-6 bg-dark-900/30 p-5 sm:p-6 rounded-2xl border border-dark-700/30 flex flex-col">
+              <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                <ShieldCheck size={16} className="text-brand-400" />
+                Configurações de Acesso
+              </h4>
+
+              {/* CONTA AZUL */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-blue-500/10 flex items-center justify-center">
+                    <Mail size={12} className="text-blue-400" />
+                  </div>
+                  <label className="text-xs font-semibold text-dark-200">Conta Azul</label>
+                </div>
                 <input
                   value={form.email_login}
                   onChange={(e) => setForm({ ...form, email_login: e.target.value })}
-                  placeholder="E-mail de login desta empresa no Conta Azul (opcional)"
+                  placeholder="E-mail de login (opcional)"
                   type="email"
-                  className="w-full bg-dark-900 border border-dark-600 rounded-lg pl-9 pr-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 outline-none placeholder:text-dark-600"
+                  className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all placeholder:text-dark-600 shadow-inner"
                 />
               </div>
-            </div>
-            
-            <div className="pt-2 border-t border-dark-700/50 mt-1">
-              <p className="text-xs text-dark-400 font-medium mb-3">Integração Datacar (Opcional)</p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <input
-                  value={form.datacar_token}
-                  onChange={(e) => setForm({ ...form, datacar_token: e.target.value })}
-                  placeholder="Token"
-                  className="flex-1 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2 text-sm text-white focus:ring-2 focus:ring-brand-500 outline-none"
-                />
-                <input
-                  value={form.datacar_cod_emp}
-                  onChange={(e) => setForm({ ...form, datacar_cod_emp: e.target.value })}
-                  placeholder="Código da Empresa"
-                  className="w-full sm:w-40 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2 text-sm text-white focus:ring-2 focus:ring-brand-500 outline-none"
-                />
-                <input
-                  value={form.datacar_id_operador}
-                  onChange={(e) => setForm({ ...form, datacar_id_operador: e.target.value })}
-                  placeholder="ID Operador"
-                  className="w-full sm:w-32 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2 text-sm text-white focus:ring-2 focus:ring-brand-500 outline-none"
-                />
-              </div>
-            </div>
+              
+              <div className="h-px w-full bg-gradient-to-r from-transparent via-dark-700/50 to-transparent my-1" />
 
-            <div className="flex justify-end pt-2">
-              <button
-                type="submit"
-                disabled={salvando}
-                className="bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white px-6 py-2.5 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all"
-              >
-                {salvando ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
-                Salvar
-              </button>
+              {/* DATACAR */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-orange-500/10 flex items-center justify-center">
+                    <Unlink size={12} className="text-orange-400" />
+                  </div>
+                  <label className="text-xs font-semibold text-dark-200">API Datacar (Opcional)</label>
+                </div>
+                <div className="space-y-3">
+                  <input
+                    value={form.datacar_token}
+                    onChange={(e) => setForm({ ...form, datacar_token: e.target.value })}
+                    placeholder="Token de Acesso"
+                    className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all placeholder:text-dark-600 shadow-inner"
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      value={form.datacar_cod_emp}
+                      onChange={(e) => setForm({ ...form, datacar_cod_emp: e.target.value })}
+                      placeholder="Cód. Empresa"
+                      className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all placeholder:text-dark-600 shadow-inner"
+                    />
+                    <input
+                      value={form.datacar_id_operador}
+                      onChange={(e) => setForm({ ...form, datacar_id_operador: e.target.value })}
+                      placeholder="ID Operador"
+                      className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all placeholder:text-dark-600 shadow-inner"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* BOTÃO SALVAR (empurrado para o fundo com mt-auto se necessário, mas aqui deixamos margin normal) */}
+              <div className="pt-6 mt-auto border-t border-dark-700/30">
+                <button
+                  type="submit"
+                  disabled={salvando}
+                  className="w-full bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 disabled:opacity-50 text-white px-6 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(var(--brand-500),0.2)] hover:shadow-[0_0_25px_rgba(var(--brand-500),0.4)]"
+                >
+                  {salvando ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+                  {salvando ? 'Salvando configuração...' : 'Salvar Empresa'}
+                </button>
+              </div>
             </div>
           </form>
         </div>
