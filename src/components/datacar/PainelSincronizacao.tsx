@@ -160,20 +160,32 @@ export default function PainelSincronizacao({ empresa }: Props) {
 
       const toastId = toast.loading(`Salvando ${contasParaEnviar.length} contas no Card de Contas a Pagar...`)
       
-      const itens = contasParaEnviar.map((d) => ({
-        empresa_id: empresa.id,
-        fornecedor: d.fornecedor,
-        valor: d.valor,
-        vencimento: d.vencimento,
-        categoria: d.categoria || 'Materiais para Revenda',
-        conta_financeira: null,
-        conta_financeira_id: null,
-        descricao: d.descricao || null,
-        doc: d.doc || null,
-        emissao: d.emissao || null,
-        status: 'pendente',
-        metadata: d._datacar || {}
-      }))
+      const itens = contasParaEnviar.map((d) => {
+        const converterData = (dt: string | null | undefined) => {
+          if (!dt) return null
+          const dataStr = dt.split('T')[0].split(' ')[0]
+          if (dataStr.includes('/')) {
+            const [dia, mes, ano] = dataStr.split('/')
+            if (dia && mes && ano) return `${ano}-${mes}-${dia}`
+          }
+          return dataStr
+        }
+
+        return {
+          empresa_id: empresa.id,
+          fornecedor: d.fornecedor,
+          valor: d.valor,
+          vencimento: converterData(d.vencimento) || d.vencimento,
+          categoria: d.categoria || 'Materiais para Revenda',
+          conta_financeira: null,
+          conta_financeira_id: null,
+          descricao: d.descricao || null,
+          doc: d.doc || null,
+          emissao: converterData(d.emissao),
+          status: 'pendente',
+          metadata: d._datacar || {}
+        }
+      })
 
       const fornecedores = itens.map(i => i.fornecedor)
       

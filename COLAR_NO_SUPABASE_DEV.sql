@@ -282,3 +282,10 @@ ALTER TABLE contas_pagar_importadas ADD COLUMN IF NOT EXISTS fornecedor_id TEXT;
 -- Migration 018: Categoria nas contas a pagar
 -- ============================================================
 ALTER TABLE contas_pagar_importadas ADD COLUMN IF NOT EXISTS categoria TEXT;
+
+-- ============================================================
+-- Fix: Adiciona colunas que podem estar faltando (categoria e metadata)
+-- ============================================================
+ALTER TABLE contas_pagar_importadas ADD COLUMN IF NOT EXISTS categoria TEXT;
+ALTER TABLE contas_pagar_importadas ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE vendas_importadas ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
