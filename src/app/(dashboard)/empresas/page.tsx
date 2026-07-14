@@ -6,11 +6,12 @@ import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   Building2, Plus, Check, Loader2, ExternalLink, Edit,
-  RefreshCw, Unlink, Upload, Users, ChevronDown, ChevronUp, Trash2, ShieldCheck, Mail
+  RefreshCw, Unlink, Upload, Users, ChevronDown, ChevronUp, Trash2, ShieldCheck, Mail, Search
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatCNPJ } from '@/lib/utils'
 import { parseFornecedoresArquivo } from '@/lib/parsers/fornecedores-contaazul'
+import { buscarCnpj, type BrasilApiCnpjResponse } from '@/services/brasil-api/client'
 import type { Empresa } from '@/types'
 
 // --- Painel de fornecedores por empresa ---
@@ -190,6 +191,8 @@ function EmpresasPageContent() {
   const [salvando, setSalvando] = useState(false)
   const [conectando, setConectando] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [buscandoCnpj, setBuscandoCnpj] = useState(false)
+  const [dadosCnpj, setDadosCnpj] = useState<BrasilApiCnpjResponse | null>(null)
   const [form, setForm] = useState<{
     nome: string, 
     cnpj: string, 
@@ -197,7 +200,9 @@ function EmpresasPageContent() {
     tipo_empresa: 'vendas' | 'financeiro' | 'ambos',
     datacar_token: string,
     datacar_cod_emp: string,
-    datacar_id_operador: string
+    datacar_id_operador: string,
+    razao_social: string,
+    nome_fantasia: string
   }>({ 
     nome: '', 
     cnpj: '', 
@@ -205,7 +210,9 @@ function EmpresasPageContent() {
     tipo_empresa: 'ambos',
     datacar_token: '',
     datacar_cod_emp: '',
-    datacar_id_operador: ''
+    datacar_id_operador: '',
+    razao_social: '',
+    nome_fantasia: ''
   })
   const supabase = createClient()
   const searchParams = useSearchParams()
@@ -267,6 +274,8 @@ function EmpresasPageContent() {
       if (!user) throw new Error('Usuário não autenticado')
 
       const cnpjLimpo = form.cnpj.replace(/\D/g, '')
+      const razaoSocialFinal = form.razao_social.trim() || null
+      const nomeFantasiaFinal = form.nome_fantasia.trim() || null
 
       if (editingId) {
         // Atualiza a empresa existente
@@ -280,6 +289,8 @@ function EmpresasPageContent() {
             datacar_token: form.datacar_token.trim() || null,
             datacar_cod_emp: form.datacar_cod_emp.trim() || null,
             datacar_id_operador: form.datacar_id_operador.trim() || null,
+            razao_social: razaoSocialFinal,
+            nome_fantasia: nomeFantasiaFinal,
           })
           .eq('id', editingId)
 
@@ -301,6 +312,8 @@ function EmpresasPageContent() {
             datacar_token: form.datacar_token.trim() || null,
             datacar_cod_emp: form.datacar_cod_emp.trim() || null,
             datacar_id_operador: form.datacar_id_operador.trim() || null,
+            razao_social: razaoSocialFinal,
+            nome_fantasia: nomeFantasiaFinal,
           })
 
         if (errEmp) throw errEmp
@@ -317,7 +330,8 @@ function EmpresasPageContent() {
         toast.success('Empresa criada com sucesso!')
       }
 
-      setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '' })
+      setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '', razao_social: '', nome_fantasia: '' })
+      setDadosCnpj(null)
       setEditingId(null)
       setShowForm(false)
       await recarregar()
@@ -326,6 +340,34 @@ function EmpresasPageContent() {
       toast.error(msg)
     } finally {
       setSalvando(false)
+    }
+  }
+
+  const handleBuscarCnpj = async () => {
+    const cnpjLimpo = form.cnpj.replace(/\D/g, '')
+    if (cnpjLimpo.length !== 14) {
+      toast.error('CNPJ inválido. Digite os 14 dígitos.')
+      return
+    }
+    setBuscandoCnpj(true)
+    try {
+      const dados = await buscarCnpj(cnpjLimpo)
+      if (!dados) {
+        toast.error('CNPJ não encontrado na base da Receita Federal.')
+        setDadosCnpj(null)
+        return
+      }
+      setDadosCnpj(dados)
+      setForm(prev => ({
+        ...prev,
+        razao_social: dados.razao_social || '',
+        nome_fantasia: dados.nome_fantasia || '',
+      }))
+      toast.success('Dados da empresa encontrados!')
+    } catch {
+      toast.error('Erro ao consultar Brasil API. Tente novamente.')
+    } finally {
+      setBuscandoCnpj(false)
     }
   }
 
@@ -339,7 +381,10 @@ function EmpresasPageContent() {
       datacar_token: empresa.datacar_token || '',
       datacar_cod_emp: empresa.datacar_cod_emp || '',
       datacar_id_operador: empresa.datacar_id_operador || '',
+      razao_social: empresa.razao_social || '',
+      nome_fantasia: empresa.nome_fantasia || '',
     })
+    setDadosCnpj(null)
     setShowForm(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -354,7 +399,8 @@ function EmpresasPageContent() {
         <button
           onClick={() => {
             setEditingId(null)
-            setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '' })
+            setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '', razao_social: '', nome_fantasia: '' })
+            setDadosCnpj(null)
             setShowForm(!showForm)
           }}
           className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
@@ -369,7 +415,8 @@ function EmpresasPageContent() {
             <button
               onClick={() => {
                 setEditingId(null)
-                setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '' })
+                setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '', razao_social: '', nome_fantasia: '' })
+                setDadosCnpj(null)
                 setShowForm(false)
               }}
               className="absolute top-4 right-4 text-dark-400 hover:text-white transition-colors"
@@ -381,31 +428,111 @@ function EmpresasPageContent() {
             {editingId ? 'Editar Empresa' : 'Cadastrar nova empresa'}
           </h3>
           <form onSubmit={handleSalvar} className="flex flex-col gap-3">
-            <div className="flex flex-col sm:flex-row gap-3">
+            {/* 1ª LINHA: Nome Popular */}
+            <div>
+              <label className="text-xs text-dark-400 font-medium mb-1.5 block">Nome Popular (como você chama a empresa)</label>
               <input
                 value={form.nome}
                 onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                placeholder="Nome da Empresa"
+                placeholder="Ex: Auto Peças Silva, Oficina João, etc."
                 required
-                className="flex-1 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 outline-none"
+                className="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 outline-none"
               />
-              <input
-                value={form.cnpj}
-                onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
-                placeholder="CNPJ"
-                required
-                className="w-full sm:w-48 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 outline-none"
-              />
+            </div>
+
+            {/* 2ª LINHA: CNPJ + Buscar + Tipo */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-1 gap-2">
+                <input
+                  value={form.cnpj}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, '').slice(0, 14)
+                    const masked = raw
+                      .replace(/^(\d{2})(\d)/, '$1.$2')
+                      .replace(/^(\d{2}\.\d{3})(\d)/, '$1.$2')
+                      .replace(/^(\d{2}\.\d{3}\.\d{3})(\d)/, '$1/$2')
+                      .replace(/^(\d{2}\.\d{3}\.\d{3}\/\d{4})(\d)/, '$1-$2')
+                    setForm({ ...form, cnpj: masked })
+                  }}
+                  placeholder="00.000.000/0000-00"
+                  required
+                  className="flex-1 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 outline-none font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={handleBuscarCnpj}
+                  disabled={buscandoCnpj || form.cnpj.replace(/\D/g, '').length < 14}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-sm transition-all whitespace-nowrap ${
+                    buscandoCnpj || form.cnpj.replace(/\D/g, '').length < 14
+                      ? 'bg-dark-700 text-dark-500 cursor-not-allowed'
+                      : 'bg-amber-600 hover:bg-amber-500 text-white shadow-lg shadow-amber-900/20'
+                  }`}
+                >
+                  {buscandoCnpj ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                  {buscandoCnpj ? 'Buscando...' : 'Buscar'}
+                </button>
+              </div>
               <select
                 value={form.tipo_empresa}
                 onChange={(e) => setForm({ ...form, tipo_empresa: e.target.value as any })}
-                className="w-full sm:w-48 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 outline-none"
+                className="w-full sm:w-52 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 outline-none"
               >
                 <option value="ambos">Ambos (Vendas e Financeiro)</option>
                 <option value="financeiro">Apenas Financeiro</option>
                 <option value="vendas">Apenas Vendas</option>
               </select>
             </div>
+
+            {/* PAINEL DE RESULTADO DA BUSCA CNPJ */}
+            {(dadosCnpj || form.razao_social) && (
+              <div className="bg-dark-900/80 border border-emerald-500/20 rounded-xl p-4 animate-fade-in">
+                <div className="flex items-center gap-2 mb-3">
+                  <Building2 size={16} className="text-emerald-400" />
+                  <span className="text-sm font-semibold text-emerald-400">Dados da Empresa</span>
+                  {dadosCnpj && (
+                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ml-auto ${
+                      dadosCnpj.descricao_situacao_cadastral === 'ATIVA'
+                        ? 'bg-emerald-500/20 text-emerald-400'
+                        : 'bg-red-500/20 text-red-400'
+                    }`}>
+                      {dadosCnpj.descricao_situacao_cadastral}
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] text-dark-500 uppercase tracking-wide">Razão Social</label>
+                    <p className="text-white text-sm font-medium mt-0.5">{form.razao_social || '—'}</p>
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-dark-500 uppercase tracking-wide">Nome Fantasia</label>
+                    <p className="text-white text-sm font-medium mt-0.5">{form.nome_fantasia || '—'}</p>
+                  </div>
+                  {dadosCnpj && (
+                    <>
+                      <div>
+                        <label className="text-[11px] text-dark-500 uppercase tracking-wide">CNAE Principal</label>
+                        <p className="text-dark-300 text-xs mt-0.5">{dadosCnpj.cnae_fiscal} — {dadosCnpj.cnae_fiscal_descricao}</p>
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-dark-500 uppercase tracking-wide">Porte / Capital Social</label>
+                        <p className="text-dark-300 text-xs mt-0.5">
+                          {dadosCnpj.descricao_porte} — R$ {dadosCnpj.capital_social?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="text-[11px] text-dark-500 uppercase tracking-wide">Endereço</label>
+                        <p className="text-dark-300 text-xs mt-0.5">
+                          {[dadosCnpj.descricao_tipo_de_logradouro, dadosCnpj.logradouro, dadosCnpj.numero].filter(Boolean).join(' ')}
+                          {dadosCnpj.complemento ? `, ${dadosCnpj.complemento}` : ''}
+                          {' — '}{dadosCnpj.bairro} — {dadosCnpj.municipio}/{dadosCnpj.uf} — CEP {dadosCnpj.cep}
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1 relative">
                 <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-500" />
@@ -481,6 +608,9 @@ function EmpresasPageContent() {
                       {empresa.tipo_empresa === 'ambos' ? 'VENDAS & FINANÇAS' : empresa.tipo_empresa}
                     </span>
                   </h3>
+                  {empresa.razao_social && (
+                    <p className="text-dark-300 text-xs mt-0.5">{empresa.razao_social}</p>
+                  )}
                   <p className="text-dark-400 text-sm">{formatCNPJ(empresa.cnpj)}</p>
                 </div>
               </div>

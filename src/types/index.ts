@@ -19,6 +19,10 @@ export interface Empresa {
   datacar_cod_emp?: string | null
   /** ID do operador no Datacar */
   datacar_id_operador?: string | null
+  /** Razão Social obtida via Brasil API */
+  razao_social?: string | null
+  /** Nome Fantasia obtido via Brasil API */
+  nome_fantasia?: string | null
 }
 
 export interface UsuarioEmpresa {

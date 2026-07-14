@@ -289,3 +289,12 @@ ALTER TABLE contas_pagar_importadas ADD COLUMN IF NOT EXISTS categoria TEXT;
 ALTER TABLE contas_pagar_importadas ADD COLUMN IF NOT EXISTS categoria TEXT;
 ALTER TABLE contas_pagar_importadas ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE vendas_importadas ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
+
+-- ============================================================
+-- Migration 019: Razão Social e Nome Fantasia (Brasil API)
+-- ============================================================
+ALTER TABLE public.empresas ADD COLUMN IF NOT EXISTS razao_social TEXT;
+ALTER TABLE public.empresas ADD COLUMN IF NOT EXISTS nome_fantasia TEXT;
+
+COMMENT ON COLUMN public.empresas.razao_social IS 'Razão Social oficial obtida via Brasil API';
+COMMENT ON COLUMN public.empresas.nome_fantasia IS 'Nome Fantasia obtido via Brasil API';
