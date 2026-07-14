@@ -13,7 +13,7 @@ import type { Empresa } from '@/types'
 import {
   Upload, Save, ArrowLeft, Loader2,
   CheckCircle, AlertCircle, FileDown, Trash2, Send,
-  Building2, X, ShieldCheck, ChevronDown, Mail,
+  Building2, X, ShieldCheck, ChevronDown, Mail, Database
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -22,7 +22,8 @@ import { matchFornecedoresEmLote, type RegraDepara } from '@/lib/utils/match-for
 import { sugerirCategoria } from '@/lib/utils/auto-categoria'
 import { normalizarNome, type FornecedorContaAzul } from '@/lib/parsers/fornecedores-contaazul'
 
-type Etapa = 'upload' | 'preview' | 'contas'
+type Etapa = 'upload' | 'preview'
+type SubAba = 'datacar' | 'planilha'
 
 // Modal de confirmação de envio ao Conta Azul
 function ModalEnvioContaAzul({
@@ -209,6 +210,7 @@ function ModalEnvioContaAzul({
 export default function ContasPagarPage() {
   const { empresaAtiva, empresas } = useEmpresa()
   const [etapa, setEtapa] = useState<Etapa>('upload')
+  const [subAba, setSubAba] = useState<SubAba>('datacar')
   const [resultado, setResultado] = useState<ResultadoImportacao | null>(null)
   const [dadosEditados, setDadosEditados] = useState<ContaPagarPreview[]>([])
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set())
@@ -393,7 +395,8 @@ export default function ContasPagarPage() {
       if (error) throw error
 
       toast.success(`${itens.length} contas salvas com sucesso!`)
-      setEtapa('contas')
+      setEtapa('upload')
+      setSubAba('datacar')
       setResultado(null)
       setDadosEditados([])
       setSelecionados(new Set())
@@ -744,7 +747,7 @@ export default function ContasPagarPage() {
         </div>
         <div className="flex items-center gap-4">
           <SelectorEmpresa />
-          {etapa !== 'upload' && (
+          {subAba === 'planilha' && etapa !== 'upload' && (
             <button
               onClick={() => { setEtapa('upload'); setResultado(null); setDadosEditados([]) }}
               className="flex items-center gap-2 text-dark-400 hover:text-white text-sm px-3 py-2 rounded-lg hover:bg-dark-800 transition-all"
@@ -752,62 +755,156 @@ export default function ContasPagarPage() {
               <ArrowLeft size={16} /> Voltar
             </button>
           )}
-          {etapa === 'contas' && (
-            <button
-              onClick={() => setEtapa('upload')}
-              className="flex items-center gap-2 bg-dark-800 hover:bg-dark-700 border border-dark-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all"
-            >
-              <Upload size={16} /> Novo Upload
-            </button>
-          )}
         </div>
       </div>
 
-      {/* Stepper */}
-      <div className="flex items-center gap-2">
-        {(['upload', 'preview', 'contas'] as Etapa[]).map((e, i) => {
-          const labels = ['1. Upload', '2. Revisão', '3. Contas']
-          const isActive = etapa === e
-          const isDone = ['upload', 'preview', 'contas'].indexOf(etapa) > i
-          return (
-            <div key={e} className="flex items-center gap-2">
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                isActive ? 'bg-brand-600 text-white' :
-                isDone ? 'bg-green-600/20 text-green-400' :
-                'bg-dark-800 text-dark-500'
-              }`}>
-                {isDone && <CheckCircle size={12} />}
-                {labels[i]}
-              </div>
-              {i < 2 && <div className="w-8 h-px bg-dark-700" />}
-            </div>
-          )
-        })}
+      {/* Sub-abas: Datacar | Planilha */}
+      <div className="flex border-b border-dark-700 gap-0">
+        <button
+          onClick={() => setSubAba('datacar')}
+          className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all border-b-2 ${
+            subAba === 'datacar'
+              ? 'border-blue-400 text-blue-400 bg-dark-800/40'
+              : 'border-transparent text-dark-400 hover:text-white hover:bg-dark-800/20'
+          }`}
+        >
+          <Database size={15} />
+          Importadas do Datacar
+        </button>
+        <button
+          onClick={() => setSubAba('planilha')}
+          className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all border-b-2 ${
+            subAba === 'planilha'
+              ? 'border-brand-400 text-brand-400 bg-dark-800/40'
+              : 'border-transparent text-dark-400 hover:text-white hover:bg-dark-800/20'
+          }`}
+        >
+          <Upload size={15} />
+          Upload de Planilha
+        </button>
       </div>
 
-      {/* ETAPA 1: Upload */}
-      {etapa === 'upload' && (
-        <div className="space-y-4">
+      {/* SUB-ABA: DATACAR */}
+      {subAba === 'datacar' && (
+        <div className="space-y-4 pt-2">
           {!empresaAtiva ? (
             <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-center gap-3">
               <AlertCircle size={18} className="text-yellow-400 flex-shrink-0" />
               <p className="text-yellow-300 text-sm">
-                Selecione uma empresa no menu superior antes de importar.
+                Selecione uma empresa no menu superior para ver as contas importadas.
               </p>
             </div>
-          ) : null}
-          <DropZone onResultado={handleResultado} />
-          <div className="bg-dark-800/50 border border-dark-700 rounded-xl p-4">
-            <p className="text-sm text-dark-400 font-medium mb-2">💡 Formatos suportados:</p>
-            <ul className="text-xs text-dark-500 space-y-1">
-              <li>• <strong className="text-dark-300">Excel (.xlsx)</strong> — Relatório DataCar CpRl010 (Previsão de Pagamentos)</li>
-              <li>• <strong className="text-dark-300">CSV (.csv)</strong> — Arquivo com colunas: FORNECEDOR, VALOR, VENCIMENTO</li>
-              <li>• <strong className="text-dark-300">PDF (.pdf)</strong> — Extração automática de texto</li>
-              <li>• <strong className="text-dark-300">Imagem (.png, .jpg)</strong> — Recomendamos converter para Excel para maior precisão</li>
-            </ul>
-          </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <h2 className="text-lg font-semibold text-white">Contas Importadas</h2>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={async () => {
+                      if (!empresaAtiva) { toast.error('Selecione uma empresa'); return }
+                      if (!empresaAtiva.access_token_conta_azul) {
+                        toast.error('Empresa não está conectada ao Conta Azul. Vá em Empresas e conecte primeiro.')
+                        return
+                      }
+                      if (!confirm('Enviar todas as contas PENDENTES para o Conta Azul?')) return
+                      setEnviandoCA(true)
+                      try {
+                        const res = await fetch('/api/conta-azul/enviar', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ empresa_id: empresaAtiva.id, limite: 50 }),
+                        })
+                        const data = await res.json()
+                        if (!res.ok) throw new Error(data.error || 'Erro ao enviar')
+                        if (data.enviados > 0) {
+                          toast.success(`${data.enviados} contas enviadas com sucesso!`, { duration: 5000 })
+                        }
+                        if (data.erros > 0) {
+                          toast.error(`${data.erros} contas com erro. Verifique o status na tabela.`, { duration: 5000 })
+                        }
+                        if (data.enviados === 0 && data.erros === 0) {
+                          toast('Nenhuma conta pendente para enviar.', { icon: 'ℹ️' })
+                        }
+                        if (data.pendentes_restantes > 0) {
+                          toast(`Ainda restam ${data.pendentes_restantes} pendentes. Clique novamente para enviar mais.`, { icon: '📋', duration: 5000 })
+                        }
+                      } catch (err: any) {
+                        toast.error(err.message || 'Erro ao enviar para o Conta Azul')
+                      } finally {
+                        setEnviandoCA(false)
+                        setRefreshContas(prev => prev + 1)
+                      }
+                    }}
+                    disabled={enviandoCA}
+                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-blue-900/20"
+                  >
+                    {enviandoCA ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                    {enviandoCA ? 'Enviando...' : 'Enviar ao Conta Azul'}
+                  </button>
+                  <button
+                    onClick={() => handleBaixarXls('salvas')}
+                    disabled={gerandoXls}
+                    className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all"
+                  >
+                    {gerandoXls ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+                    Exportar XLS para ContaAzul
+                  </button>
+                </div>
+              </div>
+              <TabelaContas key={refreshContas} empresaId={empresaAtiva?.id} />
+            </>
+          )}
         </div>
       )}
+
+      {/* SUB-ABA: PLANILHA */}
+      {subAba === 'planilha' && (
+        <div className="space-y-4 pt-2">
+          {/* Stepper */}
+          <div className="flex items-center gap-2">
+            {(['upload', 'preview'] as Etapa[]).map((e, i) => {
+              const labels = ['1. Upload da Planilha', '2. Revisão e Envio']
+              const isActive = etapa === e
+              const isDone = ['upload', 'preview'].indexOf(etapa) > i
+              return (
+                <div key={e} className="flex items-center gap-2">
+                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    isActive ? 'bg-brand-600 text-white' :
+                    isDone ? 'bg-green-600/20 text-green-400' :
+                    'bg-dark-800 text-dark-500'
+                  }`}>
+                    {isDone && <CheckCircle size={12} />}
+                    {labels[i]}
+                  </div>
+                  {i < 1 && <div className="w-8 h-px bg-dark-700" />}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* ETAPA 1: Upload */}
+          {etapa === 'upload' && (
+            <div className="space-y-4">
+              {!empresaAtiva ? (
+                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-center gap-3">
+                  <AlertCircle size={18} className="text-yellow-400 flex-shrink-0" />
+                  <p className="text-yellow-300 text-sm">
+                    Selecione uma empresa no menu superior antes de importar.
+                  </p>
+                </div>
+              ) : null}
+              <DropZone onResultado={handleResultado} />
+              <div className="bg-dark-800/50 border border-dark-700 rounded-xl p-4">
+                <p className="text-sm text-dark-400 font-medium mb-2">💡 Formatos suportados:</p>
+                <ul className="text-xs text-dark-500 space-y-1">
+                  <li>• <strong className="text-dark-300">Excel (.xlsx)</strong> — Relatório DataCar CpRl010 (Previsão de Pagamentos)</li>
+                  <li>• <strong className="text-dark-300">CSV (.csv)</strong> — Arquivo com colunas: FORNECEDOR, VALOR, VENCIMENTO</li>
+                  <li>• <strong className="text-dark-300">PDF (.pdf)</strong> — Extração automática de texto</li>
+                  <li>• <strong className="text-dark-300">Imagem (.png, .jpg)</strong> — Recomendamos converter para Excel para maior precisão</li>
+                </ul>
+              </div>
+            </div>
+          )}
 
       {/* ETAPA 2: Preview */}
       {etapa === 'preview' && resultado && (
@@ -948,65 +1045,6 @@ export default function ContasPagarPage() {
         </div>
       )}
 
-      {/* ETAPA 3: Contas Salvas */}
-      {etapa === 'contas' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <h2 className="text-lg font-semibold text-white">Contas Importadas</h2>
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={async () => {
-                  if (!empresaAtiva) { toast.error('Selecione uma empresa'); return }
-                  if (!empresaAtiva.access_token_conta_azul) {
-                    toast.error('Empresa não está conectada ao Conta Azul. Vá em Empresas e conecte primeiro.')
-                    return
-                  }
-                  if (!confirm('Enviar todas as contas PENDENTES para o Conta Azul?')) return
-                  setEnviandoCA(true)
-                  try {
-                    const res = await fetch('/api/conta-azul/enviar', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ empresa_id: empresaAtiva.id, limite: 50 }),
-                    })
-                    const data = await res.json()
-                    if (!res.ok) throw new Error(data.error || 'Erro ao enviar')
-                    if (data.enviados > 0) {
-                      toast.success(`${data.enviados} contas enviadas com sucesso!`, { duration: 5000 })
-                    }
-                    if (data.erros > 0) {
-                      toast.error(`${data.erros} contas com erro. Verifique o status na tabela.`, { duration: 5000 })
-                    }
-                    if (data.enviados === 0 && data.erros === 0) {
-                      toast('Nenhuma conta pendente para enviar.', { icon: 'ℹ️' })
-                    }
-                    if (data.pendentes_restantes > 0) {
-                      toast(`Ainda restam ${data.pendentes_restantes} pendentes. Clique novamente para enviar mais.`, { icon: '📋', duration: 5000 })
-                    }
-                  } catch (err: any) {
-                    toast.error(err.message || 'Erro ao enviar para o Conta Azul')
-                  } finally {
-                    setEnviandoCA(false)
-                    setRefreshContas(prev => prev + 1)
-                  }
-                }}
-                disabled={enviandoCA}
-                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-blue-900/20"
-              >
-                {enviandoCA ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                {enviandoCA ? 'Enviando...' : 'Enviar ao Conta Azul'}
-              </button>
-              <button
-                onClick={() => handleBaixarXls('salvas')}
-                disabled={gerandoXls}
-                className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all"
-              >
-                {gerandoXls ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
-                Exportar XLS para ContaAzul
-              </button>
-            </div>
-          </div>
-          <TabelaContas key={refreshContas} empresaId={empresaAtiva?.id} />
         </div>
       )}
     </div>

@@ -286,3 +286,8 @@ ALTER TABLE contas_pagar_importadas ADD COLUMN IF NOT EXISTS conta_financeira_id
 
 COMMENT ON COLUMN contas_pagar_importadas.conta_financeira_id IS 'UUID da conta financeira no Conta Azul — usado para envio direto sem match por nome';
 ALTER TABLE contas_pagar_importadas ADD COLUMN IF NOT EXISTS fornecedor_id TEXT;
+
+-- ============================================================
+-- Migration 018: Categoria nas contas a pagar
+-- ============================================================
+ALTER TABLE contas_pagar_importadas ADD COLUMN IF NOT EXISTS categoria TEXT;

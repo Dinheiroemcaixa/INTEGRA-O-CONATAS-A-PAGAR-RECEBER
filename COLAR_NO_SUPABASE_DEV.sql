@@ -277,3 +277,8 @@ ALTER TABLE contas_pagar_importadas ADD COLUMN IF NOT EXISTS fornecedor_id TEXT;
 -- ============================================================
 -- FIM! Se aparecer "Success" está tudo certo!
 -- ============================================================
+
+-- ============================================================
+-- Migration 018: Categoria nas contas a pagar
+-- ============================================================
+ALTER TABLE contas_pagar_importadas ADD COLUMN IF NOT EXISTS categoria TEXT;
