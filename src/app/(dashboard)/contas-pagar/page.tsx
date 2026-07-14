@@ -12,7 +12,8 @@ import type { Empresa } from '@/types'
 import {
   Upload, ArrowLeft, Loader2,
   CheckCircle, AlertCircle, FileDown, Send,
-  X, ShieldCheck, ChevronDown, Database
+  X, ShieldCheck, ChevronDown, Database,
+  Search, Calendar, FileText
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
@@ -216,6 +217,16 @@ export default function ContasPagarPage() {
   const [refreshContas, setRefreshContas] = useState(0)
   const [showModalEnvio, setShowModalEnvio] = useState(false)
   const [userEmail, setUserEmail] = useState('')
+
+  // Estados Datacar
+  const hoje = new Date().toISOString().split('T')[0]
+  const primeiroDia = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
+  const [buscando, setBuscando] = useState(false)
+  const [dtIni, setDtIni] = useState(primeiroDia)
+  const [dtFim, setDtFim] = useState(hoje)
+  const [tipoPeriodoContas, setTipoPeriodoContas] = useState<'venc' | 'emis' | 'pgto' | 'digit'>('venc')
+  const [contasPreviewDados, setContasPreviewDados] = useState<ContaPagarPreview[] | null>(null)
+
   const supabase = createClient()
 
   useEffect(() => {
@@ -229,6 +240,57 @@ export default function ContasPagarPage() {
     setResultado(res)
     setEtapa('preview')
   }, [])
+
+  const handleBuscarContasDatacar = async () => {
+    if (!empresaAtiva) { toast.error('Selecione uma empresa primeiro'); return }
+    if (!empresaAtiva.datacar_token) {
+      toast.error('Configure as credenciais do Datacar para esta empresa na tela de Empresas.')
+      return
+    }
+
+    setBuscando(true)
+    setContasPreviewDados(null)
+    try {
+      const res = await fetch('/api/datacar/buscar-contas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresa_id: empresaAtiva.id, dtIni, dtFim, tipoPeriodo: tipoPeriodoContas }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao buscar contas no Datacar')
+
+      const dadosPreview: ContaPagarPreview[] = (data.dados || []).map((d: any) => {
+        const converterData = (dt: string | null | undefined) => {
+          if (!dt) return undefined
+          const dataStr = dt.split('T')[0].split(' ')[0]
+          if (dataStr.includes('/')) {
+            const [dia, mes, ano] = dataStr.split('/')
+            if (dia && mes && ano) return `${ano}-${mes}-${dia}`
+          }
+          return dataStr
+        }
+
+        return {
+          fornecedor: d.fornecedor,
+          valor: d.valor,
+          vencimento: converterData(d.vencimento) || d.vencimento,
+          emissao: converterData(d.emissao),
+          doc: d.doc || undefined,
+          categoria: d.categoria || undefined,
+          descricao: d.descricao || undefined,
+          valido: d.valido,
+          erros: d.erros,
+        }
+      })
+
+      setContasPreviewDados(dadosPreview)
+      toast.success(`${data.total} contas encontradas no Datacar!`)
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao buscar contas')
+    } finally {
+      setBuscando(false)
+    }
+  }
 
   const handleSalvar = async (itens: ContaPagarPreview[]) => {
     if (!empresaAtiva) { toast.error('Selecione uma empresa primeiro'); return }
@@ -428,6 +490,14 @@ export default function ContasPagarPage() {
               <ArrowLeft size={16} /> Voltar
             </button>
           )}
+          {subAba === 'datacar' && contasPreviewDados && (
+            <button
+              onClick={() => { setContasPreviewDados(null) }}
+              className="flex items-center gap-2 text-dark-400 hover:text-white text-sm px-3 py-2 rounded-lg hover:bg-dark-800 transition-all"
+            >
+              <ArrowLeft size={16} /> Voltar à Busca
+            </button>
+          )}
         </div>
       </div>
 
@@ -467,10 +537,87 @@ export default function ContasPagarPage() {
                 Selecione uma empresa no menu superior para ver as contas importadas.
               </p>
             </div>
+          ) : contasPreviewDados ? (
+            <ContasPreviewSection
+              dadosIniciais={contasPreviewDados}
+              empresaAtiva={empresaAtiva}
+              onSalvar={async (itens) => {
+                await handleSalvar(itens);
+                setContasPreviewDados(null);
+              }}
+              onBaixarXls={handleBaixarXlsPreview}
+              salvando={salvando}
+            />
           ) : (
             <>
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <h2 className="text-lg font-semibold text-white">Contas Importadas</h2>
+              {/* Formulário de Busca do Datacar */}
+              <div className="bg-dark-800 border border-dark-700 rounded-xl p-5 animate-fade-in">
+                <div className="flex items-center gap-2 mb-4 text-white font-semibold">
+                  <Database size={18} className="text-blue-400" />
+                  <h3>Buscar Contas do Datacar</h3>
+                </div>
+                <div className="flex items-end gap-4 flex-wrap">
+                  <div>
+                    <label className="text-xs font-medium mb-1 flex items-center gap-2 text-dark-400">
+                      Pesquisar por:
+                    </label>
+                    <select
+                      value={tipoPeriodoContas}
+                      onChange={(e) => setTipoPeriodoContas(e.target.value as any)}
+                      className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
+                    >
+                      <option value="venc">Vencimento</option>
+                      <option value="emis">Emissão</option>
+                      <option value="pgto">Pagamento</option>
+                      <option value="digit">Digitação no Sistema</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium mb-1 block text-dark-400">Data Início</label>
+                    <div className="relative">
+                      <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+                      <input
+                        type="date"
+                        value={dtIni}
+                        onChange={(e) => setDtIni(e.target.value)}
+                        className="bg-dark-900 border border-dark-600 rounded-lg pl-10 pr-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-40"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="text-xs font-medium mb-1 block text-dark-400">Data Fim</label>
+                    <div className="relative">
+                      <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+                      <input
+                        type="date"
+                        value={dtFim}
+                        onChange={(e) => setDtFim(e.target.value)}
+                        className="bg-dark-900 border border-dark-600 rounded-lg pl-10 pr-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-40"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleBuscarContasDatacar}
+                    disabled={buscando || !empresaAtiva.datacar_token}
+                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all ml-auto sm:ml-0"
+                  >
+                    {buscando ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                    {buscando ? 'Buscando...' : 'Buscar'}
+                  </button>
+                </div>
+                {!empresaAtiva.datacar_token && (
+                   <p className="text-amber-400 text-xs mt-3">
+                     ⚠️ Credenciais do Datacar não configuradas para esta empresa. Configure em "Empresas".
+                   </p>
+                )}
+              </div>
+
+              {/* Lista de Contas Pendentes */}
+              <div className="flex items-center justify-between flex-wrap gap-3 mt-4">
+                <h2 className="text-lg font-semibold text-white">Contas Pendentes de Envio</h2>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
                     onClick={async () => {

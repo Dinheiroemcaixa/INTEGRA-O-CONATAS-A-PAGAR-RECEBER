@@ -13,7 +13,8 @@ import {
   Upload, ArrowLeft, Loader2,
   CheckCircle, AlertCircle, Send, ShoppingCart,
   Database, RefreshCw, ChevronDown, ChevronUp,
-  Trash2, FileSpreadsheet, BookOpen
+  Trash2, FileSpreadsheet, BookOpen,
+  Search, Calendar
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -54,12 +55,20 @@ export default function VendasPage() {
   const [subAba, setSubAba] = useState<SubAba>('datacar')
 
   // ─── Estado da sub-aba Datacar ───────────────────────────────
-  const [vendasDatacar, setVendasDatacar] = useState<VendaImportada[]>([])
-  const [carregandoDatacar, setCarregandoDatacar] = useState(false)
+  const hoje = new Date().toISOString().split('T')[0]
+  const primeiroDia = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
+  
+  const [dtIni, setDtIni] = useState(primeiroDia)
+  const [dtFim, setDtFim] = useState(hoje)
+  const [buscando, setBuscando] = useState(false)
+  const [tipoPeriodoVendas, setTipoPeriodoVendas] = useState<'abertura' | 'previsao' | 'conclusao' | 'encerramento' | 'cancelamento'>('encerramento')
+  const [situacaoVendas, setSituacaoVendas] = useState<'todas' | 'em_andamento' | 'concluida' | 'encerrada' | 'cancelada'>('todas')
+  const [numeroOS, setNumeroOS] = useState('')
+
+  const [vendasDatacar, setVendasDatacar] = useState<any[]>([])
   const [selecionadosDatacar, setSelecionadosDatacar] = useState<Set<string>>(new Set())
   const [expandidoDatacar, setExpandidoDatacar] = useState<string | null>(null)
   const [enviandoDatacar, setEnviandoDatacar] = useState(false)
-  const [filtroStatusDatacar, setFiltroStatusDatacar] = useState<'pendente' | 'enviado' | 'todos'>('pendente')
   const [editandoDatacarId, setEditandoDatacarId] = useState<string | null>(null)
 
   // ─── Estado do Upload de Planilha Fiscal ───────────────────
@@ -109,36 +118,69 @@ export default function VendasPage() {
   const [enviandoCA, setEnviandoCA] = useState(false)
   const [editandoIdx, setEditandoIdx] = useState<number | null>(null)
 
-  // ─── Carregar vendas do Datacar ──────────────────────────────
-  const carregarVendasDatacar = useCallback(async () => {
-    if (!empresaAtiva) return
-    setCarregandoDatacar(true)
-    try {
-      let query = supabase
-        .from('vendas_importadas')
-        .select('*')
-        .eq('empresa_id', empresaAtiva.id)
-        .order('created_at', { ascending: false })
-
-      if (filtroStatusDatacar !== 'todos') {
-        query = query.eq('status', filtroStatusDatacar)
-      }
-
-      const { data, error } = await query
-      if (error) throw error
-      setVendasDatacar(data || [])
-      setSelecionadosDatacar(new Set())
-    } catch (err) {
-      toast.error('Erro ao carregar vendas importadas do Datacar')
-      console.error(err)
-    } finally {
-      setCarregandoDatacar(false)
+  // ─── Buscar vendas do Datacar ──────────────────────────────
+  const handleBuscarVendasDatacar = async () => {
+    if (!empresaAtiva) { toast.error('Selecione uma empresa primeiro'); return }
+    if (!empresaAtiva.datacar_token) {
+      toast.error('Configure as credenciais do Datacar para esta empresa na tela de Empresas.')
+      return
     }
-  }, [empresaAtiva, filtroStatusDatacar, supabase])
+    if (!numeroOS && (!dtIni || !dtFim)) {
+      toast.error('Preencha a data de início e fim, ou informe um Número de OS.')
+      return
+    }
 
-  useEffect(() => {
-    if (subAba === 'datacar') carregarVendasDatacar()
-  }, [subAba, carregarVendasDatacar])
+    setBuscando(true)
+    setVendasDatacar([])
+    try {
+      let mappedTipoPeriodo = tipoPeriodoVendas as string
+      if (tipoPeriodoVendas === 'abertura') mappedTipoPeriodo = 'criacao'
+
+      const res = await fetch('/api/datacar/buscar-vendas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          empresa_id: empresaAtiva.id, 
+          dtIni, 
+          dtFim, 
+          tipoPeriodo: mappedTipoPeriodo,
+          situacao: situacaoVendas,
+          numeroOS: numeroOS.trim() || undefined
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao buscar vendas no Datacar')
+
+      // Mapear resultado para manter compatibilidade visual com VendaImportada
+      const validas: any[] = data.dados.map((d: any) => ({
+        id: crypto.randomUUID(), // ID temporário apenas para manipulação na tela
+        cliente: d.cliente,
+        os_numero: d.os_numero,
+        data_venda: d.data_venda,
+        valor_total: d.valor_total,
+        forma_pagamento: d.forma_pagamento,
+        itens: d.itens,
+        status: d.ca_status ? 'erro' : 'pendente', // ca_status contém erro de duplicidade
+        dados_datacar: d.dados_datacar || d,
+        valido: d.valido,
+        erros: d.erros,
+      }))
+
+      setVendasDatacar(validas)
+      
+      // Auto-selecionar as pendentes e válidas
+      const validasIds = validas
+        .filter(v => v.status === 'pendente' && v.valido)
+        .map(v => v.id)
+      setSelecionadosDatacar(new Set(validasIds))
+
+      toast.success(`${data.total} OS/Pedidos encontrados!`)
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao buscar vendas')
+    } finally {
+      setBuscando(false)
+    }
+  }
 
   // ─── Toggles Datacar ─────────────────────────────────────────
   const toggleSelecionadoDatacar = (id: string) => {
@@ -159,11 +201,9 @@ export default function VendasPage() {
   }
 
   const removerVendaDatacar = async (id: string) => {
-    if (!confirm('Remover esta venda do Card? Ela poderá ser reimportada do Datacar.')) return
-    const { error } = await supabase.from('vendas_importadas').delete().eq('id', id)
-    if (error) { toast.error('Erro ao remover venda'); return }
-    toast.success('Venda removida do Card')
-    carregarVendasDatacar()
+    if (!confirm('Remover esta venda da lista? Ela sairá do seu painel e não será enviada.')) return
+    setVendasDatacar(prev => prev.filter(v => v.id !== id))
+    toast.success('Venda ignorada da lista de importação.')
   }
 
   // ─── Enviar para Conta Azul (vindas do Datacar) ──────────────
@@ -208,14 +248,16 @@ export default function VendasPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erro ao enviar vendas')
 
-      // Atualiza status das enviadas com sucesso no banco
+      // Atualiza status localmente e limpa a seleção
       if (data.sucessos > 0) {
-        const idsEnviadas = vendasSelecionadas.slice(0, data.sucessos).map(v => v.id)
-        await supabase
-          .from('vendas_importadas')
-          .update({ status: 'enviado' })
-          .in('id', idsEnviadas)
         toast.success(`${data.sucessos} vendas criadas no Conta Azul com sucesso!`)
+        setVendasDatacar(prev => prev.map(v => {
+          if (selecionadosDatacar.has(v.id)) {
+             return { ...v, status: 'enviado' }
+          }
+          return v
+        }))
+        setSelecionadosDatacar(new Set())
       }
 
       if (data.erros > 0) {
@@ -227,7 +269,7 @@ export default function VendasPage() {
         }
       }
 
-      carregarVendasDatacar()
+
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro ao enviar para o Conta Azul'
       toast.error(msg)
@@ -421,36 +463,100 @@ export default function VendasPage() {
             </div>
           ) : (
             <>
-              {/* Toolbar */}
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-3">
-                  <select
-                    value={filtroStatusDatacar}
-                    onChange={e => setFiltroStatusDatacar(e.target.value as any)}
-                    className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
-                  >
-                    <option value="pendente">Pendentes</option>
-                    <option value="enviado">Enviadas ao CA</option>
-                    <option value="todos">Todas</option>
-                  </select>
+              {/* Formulário de Busca do Datacar */}
+              <div className="bg-dark-800 border border-dark-700 rounded-xl p-5 animate-fade-in">
+                <div className="flex items-center gap-2 mb-4 text-white font-semibold">
+                  <Database size={18} className="text-blue-400" />
+                  <h3>Buscar Vendas do Datacar</h3>
+                </div>
+                
+                <div className="flex items-end gap-4 flex-wrap">
+                  {/* Tipo Período */}
+                  <div>
+                    <label className={`text-xs font-medium mb-1 block ${numeroOS ? 'text-dark-600' : 'text-dark-400'}`}>Tipo período:</label>
+                    <select
+                      value={tipoPeriodoVendas}
+                      onChange={(e) => setTipoPeriodoVendas(e.target.value as any)}
+                      disabled={!!numeroOS}
+                      className={`bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none ${numeroOS ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <option value="abertura">Abertura</option>
+                      <option value="previsao">Previsão</option>
+                      <option value="conclusao">Conclusão</option>
+                      <option value="encerramento">Encerramento</option>
+                      <option value="cancelamento">Cancelamento</option>
+                    </select>
+                  </div>
+
+                  {/* Datas */}
+                  <div>
+                    <label className={`text-xs font-medium mb-1 block ${numeroOS ? 'text-dark-600' : 'text-dark-400'}`}>Data Início</label>
+                    <div className="relative">
+                      <Calendar size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${numeroOS ? 'text-dark-600' : 'text-dark-400'}`} />
+                      <input
+                        type="date"
+                        value={dtIni}
+                        onChange={(e) => setDtIni(e.target.value)}
+                        disabled={!!numeroOS}
+                        className={`bg-dark-900 border border-dark-600 rounded-lg pl-10 pr-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-40 ${numeroOS ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={`text-xs font-medium mb-1 block ${numeroOS ? 'text-dark-600' : 'text-dark-400'}`}>Data Fim</label>
+                    <div className="relative">
+                      <Calendar size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${numeroOS ? 'text-dark-600' : 'text-dark-400'}`} />
+                      <input
+                        type="date"
+                        value={dtFim}
+                        onChange={(e) => setDtFim(e.target.value)}
+                        disabled={!!numeroOS}
+                        className={`bg-dark-900 border border-dark-600 rounded-lg pl-10 pr-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-40 ${numeroOS ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Situação e OS */}
+                  <div>
+                    <label className={`text-xs font-medium mb-1 block ${numeroOS ? 'text-dark-600' : 'text-dark-400'}`}>Situação:</label>
+                    <select
+                      value={situacaoVendas}
+                      onChange={(e) => setSituacaoVendas(e.target.value as any)}
+                      disabled={!!numeroOS}
+                      className={`bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none ${numeroOS ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <option value="todas">Todas</option>
+                      <option value="em_andamento">Em Andamento</option>
+                      <option value="concluida">Concluída</option>
+                      <option value="encerrada">Encerrada</option>
+                      <option value="cancelada">Cancelada</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="text-xs font-medium mb-1 block text-dark-400">Buscar por OS/Pedido:</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: 12345"
+                      value={numeroOS}
+                      onChange={(e) => setNumeroOS(e.target.value)}
+                      className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-32 placeholder:text-dark-600"
+                    />
+                  </div>
+
                   <button
-                    onClick={carregarVendasDatacar}
-                    disabled={carregandoDatacar}
-                    className="flex items-center gap-2 px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg text-dark-300 hover:text-white text-sm transition-all"
+                    onClick={handleBuscarVendasDatacar}
+                    disabled={buscando || !empresaAtiva.datacar_token}
+                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all ml-auto sm:ml-0"
                   >
-                    <RefreshCw size={14} className={carregandoDatacar ? 'animate-spin' : ''} />
-                    Atualizar
+                    {buscando ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                    {buscando ? 'Buscando...' : 'Buscar'}
                   </button>
                 </div>
-                {selecionadosDatacar.size > 0 && (
-                  <button
-                    onClick={handleEnviarDatacarParaCA}
-                    disabled={enviandoDatacar}
-                    className="flex items-center gap-2 px-5 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white rounded-lg text-sm font-bold transition-all shadow-lg"
-                  >
-                    {enviandoDatacar ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                    {enviandoDatacar ? 'Enviando...' : `Criar ${selecionadosDatacar.size} Venda(s) no Conta Azul`}
-                  </button>
+                {!empresaAtiva.datacar_token && (
+                   <p className="text-amber-400 text-xs mt-3">
+                     ⚠️ Credenciais do Datacar não configuradas para esta empresa. Configure em "Empresas".
+                   </p>
                 )}
               </div>
 
@@ -527,26 +633,41 @@ export default function VendasPage() {
               </div>
 
               {/* Loading */}
-              {carregandoDatacar && (
+              {buscando && (
                 <div className="flex items-center justify-center py-16">
                   <Loader2 size={28} className="animate-spin text-blue-400" />
                 </div>
               )}
 
               {/* Sem vendas */}
-              {!carregandoDatacar && vendasDatacar.length === 0 && (
+              {!buscando && vendasDatacar.length === 0 && (
                 <div className="bg-dark-800 border border-dark-700 rounded-xl p-12 text-center">
                   <Database size={40} className="text-dark-600 mx-auto mb-3" />
                   <p className="text-dark-400 text-sm font-medium">
-                    {filtroStatusDatacar === 'pendente'
-                      ? 'Nenhuma venda pendente. Busque OS/Pedidos na aba Datacar e clique em "Salvar no Card Vendas".'
-                      : 'Nenhuma venda encontrada para o filtro selecionado.'}
+                    Faça uma busca para ver as vendas do Datacar.
                   </p>
                 </div>
               )}
 
+              {/* Ações da Tabela */}
+              {!buscando && vendasDatacar.length > 0 && (
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-white font-semibold">Resultados da Busca</h3>
+                  {selecionadosDatacar.size > 0 && (
+                    <button
+                      onClick={handleEnviarDatacarParaCA}
+                      disabled={enviandoDatacar}
+                      className="flex items-center gap-2 px-5 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white rounded-lg text-sm font-bold transition-all shadow-lg"
+                    >
+                      {enviandoDatacar ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                      {enviandoDatacar ? 'Enviando...' : `Criar ${selecionadosDatacar.size} Venda(s) no Conta Azul`}
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Lista de vendas */}
-              {!carregandoDatacar && vendasDatacar.length > 0 && (
+              {!buscando && vendasDatacar.length > 0 && (
                 <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden">
                   {/* Cabeçalho da lista */}
                   <div className="flex items-center gap-3 px-4 py-2.5 bg-dark-900/40 border-b border-dark-700 text-xs text-dark-400 font-semibold">
@@ -659,7 +780,7 @@ export default function VendasPage() {
                               <div className="mt-2">
                                 <p className="text-dark-300 text-xs font-semibold mb-1">Itens ({venda.itens.length}):</p>
                                 <div className="bg-dark-900/60 rounded-lg p-2 space-y-1.5 max-h-40 overflow-y-auto">
-                                  {venda.itens.map((item, j) => (
+                                  {venda.itens.map((item: any, j: number) => (
                                     <div key={j} className="flex flex-col gap-1 text-[11px] border-b border-dark-700/50 pb-1.5 last:border-0 last:pb-0">
                                       <div className="flex items-center gap-2">
                                         <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold flex-shrink-0 ${
@@ -857,7 +978,9 @@ export default function VendasPage() {
         <ModalEditarDatacar
           vendaId={editandoDatacarId}
           venda={vendasDatacar.find(v => v.id === editandoDatacarId)}
-          onSaveSuccess={carregarVendasDatacar}
+          onSaveSuccess={(vendaAtualizada) => {
+            setVendasDatacar(prev => prev.map(v => v.id === vendaAtualizada.id ? vendaAtualizada : v))
+          }}
           onClose={() => setEditandoDatacarId(null)}
         />
       )}

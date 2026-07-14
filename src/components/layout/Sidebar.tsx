@@ -18,7 +18,6 @@ const navItems = [
   { label: 'Vendas', href: '/vendas', icon: ShoppingCart, badge: 'NOVO' },
   { label: 'Contas a Pagar', href: '/contas-pagar', icon: ArrowDownCircle, badge: 'ATIVO' },
   { label: 'Contas a Receber', href: '/contas-receber', icon: ArrowUpCircle, badge: 'EM BREVE', disabled: true },
-  { label: 'Datacar', href: '/datacar', icon: Database, badge: 'NOVO' },
   { label: 'Empresas', href: '/empresas', icon: Building2 },
   { label: 'Configuracoes', href: '/configuracoes', icon: Settings, disabled: true },
 ]

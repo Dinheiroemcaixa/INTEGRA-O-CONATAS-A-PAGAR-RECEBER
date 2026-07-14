@@ -7,7 +7,7 @@ interface ModalEditarDatacarProps {
   vendaId: string
   venda: any // VendaImportada
   onClose: () => void
-  onSaveSuccess: () => void
+  onSaveSuccess: (vendaAtualizada: any) => void
 }
 
 export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSuccess }: ModalEditarDatacarProps) {
@@ -73,18 +73,14 @@ export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSucc
         cliente_uf: formData.uf,
       }
 
-      const { error } = await supabase
-        .from('vendas_importadas')
-        .update({
-          cliente: formData.cliente,
-          os_numero: formData.os_numero,
-          dados_datacar: novosDadosDatacar,
-          itens: formData.itens,
-          valor_total: recalcularTotal(formData.itens)
-        })
-        .eq('id', vendaId)
-
-      if (error) throw error
+      const vendaAtualizada = {
+        ...venda,
+        cliente: formData.cliente,
+        os_numero: formData.os_numero,
+        dados_datacar: novosDadosDatacar,
+        itens: formData.itens,
+        valor_total: recalcularTotal(formData.itens)
+      }
 
       // Salvar na Memória Fiscal (aprende com as edições do usuário)
       try {
@@ -119,8 +115,8 @@ export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSucc
         console.warn('[ModalEditarDatacar] Erro ao salvar memória fiscal (não crítico):', e)
       }
 
-      toast.success('Venda atualizada com sucesso!')
-      onSaveSuccess()
+      toast.success('Venda atualizada na lista de importação!')
+      onSaveSuccess(vendaAtualizada)
       onClose()
     } catch (error) {
       console.error(error)

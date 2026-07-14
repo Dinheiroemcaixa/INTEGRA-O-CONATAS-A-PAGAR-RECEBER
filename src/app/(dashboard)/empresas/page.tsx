@@ -190,7 +190,23 @@ function EmpresasPageContent() {
   const [salvando, setSalvando] = useState(false)
   const [conectando, setConectando] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [form, setForm] = useState<{nome: string, cnpj: string, email_login: string, tipo_empresa: 'vendas' | 'financeiro' | 'ambos'}>({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos' })
+  const [form, setForm] = useState<{
+    nome: string, 
+    cnpj: string, 
+    email_login: string, 
+    tipo_empresa: 'vendas' | 'financeiro' | 'ambos',
+    datacar_token: string,
+    datacar_cod_emp: string,
+    datacar_id_operador: string
+  }>({ 
+    nome: '', 
+    cnpj: '', 
+    email_login: '', 
+    tipo_empresa: 'ambos',
+    datacar_token: '',
+    datacar_cod_emp: '',
+    datacar_id_operador: ''
+  })
   const supabase = createClient()
   const searchParams = useSearchParams()
 
@@ -261,6 +277,9 @@ function EmpresasPageContent() {
             cnpj: cnpjLimpo,
             email_login: form.email_login.trim() || null,
             tipo_empresa: form.tipo_empresa,
+            datacar_token: form.datacar_token.trim() || null,
+            datacar_cod_emp: form.datacar_cod_emp.trim() || null,
+            datacar_id_operador: form.datacar_id_operador.trim() || null,
           })
           .eq('id', editingId)
 
@@ -279,6 +298,9 @@ function EmpresasPageContent() {
             created_by: user.id,
             email_login: form.email_login.trim() || null,
             tipo_empresa: form.tipo_empresa,
+            datacar_token: form.datacar_token.trim() || null,
+            datacar_cod_emp: form.datacar_cod_emp.trim() || null,
+            datacar_id_operador: form.datacar_id_operador.trim() || null,
           })
 
         if (errEmp) throw errEmp
@@ -295,7 +317,7 @@ function EmpresasPageContent() {
         toast.success('Empresa criada com sucesso!')
       }
 
-      setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos' })
+      setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '' })
       setEditingId(null)
       setShowForm(false)
       await recarregar()
@@ -313,7 +335,10 @@ function EmpresasPageContent() {
       nome: empresa.nome,
       cnpj: empresa.cnpj,
       email_login: empresa.email_login || '',
-      tipo_empresa: empresa.tipo_empresa || 'ambos'
+      tipo_empresa: empresa.tipo_empresa || 'ambos',
+      datacar_token: empresa.datacar_token || '',
+      datacar_cod_emp: empresa.datacar_cod_emp || '',
+      datacar_id_operador: empresa.datacar_id_operador || '',
     })
     setShowForm(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -329,7 +354,7 @@ function EmpresasPageContent() {
         <button
           onClick={() => {
             setEditingId(null)
-            setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos' })
+            setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '' })
             setShowForm(!showForm)
           }}
           className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
@@ -344,7 +369,7 @@ function EmpresasPageContent() {
             <button
               onClick={() => {
                 setEditingId(null)
-                setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos' })
+                setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '' })
                 setShowForm(false)
               }}
               className="absolute top-4 right-4 text-dark-400 hover:text-white transition-colors"
@@ -392,6 +417,33 @@ function EmpresasPageContent() {
                   className="w-full bg-dark-900 border border-dark-600 rounded-lg pl-9 pr-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 outline-none placeholder:text-dark-600"
                 />
               </div>
+            </div>
+            
+            <div className="pt-2 border-t border-dark-700/50 mt-1">
+              <p className="text-xs text-dark-400 font-medium mb-3">Integração Datacar (Opcional)</p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  value={form.datacar_token}
+                  onChange={(e) => setForm({ ...form, datacar_token: e.target.value })}
+                  placeholder="Token"
+                  className="flex-1 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2 text-sm text-white focus:ring-2 focus:ring-brand-500 outline-none"
+                />
+                <input
+                  value={form.datacar_cod_emp}
+                  onChange={(e) => setForm({ ...form, datacar_cod_emp: e.target.value })}
+                  placeholder="Código da Empresa"
+                  className="w-full sm:w-40 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2 text-sm text-white focus:ring-2 focus:ring-brand-500 outline-none"
+                />
+                <input
+                  value={form.datacar_id_operador}
+                  onChange={(e) => setForm({ ...form, datacar_id_operador: e.target.value })}
+                  placeholder="ID Operador"
+                  className="w-full sm:w-32 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2 text-sm text-white focus:ring-2 focus:ring-brand-500 outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
               <button
                 type="submit"
                 disabled={salvando}
