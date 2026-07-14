@@ -156,13 +156,15 @@ export default function VendasPage() {
       const validas: any[] = data.dados.map((d: any) => ({
         id: crypto.randomUUID(), // ID temporário apenas para manipulação na tela
         cliente: d.cliente,
+        cliente_cpf_cnpj: d.cliente_cpf_cnpj || d._datacar?.cliente_cpf_cnpj || null,
+        cliente_endereco: d.cliente_endereco || null,
         os_numero: d.os_numero,
         data_venda: d.data_venda,
         valor_total: d.valor_total,
         forma_pagamento: d.forma_pagamento,
         itens: d.itens,
         status: d.ca_status ? 'erro' : 'pendente', // ca_status contém erro de duplicidade
-        dados_datacar: d.dados_datacar || d,
+        dados_datacar: d._datacar || d,
         valido: d.valido,
         erros: d.erros,
       }))
@@ -240,16 +242,8 @@ export default function VendasPage() {
       // Converte para o formato esperado pelo endpoint de envio do CA
       const vendasFormatadas = vendasFiltradas.map(v => ({
         cliente: v.cliente,
-        cliente_cpf_cnpj: v.dados_datacar?.cliente_cpf_cnpj as string | undefined,
-        cliente_endereco: {
-          logradouro: v.dados_datacar?.cliente_logradouro as string | undefined,
-          numero: v.dados_datacar?.cliente_numero as string | undefined,
-          complemento: v.dados_datacar?.cliente_complemento as string | undefined,
-          bairro: v.dados_datacar?.cliente_bairro as string | undefined,
-          cidade: v.dados_datacar?.cliente_cidade as string | undefined,
-          estado: v.dados_datacar?.cliente_uf as string | undefined,
-          cep: v.dados_datacar?.cliente_cep as string | undefined,
-        },
+        cliente_cpf_cnpj: v.dados_datacar?.cliente_cpf_cnpj || v.cliente_cpf_cnpj || undefined,
+        cliente_endereco: v.dados_datacar?.cliente_endereco || v.cliente_endereco || undefined,
         os_numero: v.os_numero,
         data_venda: v.data_venda,
         valor_total: v.valor_total,

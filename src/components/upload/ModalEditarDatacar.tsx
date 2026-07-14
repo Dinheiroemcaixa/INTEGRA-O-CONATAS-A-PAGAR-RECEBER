@@ -76,6 +76,16 @@ export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSucc
       const vendaAtualizada = {
         ...venda,
         cliente: formData.cliente,
+        cliente_cpf_cnpj: formData.cpf_cnpj || venda.cliente_cpf_cnpj,
+        cliente_endereco: {
+          logradouro: formData.logradouro || null,
+          numero: formData.numero || null,
+          complemento: formData.complemento || null,
+          bairro: formData.bairro || null,
+          cidade: formData.cidade || null,
+          estado: formData.uf || null,
+          cep: formData.cep || null,
+        },
         os_numero: formData.os_numero,
         dados_datacar: novosDadosDatacar,
         itens: formData.itens,
