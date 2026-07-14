@@ -64,6 +64,7 @@ export default function VendasPage() {
   const [tipoPeriodoVendas, setTipoPeriodoVendas] = useState<'abertura' | 'previsao' | 'conclusao' | 'encerramento' | 'cancelamento'>('encerramento')
   const [situacaoVendas, setSituacaoVendas] = useState<'todas' | 'em_andamento' | 'concluida' | 'encerrada' | 'cancelada'>('todas')
   const [numeroOS, setNumeroOS] = useState('')
+  const [filtroTipoItens, setFiltroTipoItens] = useState<'tudo' | 'produtos' | 'servicos'>('tudo')
 
   const [vendasDatacar, setVendasDatacar] = useState<any[]>([])
   const [selecionadosDatacar, setSelecionadosDatacar] = useState<Set<string>>(new Set())
@@ -213,10 +214,31 @@ export default function VendasPage() {
 
     setEnviandoDatacar(true)
     try {
-      const vendasSelecionadas = vendasDatacar.filter(v => selecionadosDatacar.has(v.id))
+      const vendasFiltradas = vendasDatacar
+        .filter(v => selecionadosDatacar.has(v.id))
+        .map(v => {
+          let itensFiltrados = v.itens
+          if (filtroTipoItens === 'produtos') itensFiltrados = v.itens.filter((i: any) => i.tipo === 'produto')
+          if (filtroTipoItens === 'servicos') itensFiltrados = v.itens.filter((i: any) => i.tipo === 'servico')
+          
+          const valorTotalRecalculado = itensFiltrados.reduce((acc: number, i: any) => acc + (i.quantidade * i.valor_unitario), 0)
+          
+          return {
+            ...v,
+            itens: itensFiltrados,
+            valor_total: valorTotalRecalculado
+          }
+        })
+        .filter(v => v.itens.length > 0)
+
+      if (vendasFiltradas.length === 0) {
+        setEnviandoDatacar(false)
+        toast.error('O filtro de itens excluiu todas as vendas selecionadas. Não há nada para enviar.')
+        return
+      }
       
       // Converte para o formato esperado pelo endpoint de envio do CA
-      const vendasFormatadas = vendasSelecionadas.map(v => ({
+      const vendasFormatadas = vendasFiltradas.map(v => ({
         cliente: v.cliente,
         cliente_cpf_cnpj: v.dados_datacar?.cliente_cpf_cnpj as string | undefined,
         cliente_endereco: {
@@ -530,6 +552,21 @@ export default function VendasPage() {
                       <option value="concluida">Concluída</option>
                       <option value="encerrada">Encerrada</option>
                       <option value="cancelada">Cancelada</option>
+                    </select>
+                  </div>
+                  
+                  {/* Filtro Itens a Enviar */}
+                  <div>
+                    <label className={`text-xs font-medium mb-1 block ${numeroOS ? 'text-dark-600' : 'text-dark-400'}`}>Itens a Enviar:</label>
+                    <select
+                      value={filtroTipoItens}
+                      onChange={(e) => setFiltroTipoItens(e.target.value as any)}
+                      disabled={!!numeroOS}
+                      className={`bg-dark-900 border border-brand-500/50 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-brand-500/50 outline-none ${numeroOS ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <option value="tudo">Produtos e Serviços</option>
+                      <option value="produtos">Apenas Produtos</option>
+                      <option value="servicos">Apenas Serviços</option>
                     </select>
                   </div>
                   

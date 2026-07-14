@@ -126,8 +126,17 @@ export async function POST(req: NextRequest) {
         let totalDescontoVenda = Math.max(0, descontoCalculado)
 
         // Conta Azul exige formato YYYY-MM-DD (apenas data, sem horário)
-        const dataVendaFormatada = venda.data_venda
-          ? new Date(venda.data_venda).toISOString().split('T')[0]
+        let dataVendaOriginal = venda.data_venda
+        if (dataVendaOriginal && dataVendaOriginal.includes('/')) {
+           // Converte DD/MM/YYYY para YYYY-MM-DD
+           const parts = dataVendaOriginal.split('/');
+           if (parts.length === 3) {
+             dataVendaOriginal = `${parts[2]}-${parts[1]}-${parts[0]}`;
+           }
+        }
+
+        const dataVendaFormatada = dataVendaOriginal
+          ? new Date(dataVendaOriginal).toISOString().split('T')[0]
           : new Date().toISOString().split('T')[0]
 
         // 3. Monta Payload
