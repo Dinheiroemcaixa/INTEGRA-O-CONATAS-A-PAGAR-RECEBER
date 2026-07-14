@@ -630,123 +630,163 @@ function EmpresasPageContent() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {empresas.map((empresa) => (
-          <div
-            key={empresa.id}
-            className={`bg-dark-800 border rounded-xl p-6 transition-all ${
-              empresaAtiva?.id === empresa.id ? 'border-brand-600 shadow-lg shadow-brand-900/20' : 'border-dark-700'
-            }`}
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-dark-700 rounded-xl flex items-center justify-center">
-                  <Building2 size={24} className="text-dark-400" />
-                </div>
-                <div>
-                  <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                    {empresa.nome}
-                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
-                      empresa.tipo_empresa === 'vendas' ? 'bg-blue-500/20 text-blue-400' :
-                      empresa.tipo_empresa === 'financeiro' ? 'bg-emerald-500/20 text-emerald-400' :
-                      'bg-purple-500/20 text-purple-400'
-                    }`}>
-                      {empresa.tipo_empresa === 'ambos' ? 'VENDAS & FINANÇAS' : empresa.tipo_empresa}
-                    </span>
-                  </h3>
-                  {empresa.razao_social && (
-                    <p className="text-dark-300 text-xs mt-0.5">{empresa.razao_social}</p>
-                  )}
-                  <p className="text-dark-400 text-sm">{formatCNPJ(empresa.cnpj)}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleEditClick(empresa)}
-                  className="p-1.5 rounded-lg text-dark-400 hover:text-white hover:bg-dark-700 transition-all"
-                  title="Editar empresa"
-                >
-                  <Edit size={16} />
-                </button>
-                <button
-                  onClick={() => setEmpresaAtiva(empresa)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    empresaAtiva?.id === empresa.id
-                      ? 'bg-brand-600 text-white'
-                      : 'bg-dark-700 text-dark-400 hover:bg-dark-600'
-                  }`}
-                >
-                  {empresaAtiva?.id === empresa.id ? 'Ativa' : 'Selecionar'}
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              {empresa.email_login ? (
-                <div className="flex items-center gap-2 px-3 py-2 bg-dark-900/60 rounded-lg border border-dark-700">
-                  <Mail size={13} className="text-brand-400 flex-shrink-0" />
-                  <span className="text-xs text-dark-400">Login Conta Azul:</span>
-                  <span className="text-xs text-white font-medium truncate">{empresa.email_login}</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 px-3 py-2 bg-dark-900/40 rounded-lg border border-dashed border-dark-700">
-                  <Mail size={13} className="text-dark-600 flex-shrink-0" />
-                  <span className="text-xs text-dark-600">E-mail de login não informado</span>
+        {empresas.map((empresa) => {
+          const isAtiva = empresaAtiva?.id === empresa.id;
+          return (
+            <div
+              key={empresa.id}
+              className={`relative group rounded-2xl p-5 sm:p-6 transition-all duration-300 ${
+                isAtiva 
+                  ? 'bg-dark-800/80 border-brand-500/50 shadow-[0_0_30px_rgba(var(--brand-500),0.15)] ring-1 ring-brand-500/20' 
+                  : 'bg-dark-800/40 border-dark-700/50 hover:bg-dark-800/60 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/20 hover:border-dark-600/50'
+              } border backdrop-blur-sm flex flex-col`}
+            >
+              {/* STATUS BADGE ABSOLUTE TOP RIGHT */}
+              {isAtiva && (
+                <div className="absolute -top-3 -right-3" title="Empresa Ativa">
+                  <span className="relative flex h-6 w-6 items-center justify-center">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-20"></span>
+                    <span className="relative inline-flex rounded-full h-4 w-4 bg-brand-500 border-2 border-dark-900 shadow-[0_0_10px_rgba(var(--brand-500),0.5)]"></span>
+                  </span>
                 </div>
               )}
 
-              <div className="flex items-center justify-between p-3 bg-dark-900 rounded-lg border border-dark-700">
-                <div className="flex items-center gap-3">
-                  <div className={`w-2 h-2 rounded-full ${empresa.access_token_conta_azul ? 'bg-green-500' : 'bg-red-500'}`} />
-                  <span className="text-sm text-dark-300">Conta Azul</span>
+              <div className="flex items-start justify-between mb-5 flex-1">
+                <div className="flex gap-4 items-start">
+                  {/* AVATAR */}
+                  <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center flex-shrink-0 text-xl font-bold shadow-inner ${
+                    isAtiva 
+                      ? 'bg-gradient-to-br from-brand-600 to-brand-400 text-white shadow-brand-900/40' 
+                      : 'bg-dark-700/50 text-dark-300 group-hover:bg-dark-700 transition-colors'
+                  }`}>
+                    {empresa.nome.substring(0, 2).toUpperCase()}
+                  </div>
+                  
+                  {/* TEXTOS */}
+                  <div className="pt-0.5">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <h3 className="text-white font-bold text-base sm:text-lg leading-tight group-hover:text-brand-100 transition-colors">
+                        {empresa.nome}
+                      </h3>
+                      <span className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded-full border tracking-wider ${
+                        empresa.tipo_empresa === 'vendas' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                        empresa.tipo_empresa === 'financeiro' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                        'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                      }`}>
+                        {empresa.tipo_empresa === 'ambos' ? 'VENDAS & FINANÇAS' : empresa.tipo_empresa}
+                      </span>
+                    </div>
+                    {empresa.razao_social && (
+                      <p className="text-dark-400 text-xs font-medium truncate max-w-[180px] sm:max-w-[250px]">{empresa.razao_social}</p>
+                    )}
+                    <p className="text-dark-500 text-[10px] sm:text-[11px] font-mono mt-0.5">{formatCNPJ(empresa.cnpj)}</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {empresa.access_token_conta_azul ? (
-                    <>
-                      <a
-                        href={`/api/conta-azul/diagnostico?empresa_id=${empresa.id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-yellow-500 hover:text-yellow-400 transition-colors"
-                        title="Diagnosticar Conexão"
-                      >
-                        <ShieldCheck size={16} />
-                      </a>
-                      <button
-                        onClick={() => handleConectarContaAzul(empresa.id)}
-                        className="text-dark-400 hover:text-white transition-colors"
-                        title="Renovar conexão"
-                      >
-                        <RefreshCw size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDesconectar(empresa.id)}
-                        className="text-red-400 hover:text-red-300 transition-colors"
-                        title="Desconectar"
-                      >
-                        <Unlink size={16} />
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => handleConectarContaAzul(empresa.id)}
-                      disabled={conectando === empresa.id}
-                      className="text-brand-400 hover:text-brand-300 text-sm font-semibold flex items-center gap-1 transition-all"
-                    >
-                      {conectando === empresa.id ? (
-                        <Loader2 size={14} className="animate-spin" />
-                      ) : (
-                        <ExternalLink size={14} />
-                      )}
-                      Conectar
-                    </button>
-                  )}
+
+                {/* AÇÕES SUPERIORES */}
+                <div className="flex flex-col sm:flex-row gap-2 items-end sm:items-start ml-2">
+                  <button
+                    onClick={() => setEmpresaAtiva(empresa)}
+                    className={`px-3 py-1.5 sm:px-4 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                      isAtiva
+                        ? 'bg-brand-500/10 text-brand-400 border border-brand-500/20 cursor-default'
+                        : 'bg-dark-900/50 text-dark-300 hover:text-white hover:bg-dark-700 border border-dark-700/50 shadow-inner'
+                    }`}
+                  >
+                    {isAtiva ? 'Selecionada' : 'Selecionar'}
+                  </button>
+                  <button
+                    onClick={() => handleEditClick(empresa)}
+                    className="p-1.5 rounded-lg text-dark-500 hover:text-white hover:bg-dark-700 transition-colors border border-transparent hover:border-dark-600/50 bg-dark-900/20 hover:bg-dark-900/50"
+                    title="Editar configurações"
+                  >
+                    <Edit size={14} />
+                  </button>
                 </div>
               </div>
 
-              <PainelFornecedores empresa={empresa} />
+              {/* INTEGRAÇÕES GRID */}
+              <div className="grid grid-cols-1 gap-3 mb-4">
+                {/* CONTA AZUL BAR */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3 bg-dark-900/40 rounded-xl border border-dark-700/30 shadow-inner">
+                  <div className="flex items-center gap-3">
+                    <div className="relative flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500/10">
+                      {empresa.access_token_conta_azul ? (
+                        <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-dark-900"></span>
+                        </span>
+                      ) : (
+                        <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border-2 border-dark-900"></span>
+                        </span>
+                      )}
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-blue-400"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="currentColor" fillOpacity="0.2"/><path d="M15 9L9 15M9 9H15V15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white leading-none mb-1">Conta Azul API</p>
+                      {empresa.email_login ? (
+                        <p className="text-[10px] text-dark-400 truncate max-w-[150px] sm:max-w-[200px]" title={empresa.email_login}>
+                          {empresa.email_login}
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-dark-500">Sem e-mail vinculado</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 self-end lg:self-auto w-full lg:w-auto justify-end mt-1 lg:mt-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-dark-700/30">
+                    {empresa.access_token_conta_azul ? (
+                      <>
+                        <a
+                          href={`/api/conta-azul/diagnostico?empresa_id=${empresa.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-2 lg:p-1.5 bg-dark-800 rounded-md text-yellow-500 hover:bg-yellow-500/10 hover:text-yellow-400 transition-all border border-dark-700/50 hover:border-yellow-500/30"
+                          title="Diagnosticar Conexão"
+                        >
+                          <ShieldCheck size={14} />
+                        </a>
+                        <button
+                          onClick={() => handleConectarContaAzul(empresa.id)}
+                          className="p-2 lg:p-1.5 bg-dark-800 rounded-md text-dark-300 hover:bg-dark-700 hover:text-white transition-all border border-dark-700/50"
+                          title="Renovar conexão (Re-autenticar)"
+                        >
+                          <RefreshCw size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDesconectar(empresa.id)}
+                          className="p-2 lg:p-1.5 bg-dark-800 rounded-md text-red-500/70 hover:bg-red-500/10 hover:text-red-400 transition-all border border-dark-700/50 hover:border-red-500/30"
+                          title="Desconectar API"
+                        >
+                          <Unlink size={14} />
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => handleConectarContaAzul(empresa.id)}
+                        disabled={conectando === empresa.id}
+                        className="px-4 py-2 lg:py-1.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 rounded-md text-xs font-bold flex items-center gap-1.5 transition-all w-full lg:w-auto justify-center border border-blue-500/20"
+                      >
+                        {conectando === empresa.id ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : (
+                          <ExternalLink size={12} />
+                        )}
+                        Conectar Conta Azul
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* PAINEL FORNECEDORES (mantém) */}
+              <div className="mt-auto">
+                <PainelFornecedores empresa={empresa} />
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {empresas.length === 0 && !showForm && (
           <div className="lg:col-span-2 py-20 flex flex-col items-center justify-center border-2 border-dashed border-dark-700 rounded-2xl">
