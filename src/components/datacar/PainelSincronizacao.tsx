@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import ContasPreviewSection from '@/components/upload/ContasPreviewSection'
+import type { ContaPagarPreview, Empresa } from '@/types'
 import {
   Search, Loader2, FileText, ShoppingCart, Calendar,
   Download, AlertCircle, CheckCircle2, ChevronDown, ChevronUp,
@@ -56,9 +58,7 @@ export default function PainelSincronizacao({ empresa }: Props) {
   const [buscando, setBuscando] = useState(false)
 
   // Contas a Pagar
-  const [contasResultado, setContasResultado] = useState<ContaPagarResult[] | null>(null)
-  const [contasMeta, setContasMeta] = useState<{ total: number; validos: number; invalidos: number } | null>(null)
-  const [tipoPeriodoContas, setTipoPeriodoContas] = useState<'venc' | 'emis' | 'pgto' | 'digit'>('venc')
+  const [contasPreviewDados, setContasPreviewDados] = useState<ContaPagarPreview[] | null>(null)
   const [enviandoContas, setEnviandoContas] = useState(false)
 
   // Vendas
@@ -79,10 +79,11 @@ export default function PainelSincronizacao({ empresa }: Props) {
 
   const temCredenciais = !!empresa.datacar_token && !!empresa.datacar_cod_emp && !!empresa.datacar_id_operador
 
+  const [tipoPeriodoContas, setTipoPeriodoContas] = useState<'venc' | 'emis' | 'pgto' | 'digit'>('venc')
+
   const handleBuscarContas = async () => {
     setBuscando(true)
-    setContasResultado(null)
-    setContasMeta(null)
+    setContasPreviewDados(null)
     try {
       const res = await fetch('/api/datacar/buscar-contas', {
         method: 'POST',
@@ -92,8 +93,32 @@ export default function PainelSincronizacao({ empresa }: Props) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erro ao buscar contas')
 
-      setContasResultado(data.dados)
-      setContasMeta({ total: data.total, validos: data.validos, invalidos: data.invalidos })
+      // Converter para ContaPagarPreview[] com datas formatadas
+      const dadosPreview: ContaPagarPreview[] = (data.dados || []).map((d: ContaPagarResult) => {
+        const converterData = (dt: string | null | undefined) => {
+          if (!dt) return undefined
+          const dataStr = dt.split('T')[0].split(' ')[0]
+          if (dataStr.includes('/')) {
+            const [dia, mes, ano] = dataStr.split('/')
+            if (dia && mes && ano) return `${ano}-${mes}-${dia}`
+          }
+          return dataStr
+        }
+
+        return {
+          fornecedor: d.fornecedor,
+          valor: d.valor,
+          vencimento: converterData(d.vencimento) || d.vencimento,
+          emissao: converterData(d.emissao),
+          doc: d.doc || undefined,
+          categoria: d.categoria || undefined,
+          descricao: d.descricao || undefined,
+          valido: d.valido,
+          erros: d.erros,
+        }
+      })
+
+      setContasPreviewDados(dadosPreview)
       toast.success(`${data.total} contas a pagar encontradas!`)
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Erro ao buscar contas a pagar')
@@ -148,67 +173,44 @@ export default function PainelSincronizacao({ empresa }: Props) {
     }
   }
 
-  const handleSincronizarContas = async () => {
-    if (!contasResultado) return
+  const handleSalvarContasPreview = async (itens: ContaPagarPreview[]) => {
+    if (itens.length === 0) { toast.error('Selecione ao menos um registro'); return }
     setEnviandoContas(true)
     try {
-      const contasParaEnviar = contasResultado.filter(c => c.valido)
-      if (contasParaEnviar.length === 0) {
-        toast.error('Nenhuma conta válida para enviar.')
-        return
-      }
+      const itensParaSalvar = itens.map((d) => ({
+        empresa_id: empresa.id,
+        fornecedor: d.fornecedor.trim(),
+        valor: d.valor,
+        vencimento: d.vencimento || new Date().toISOString().split('T')[0],
+        categoria: d.categoria || 'Materiais para Revenda',
+        conta_financeira: d.conta_financeira || null,
+        conta_financeira_id: d.conta_financeira_id || null,
+        descricao: d.descricao || null,
+        doc: d.doc || null,
+        emissao: d.emissao || null,
+        status: 'pendente',
+      }))
 
-      const toastId = toast.loading(`Salvando ${contasParaEnviar.length} contas no Card de Contas a Pagar...`)
-      
-      const itens = contasParaEnviar.map((d) => {
-        const converterData = (dt: string | null | undefined) => {
-          if (!dt) return null
-          const dataStr = dt.split('T')[0].split(' ')[0]
-          if (dataStr.includes('/')) {
-            const [dia, mes, ano] = dataStr.split('/')
-            if (dia && mes && ano) return `${ano}-${mes}-${dia}`
-          }
-          return dataStr
-        }
-
-        return {
-          empresa_id: empresa.id,
-          fornecedor: d.fornecedor,
-          valor: d.valor,
-          vencimento: converterData(d.vencimento) || d.vencimento,
-          categoria: d.categoria || 'Materiais para Revenda',
-          conta_financeira: null,
-          conta_financeira_id: null,
-          descricao: d.descricao || null,
-          doc: d.doc || null,
-          emissao: converterData(d.emissao),
-          status: 'pendente',
-          metadata: d._datacar || {}
-        }
-      })
-
-      const fornecedores = itens.map(i => i.fornecedor)
-      
+      // Verificar duplicatas
+      const fornecedores = itensParaSalvar.map(i => i.fornecedor)
       const { data: existentes } = await supabase
         .from('contas_pagar_importadas')
         .select('fornecedor, valor, vencimento')
         .eq('empresa_id', empresa.id)
         .in('fornecedor', fornecedores)
 
-      const contasNovas = itens.filter(item => {
-        const jaExiste = existentes?.some(e => 
-          e.fornecedor === item.fornecedor && 
-          Number(e.valor) === Number(item.valor) && 
+      const contasNovas = itensParaSalvar.filter(item => {
+        const jaExiste = existentes?.some(e =>
+          e.fornecedor === item.fornecedor &&
+          Number(e.valor) === Number(item.valor) &&
           e.vencimento === item.vencimento
         )
         return !jaExiste
       })
 
       if (contasNovas.length === 0) {
-        toast.dismiss(toastId)
         toast.success('Sucesso! As contas já estavam salvas no Card de Contas a Pagar.')
-        setContasResultado(null)
-        setContasMeta(null)
+        setContasPreviewDados(null)
         setEnviandoContas(false)
         return
       }
@@ -221,10 +223,7 @@ export default function PainelSincronizacao({ empresa }: Props) {
       if (error) throw error
 
       toast.success(`Sucesso! ${data.length} novas contas salvas no Card de Contas a Pagar.`)
-
-      toast.dismiss(toastId)
-      setContasResultado(null)
-      setContasMeta(null)
+      setContasPreviewDados(null)
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Erro ao salvar contas no Card')
     } finally {
@@ -360,7 +359,7 @@ export default function PainelSincronizacao({ empresa }: Props) {
           }`}
         >
           <FileText size={16} /> Contas a Pagar
-          {contasMeta && <span className="text-[10px] bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full">{contasMeta.total}</span>}
+          {contasPreviewDados && <span className="text-[10px] bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full">{contasPreviewDados.length}</span>}
         </button>
         <button
           onClick={() => { setTab('vendas'); setExpandido(null) }}
@@ -486,67 +485,17 @@ export default function PainelSincronizacao({ empresa }: Props) {
       </div>
 
       {/* Resultados Contas a Pagar */}
-      {tab === 'contas' && contasMeta && (
-        <div>
-          {/* Resumo */}
-          <div className="flex items-center gap-4 p-4 bg-dark-900/20 border-b border-dark-700">
-            <div className="flex items-center gap-2 text-sm">
-              <Download size={14} className="text-orange-400" />
-              <span className="text-dark-300">
-                <strong className="text-white">{contasMeta.total}</strong> títulos encontrados
-              </span>
-            </div>
-            <span className="text-emerald-400 text-xs font-semibold">{contasMeta.validos} válidos</span>
-            {contasMeta.invalidos > 0 && (
-              <span className="text-red-400 text-xs font-semibold">{contasMeta.invalidos} com problemas</span>
-            )}
-            <span className="ml-auto text-white font-bold text-sm">
-              Total: {formatCurrency((contasResultado || []).reduce((s, c) => s + c.valor, 0))}
-            </span>
-          </div>
-
-          <div className="p-4 bg-orange-900/10 border-b border-dark-700 flex justify-end">
-            <button
-              onClick={handleSincronizarContas}
-              disabled={enviandoContas || (contasMeta.validos === 0)}
-              className="bg-orange-600 hover:bg-orange-500 disabled:opacity-50 px-5 py-2 rounded-lg text-sm font-bold text-white transition-all flex items-center gap-2"
-            >
-              {enviandoContas ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
-              Salvar no Card Contas a Pagar
-            </button>
-          </div>
-
-          {/* Lista */}
-          <div className="max-h-[500px] overflow-y-auto">
-            {(contasResultado || []).map((conta, i) => (
-              <div key={i} className={`border-b border-dark-700/50 hover:bg-dark-700/20 transition-colors ${
-                !conta.valido ? 'bg-red-500/5' : ''
-              }`}>
-                <div
-                  className="flex items-center gap-3 px-4 py-3 cursor-pointer"
-                  onClick={() => setExpandido(expandido === i ? null : i)}
-                >
-                  {conta.valido
-                    ? <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0" />
-                    : <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
-                  }
-                  <span className="text-white text-sm font-medium flex-1 truncate">{conta.fornecedor}</span>
-                  <span className="text-white text-sm font-bold tabular-nums">{formatCurrency(conta.valor)}</span>
-                  <span className="text-dark-400 text-xs tabular-nums w-24 text-right">{formatDate(conta.vencimento)}</span>
-                  {expandido === i ? <ChevronUp size={14} className="text-dark-500" /> : <ChevronDown size={14} className="text-dark-500" />}
-                </div>
-                {expandido === i && (
-                  <div className="px-4 pb-3 pt-0 text-xs text-dark-400 space-y-1 animate-fade-in border-t border-dark-700/30 mx-4">
-                    {conta.doc && <p><strong className="text-dark-300">Documento:</strong> {conta.doc}</p>}
-                    {conta.emissao && <p><strong className="text-dark-300">Emissão:</strong> {formatDate(conta.emissao)}</p>}
-                    {conta.categoria && <p><strong className="text-dark-300">Categoria:</strong> {conta.categoria}</p>}
-                    {conta.descricao && <p><strong className="text-dark-300">Obs:</strong> {conta.descricao}</p>}
-                    {conta._datacar?.cnpjEmit ? <p><strong className="text-dark-300">CNPJ Emissor:</strong> {String(conta._datacar.cnpjEmit)}</p> : null}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+      {tab === 'contas' && contasPreviewDados && contasPreviewDados.length > 0 && (
+        <div className="p-4">
+          <ContasPreviewSection
+            dadosIniciais={contasPreviewDados}
+            empresaAtiva={{
+              id: empresa.id,
+              nome: empresa.nome,
+            } as Empresa}
+            onSalvar={handleSalvarContasPreview}
+            salvando={enviandoContas}
+          />
         </div>
       )}
 
@@ -739,7 +688,7 @@ export default function PainelSincronizacao({ empresa }: Props) {
       )}
 
       {/* Empty state */}
-      {tab === 'contas' && !contasMeta && !buscando && (
+      {tab === 'contas' && !contasPreviewDados && !buscando && (
         <div className="p-12 text-center">
           <FileText size={40} className="text-dark-700 mx-auto mb-3" />
           <p className="text-dark-500 text-sm">Selecione o período e clique em &quot;Buscar Contas a Pagar&quot;</p>
