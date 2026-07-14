@@ -163,7 +163,7 @@ export default function VendasPage() {
         valor_total: d.valor_total,
         forma_pagamento: d.forma_pagamento,
         itens: d.itens,
-        status: d.ca_status ? 'erro' : 'pendente', // ca_status contém erro de duplicidade
+        status: d.ca_status ? 'duplicidade' : 'pendente', // ca_status contém erro de duplicidade
         dados_datacar: d._datacar || d,
         valido: d.valido,
         erros: d.erros,
@@ -733,6 +733,10 @@ export default function VendasPage() {
                               onClick={e => e.stopPropagation()}
                               className="accent-blue-500"
                             />
+                          ) : venda.status === 'duplicidade' ? (
+                            <div className="text-amber-500 flex-shrink-0 ml-0.5" title="Venda já consta no Conta Azul">
+                              <AlertCircle size={14} />
+                            </div>
                           ) : (
                             <CheckCircle size={14} className="text-emerald-400 flex-shrink-0 ml-0.5" />
                           )}
@@ -749,9 +753,11 @@ export default function VendasPage() {
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-20 text-center ${
                             venda.status === 'enviado'
                               ? 'bg-emerald-500/15 text-emerald-400'
-                              : 'bg-yellow-500/15 text-yellow-400'
+                              : venda.status === 'duplicidade'
+                                ? 'bg-amber-500/15 text-amber-400'
+                                : 'bg-yellow-500/15 text-yellow-400'
                           }`}>
-                            {venda.status === 'enviado' ? 'Enviado CA' : 'Pendente'}
+                            {venda.status === 'enviado' ? 'Enviado CA' : venda.status === 'duplicidade' ? 'Duplicada' : 'Pendente'}
                           </span>
                           <div className="w-16 flex items-center justify-end gap-1">
                             <button
@@ -798,12 +804,26 @@ export default function VendasPage() {
                                 <p><strong className="text-dark-300">Pagamento:</strong> {venda.forma_pagamento}</p>
                               )}
                             </div>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setEditandoDatacarId(venda.id) }}
-                              className="text-[11px] font-semibold flex items-center gap-1.5 bg-dark-800 hover:bg-dark-700 text-brand-400 px-3 py-1.5 rounded border border-dark-600 transition-colors"
-                            >
-                              Editar Dados
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setEditandoDatacarId(venda.id) }}
+                                className="text-[11px] font-semibold flex items-center gap-1.5 bg-dark-800 hover:bg-dark-700 text-brand-400 px-3 py-1.5 rounded border border-dark-600 transition-colors"
+                              >
+                                Editar Dados
+                              </button>
+                              {venda.status === 'duplicidade' && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setVendasDatacar(prev => prev.map(v => v.id === venda.id ? { ...v, status: 'pendente' } : v))
+                                    setSelecionadosDatacar(prev => new Set(prev).add(venda.id))
+                                  }}
+                                  className="text-[11px] font-semibold flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 px-3 py-1.5 rounded border border-amber-500/20 transition-colors"
+                                >
+                                  Forçar Envio (Ignorar Duplicidade)
+                                </button>
+                              )}
+                            </div>
                           </div>
 
                             {/* Itens */}

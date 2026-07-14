@@ -8,7 +8,7 @@ import {
   Clock, CheckCircle, AlertCircle, TrendingUp,
   Building2, Plus, Upload, Trash2, Loader2,
   RefreshCw, Zap, X, ArrowDownCircle, ChevronRight,
-  Calendar, DollarSign, User,
+  Calendar, DollarSign, User, ShoppingCart
 } from 'lucide-react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
@@ -285,8 +285,32 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Módulo de Vendas */}
+      {(empresaAtiva?.tipo_empresa === 'ambos' || empresaAtiva?.tipo_empresa === 'vendas') && (
+        <div className="bg-dark-800 border border-dark-700 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all hover:border-brand-500/50 mb-6 shadow-lg shadow-black/20">
+          <div>
+             <h2 className="text-xl font-bold text-white flex items-center gap-2">
+               <ShoppingCart className="text-brand-400" size={24} /> 
+               Módulo de Vendas (Datacar)
+             </h2>
+             <p className="text-dark-400 text-sm mt-1">Integre e envie suas OS/Pedidos diretamente para o Conta Azul.</p>
+          </div>
+          <Link href="/vendas" className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-2.5 rounded-lg font-semibold flex items-center gap-2 transition-all whitespace-nowrap shadow-lg shadow-brand-900/20">
+            Acessar Painel de Vendas <ChevronRight size={18} />
+          </Link>
+        </div>
+      )}
+
       {/* KPI Cards — clicáveis */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      {empresaAtiva?.tipo_empresa !== 'vendas' && (
+        <>
+          <div className="mb-2">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <ArrowDownCircle className="text-emerald-400" size={20} />
+              Contas a Pagar
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {cards.map((card) => {
           const Icon = card.icon
           const isClickable = card.status !== null && card.value > 0
@@ -367,8 +391,11 @@ export default function DashboardPage() {
           )
         })}
       </div>
+        </>
+      )}
 
       {/* Linha do meio: Taxa de sucesso + Ação rápida */}
+      {empresaAtiva?.tipo_empresa !== 'vendas' && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
         {/* Taxa de sucesso */}
@@ -422,6 +449,7 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+      )}
 
       {/* Status da Integração */}
       <div className="bg-dark-800 border border-dark-700 rounded-2xl p-5">

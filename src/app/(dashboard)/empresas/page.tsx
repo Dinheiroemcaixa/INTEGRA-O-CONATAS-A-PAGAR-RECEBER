@@ -385,7 +385,7 @@ function EmpresasPageContent() {
               <input
                 value={form.nome}
                 onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                placeholder="Nome da Empresa"
+                placeholder="Nome ou Apelido (Ex: Loja Barão - Financeiro)"
                 required
                 className="flex-1 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 outline-none"
               />
