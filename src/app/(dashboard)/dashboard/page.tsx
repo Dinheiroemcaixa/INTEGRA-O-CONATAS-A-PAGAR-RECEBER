@@ -277,36 +277,22 @@ export default function DashboardPage() {
           <button
             onClick={() => carregarStats(true)}
             disabled={refreshing}
-            className="flex items-center gap-2 text-sm text-dark-400 hover:text-white bg-dark-800 hover:bg-dark-700 border border-dark-700 px-3 py-2 rounded-lg transition-all"
+            className="flex items-center gap-2 text-sm text-dark-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 px-4 py-2 rounded-xl backdrop-blur-md transition-all shadow-lg shadow-black/20"
           >
-            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={refreshing ? 'animate-spin text-brand-400' : 'text-brand-400'} />
             Atualizar
           </button>
         </div>
       </div>
 
-      {/* Módulo de Vendas */}
-      {(empresaAtiva?.tipo_empresa === 'ambos' || empresaAtiva?.tipo_empresa === 'vendas') && (
-        <div className="bg-dark-800 border border-dark-700 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all hover:border-brand-500/50 mb-6 shadow-lg shadow-black/20">
-          <div>
-             <h2 className="text-xl font-bold text-white flex items-center gap-2">
-               <ShoppingCart className="text-brand-400" size={24} /> 
-               Módulo de Vendas (Datacar)
-             </h2>
-             <p className="text-dark-400 text-sm mt-1">Integre e envie suas OS/Pedidos diretamente para o Conta Azul.</p>
-          </div>
-          <Link href="/vendas" className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-2.5 rounded-lg font-semibold flex items-center gap-2 transition-all whitespace-nowrap shadow-lg shadow-brand-900/20">
-            Acessar Painel de Vendas <ChevronRight size={18} />
-          </Link>
-        </div>
-      )}
-
       {/* KPI Cards — clicáveis */}
       {empresaAtiva?.tipo_empresa !== 'vendas' && (
         <>
-          <div className="mb-2">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <ArrowDownCircle className="text-emerald-400" size={20} />
+          <div className="mb-4">
+            <h2 className="text-xl font-bold text-white flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-brand-500/20 flex items-center justify-center border border-brand-500/30">
+                <ArrowDownCircle className="text-brand-400" size={18} />
+              </div>
               Contas a Pagar
             </h2>
           </div>
@@ -321,20 +307,16 @@ export default function DashboardPage() {
               key={card.title}
               onClick={() => isClickable ? abrirDrawer(card.status) : undefined}
               className={[
-                'relative group rounded-2xl border p-5 flex flex-col gap-4 transition-all duration-200',
-                'bg-dark-800',
-                card.border,
-                isClickable ? `cursor-pointer ${card.hoverBorder} hover:shadow-lg hover:-translate-y-0.5` : '',
-                isActive ? `${card.hoverBorder} ring-1 ring-offset-0` : '',
+                'relative group rounded-2xl border p-5 flex flex-col gap-4 transition-all duration-300',
+                'bg-white/[0.02] backdrop-blur-xl',
+                isActive ? `${card.hoverBorder} bg-white/[0.04] shadow-[0_0_30px_rgba(0,0,0,0.15)] ring-1 ring-offset-0` : card.border,
+                isClickable && !isActive ? `cursor-pointer hover:bg-white/[0.04] hover:-translate-y-1 hover:shadow-xl hover:shadow-black/40 ${card.hoverBorder}` : '',
               ].join(' ')}
-              style={isActive ? { '--tw-ring-color': card.colorHex } as any : {}}
+              style={isActive ? { '--tw-ring-color': card.colorHex, boxShadow: `0 0 30px ${card.colorHex}25` } as any : {}}
             >
-              {/* Gradiente topo */}
-              <div className={`absolute inset-x-0 top-0 h-0.5 rounded-t-2xl ${card.barColor} opacity-60`} />
-
               {/* Top row */}
               <div className="flex items-start justify-between">
-                <div className={`${card.bg} rounded-xl p-2.5`}>
+                <div className={`${card.bg} rounded-xl p-2.5 shadow-inner border border-white/5`}>
                   <Icon size={18} className={card.color} />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -342,7 +324,7 @@ export default function DashboardPage() {
                     <button
                       onClick={(e) => { e.stopPropagation(); handleLimparStatus(card.status as 'pendente' | 'erro') }}
                       disabled={deleting !== null}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all"
+                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all border border-transparent hover:border-rose-500/20"
                       title="Apagar todos"
                     >
                       {deleting === card.status ? (
@@ -352,29 +334,29 @@ export default function DashboardPage() {
                       )}
                     </button>
                   )}
-                  <span className={`text-[10px] font-bold uppercase tracking-widest ${card.color} opacity-50`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-widest ${card.color} opacity-60 border border-current px-2 py-0.5 rounded-full`}>
                     {card.label}
                   </span>
                 </div>
               </div>
 
               {/* Value */}
-              <div className="flex-1">
+              <div className="flex-1 mt-1">
                 {loading ? (
                   <div className="space-y-2">
-                    <div className="h-10 w-20 bg-dark-700 animate-pulse rounded-lg" />
-                    <div className="h-4 w-28 bg-dark-700 animate-pulse rounded" />
+                    <div className="h-10 w-20 bg-dark-700/50 animate-pulse rounded-lg" />
+                    <div className="h-4 w-28 bg-dark-700/50 animate-pulse rounded" />
                   </div>
                 ) : (
                   <>
-                    <p className="text-4xl font-bold text-white tabular-nums leading-none">{card.value}</p>
+                    <p className="text-4xl font-bold text-white tabular-nums leading-none drop-shadow-sm">{card.value}</p>
                     <p className="text-dark-400 text-sm mt-2 font-medium">{card.sub}</p>
                   </>
                 )}
               </div>
 
               {/* Progress bar */}
-              <div className="h-1 bg-dark-700 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-dark-900/50 rounded-full overflow-hidden shadow-inner mt-2">
                 <div
                   className={`h-full ${card.barColor} rounded-full transition-all duration-700`}
                   style={{ width: loading ? '0%' : card.barWidth }}
@@ -383,8 +365,8 @@ export default function DashboardPage() {
 
               {/* Click hint */}
               {isClickable && (
-                <div className={`absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1 text-xs ${card.color} font-medium`}>
-                  Ver lançamentos <ChevronRight size={12} />
+                <div className={`absolute bottom-3 right-4 opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1 text-[11px] ${card.color} font-bold tracking-wide`}>
+                  Ver lançamentos <ChevronRight size={14} />
                 </div>
               )}
             </div>
@@ -399,31 +381,31 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
         {/* Taxa de sucesso */}
-        <div className="bg-dark-800 border border-dark-700 rounded-2xl p-6 flex flex-col gap-4">
+        <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 rounded-2xl p-6 flex flex-col gap-4 shadow-2xl hover:bg-white/[0.04] transition-colors">
           <p className="text-dark-400 text-sm font-medium">Taxa de Sucesso</p>
           <div>
-            <p className="text-5xl font-bold text-white tabular-nums leading-none">
+            <p className="text-5xl font-bold text-white tabular-nums leading-none drop-shadow-sm">
               {loading ? <span className="text-dark-600">—</span> : `${taxaSucesso}%`}
             </p>
-            <p className="text-dark-500 text-xs mt-2">
+            <p className="text-dark-500 text-xs mt-2 font-medium">
               {stats.totalEnviado} de {total} registros enviados
             </p>
           </div>
-          <div className="space-y-2.5 mt-auto">
+          <div className="space-y-3 mt-auto pt-2">
             {[
               { label: 'Enviados', value: stats.totalEnviado, color: 'bg-emerald-400', textColor: 'text-emerald-400' },
               { label: 'Pendentes', value: stats.totalPendente, color: 'bg-amber-400', textColor: 'text-amber-400' },
               { label: 'Erros', value: stats.totalErro, color: 'bg-rose-400', textColor: 'text-rose-400' },
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-3">
-                <span className="text-dark-500 text-xs w-16">{item.label}</span>
-                <div className="flex-1 h-1.5 bg-dark-700 rounded-full overflow-hidden">
+                <span className="text-dark-500 text-xs font-medium w-16">{item.label}</span>
+                <div className="flex-1 h-2 bg-dark-900/50 rounded-full overflow-hidden shadow-inner">
                   <div
                     className={`h-full ${item.color} rounded-full transition-all duration-700`}
                     style={{ width: total > 0 ? `${Math.round((item.value / total) * 100)}%` : '0%' }}
                   />
                 </div>
-                <span className={`text-xs font-semibold w-5 text-right ${item.textColor}`}>{item.value}</span>
+                <span className={`text-xs font-bold w-6 text-right ${item.textColor}`}>{item.value}</span>
               </div>
             ))}
           </div>
@@ -432,19 +414,22 @@ export default function DashboardPage() {
         {/* Ação rápida — um só card */}
         <div className="lg:col-span-2">
           <Link href="/contas-pagar"
-            className="h-full bg-dark-800 border border-dark-700 hover:border-brand-500 rounded-2xl p-8 flex flex-col justify-between transition-all group hover:shadow-xl hover:shadow-brand-900/20 hover:-translate-y-0.5">
-            <div className="flex items-start justify-between">
-              <div className="w-12 h-12 bg-brand-600/20 rounded-xl flex items-center justify-center group-hover:bg-brand-600/30 transition-all">
-                <Upload size={22} className="text-brand-400" />
+            className="h-full bg-white/[0.02] backdrop-blur-xl border border-white/5 hover:border-brand-500/50 hover:bg-white/[0.04] rounded-2xl p-8 flex flex-col justify-between transition-all duration-300 group hover:shadow-2xl hover:shadow-brand-900/20 hover:-translate-y-1 relative overflow-hidden">
+            {/* Subtle glow background */}
+            <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-brand-500/5 rounded-full blur-3xl group-hover:bg-brand-500/10 transition-colors pointer-events-none"></div>
+
+            <div className="flex items-start justify-between relative z-10">
+              <div className="w-12 h-12 bg-brand-500/10 rounded-xl flex items-center justify-center group-hover:bg-brand-500/20 shadow-inner border border-brand-500/10 transition-all">
+                <Upload size={22} className="text-brand-400 group-hover:scale-110 transition-transform" />
               </div>
-              <span className="text-xs text-dark-500 bg-dark-900 border border-dark-700 px-2 py-1 rounded-lg">DataCar · CSV · PDF</span>
+              <span className="text-[11px] text-dark-500 bg-dark-900/50 border border-dark-700/50 px-2.5 py-1 rounded-lg font-medium backdrop-blur-sm shadow-inner">DataCar · CSV · PDF</span>
             </div>
-            <div className="mt-6">
-              <p className="text-white text-xl font-bold">Contas a Pagar</p>
-              <p className="text-dark-400 text-sm mt-1">Importar arquivo DataCar, revisar lançamentos e enviar para o Conta Azul</p>
+            <div className="mt-6 relative z-10">
+              <p className="text-white text-xl font-bold group-hover:text-brand-50 transition-colors">Contas a Pagar</p>
+              <p className="text-dark-400 text-sm mt-1.5 leading-relaxed max-w-md">Importar arquivo DataCar, revisar lançamentos e enviar para o Conta Azul de forma rápida e segura.</p>
             </div>
-            <div className="flex items-center gap-2 text-brand-400 text-sm font-semibold mt-6 group-hover:gap-3 transition-all">
-              Abrir módulo <ArrowDownCircle size={16} className="rotate-[-90deg]" />
+            <div className="flex items-center gap-2 text-brand-400 text-sm font-bold mt-6 group-hover:gap-3 transition-all relative z-10">
+              Abrir módulo <ArrowDownCircle size={18} className="rotate-[-90deg]" />
             </div>
           </Link>
         </div>
@@ -452,7 +437,7 @@ export default function DashboardPage() {
       )}
 
       {/* Status da Integração */}
-      <div className="bg-dark-800 border border-dark-700 rounded-2xl p-5">
+      <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 rounded-2xl p-6 mt-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-white font-semibold flex items-center gap-2">
             <Zap size={15} className="text-brand-400" />
