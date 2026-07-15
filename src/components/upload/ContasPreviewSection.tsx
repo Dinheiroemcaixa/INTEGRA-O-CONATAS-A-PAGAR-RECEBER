@@ -85,8 +85,11 @@ export default function ContasPreviewSection({
               nomeNormalizado: f.nome_normalizado,
             }))
 
-            const nomesOriginal = dadosIniciais.map((d) => d.fornecedor)
-            const matchMap = matchFornecedoresEmLote(nomesOriginal, fornecedores, regrasDepara)
+            const itensDatacar = dadosIniciais.map((d) => ({
+              nome: d.fornecedor,
+              cnpj: d._datacar?.cnpjEmit ? d._datacar.cnpjEmit.replace(/\D/g, '') : undefined
+            }))
+            const matchMap = matchFornecedoresEmLote(itensDatacar, fornecedores, regrasDepara)
 
             dadosComMatch = dadosIniciais.map((d) => {
               const match = matchMap.get(d.fornecedor)

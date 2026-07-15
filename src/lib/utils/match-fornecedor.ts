@@ -23,6 +23,11 @@ export interface RegraDepara {
   nomeCorrigido: string
 }
 
+export interface ItemDatacarMatch {
+  nome: string
+  cnpj?: string
+}
+
 /**
  * Calcula score de similaridade entre duas strings normalizadas
  * Usa combinação de: palavras em comum + ordem das palavras
@@ -98,9 +103,25 @@ const REGRAS_CUSTOMIZADAS: Record<string, string> = {
 export function matchFornecedor(
   nomeDatacar: string,
   fornecedores: FornecedorContaAzul[],
-  regrasDepara?: RegraDepara[]
+  regrasDepara?: RegraDepara[],
+  cnpjDatacar?: string
 ): ResultadoMatch {
   const normalizado = normalizarNome(nomeDatacar)
+
+  // 0. Verificar Match EXATO por CNPJ (Mais confiável que nome)
+  if (cnpjDatacar && cnpjDatacar.length >= 14) {
+    const fEncontrado = fornecedores.find(f => f.cnpj && f.cnpj.replace(/\D/g, '') === cnpjDatacar)
+    if (fEncontrado) {
+      return {
+        nomeOriginal: nomeDatacar,
+        nomeCorrigido: fEncontrado.nome,
+        cnpj: fEncontrado.cnpj,
+        categoria: fEncontrado.categoria,
+        confianca: 'exato',
+        score: 100,
+      }
+    }
+  }
 
   // 1. Verificar regras customizadas (De-Para específico fixo)
   if (REGRAS_CUSTOMIZADAS[normalizado]) {
@@ -185,19 +206,20 @@ export function matchFornecedor(
  * @param regrasDepara - Regras De-Para aprendidas (consultadas antes do match por similaridade)
  */
 export function matchFornecedoresEmLote(
-  nomesDatacar: string[],
+  itensDatacar: ItemDatacarMatch[],
   fornecedores: FornecedorContaAzul[],
   regrasDepara?: RegraDepara[]
 ): Map<string, ResultadoMatch> {
   const resultado = new Map<string, ResultadoMatch>()
-  // Cache para não repetir match do mesmo nome
+  // Cache para não repetir match do mesmo nome+cnpj
   const cache = new Map<string, ResultadoMatch>()
 
-  for (const nome of nomesDatacar) {
-    if (!cache.has(nome)) {
-      cache.set(nome, matchFornecedor(nome, fornecedores, regrasDepara))
+  for (const item of itensDatacar) {
+    const cacheKey = `${item.nome}|${item.cnpj || ''}`
+    if (!cache.has(cacheKey)) {
+      cache.set(cacheKey, matchFornecedor(item.nome, fornecedores, regrasDepara, item.cnpj))
     }
-    resultado.set(nome, cache.get(nome)!)
+    resultado.set(item.nome, cache.get(cacheKey)!)
   }
 
   return resultado

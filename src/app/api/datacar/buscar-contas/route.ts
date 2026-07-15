@@ -85,10 +85,11 @@ export async function POST(req: NextRequest) {
       let fornecedor = c.nomeEmit?.trim() || 'Fornecedor não informado'
       const cnpjLimpo = c.cnpjEmit ? c.cnpjEmit.replace(/\D/g, '') : ''
       
-      // Enriquecer nome do fornecedor se achou na Brasil API
+      // Enriquecer nome do fornecedor se achou na Brasil API (sem sobrescrever o original para não quebrar o De-Para)
+      let razaoSocialBrasilAPI = null
       const dadosCnpjEncontrados = cnpjLimpo.length === 14 ? dadosCnpjMap.get(cnpjLimpo) : null
       if (dadosCnpjEncontrados?.razao_social) {
-        fornecedor = dadosCnpjEncontrados.razao_social
+        razaoSocialBrasilAPI = dadosCnpjEncontrados.razao_social
       }
       const vencimento = c.dtVenc || ''
       const emissao = c.dtEmis || ''
@@ -119,6 +120,7 @@ export async function POST(req: NextRequest) {
           grupoDesp: c.grupoDesp,
           subgrupoDesp: c.subgrupoDesp,
           bancoPgto: c.bancoPgto,
+          razaoSocialBrasilAPI,
         }
       }
     }))

@@ -88,6 +88,12 @@ export interface ContaPagarPreview {
   erros?: string[]
   /** Resultado do match automático com fornecedores do ContaAzul */
   matchFornecedor?: MatchFornecedorInfo
+  /** Campos originais do Datacar (usados internamente para match, etc) */
+  _datacar?: {
+    cnpjEmit?: string | null
+    razaoSocialBrasilAPI?: string | null
+    [key: string]: any
+  }
 }
 
 export interface ResultadoImportacao {
