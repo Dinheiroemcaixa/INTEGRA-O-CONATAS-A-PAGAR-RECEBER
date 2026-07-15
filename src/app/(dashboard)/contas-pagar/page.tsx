@@ -225,6 +225,8 @@ export default function ContasPagarPage() {
   const [dtIni, setDtIni] = useState(primeiroDia)
   const [dtFim, setDtFim] = useState(hoje)
   const [tipoPeriodoContas, setTipoPeriodoContas] = useState<'venc' | 'emis' | 'pgto' | 'digit'>('venc')
+  const [statusPagamento, setStatusPagamento] = useState<'apagar' | 'pagas' | 'todas'>('todas')
+  const [localPagamento, setLocalPagamento] = useState<'todos' | 'BANCO' | 'CARTEIRA' | 'TRANSFERENCIA'>('todos')
   const [contasPreviewDados, setContasPreviewDados] = useState<ContaPagarPreview[] | null>(null)
 
   const supabase = createClient()
@@ -254,7 +256,7 @@ export default function ContasPagarPage() {
       const res = await fetch('/api/datacar/buscar-contas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ empresa_id: empresaAtiva.id, dtIni, dtFim, tipoPeriodo: tipoPeriodoContas }),
+        body: JSON.stringify({ empresa_id: empresaAtiva.id, dtIni, dtFim, tipoPeriodo: tipoPeriodoContas, statusPagamento, localPagamento }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erro ao buscar contas no Datacar')
@@ -559,7 +561,7 @@ export default function ContasPagarPage() {
                 <div className="flex items-end gap-4 flex-wrap">
                   <div>
                     <label className="text-xs font-medium mb-1 flex items-center gap-2 text-dark-400">
-                      Pesquisar por:
+                      Por data de:
                     </label>
                     <select
                       value={tipoPeriodoContas}
@@ -570,6 +572,35 @@ export default function ContasPagarPage() {
                       <option value="emis">Emissão</option>
                       <option value="pgto">Pagamento</option>
                       <option value="digit">Digitação no Sistema</option>
+                    </select>
+                  </div>
+
+                  {/* Filtro: Pagamento */}
+                  <div>
+                    <label className="text-xs font-medium mb-1 block text-dark-400">Pagamento:</label>
+                    <select
+                      value={statusPagamento}
+                      onChange={(e) => setStatusPagamento(e.target.value as any)}
+                      className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
+                    >
+                      <option value="apagar">A pagar</option>
+                      <option value="pagas">Pagas</option>
+                      <option value="todas">A pagar e pagas</option>
+                    </select>
+                  </div>
+
+                  {/* Filtro: Local */}
+                  <div>
+                    <label className="text-xs font-medium mb-1 block text-dark-400">Local:</label>
+                    <select
+                      value={localPagamento}
+                      onChange={(e) => setLocalPagamento(e.target.value as any)}
+                      className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
+                    >
+                      <option value="todos">(Todos)</option>
+                      <option value="BANCO">BANCO</option>
+                      <option value="CARTEIRA">CARTEIRA</option>
+                      <option value="TRANSFERENCIA">TRANSFERENCIA</option>
                     </select>
                   </div>
 

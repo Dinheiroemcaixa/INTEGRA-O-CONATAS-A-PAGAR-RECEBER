@@ -18,7 +18,14 @@ const supabaseAdmin = createClient(
  */
 export async function POST(req: NextRequest) {
   try {
-    const { empresa_id, dtIni, dtFim, tipoPeriodo = 'venc' } = await req.json()
+    const {
+      empresa_id,
+      dtIni,
+      dtFim,
+      tipoPeriodo = 'venc',
+      statusPagamento = 'todas', // 'apagar' | 'pagas' | 'todas'
+      localPagamento = 'todos',  // 'todos' | 'BANCO' | 'CARTEIRA' | 'TRANSFERENCIA'
+    } = await req.json()
 
     if (!empresa_id || !dtIni || !dtFim) {
       return NextResponse.json({ error: 'empresa_id, dtIni e dtFim são obrigatórios' }, { status: 400 })
@@ -85,7 +92,10 @@ export async function POST(req: NextRequest) {
       }
       const vencimento = c.dtVenc || ''
       const emissao = c.dtEmis || ''
-      const doc = [c.numNF, c.doc].filter(Boolean).join(' - ') || null
+      // Descrição = junção das colunas NF e DOC do Datacar (igual ao relatório CpRl010)
+      const partes = [c.numNF, c.doc].filter(Boolean)
+      const descricao = partes.length > 0 ? partes.join(' - ') : (c.obs || null)
+      const doc = c.doc || null
 
       return {
         fornecedor,
@@ -94,7 +104,7 @@ export async function POST(req: NextRequest) {
         emissao: emissao || null,
         doc: doc,
         categoria: c.grupoDesp || null,
-        descricao: c.obs || null,
+        descricao: descricao,
         valido: !!fornecedor && valor > 0 && !!vencimento,
         erros: [
           !fornecedor ? 'Fornecedor não informado' : null,
@@ -113,14 +123,34 @@ export async function POST(req: NextRequest) {
       }
     }))
 
-    const validos = dados.filter(d => d.valido).length
-    const invalidos = dados.filter(d => !d.valido).length
+    // Aplicar filtro de Status de Pagamento
+    let dadosFiltrados = dados
+    if (statusPagamento === 'apagar') {
+      // Somente contas A PAGAR: sem data de pagamento no Datacar
+      dadosFiltrados = dadosFiltrados.filter((_, i) => !contasDatacar[i]?.dtPgto)
+    } else if (statusPagamento === 'pagas') {
+      // Somente contas PAGAS: com data de pagamento no Datacar
+      dadosFiltrados = dadosFiltrados.filter((_, i) => !!contasDatacar[i]?.dtPgto)
+    }
+    // 'todas' = sem filtro
+
+    // Aplicar filtro de Local de Pagamento
+    if (localPagamento && localPagamento !== 'todos') {
+      const localUpper = localPagamento.toUpperCase()
+      dadosFiltrados = dadosFiltrados.filter((_, i) => {
+        const local = (contasDatacar[i]?.localPgto || '').toUpperCase()
+        return local.includes(localUpper)
+      })
+    }
+
+    const validos = dadosFiltrados.filter(d => d.valido).length
+    const invalidos = dadosFiltrados.filter(d => !d.valido).length
 
     return NextResponse.json({
-      total: dados.length,
+      total: dadosFiltrados.length,
       validos,
       invalidos,
-      dados,
+      dados: dadosFiltrados,
       empresa_nome: empresa.nome,
     })
 
