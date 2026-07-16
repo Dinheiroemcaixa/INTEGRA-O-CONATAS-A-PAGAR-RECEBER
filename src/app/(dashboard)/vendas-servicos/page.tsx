@@ -64,7 +64,7 @@ export default function VendasPage() {
   const [tipoPeriodoVendas, setTipoPeriodoVendas] = useState<'abertura' | 'previsao' | 'conclusao' | 'encerramento' | 'cancelamento'>('encerramento')
   const [situacaoVendas, setSituacaoVendas] = useState<'todas' | 'em_andamento' | 'concluida' | 'encerrada' | 'cancelada'>('todas')
   const [numeroOS, setNumeroOS] = useState('')
-  const [filtroTipoItens, setFiltroTipoItens] = useState<'tudo' | 'produtos' | 'servicos'>('produtos')
+  const [filtroTipoItens, setFiltroTipoItens] = useState<'tudo' | 'produtos' | 'servicos'>('servicos')
   const [vendasDatacar, setVendasDatacar] = useState<any[]>([])
   const [selecionadosDatacar, setSelecionadosDatacar] = useState<Set<string>>(new Set())
   const [expandidoDatacar, setExpandidoDatacar] = useState<string | null>(null)
@@ -251,7 +251,7 @@ export default function VendasPage() {
         valido: true,
       }))
 
-      const res = await fetch('/api/conta-azul/enviar-vendas', {
+      const res = await fetch('/api/gov-br/enviar-servicos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -352,7 +352,7 @@ export default function VendasPage() {
     try {
       const itensParaEnviar = dadosEditados.filter((_, i) => selecionados.has(i))
       
-      const res = await fetch('/api/conta-azul/enviar-vendas', {
+      const res = await fetch('/api/gov-br/enviar-servicos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -413,7 +413,7 @@ export default function VendasPage() {
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-white flex items-center gap-2">
               <ShoppingCart className="text-brand-500" />
-              Vendas Produtos
+              Vendas Serviços
             </h1>
             <span className="px-2 py-0.5 bg-brand-500/20 text-brand-400 text-[10px] font-bold rounded border border-brand-500/30 uppercase tracking-wider">
               Novo Módulo

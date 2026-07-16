@@ -256,7 +256,7 @@ export default function HomePageClient() {
                 <div className="w-16 h-px bg-dark-700/50"></div>
 
                 {/* Logo Connecta AI */}
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-600 rounded-2xl shadow-lg shadow-brand-900/50">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-green-600 rounded-2xl shadow-lg shadow-green-900/50">
                   <span className="text-2xl font-bold text-white">$</span>
                 </div>
               </div>
@@ -278,7 +278,7 @@ export default function HomePageClient() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="seu@email.com.br"
                     required
-                    className="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
+                    className="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                   />
                 </div>
 
@@ -292,7 +292,7 @@ export default function HomePageClient() {
                       placeholder="••••••••"
                       required
                       minLength={6}
-                      className="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 pr-12 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
+                      className="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 pr-12 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                     />
                     <button
                       type="button"
@@ -307,7 +307,7 @@ export default function HomePageClient() {
                 <button
                   type="submit"
                   disabled={carregando}
-                  className="w-full bg-brand-600 hover:bg-brand-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-lg flex items-center justify-center gap-2 transition-all duration-200 shadow-lg shadow-brand-900/30 mt-2"
+                  className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-lg flex items-center justify-center gap-2 transition-all duration-200 shadow-lg shadow-green-900/30 mt-2"
                 >
                   {carregando ? <Loader2 size={20} className="animate-spin" /> : <LogIn size={20} />}
                   {modoRegistro ? 'Criar conta' : 'Entrar'}
@@ -318,7 +318,7 @@ export default function HomePageClient() {
                 {modoRegistro ? 'Já tem uma conta?' : 'Ainda não tem uma conta?'}{' '}
                 <button
                   onClick={() => setModoRegistro(!modoRegistro)}
-                  className="text-brand-400 hover:text-brand-300 font-medium transition-colors"
+                  className="text-green-400 hover:text-green-300 font-medium transition-colors"
                 >
                   {modoRegistro ? 'Fazer login' : 'Criar conta'}
                 </button>
