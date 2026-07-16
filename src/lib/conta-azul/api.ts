@@ -571,57 +571,76 @@ export async function buscarOuCriarProduto(
   }
 
   // 1. Tenta buscar o produto pelo código ou descrição
-  const urlBusca = `${BASE_URL}/produtos?termo_busca=${encodeURIComponent(codigo || descricao)}&tamanho_pagina=100`
+  let matchProduto = null;
+  const termoBusca = encodeURIComponent(codigo || descricao);
+  
   try {
-    const busca = await fetch(urlBusca, { headers: { 'Authorization': `Bearer ${accessToken}` } })
-    if (busca.ok) {
-      const data = await busca.json()
-      const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : [])
+    // Busca paginada (até 5 páginas) para evitar que SKUs curtos se percam em muitos resultados
+    for (let page = 1; page <= 5; page++) {
+      const urlBusca = `${BASE_URL}/produtos?termo_busca=${termoBusca}&tamanho_pagina=100&pagina=${page}`;
+      const busca = await fetch(urlBusca, { headers: { 'Authorization': `Bearer ${accessToken}` } });
       
-      let match = null
+      if (!busca.ok) {
+        if (busca.status === 401) throw new Error('TOKEN_EXPIRADO');
+        break; // Erro na busca, interrompe paginação
+      }
+      
+      const data = await busca.json();
+      const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : []);
+      
+      if (lista.length === 0) break; // Fim dos resultados
+      
       if (codigo) {
-        const codigoTrim = codigo.trim()
-        match = lista.find(p => p.codigo_sku?.trim() === codigoTrim || p.codigo?.trim() === codigoTrim)
+        const codigoTrim = codigo.trim();
+        matchProduto = lista.find(p => p.codigo_sku?.trim() === codigoTrim || p.codigo?.trim() === codigoTrim);
       }
       
-      if (!match) {
-        const searchName = (descricao || '').toLowerCase().trim()
-        match = lista.find(p => (p.nome || p.name || '').toLowerCase().trim() === searchName)
+      if (!matchProduto) {
+        const searchName = (descricao || '').toLowerCase().trim();
+        matchProduto = lista.find(p => (p.nome || p.name || '').toLowerCase().trim() === searchName);
       }
       
-      if (match) {
-        const produtoId = match.id || match.uuid
-        
-        // Se temos dados fiscais, faz PUT para atualizar o produto existente
-        const fiscal = await montarFiscal()
-        if (fiscal && produtoId) {
-          try {
-            const updatePayload: any = { fiscal }
-            const unidadeId = await buscarUnidadeMedidaId()
-            if (unidadeId) updatePayload.unidade_medida = { id: unidadeId }
-            
-            console.log(`[buscarOuCriarProduto] Atualizando produto ${produtoId} com:`, JSON.stringify(updatePayload))
-            
-            const updateRes = await fetch(`${BASE_URL}/produtos/${produtoId}`, {
-              method: 'PUT',
-              headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify(updatePayload),
-            })
-            if (!updateRes.ok) {
-              const errBody = await updateRes.text()
-              console.warn(`[buscarOuCriarProduto] Falha ao atualizar fiscal do produto existente ${produtoId}:`, updateRes.status, errBody)
-            } else {
-              console.log(`[buscarOuCriarProduto] Produto ${produtoId} atualizado com dados fiscais com sucesso!`)
-            }
-          } catch (e) {
-            console.warn('[buscarOuCriarProduto] Erro ao tentar atualizar fiscal:', e)
-          }
-        }
-        
-        return produtoId
+      if (matchProduto) {
+        break; // Encontrou o produto, pode parar a paginação
       }
+      
+      if (lista.length < 100) break; // Última página
     }
-  } catch (e) { console.warn(`[buscarOuCriarProduto] erro na busca em ${urlBusca}:`, e) }
+
+    if (matchProduto) {
+      const produtoId = matchProduto.id || matchProduto.uuid;
+      
+      // Se temos dados fiscais, faz PUT para atualizar o produto existente
+      const fiscal = await montarFiscal();
+      if (fiscal && produtoId) {
+        try {
+          const updatePayload: any = { fiscal };
+          const unidadeId = await buscarUnidadeMedidaId();
+          if (unidadeId) updatePayload.unidade_medida = { id: unidadeId };
+          
+          console.log(`[buscarOuCriarProduto] Atualizando produto ${produtoId} com:`, JSON.stringify(updatePayload));
+          
+          const updateRes = await fetch(`${BASE_URL}/produtos/${produtoId}`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatePayload),
+          });
+          if (!updateRes.ok) {
+            const errBody = await updateRes.text();
+            console.warn(`[buscarOuCriarProduto] Falha ao atualizar fiscal do produto existente ${produtoId}:`, updateRes.status, errBody);
+          } else {
+            console.log(`[buscarOuCriarProduto] Produto ${produtoId} atualizado com dados fiscais com sucesso!`);
+          }
+        } catch (e) {
+          console.warn('[buscarOuCriarProduto] Erro ao tentar atualizar fiscal:', e);
+        }
+      }
+      
+      return produtoId;
+    }
+  } catch (e) {
+    console.warn(`[buscarOuCriarProduto] erro na busca do produto:`, e);
+  }
 
   // 2. Tenta criar o produto se não existir
   try {
@@ -666,6 +685,11 @@ export async function buscarOuCriarProduto(
       let msg = `Não foi possível criar o produto "${descricao}" no Conta Azul: [${criar.status}] ${errBody}`
       if (errBody.includes('unidade de medida')) {
         msg = `Erro no Conta Azul: Para cadastrar o produto "${descricao}", é obrigatório enviar o ID da Unidade de Medida. Verifique se a unidade "${metadata?.unidade_medida || 'UN'}" existe no seu Conta Azul.`
+      } else if (criar.status === 409 && errBody.includes('SKU')) {
+        // Trata o erro 409 especificamente com uma dica melhor, ou tenta fazer uma busca avançada (mas por segurança, retornamos o erro claro)
+        msg = `O produto "${descricao}" tem o código/SKU "${codigo}", que JÁ EXISTE no Conta Azul cadastrado em outro produto, ou está Inativo. Mude o código no Datacar ou no Conta Azul para resolver o conflito.`
+        
+        // Tentativa de recuperação de emergência (busca por SKU exato em todas as páginas, omitido para não estourar tempo limite. A mensagem já guia o usuário).
       }
       
       throw new Error(msg)
