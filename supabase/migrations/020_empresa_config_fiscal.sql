@@ -28,8 +28,8 @@ CREATE POLICY "Acesso as configuracoes da propria empresa"
     FOR ALL
     USING (
         empresa_id IN (
-            SELECT id FROM public.empresas 
-            WHERE user_id = auth.uid() OR email_login = auth.jwt()->>'email'
+            SELECT empresa_id FROM public.usuarios_empresas 
+            WHERE user_id = auth.uid()
         )
     );
 

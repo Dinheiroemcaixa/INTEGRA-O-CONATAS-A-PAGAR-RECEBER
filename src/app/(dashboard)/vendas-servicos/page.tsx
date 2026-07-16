@@ -208,7 +208,7 @@ export default function VendasPage() {
     toast.success('Venda ignorada da lista de importação.')
   }
 
-  // ─── Enviar para Conta Azul (vindas do Datacar) ──────────────
+  // ─── Enviar para Gov.br NFS-e (vindas do Datacar) ──────────────
   const handleEnviarDatacarParaCA = async () => {
     if (!empresaAtiva) { toast.error('Selecione uma empresa'); return }
     if (selecionadosDatacar.size === 0) { toast.error('Selecione ao menos uma venda'); return }
@@ -265,7 +265,7 @@ export default function VendasPage() {
 
       // Atualiza status localmente e limpa a seleção
       if (data.sucessos > 0) {
-        toast.success(`${data.sucessos} vendas criadas no Conta Azul com sucesso!`)
+        toast.success(`${data.sucessos} NFS-e emitidas via Gov.br com sucesso!`)
         setVendasDatacar(prev => prev.map(v => {
           if (selecionadosDatacar.has(v.id)) {
              return { ...v, status: 'enviado' }
@@ -286,7 +286,7 @@ export default function VendasPage() {
 
 
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao enviar para o Conta Azul'
+      const msg = err instanceof Error ? err.message : 'Erro ao emitir NFS-e via Gov.br'
       toast.error(msg)
     } finally {
       setEnviandoDatacar(false)
@@ -690,7 +690,7 @@ export default function VendasPage() {
                       className="flex items-center gap-2 px-5 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white rounded-lg text-sm font-bold transition-all shadow-lg"
                     >
                       {enviandoDatacar ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                      {enviandoDatacar ? 'Enviando...' : `Criar ${selecionadosDatacar.size} Venda(s) no Conta Azul`}
+                      {enviandoDatacar ? 'Emitindo...' : `Emitir ${selecionadosDatacar.size} NFS-e via Gov.br`}
                     </button>
                   )}
                 </div>
