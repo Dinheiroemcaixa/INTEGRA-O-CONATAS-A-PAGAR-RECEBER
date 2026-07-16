@@ -11,6 +11,26 @@ const BASE_URL = 'https://api-v2.contaazul.com/v1'
 const AUTH_URL = 'https://auth.contaazul.com/oauth2/token'
 const AUTHORIZE_URL = 'https://auth.contaazul.com/login'
 
+/**
+ * Helper para lidar com os limites de requisição da Conta Azul (Spike Arrest).
+ * Intercepta erros 429 e aplica um backoff exponencial.
+ */
+async function fetchCA(url: string | URL | Request, options?: RequestInit): Promise<Response> {
+  const maxRetries = 3;
+  for (let i = 0; i < maxRetries; i++) {
+    await new Promise(r => setTimeout(r, 200));
+    const res = await fetch(url, options);
+    if (res.status === 429) {
+      const waitTime = (2 ** i) * 1000;
+      console.warn(`[fetchCA] Rate limit atingido (429) na URL ${typeof url === 'string' ? url : '...'} - Tentativa ${i+1}/${maxRetries}. Aguardando ${waitTime}ms...`);
+      await new Promise(r => setTimeout(r, waitTime));
+      continue;
+    }
+    return res;
+  }
+  return fetch(url, options);
+}
+
 export interface TokenResponse {
   access_token: string
   refresh_token: string
@@ -72,7 +92,7 @@ export async function getTokenComCodigo(
   clientSecret: string
 ): Promise<TokenResponse> {
   const credenciais = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
-  const res = await fetch(AUTH_URL, {
+  const res = await fetchCA(AUTH_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': `Basic ${credenciais}` },
     body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: redirectUri }),
@@ -87,7 +107,7 @@ export async function refreshToken(
   clientSecret: string
 ): Promise<TokenResponse> {
   const credenciais = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
-  const res = await fetch(AUTH_URL, {
+  const res = await fetchCA(AUTH_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': `Basic ${credenciais}` },
     body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshTokenStr }),
@@ -106,7 +126,7 @@ export async function listarContasFinanceiras(accessToken: string): Promise<Cont
   ]
   for (const endpoint of endpoints) {
     try {
-      const res = await fetch(endpoint, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+      const res = await fetchCA(endpoint, { headers: { 'Authorization': `Bearer ${accessToken}` } })
       if (!res.ok) {
         if (res.status === 401) throw new Error('TOKEN_EXPIRADO')
         continue
@@ -144,7 +164,7 @@ export async function listarCategorias(accessToken: string): Promise<Array<{ id:
       for (let page = 1; page <= 10; page++) {
         const sep = endpoint.includes('?') ? '&' : '?'
         const urlComPagina = `${endpoint}${sep}pagina=${page}&tamanho_pagina=100`
-        const res = await fetch(urlComPagina, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+        const res = await fetchCA(urlComPagina, { headers: { 'Authorization': `Bearer ${accessToken}` } })
         
         if (!res.ok) {
           if (res.status === 401) throw new Error('TOKEN_EXPIRADO')
@@ -216,7 +236,7 @@ export async function buscarOuCriarContato(
     if (docLimpo) {
       const urlDoc = `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=10&cpf_cnpj=${docLimpo}&tipo_perfil=Fornecedor`
       try {
-        const busca = await fetch(urlDoc, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+        const busca = await fetchCA(urlDoc, { headers: { 'Authorization': `Bearer ${accessToken}` } })
         if (busca.ok) {
           const data = await busca.json()
           const lista: any[] = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
@@ -238,7 +258,7 @@ export async function buscarOuCriarContato(
     ]
     for (const url of endpointsBusca) {
       try {
-        const busca = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+        const busca = await fetchCA(url, { headers: { 'Authorization': `Bearer ${accessToken}` } })
         if (busca.ok) {
           const data = await busca.json()
           const lista: any[] = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
@@ -262,14 +282,14 @@ export async function buscarOuCriarContato(
       if (tipoPessoa === 'Jurídica') bodyFornecedor.cnpj = docLimpo
       else bodyFornecedor.cpf = docLimpo
     }
-    const criar = await fetch(`${BASE_URL}/pessoas`, {
+    const criar = await fetchCA(`${BASE_URL}/pessoas`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(bodyFornecedor),
     })
     if (criar.ok) { const novo: any = await criar.json(); return novo.id }
     // Fallback legado
-    const criarLegado = await fetch(`${BASE_URL}/contatos`, {
+    const criarLegado = await fetchCA(`${BASE_URL}/contatos`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ nome, tipo_pessoa: tipoPessoa === 'Jurídica' ? 'PJ' : 'PF', ativo: true }),
@@ -281,7 +301,7 @@ export async function buscarOuCriarContato(
 }
 
 export async function criarContaPagar(accessToken: string, payload: ContaPagarPayload): Promise<ContaPagarResponse> {
-  const res = await fetch(`${BASE_URL}/financeiro/eventos-financeiros/contas-a-pagar`, {
+  const res = await fetchCA(`${BASE_URL}/financeiro/eventos-financeiros/contas-a-pagar`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -320,7 +340,7 @@ export async function listarFornecedores(accessToken: string): Promise<Array<{ i
       for (let page = 1; page <= 50; page++) {
         const sep = endpoint.includes('?') ? '&' : '?'
         const urlComPagina = `${endpoint}${sep}pagina=${page}&tamanho_pagina=100`
-        const res = await fetch(urlComPagina, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+        const res = await fetchCA(urlComPagina, { headers: { 'Authorization': `Bearer ${accessToken}` } })
         
         if (!res.ok) {
           if (res.status === 401) throw new Error('TOKEN_EXPIRADO')
@@ -412,7 +432,7 @@ export async function criarVenda(accessToken: string, payload: VendaPayload): Pr
   // Busca o próximo número de venda para não haver conflito se não informarmos
   if (!payload.numero) {
     try {
-      const proximo = await fetch(`${BASE_URL}/venda/proximo-numero`, {
+      const proximo = await fetchCA(`${BASE_URL}/venda/proximo-numero`, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
       })
       if (proximo.ok) {
@@ -426,7 +446,7 @@ export async function criarVenda(accessToken: string, payload: VendaPayload): Pr
   // Garante que id_vendedor NÃO seja enviado (vendedor responsável deve ficar em branco)
   delete (payload as any).id_vendedor
 
-  const res = await fetch(`${BASE_URL}/venda`, {
+  const res = await fetchCA(`${BASE_URL}/venda`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -449,7 +469,7 @@ export async function buscarOuCriarProduto(
     if (!metadata?.unidade_medida) return undefined
     const sigla = metadata.unidade_medida.toUpperCase().trim()
     try {
-      const res = await fetch(`${BASE_URL}/produtos/unidades-medida?busca_textual=${encodeURIComponent(sigla)}&tamanho_pagina=100`, {
+      const res = await fetchCA(`${BASE_URL}/produtos/unidades-medida?busca_textual=${encodeURIComponent(sigla)}&tamanho_pagina=100`, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
       })
       if (res.ok) {
@@ -480,7 +500,7 @@ export async function buscarOuCriarProduto(
     if (metadata.ncm) {
       try {
         const ncmCode = metadata.ncm.replace(/\D/g, '')
-        const res = await fetch(`${BASE_URL}/produtos/ncm?busca_textual=${ncmCode}&tamanho_pagina=50`, {
+        const res = await fetchCA(`${BASE_URL}/produtos/ncm?busca_textual=${ncmCode}&tamanho_pagina=50`, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         })
         if (res.ok) {
@@ -502,7 +522,7 @@ export async function buscarOuCriarProduto(
     if (metadata.cest) {
       try {
         const cestCode = metadata.cest.replace(/\D/g, '')
-        const res = await fetch(`${BASE_URL}/produtos/cest?busca_textual=${cestCode}&tamanho_pagina=50`, {
+        const res = await fetchCA(`${BASE_URL}/produtos/cest?busca_textual=${cestCode}&tamanho_pagina=50`, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         })
         if (res.ok) {
@@ -578,7 +598,7 @@ export async function buscarOuCriarProduto(
     // Busca paginada (até 5 páginas) para evitar que SKUs curtos se percam em muitos resultados
     for (let page = 1; page <= 5; page++) {
       const urlBusca = `${BASE_URL}/produtos?termo_busca=${termoBusca}&tamanho_pagina=100&pagina=${page}`;
-      const busca = await fetch(urlBusca, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+      const busca = await fetchCA(urlBusca, { headers: { 'Authorization': `Bearer ${accessToken}` } });
       
       if (!busca.ok) {
         if (busca.status === 401) throw new Error('TOKEN_EXPIRADO');
@@ -620,7 +640,7 @@ export async function buscarOuCriarProduto(
           
           console.log(`[buscarOuCriarProduto] Atualizando produto ${produtoId} com:`, JSON.stringify(updatePayload));
           
-          const updateRes = await fetch(`${BASE_URL}/produtos/${produtoId}`, {
+          const updateRes = await fetchCA(`${BASE_URL}/produtos/${produtoId}`, {
             method: 'PUT',
             headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(updatePayload),
@@ -669,7 +689,7 @@ export async function buscarOuCriarProduto(
     
     console.log(`[buscarOuCriarProduto] Criando produto com payload:`, JSON.stringify(payloadProduto))
     
-    const criar = await fetch(`${BASE_URL}/produtos`, {
+    const criar = await fetchCA(`${BASE_URL}/produtos`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(payloadProduto),
@@ -706,7 +726,7 @@ export async function buscarOuCriarProduto(
                 const sep = rotaBase.includes('?') ? '&' : '?';
                 const urlBusca = `${rotaBase}${sep}tamanho_pagina=100&pagina=${page}`;
                 try {
-                  const busca = await fetch(urlBusca, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                  const busca = await fetchCA(urlBusca, { headers: { 'Authorization': `Bearer ${accessToken}` } });
                   if (!busca.ok) break;
                   
                   const data = await busca.json();
@@ -775,7 +795,7 @@ export async function buscarOuCriarCliente(
     if (docLimpo) {
       const urlDoc = `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=10&cpf_cnpj=${docLimpo}&tipo_perfil=Cliente`
       try {
-        const busca = await fetch(urlDoc, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+        const busca = await fetchCA(urlDoc, { headers: { 'Authorization': `Bearer ${accessToken}` } })
         if (busca.ok) {
           const data = await busca.json()
           const lista: any[] = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
@@ -797,7 +817,7 @@ export async function buscarOuCriarCliente(
     ]
     for (const url of endpointsBusca) {
       try {
-        const busca = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+        const busca = await fetchCA(url, { headers: { 'Authorization': `Bearer ${accessToken}` } })
         if (busca.ok) {
           const data = await busca.json()
           const lista: any[] = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
@@ -839,7 +859,7 @@ export async function buscarOuCriarCliente(
       endCA.pais = 'Brasil';
       bodyCliente.enderecos = [endCA];
     }
-    const criar = await fetch(`${BASE_URL}/pessoas`, {
+    const criar = await fetchCA(`${BASE_URL}/pessoas`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(bodyCliente),
@@ -855,7 +875,7 @@ export async function buscarOuCriarCliente(
       // Busca sem filtro de perfil para encontrar qualquer pessoa com esse doc
       const urlBuscaDoc = `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=10&cpf_cnpj=${docLimpo}`
       try {
-        const buscaDoc = await fetch(urlBuscaDoc, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+        const buscaDoc = await fetchCA(urlBuscaDoc, { headers: { 'Authorization': `Bearer ${accessToken}` } })
         if (buscaDoc.ok) {
           const dataDoc = await buscaDoc.json()
           const listaDoc: any[] = dataDoc.itens || dataDoc.items || dataDoc.content || dataDoc.data || (Array.isArray(dataDoc) ? dataDoc : [])
@@ -871,7 +891,7 @@ export async function buscarOuCriarCliente(
     if (criar.status === 400 && (errTextPrincipal.includes('CPF') || errTextPrincipal.includes('CNPJ')) && errTextPrincipal.includes('inválido')) {
       console.log('[buscarOuCriarCliente] CPF/CNPJ inválido, criando sem documento...')
       const bodySemDoc = { nome, tipo_pessoa: tipoPessoa, perfis: [{ tipo_perfil: 'Cliente' }], ativo: true }
-      const criarSemDoc = await fetch(`${BASE_URL}/pessoas`, {
+      const criarSemDoc = await fetchCA(`${BASE_URL}/pessoas`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(bodySemDoc),
@@ -925,7 +945,7 @@ export async function buscarVendasContaAzul(
   while (continuar) {
     try {
       const url = `${BASE_URL}/venda?data_emissao_inicial=${dataInicial}&data_emissao_final=${dataFinal}&pagina=${pagina}&tamanho_pagina=100`
-      const res = await fetch(url, {
+      const res = await fetchCA(url, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
       })
 
@@ -966,7 +986,7 @@ export async function verificarNfeEmitidaDaVenda(
     // Precisamos de data_inicial e data_final para a API de notas fiscais
     // Usamos um período amplo para garantir que encontramos a nota
     const url = `${BASE_URL}/notas-fiscais?id_venda=${vendaId}&data_inicial=2020-01-01&data_final=2030-12-31&tamanho_pagina=10`
-    const res = await fetch(url, {
+    const res = await fetchCA(url, {
       headers: { 'Authorization': `Bearer ${accessToken}` }
     })
 
