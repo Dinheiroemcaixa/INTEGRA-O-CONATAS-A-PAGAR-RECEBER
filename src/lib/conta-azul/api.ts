@@ -686,10 +686,54 @@ export async function buscarOuCriarProduto(
       if (errBody.includes('unidade de medida')) {
         msg = `Erro no Conta Azul: Para cadastrar o produto "${descricao}", é obrigatório enviar o ID da Unidade de Medida. Verifique se a unidade "${metadata?.unidade_medida || 'UN'}" existe no seu Conta Azul.`
       } else if (criar.status === 409 && errBody.includes('SKU')) {
-        // Trata o erro 409 especificamente com uma dica melhor, ou tenta fazer uma busca avançada (mas por segurança, retornamos o erro claro)
-        msg = `O produto "${descricao}" tem o código/SKU "${codigo}", que JÁ EXISTE no Conta Azul cadastrado em outro produto, ou está Inativo. Mude o código no Datacar ou no Conta Azul para resolver o conflito.`
-        
-        // Tentativa de recuperação de emergência (busca por SKU exato em todas as páginas, omitido para não estourar tempo limite. A mensagem já guia o usuário).
+        console.log(`[buscarOuCriarProduto] 409 SKU duplicado para '${codigo}'. Tentando recuperar produto exaustivamente...`);
+        if (codigo) {
+           const codigoTrim = codigo.trim();
+           const rotasDeBusca = [
+             `${BASE_URL}/produtos?codigo_sku=${encodeURIComponent(codigo)}`,
+             `${BASE_URL}/produtos?busca=${encodeURIComponent(codigo)}`,
+             `${BASE_URL}/produtos?status=INATIVO&termo_busca=${encodeURIComponent(codigo)}`,
+             `${BASE_URL}/produtos?status=TODOS&termo_busca=${encodeURIComponent(codigo)}`,
+             // Uma tentativa sem filtros, iterando as primeiras 10 páginas
+             `${BASE_URL}/produtos`
+           ];
+           
+           let produtoRecuperado = null;
+           for (const rotaBase of rotasDeBusca) {
+             if (produtoRecuperado) break;
+             const maxPages = rotaBase === `${BASE_URL}/produtos` ? 10 : 3;
+             for (let page = 1; page <= maxPages; page++) {
+                const sep = rotaBase.includes('?') ? '&' : '?';
+                const urlBusca = `${rotaBase}${sep}tamanho_pagina=100&pagina=${page}`;
+                try {
+                  const busca = await fetch(urlBusca, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                  if (!busca.ok) break;
+                  
+                  const data = await busca.json();
+                  const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : []);
+                  if (lista.length === 0) break;
+                  
+                  const rec = lista.find((p: any) => p.codigo_sku?.trim() === codigoTrim || p.codigo?.trim() === codigoTrim);
+                  if (rec) {
+                    produtoRecuperado = rec;
+                    console.log(`[buscarOuCriarProduto] Produto recuperado na rota ${rotaBase}. ID: ${rec.id || rec.uuid}`);
+                    break;
+                  }
+                  if (lista.length < 100) break;
+                } catch (errRec) {
+                  console.warn(`[buscarOuCriarProduto] Erro na recuperacao na rota ${urlBusca}:`, errRec);
+                  break;
+                }
+             }
+           }
+           
+           if (produtoRecuperado) {
+             const recId = produtoRecuperado.id || produtoRecuperado.uuid;
+             // Se o produto está inativo, a criação da venda com ele pode falhar depois, mas retornamos o ID para reaproveitamento.
+             return recId;
+           }
+        }
+        msg = `O produto "${descricao}" tem o código/SKU "${codigo}", que JÁ EXISTE no Conta Azul cadastrado em outro produto, ou está Inativo. Mude o código no Datacar ou no Conta Azul para resolver o conflito.`;
       }
       
       throw new Error(msg)
