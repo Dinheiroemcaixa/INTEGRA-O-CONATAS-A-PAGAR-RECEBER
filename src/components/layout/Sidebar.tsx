@@ -47,8 +47,15 @@ export default function Sidebar() {
     <>
       <aside className="w-64 bg-dark-900 border-r border-dark-700 flex flex-col">
 
-        {/* Espaço limpo no topo para a navegação começar de forma elegante */}
-        <div className="pt-6"></div>
+        {/* Logo do app — integrado ao fundo */}
+        <div className="p-4 flex flex-col items-center justify-center gap-4 min-h-[120px] border-b border-dark-700/50 mb-2">
+          {/* Logo Dinheiro em Caixa - Grande */}
+          <img 
+            src="/images/dinheiro-em-caixa-logo.png" 
+            alt="Dinheiro em Caixa" 
+            className="w-full max-w-[180px] h-auto object-contain drop-shadow-md" 
+          />
+        </div>
 
         {/* Nav */}
         <nav className="flex-1 p-4 space-y-1">

@@ -131,7 +131,7 @@ export default function ContasPreviewSection({
     processarMatch()
     return () => { mounted = false }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dadosIniciais, empresaAtiva])
+  }, [dadosIniciais, empresaAtiva?.id])
 
 
   const toggleItem = (idx: number) => {
@@ -207,21 +207,29 @@ export default function ContasPreviewSection({
     if (empresaAtiva && nomeOriginal && nomeOriginal !== novoNome) {
       try {
         const nomeNormalizado = normalizarNome(nomeOriginal)
-        await supabase
-          .from('fornecedor_depara')
-          .upsert({
-            empresa_id: empresaAtiva.id,
-            nome_original: nomeOriginal,
-            nome_original_normalizado: nomeNormalizado,
-            nome_corrigido: novoNome,
-            updated_at: new Date().toISOString(),
-          }, {
-            onConflict: 'empresa_id,nome_original_normalizado',
-          })
-        toast.success(`Aprendido: "${nomeOriginal}" → "${novoNome}"`, { id: 'learn-depara', duration: 3000 })
-      } catch (err) {
-        console.error('Erro ao salvar regra De-Para:', err)
-      }
+          const { error } = await supabase
+            .from('fornecedor_depara')
+            .upsert({
+              empresa_id: empresaAtiva.id,
+              nome_original: nomeOriginal,
+              nome_original_normalizado: nomeNormalizado,
+              nome_corrigido: novoNome,
+              updated_at: new Date().toISOString(),
+            }, {
+              onConflict: 'empresa_id,nome_original_normalizado',
+            })
+          
+          if (error) {
+            console.error('Erro no Supabase ao salvar regra De-Para:', error)
+            toast.error('Erro ao salvar fornecedor. A tabela fornecedor_depara existe?')
+            return
+          }
+          
+          toast.success(`Aprendido: "${nomeOriginal}" → "${novoNome}"`, { id: 'learn-depara', duration: 3000 })
+        } catch (err) {
+          console.error('Erro ao salvar regra De-Para:', err)
+          toast.error('Erro inesperado ao salvar fornecedor.')
+        }
     }
   }, [empresaAtiva, dadosEditados, supabase])
 
