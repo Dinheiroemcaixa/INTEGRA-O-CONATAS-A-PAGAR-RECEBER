@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, ArrowDownCircle, ArrowUpCircle,
-  Building2, Settings, ChevronRight, User, LogOut, ShoppingCart, Database
+  Building2, Settings, ChevronRight, User, LogOut, ShoppingCart, Database, FileKey2
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useAppConfig } from '@/contexts/AppConfigContext'
@@ -21,6 +21,7 @@ const navItems = [
   { label: 'Contas a Pagar', href: '/contas-pagar', icon: ArrowDownCircle, badge: 'ATIVO' },
   { label: 'Contas a Receber', href: '/contas-receber', icon: ArrowUpCircle, badge: 'EM BREVE', disabled: true },
   { label: 'Empresas', href: '/empresas', icon: Building2 },
+  { label: 'Config. Fiscal', href: '/config-fiscal', icon: FileKey2, badge: 'NOVO' },
   { label: 'Configuracoes', href: '/configuracoes', icon: Settings, disabled: true },
 ]
 
