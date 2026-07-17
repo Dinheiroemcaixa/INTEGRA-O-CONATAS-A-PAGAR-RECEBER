@@ -802,7 +802,7 @@ export default function VendasPage() {
                                 ? 'bg-amber-500/15 text-amber-400'
                                 : 'bg-yellow-500/15 text-yellow-400'
                           }`}>
-                            {venda.status === 'enviado' ? 'Enviado CA' : venda.status === 'duplicidade' ? 'Duplicada' : 'Pendente'}
+                            {venda.status === 'enviado' ? 'Enviado Gov.br' : venda.status === 'duplicidade' ? 'Duplicada' : 'Pendente'}
                           </span>
                           <div className="flex items-center justify-end gap-1">
                             <button
