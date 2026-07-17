@@ -23,6 +23,7 @@ export interface DadosDPS {
   codigoComplementarMunicipal?: string
   itemNBS?: string
   aliquotaSimplesNacional?: number
+  aliquotaIssqn?: number
 }
 
 /**
@@ -80,15 +81,18 @@ export function buildDPSXml(dados: DadosDPS): string {
           },
           trib: {
             tribMun: {
-              tribISSQN: 1, // 1 = Operação tributável (Não imunidade, exportação, não incidência)
+              tribISSQN: 1, // 1 = Operação tributável
               cLocIncid: dados.cliente.cidade, // Município de incidência do ISSQN
-              pAliq: dados.aliquotaSimplesNacional ? dados.aliquotaSimplesNacional.toFixed(2) : '11.34', // Alíquota geral mensal do Simples
+              pAliq: dados.aliquotaIssqn ? dados.aliquotaIssqn.toFixed(2) : undefined, // Alíquota do ISS (se exigido pela prefeitura/retido)
               tpRetISSQN: 2, // 2 = Não retido pelo Tomador
             },
             tribFed: {
               piscofins: {
                 cst: '00', // 00 - Nenhum
               }
+            },
+            totTrib: {
+              pAliqSN: dados.aliquotaSimplesNacional ? dados.aliquotaSimplesNacional.toFixed(2) : '11.34'
             }
           }
         }

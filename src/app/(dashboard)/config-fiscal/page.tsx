@@ -18,6 +18,8 @@ interface ConfigFiscal {
   regime_tributario: number
   certificado_nome_arquivo: string | null
   certificado_validade: string | null
+  aliquota_simples_nacional: number | null
+  aliquota_issqn: number | null
   created_at: string
   updated_at: string
 }
@@ -29,6 +31,8 @@ export default function ConfigFiscalPage() {
   const [cnpj, setCnpj] = useState('')
   const [inscricaoMunicipal, setInscricaoMunicipal] = useState('')
   const [regimeTributario, setRegimeTributario] = useState('1')
+  const [aliquotaSimplesNacional, setAliquotaSimplesNacional] = useState('')
+  const [aliquotaIssqn, setAliquotaIssqn] = useState('')
   const [senhaCertificado, setSenhaCertificado] = useState('')
   const [showSenha, setShowSenha] = useState(false)
   const [certificadoFile, setCertificadoFile] = useState<File | null>(null)
@@ -51,6 +55,8 @@ export default function ConfigFiscalPage() {
         setCnpj(data.config.cnpj || '')
         setInscricaoMunicipal(data.config.inscricao_municipal || '')
         setRegimeTributario(String(data.config.regime_tributario || 1))
+        setAliquotaSimplesNacional(data.config.aliquota_simples_nacional ? String(data.config.aliquota_simples_nacional) : '')
+        setAliquotaIssqn(data.config.aliquota_issqn ? String(data.config.aliquota_issqn) : '')
         setTemCertificado(data.temCertificado)
       } else {
         setConfig(null)
@@ -87,6 +93,12 @@ export default function ConfigFiscalPage() {
       if (cnpjLimpo) formData.append('cnpj', cnpjLimpo)
       if (inscricaoMunicipal) formData.append('inscricao_municipal', inscricaoMunicipal)
       formData.append('regime_tributario', regimeTributario)
+      
+      const valSimples = aliquotaSimplesNacional.replace(',', '.')
+      if (valSimples && !isNaN(Number(valSimples))) formData.append('aliquota_simples_nacional', valSimples)
+        
+      const valIssqn = aliquotaIssqn.replace(',', '.')
+      if (valIssqn && !isNaN(Number(valIssqn))) formData.append('aliquota_issqn', valIssqn)
 
       if (certificadoFile) {
         formData.append('certificado', certificadoFile)
@@ -207,6 +219,29 @@ export default function ConfigFiscalPage() {
                   <option value="3">Lucro Real</option>
                   <option value="4">MEI</option>
                 </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-dark-400 mb-1.5">Alíquota Simples Nacional (%)</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: 11.34"
+                    value={aliquotaSimplesNacional}
+                    onChange={(e) => setAliquotaSimplesNacional(e.target.value)}
+                    className="w-full bg-dark-900 border border-dark-700 rounded-lg px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-dark-400 mb-1.5">Alíquota ISSQN Mensal (%)</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: 3.87"
+                    value={aliquotaIssqn}
+                    onChange={(e) => setAliquotaIssqn(e.target.value)}
+                    className="w-full bg-dark-900 border border-dark-700 rounded-lg px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-colors"
+                  />
+                </div>
               </div>
             </div>
           </div>

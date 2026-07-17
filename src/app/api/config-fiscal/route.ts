@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     const supabase = getSupabaseAdmin()
     const { data, error } = await supabase
       .from('empresa_config_fiscal')
-      .select('id, empresa_id, cnpj, inscricao_municipal, regime_tributario, certificado_nome_arquivo, certificado_validade, created_at, updated_at')
+      .select('id, empresa_id, cnpj, inscricao_municipal, regime_tributario, aliquota_simples_nacional, aliquota_issqn, certificado_nome_arquivo, certificado_validade, created_at, updated_at')
       .eq('empresa_id', empresaId)
       .maybeSingle()
 
@@ -54,6 +54,8 @@ export async function POST(req: NextRequest) {
     const cnpj = formData.get('cnpj') as string | null
     const inscricaoMunicipal = formData.get('inscricao_municipal') as string | null
     const regimeTributario = formData.get('regime_tributario') as string | null
+    const aliquotaSimplesNacional = formData.get('aliquota_simples_nacional') as string | null
+    const aliquotaIssqn = formData.get('aliquota_issqn') as string | null
     const senhaCertificado = formData.get('senha_certificado') as string | null
     const certificadoFile = formData.get('certificado') as File | null
 
@@ -72,6 +74,8 @@ export async function POST(req: NextRequest) {
     if (cnpj) payload.cnpj = cnpj.replace(/\D/g, '')
     if (inscricaoMunicipal) payload.inscricao_municipal = inscricaoMunicipal
     if (regimeTributario) payload.regime_tributario = parseInt(regimeTributario) || 1
+    if (aliquotaSimplesNacional) payload.aliquota_simples_nacional = parseFloat(aliquotaSimplesNacional)
+    if (aliquotaIssqn) payload.aliquota_issqn = parseFloat(aliquotaIssqn)
 
     // Upload do certificado (se enviado)
     if (certificadoFile && certificadoFile.size > 0) {
@@ -145,6 +149,8 @@ export async function POST(req: NextRequest) {
         cnpj: result.data.cnpj,
         inscricao_municipal: result.data.inscricao_municipal,
         regime_tributario: result.data.regime_tributario,
+        aliquota_simples_nacional: result.data.aliquota_simples_nacional,
+        aliquota_issqn: result.data.aliquota_issqn,
         certificado_nome_arquivo: result.data.certificado_nome_arquivo,
         certificado_validade: result.data.certificado_validade,
       }

@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
           codigoComplementarMunicipal: '14.01.01.001',
           itemNBS: '120013110',
           aliquotaSimplesNacional: configFiscal.aliquota_simples_nacional || 11.34,
+          aliquotaIssqn: configFiscal.aliquota_issqn || undefined,
         }
 
         // 6. Constrói o XML da DPS

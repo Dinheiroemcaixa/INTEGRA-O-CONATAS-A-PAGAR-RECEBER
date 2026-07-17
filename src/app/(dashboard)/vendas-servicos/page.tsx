@@ -758,7 +758,14 @@ export default function VendasPage() {
                           }`}>
                             {venda.status === 'enviado' ? 'Enviado CA' : venda.status === 'duplicidade' ? 'Duplicada' : 'Pendente'}
                           </span>
-                          <div className="w-16 flex items-center justify-end gap-1">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setEditandoDatacarId(venda.id) }}
+                              className="text-[10px] font-bold text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 px-2 py-1 rounded transition-colors mr-1"
+                              title="Analisar e Editar Venda"
+                            >
+                              ANALISAR
+                            </button>
                             <button
                               onClick={e => { e.stopPropagation(); removerVendaDatacar(venda.id) }}
                               className="p-1 text-dark-600 hover:text-red-400 transition-colors"
@@ -806,9 +813,9 @@ export default function VendasPage() {
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={(e) => { e.stopPropagation(); setEditandoDatacarId(venda.id) }}
-                                className="text-[11px] font-semibold flex items-center gap-1.5 bg-dark-800 hover:bg-dark-700 text-brand-400 px-3 py-1.5 rounded border border-dark-600 transition-colors"
+                                className="text-[11px] font-semibold flex items-center gap-1.5 bg-brand-500/20 hover:bg-brand-500/30 text-brand-400 px-3 py-1.5 rounded border border-brand-500/30 transition-colors"
                               >
-                                Editar Dados
+                                Analisar / Editar
                               </button>
                               {venda.status === 'duplicidade' && (
                                 <button
