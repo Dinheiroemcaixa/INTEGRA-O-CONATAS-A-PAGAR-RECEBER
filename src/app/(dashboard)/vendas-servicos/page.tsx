@@ -7,6 +7,7 @@ import DropZoneVendas from '@/components/upload/DropZoneVendas'
 import TabelaVendasPreview from '@/components/upload/TabelaVendasPreview'
 import ModalEditarVenda from '@/components/upload/ModalEditarVenda'
 import ModalEditarDatacar from '@/components/upload/ModalEditarDatacar'
+import ModalPreviewEmissao from '@/components/upload/ModalPreviewEmissao'
 import SelectorEmpresa from '@/components/layout/SelectorEmpresa'
 import type { VendaPreview, ResultadoImportacaoVendas } from '@/types'
 import {
@@ -70,6 +71,7 @@ export default function VendasPage() {
   const [expandidoDatacar, setExpandidoDatacar] = useState<string | null>(null)
   const [enviandoDatacar, setEnviandoDatacar] = useState(false)
   const [editandoDatacarId, setEditandoDatacarId] = useState<string | null>(null)
+  const [showPreviewEmissao, setShowPreviewEmissao] = useState(false)
 
   // ─── Estado do Upload de Planilha Fiscal ───────────────────
   const [showPlanilhaFiscal, setShowPlanilhaFiscal] = useState(false)
@@ -170,10 +172,11 @@ export default function VendasPage() {
 
       setVendasDatacar(validas)
       
-      setVendasDatacar(validas)
-      
-      // Limpa a seleção inicial - agora a análise é obrigatória
-      setSelecionadosDatacar(new Set())
+      // Auto-selecionar as pendentes e válidas
+      const validasIds = validas
+        .filter(v => v.status === 'pendente' && v.valido)
+        .map(v => v.id)
+      setSelecionadosDatacar(new Set(validasIds))
 
       toast.success(`${data.total} OS/Pedidos encontrados!`)
     } catch (err: unknown) {
@@ -193,11 +196,11 @@ export default function VendasPage() {
   }
 
   const toggleTodosDatacar = () => {
-    const analisadas = vendasDatacar.filter(v => v.status === 'pendente' && v.analisado).map(v => v.id)
-    if (selecionadosDatacar.size === analisadas.length && analisadas.length > 0) {
+    const pendentes = vendasDatacar.filter(v => v.status === 'pendente').map(v => v.id)
+    if (selecionadosDatacar.size === pendentes.length) {
       setSelecionadosDatacar(new Set())
     } else {
-      setSelecionadosDatacar(new Set(analisadas))
+      setSelecionadosDatacar(new Set(pendentes))
     }
   }
 
@@ -684,7 +687,7 @@ export default function VendasPage() {
                   <h3 className="text-white font-semibold">Resultados da Busca</h3>
                   {selecionadosDatacar.size > 0 && (
                     <button
-                      onClick={handleEnviarDatacarParaCA}
+                      onClick={() => setShowPreviewEmissao(true)}
                       disabled={enviandoDatacar}
                       className="flex items-center gap-2 px-5 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white rounded-lg text-sm font-bold transition-all shadow-lg"
                     >
@@ -723,24 +726,24 @@ export default function VendasPage() {
                           className="flex items-center gap-3 px-4 py-3 cursor-pointer"
                           onClick={() => setExpandidoDatacar(expandidoDatacar === venda.id ? null : venda.id)}
                         >
-                          <input
-                            type="checkbox"
-                            checked={selecionadosDatacar.has(venda.id)}
-                            onChange={() => toggleSelecionadoDatacar(venda.id)}
-                            disabled={!venda.analisado && venda.status !== 'duplicidade'}
-                            title={!venda.analisado ? "Clique em ANALISAR para conferir e liberar o envio" : ""}
-                            className="rounded border-dark-600 bg-dark-900 checked:bg-brand-500 text-brand-500 focus:ring-brand-500 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-white font-bold text-sm line-clamp-1">{venda.cliente}</span>
-                              {venda.analisado && (
-                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-brand-500/20 text-brand-400 border border-brand-500/30">
-                                  ANALISADO
-                                </span>
-                              )}
+                          {venda.status === 'pendente' ? (
+                            <input
+                              type="checkbox"
+                              checked={selecionadosDatacar.has(venda.id)}
+                              onChange={e => { e.stopPropagation(); toggleSelecionadoDatacar(venda.id) }}
+                              onClick={e => e.stopPropagation()}
+                              className="accent-blue-500"
+                            />
+                          ) : venda.status === 'duplicidade' ? (
+                            <div className="text-amber-500 flex-shrink-0 ml-0.5" title="Venda já consta no Conta Azul">
+                              <AlertCircle size={14} />
                             </div>
-                            <span className="text-xs text-dark-400 font-mono">OS #{venda.os_numero}</span>
+                          ) : (
+                            <CheckCircle size={14} className="text-emerald-400 flex-shrink-0 ml-0.5" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white text-sm font-medium truncate">{venda.cliente}</p>
+                            <p className="text-dark-500 text-xs font-mono">OS #{venda.os_numero}</p>
                           </div>
                           <span className="text-white text-sm font-bold tabular-nums w-28 text-right">
                             {formatCurrency(venda.valor_total)}
@@ -1040,6 +1043,20 @@ export default function VendasPage() {
             // Auto-seleciona a venda para envio após analisar
             setSelecionadosDatacar(prev => new Set(prev).add(vendaAtualizada.id))
           }}
+        />
+      )}
+
+      {/* Modal Preview Emissão */}
+      {showPreviewEmissao && empresaAtiva && (
+        <ModalPreviewEmissao
+          vendas={vendasDatacar.filter(v => selecionadosDatacar.has(v.id))}
+          empresaId={empresaAtiva.id}
+          onClose={() => setShowPreviewEmissao(false)}
+          onConfirm={async () => {
+            setShowPreviewEmissao(false)
+            await handleEnviarDatacarParaCA()
+          }}
+          enviando={enviandoDatacar}
         />
       )}
     </div>
