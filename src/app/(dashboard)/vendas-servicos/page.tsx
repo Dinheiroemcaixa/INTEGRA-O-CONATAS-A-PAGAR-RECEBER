@@ -170,11 +170,10 @@ export default function VendasPage() {
 
       setVendasDatacar(validas)
       
-      // Auto-selecionar as pendentes e válidas
-      const validasIds = validas
-        .filter(v => v.status === 'pendente' && v.valido)
-        .map(v => v.id)
-      setSelecionadosDatacar(new Set(validasIds))
+      setVendasDatacar(validas)
+      
+      // Limpa a seleção inicial - agora a análise é obrigatória
+      setSelecionadosDatacar(new Set())
 
       toast.success(`${data.total} OS/Pedidos encontrados!`)
     } catch (err: unknown) {
@@ -194,11 +193,11 @@ export default function VendasPage() {
   }
 
   const toggleTodosDatacar = () => {
-    const pendentes = vendasDatacar.filter(v => v.status === 'pendente').map(v => v.id)
-    if (selecionadosDatacar.size === pendentes.length) {
+    const analisadas = vendasDatacar.filter(v => v.status === 'pendente' && v.analisado).map(v => v.id)
+    if (selecionadosDatacar.size === analisadas.length && analisadas.length > 0) {
       setSelecionadosDatacar(new Set())
     } else {
-      setSelecionadosDatacar(new Set(pendentes))
+      setSelecionadosDatacar(new Set(analisadas))
     }
   }
 
@@ -724,24 +723,24 @@ export default function VendasPage() {
                           className="flex items-center gap-3 px-4 py-3 cursor-pointer"
                           onClick={() => setExpandidoDatacar(expandidoDatacar === venda.id ? null : venda.id)}
                         >
-                          {venda.status === 'pendente' ? (
-                            <input
-                              type="checkbox"
-                              checked={selecionadosDatacar.has(venda.id)}
-                              onChange={e => { e.stopPropagation(); toggleSelecionadoDatacar(venda.id) }}
-                              onClick={e => e.stopPropagation()}
-                              className="accent-blue-500"
-                            />
-                          ) : venda.status === 'duplicidade' ? (
-                            <div className="text-amber-500 flex-shrink-0 ml-0.5" title="Venda já consta no Conta Azul">
-                              <AlertCircle size={14} />
-                            </div>
-                          ) : (
-                            <CheckCircle size={14} className="text-emerald-400 flex-shrink-0 ml-0.5" />
-                          )}
+                          <input
+                            type="checkbox"
+                            checked={selecionadosDatacar.has(venda.id)}
+                            onChange={() => toggleSelecionadoDatacar(venda.id)}
+                            disabled={!venda.analisado && venda.status !== 'duplicidade'}
+                            title={!venda.analisado ? "Clique em ANALISAR para conferir e liberar o envio" : ""}
+                            className="rounded border-dark-600 bg-dark-900 checked:bg-brand-500 text-brand-500 focus:ring-brand-500 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                          />
                           <div className="flex-1 min-w-0">
-                            <p className="text-white text-sm font-medium truncate">{venda.cliente}</p>
-                            <p className="text-dark-500 text-xs font-mono">OS #{venda.os_numero}</p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-white font-bold text-sm line-clamp-1">{venda.cliente}</span>
+                              {venda.analisado && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-brand-500/20 text-brand-400 border border-brand-500/30">
+                                  ANALISADO
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs text-dark-400 font-mono">OS #{venda.os_numero}</span>
                           </div>
                           <span className="text-white text-sm font-bold tabular-nums w-28 text-right">
                             {formatCurrency(venda.valor_total)}
@@ -1035,10 +1034,12 @@ export default function VendasPage() {
         <ModalEditarDatacar
           vendaId={editandoDatacarId}
           venda={vendasDatacar.find(v => v.id === editandoDatacarId)}
-          onSaveSuccess={(vendaAtualizada) => {
-            setVendasDatacar(prev => prev.map(v => v.id === vendaAtualizada.id ? vendaAtualizada : v))
-          }}
           onClose={() => setEditandoDatacarId(null)}
+          onSaveSuccess={(vendaAtualizada) => {
+            setVendasDatacar(prev => prev.map(v => v.id === vendaAtualizada.id ? { ...vendaAtualizada, analisado: true } : v))
+            // Auto-seleciona a venda para envio após analisar
+            setSelecionadosDatacar(prev => new Set(prev).add(vendaAtualizada.id))
+          }}
         />
       )}
     </div>
