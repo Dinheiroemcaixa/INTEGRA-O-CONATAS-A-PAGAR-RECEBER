@@ -66,6 +66,7 @@ export function assinarXmlNfse(xml: string, certData: CertificadoData, reference
     privateKey: certData.keyPem,
     publicCert: certData.certPem,
     signatureAlgorithm: 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256',
+    canonicalizationAlgorithm: 'http://www.w3.org/TR/2001/REC-xml-c14n-20010315',
     getKeyInfoContent: () => {
       const certClean = certData.certPem
         .replace(/-----BEGIN CERTIFICATE-----/, '')

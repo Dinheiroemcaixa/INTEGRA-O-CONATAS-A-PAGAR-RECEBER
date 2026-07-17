@@ -69,19 +69,27 @@ export async function POST(req: NextRequest) {
         // Formata os dados para o XML
         const dadosDps: DadosDPS = {
           numeroOS: item.os_numero || Date.now().toString(),
-          dataCompetencia: new Date().toISOString(),
+          dataCompetencia: new Date().toISOString(), // Emissão sempre será data atual
           valorServico: item.valor_total,
           descricao: item.itens.map((i: any) => `${i.quantidade}x ${i.descricao}`).join(' | '),
           cliente: {
-            documento: '00000000000', // Aqui buscaríamos o CPF/CNPJ original do banco
+            documento: item.metadata?.cliente_cpf_cnpj || '00000000000', 
             nome: item.cliente || 'Cliente Padrão',
-            cidade: '3106200', // Código IBGE (ex: BH)
+            cidade: configFiscal.cidade_ibge || '3106200', // IBGE onde foi prestado
+            cep: item.metadata?.cliente_endereco_cep,
+            logradouro: item.metadata?.cliente_endereco_logradouro,
+            numero: item.metadata?.cliente_endereco_numero,
+            bairro: item.metadata?.cliente_endereco_bairro,
           },
           emitente: {
             cnpj: configFiscal.cnpj || '',
             inscricaoMunicipal: configFiscal.inscricao_municipal || '',
             regimeTributario: configFiscal.regime_tributario || 1
-          }
+          },
+          codigoTributarioNacional: '14.01.01',
+          codigoComplementarMunicipal: '14.01.01.001',
+          itemNBS: '120013110',
+          aliquotaSimplesNacional: configFiscal.aliquota_simples_nacional || 11.34,
         }
 
         // 6. Constrói o XML da DPS
