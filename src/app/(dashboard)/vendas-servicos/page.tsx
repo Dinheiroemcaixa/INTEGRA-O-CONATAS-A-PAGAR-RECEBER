@@ -72,6 +72,24 @@ export default function VendasPage() {
   const [enviandoDatacar, setEnviandoDatacar] = useState(false)
   const [editandoDatacarId, setEditandoDatacarId] = useState<string | null>(null)
   const [showPreviewEmissao, setShowPreviewEmissao] = useState(false)
+  
+  // ─── Estado das Alíquotas Padrão (Painel) ────────────────────
+  const [aliquotaSimples, setAliquotaSimples] = useState('11.34')
+  const [aliquotaIssqn, setAliquotaIssqn] = useState('')
+
+  useEffect(() => {
+    if (empresaAtiva) {
+      fetch(`/api/config-fiscal?empresa_id=${empresaAtiva.id}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data?.config) {
+            if (data.config.aliquota_simples_nacional) setAliquotaSimples(String(data.config.aliquota_simples_nacional))
+            if (data.config.aliquota_issqn) setAliquotaIssqn(String(data.config.aliquota_issqn))
+          }
+        })
+        .catch(console.error)
+    }
+  }, [empresaAtiva])
 
   // ─── Estado do Upload de Planilha Fiscal ───────────────────
   const [showPlanilhaFiscal, setShowPlanilhaFiscal] = useState(false)
@@ -211,13 +229,14 @@ export default function VendasPage() {
   }
 
   // ─── Enviar para Gov.br NFS-e (vindas do Datacar) ──────────────
-  const handleEnviarDatacarParaCA = async () => {
+  const handleEnviarDatacarParaCA = async (vendasOverride?: any[]) => {
     if (!empresaAtiva) { toast.error('Selecione uma empresa'); return }
     if (selecionadosDatacar.size === 0) { toast.error('Selecione ao menos uma venda'); return }
 
     setEnviandoDatacar(true)
     try {
-      const vendasFiltradas = vendasDatacar
+      const baseVendas = vendasOverride || vendasDatacar
+      const vendasFiltradas = baseVendas
         .filter(v => selecionadosDatacar.has(v.id))
         .map(v => {
           let itensFiltrados = v.itens
@@ -242,15 +261,18 @@ export default function VendasPage() {
       
       // Converte para o formato esperado pelo endpoint de envio do CA
       const vendasFormatadas = vendasFiltradas.map(v => ({
-        cliente: v.cliente,
-        cliente_cpf_cnpj: v.dados_datacar?.cliente_cpf_cnpj || v.cliente_cpf_cnpj || undefined,
-        cliente_endereco: v.dados_datacar?.cliente_endereco || v.cliente_endereco || undefined,
+        cliente: v._fiscal?.clienteNome || v.cliente,
+        cliente_cpf_cnpj: v._fiscal?.clienteCpfCnpj || v.dados_datacar?.cliente_cpf_cnpj || v.cliente_cpf_cnpj || undefined,
+        cliente_endereco: v._fiscal?.clienteLogradouro 
+          ? `${v._fiscal.clienteLogradouro}, ${v._fiscal.clienteNumero}, ${v._fiscal.clienteBairro}, ${v._fiscal.clienteCidade}, ${v._fiscal.clienteUf} - CEP ${v._fiscal.clienteCep}`
+          : v.dados_datacar?.cliente_endereco || v.cliente_endereco || undefined,
         os_numero: v.os_numero,
         data_venda: v.data_venda,
         valor_total: v.valor_total,
         forma_pagamento: v.forma_pagamento,
         itens: v.itens,
         valido: true,
+        _fiscal: v._fiscal // Repassa o bloco fiscal editado no modal
       }))
 
       const res = await fetch('/api/gov-br/enviar-servicos', {
@@ -575,6 +597,28 @@ export default function VendasPage() {
                       className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-32 placeholder:text-dark-600"
                     />
                   </div>
+                  
+                  {/* Novos campos de alíquota no painel principal */}
+                  <div>
+                    <label className="text-[10px] font-medium mb-1 block text-dark-400 uppercase">Alíquota Simples (%)</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: 11.34"
+                      value={aliquotaSimples}
+                      onChange={(e) => setAliquotaSimples(e.target.value)}
+                      className="bg-dark-900 border border-brand-500/50 rounded-lg px-2 py-2 text-white text-sm focus:ring-2 focus:ring-brand-500/50 outline-none w-28 placeholder:text-dark-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-medium mb-1 block text-dark-400 uppercase">Alíquota ISSQN (%)</label>
+                    <input
+                      type="text"
+                      placeholder="Vazio se não houver"
+                      value={aliquotaIssqn}
+                      onChange={(e) => setAliquotaIssqn(e.target.value)}
+                      className="bg-dark-900 border border-brand-500/50 rounded-lg px-2 py-2 text-white text-sm focus:ring-2 focus:ring-brand-500/50 outline-none w-32 placeholder:text-dark-600"
+                    />
+                  </div>
 
                   <button
                     onClick={handleBuscarVendasDatacar}
@@ -692,7 +736,7 @@ export default function VendasPage() {
                       className="flex items-center gap-2 px-5 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white rounded-lg text-sm font-bold transition-all shadow-lg"
                     >
                       {enviandoDatacar ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                      {enviandoDatacar ? 'Emitindo...' : `Emitir ${selecionadosDatacar.size} NFS-e via Gov.br`}
+                      {enviandoDatacar ? 'Aguarde...' : `Analisar e Editar ${selecionadosDatacar.size} Vendas`}
                     </button>
                   )}
                 </div>
@@ -912,12 +956,12 @@ export default function VendasPage() {
                     </p>
                     {selecionadosDatacar.size > 0 && (
                       <button
-                        onClick={handleEnviarDatacarParaCA}
+                        onClick={() => setShowPreviewEmissao(true)}
                         disabled={enviandoDatacar}
                         className="flex items-center gap-2 px-5 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white rounded-lg text-sm font-bold transition-all"
                       >
                         {enviandoDatacar ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                        {enviandoDatacar ? 'Enviando...' : 'Criar Vendas no Conta Azul'}
+                        {enviandoDatacar ? 'Aguarde...' : 'Analisar e Editar Vendas'}
                       </button>
                     )}
                   </div>
@@ -1051,10 +1095,26 @@ export default function VendasPage() {
         <ModalPreviewEmissao
           vendas={vendasDatacar.filter(v => selecionadosDatacar.has(v.id))}
           empresaId={empresaAtiva.id}
+          aliquotaSimplesDefault={aliquotaSimples}
+          aliquotaIssqnDefault={aliquotaIssqn}
           onClose={() => setShowPreviewEmissao(false)}
-          onConfirm={async () => {
+          onConfirm={async (vendasEditadas) => {
             setShowPreviewEmissao(false)
-            await handleEnviarDatacarParaCA()
+            // Aqui substituímos as vendas locais pelas editadas no modal
+            setVendasDatacar(prev => {
+              const prevCopy = [...prev]
+              vendasEditadas.forEach(ve => {
+                const idx = prevCopy.findIndex(p => p.id === ve.id)
+                if (idx !== -1) prevCopy[idx] = ve
+              })
+              return prevCopy
+            })
+            // Precisamos garantir que o estado local foi atualizado antes de enviar, 
+            // mas o mais seguro é passar diretamente pro backend se a função aceitasse argumentos.
+            // Para resolver agora de forma simples: chamaremos handleEnviar após o state atualizar.
+            setTimeout(() => {
+              handleEnviarDatacarParaCA(vendasEditadas)
+            }, 100)
           }}
           enviando={enviandoDatacar}
         />

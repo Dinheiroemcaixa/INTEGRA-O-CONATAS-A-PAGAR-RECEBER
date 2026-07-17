@@ -67,30 +67,33 @@ export async function POST(req: NextRequest) {
     for (const item of itens) {
       try {
         // Formata os dados para o XML
+        // Tenta usar os dados fiscais da venda (editados no modal) ou fallback para os do config
+        const f = item._fiscal || {}
+        
         const dadosDps: DadosDPS = {
           numeroOS: item.os_numero || Date.now().toString(),
           dataCompetencia: new Date().toISOString(), // Emissão sempre será data atual
           valorServico: item.valor_total,
           descricao: item.itens.map((i: any) => `${i.quantidade}x ${i.descricao}`).join(' | '),
           cliente: {
-            documento: item.metadata?.cliente_cpf_cnpj || '00000000000', 
-            nome: item.cliente || 'Cliente Padrão',
-            cidade: configFiscal.cidade_ibge || '3106200', // IBGE onde foi prestado
-            cep: item.metadata?.cliente_endereco_cep,
-            logradouro: item.metadata?.cliente_endereco_logradouro,
-            numero: item.metadata?.cliente_endereco_numero,
-            bairro: item.metadata?.cliente_endereco_bairro,
+            documento: f.clienteCpfCnpj || item.cliente_cpf_cnpj || '00000000000', 
+            nome: f.clienteNome || item.cliente || 'Cliente Padrão',
+            cidade: configFiscal.cidade_ibge || '3106200', // idealmente buscar o codigo ibge da cidade, deixaremos fallback
+            cep: f.clienteCep || item.cliente_endereco_cep,
+            logradouro: f.clienteLogradouro || item.cliente_endereco_logradouro,
+            numero: f.clienteNumero || item.cliente_endereco_numero,
+            bairro: f.clienteBairro || item.cliente_endereco_bairro,
           },
           emitente: {
             cnpj: configFiscal.cnpj || '',
             inscricaoMunicipal: configFiscal.inscricao_municipal || '',
-            regimeTributario: configFiscal.regime_tributario || 1
+            regimeTributario: f.regime === 'simples' ? 1 : configFiscal.regime_tributario || 1 // O modal manda 'simples', etc.
           },
-          codigoTributarioNacional: '14.01.01',
-          codigoComplementarMunicipal: '14.01.01.001',
-          itemNBS: '120013110',
-          aliquotaSimplesNacional: configFiscal.aliquota_simples_nacional || 11.34,
-          aliquotaIssqn: configFiscal.aliquota_issqn || undefined,
+          codigoTributarioNacional: f.codigoTributarioNacional || '14.01.01',
+          codigoComplementarMunicipal: f.codigoComplementar || '14.01.01.001',
+          itemNBS: f.nbs || '120013110',
+          aliquotaSimplesNacional: f.aliquotaSimples ? parseFloat(f.aliquotaSimples) : (configFiscal.aliquota_simples_nacional || 11.34),
+          aliquotaIssqn: f.aliquotaIssqn ? parseFloat(f.aliquotaIssqn) : (configFiscal.aliquota_issqn || undefined),
         }
 
         // 6. Constrói o XML da DPS
