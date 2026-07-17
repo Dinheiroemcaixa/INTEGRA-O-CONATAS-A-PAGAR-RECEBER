@@ -9,7 +9,7 @@ import {
   MoreVertical, Calendar, X, CheckCircle,
   Printer, ArrowLeftRight, ShoppingCart,
   Download, AlertTriangle, FileWarning,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Plus
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -82,80 +82,291 @@ function gerarXmlDemonstrativo(nota: NotaEmitida): string {
 </NFSe>`
 }
 
-// ─── Gerador de DANFS-e HTML (demonstração) ─────────────────────────
+// ─── Gerador de DANFS-e HTML (demonstração oficial) ─────────────────
 function gerarDanfseHtml(nota: NotaEmitida): string {
   const cpfCnpj = nota.dados_datacar?.cliente_cpf_cnpj || nota.metadata?.cliente_cpf_cnpj || '—'
+  const dateEmissao = formatDateTime(nota.updated_at)
+  const competencia = nota.data_venda ? `${nota.data_venda.slice(8,10)}/${nota.data_venda.slice(5,7)}/${nota.data_venda.slice(0,4)}` : '—'
+  
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <title>DANFS-e — OS #${nota.os_numero}</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
-    body { padding: 40px; background: #fff; color: #333; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; border: 2px solid #0d6efd; padding: 20px; margin-bottom: 16px; }
-    .header h1 { color: #0d6efd; font-size: 20px; }
-    .header .badge { background: ${nota.status === 'cancelado' ? '#dc3545' : '#198754'}; color: #fff; padding: 4px 12px; border-radius: 4px; font-weight: bold; font-size: 12px; }
-    .section { border: 1px solid #ddd; padding: 16px; margin-bottom: 12px; }
-    .section h2 { font-size: 13px; text-transform: uppercase; color: #666; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
-    .row { display: flex; gap: 24px; margin-bottom: 6px; }
-    .field { flex: 1; }
-    .field label { font-size: 10px; color: #999; text-transform: uppercase; display: block; }
-    .field span { font-size: 13px; font-weight: 500; }
-    .total { text-align: right; font-size: 22px; font-weight: bold; color: #0d6efd; }
-    .footer { text-align: center; margin-top: 30px; font-size: 10px; color: #aaa; }
-    @media print { body { padding: 20px; } }
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+    body { padding: 40px; background: #fff; color: #000; font-size: 11px; }
+    .page { max-width: 800px; margin: 0 auto; border: 1px solid #000; }
+    .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #000; padding: 10px; }
+    .header-logo { width: 120px; }
+    .header-title { text-align: center; flex: 1; }
+    .header-title h1 { font-size: 16px; font-weight: bold; }
+    .header-title h2 { font-size: 14px; font-weight: bold; }
+    .header-brasao { width: 150px; text-align: right; }
+    .header-brasao img { width: 40px; margin-bottom: 5px; }
+    
+    .grid-container { display: flex; flex-direction: column; border-bottom: 1px solid #000; }
+    .grid-row { display: flex; border-bottom: 1px solid #000; }
+    .grid-row:last-child { border-bottom: none; }
+    .grid-cell { padding: 4px 8px; border-right: 1px solid #000; flex: 1; }
+    .grid-cell:last-child { border-right: none; }
+    .grid-cell.qr-code { width: 120px; text-align: center; justify-content: center; display: flex; flex-direction: column; align-items: center; border-left: 1px solid #000; }
+    
+    .label { font-size: 9px; font-weight: bold; margin-bottom: 2px; }
+    .value { font-size: 11px; }
+    
+    .section-title { font-size: 11px; font-weight: bold; background: #f0f0f0; padding: 4px 8px; border-bottom: 1px solid #000; border-top: 1px solid #000; text-transform: uppercase; }
+    .section-title.no-top { border-top: none; }
+    
+    .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 80px; color: rgba(255, 0, 0, 0.1); font-weight: bold; z-index: -1; white-space: nowrap; pointer-events: none; }
+    
+    @media print { body { padding: 0; } .page { border: none; } }
   </style>
 </head>
 <body>
-  <div class="header">
-    <div>
-      <h1>📄 DANFS-e — Documento Auxiliar da NFS-e</h1>
-      <p style="color:#666; font-size:12px; margin-top:4px;">Nota Fiscal de Serviço Eletrônica — Padrão Nacional</p>
+  ${nota.status === 'cancelado' ? '<div class="watermark">NFS-E CANCELADA</div>' : ''}
+  <div class="page">
+    <div class="header">
+      <div class="header-logo">
+        <!-- Espaço para logo NFS-e -->
+        <div style="font-weight:900; font-size:24px; color:#166534; line-height:0.8;">NFS<span style="font-size:16px;">e</span></div>
+        <div style="font-size:8px; color:#666; margin-top:2px;">Nota Fiscal de Serviço eletrônica</div>
+      </div>
+      <div class="header-title">
+        <h1>DANFSe v1.0</h1>
+        <h2>Documento Auxiliar da NFS-e</h2>
+      </div>
+      <div class="header-brasao">
+        <div style="font-size:10px; font-weight:bold; text-align:left;">Prefeitura Municipal de Belo Horizonte</div>
+        <div style="font-size:8px; text-align:left;">Secretaria Municipal de Fazenda - SMFA</div>
+      </div>
     </div>
-    <span class="badge">${nota.status === 'cancelado' ? '❌ CANCELADA' : '✅ EMITIDA'}</span>
-  </div>
-
-  <div class="section">
-    <h2>Prestador de Serviço (Emitente)</h2>
-    <div class="row">
-      <div class="field"><label>Razão Social</label><span>Empresa Emitente</span></div>
-      <div class="field"><label>Município</label><span>Belo Horizonte/MG</span></div>
+    
+    <div class="grid-container" style="border-bottom:none;">
+      <div class="grid-row" style="border-bottom:none;">
+        <div style="flex:1;">
+          <div class="grid-row" style="border-bottom:1px solid #000;">
+            <div class="grid-cell" style="border-right:none; padding:8px;">
+              <div class="label" style="font-size:10px;">Chave de Acesso da NFS-e</div>
+              <div class="value" style="font-size:12px;">31062002253159326000122000000000082426079433782989</div>
+            </div>
+          </div>
+          <div class="grid-row" style="border-bottom:1px solid #000;">
+            <div class="grid-cell">
+              <div class="label">Número da NFS-e</div>
+              <div class="value">824</div>
+            </div>
+            <div class="grid-cell">
+              <div class="label">Competência da NFS-e</div>
+              <div class="value">${competencia}</div>
+            </div>
+            <div class="grid-cell" style="border-right:none;">
+              <div class="label">Data e Hora da emissão da NFS-e</div>
+              <div class="value">${dateEmissao}</div>
+            </div>
+          </div>
+          <div class="grid-row">
+            <div class="grid-cell">
+              <div class="label">Número da DPS</div>
+              <div class="value">${nota.os_numero}</div>
+            </div>
+            <div class="grid-cell">
+              <div class="label">Série da DPS</div>
+              <div class="value">70000</div>
+            </div>
+            <div class="grid-cell" style="border-right:none;">
+              <div class="label">Data e Hora da emissão da DPS</div>
+              <div class="value">${dateEmissao}</div>
+            </div>
+          </div>
+        </div>
+        <div class="grid-cell qr-code">
+          <div style="width:70px; height:70px; background:#eee; margin-bottom:4px; display:flex; align-items:center; justify-content:center; font-size:8px; color:#999; border:1px solid #ccc;">QR CODE</div>
+          <div style="font-size:7px; text-align:center; line-height:1.2;">A autenticidade desta NFS-e pode ser verificada pela leitura deste código QR ou pela consulta da chave de acesso no portal nacional da NFS-e</div>
+        </div>
+      </div>
     </div>
-  </div>
-
-  <div class="section">
-    <h2>Tomador de Serviço</h2>
-    <div class="row">
-      <div class="field"><label>CPF/CNPJ</label><span>${cpfCnpj}</span></div>
-      <div class="field"><label>Nome / Razão Social</label><span>${nota.cliente}</span></div>
+    
+    <div class="section-title">EMITENTE DA NFS-e</div>
+    <div class="grid-container">
+      <div class="grid-row">
+        <div class="grid-cell" style="flex:2;">
+          <div class="label">Prestador do Serviço</div>
+          <div class="value">Empresa Emitente</div>
+        </div>
+        <div class="grid-cell">
+          <div class="label">CNPJ / CPF / NIF</div>
+          <div class="value">00.000.000/0000-00</div>
+        </div>
+        <div class="grid-cell">
+          <div class="label">Inscrição Municipal</div>
+          <div class="value">15219040018</div>
+        </div>
+        <div class="grid-cell">
+          <div class="label">Telefone</div>
+          <div class="value">(31) 3309-9300</div>
+        </div>
+      </div>
+      <div class="grid-row">
+        <div class="grid-cell" style="flex:2;">
+          <div class="label">Nome / Nome Empresarial</div>
+          <div class="value">ER SERVICOS AUTOMOTIVOS LTDA</div>
+        </div>
+        <div class="grid-cell" style="flex:2;">
+          <div class="label">E-mail</div>
+          <div class="value">contato@empresa.com.br</div>
+        </div>
+      </div>
+      <div class="grid-row">
+        <div class="grid-cell" style="flex:3;">
+          <div class="label">Endereço</div>
+          <div class="value">RUA TEIXEIRA LEITE, 186, JOAO PINHEIRO</div>
+        </div>
+        <div class="grid-cell">
+          <div class="label">Município</div>
+          <div class="value">Belo Horizonte - MG</div>
+        </div>
+        <div class="grid-cell">
+          <div class="label">CEP</div>
+          <div class="value">30530-280</div>
+        </div>
+      </div>
+      <div class="grid-row">
+        <div class="grid-cell" style="flex:1;">
+          <div class="label">Simples Nacional na Data de Competência</div>
+          <div class="value">Optante - Microempresa ou Empresa de Pequeno Porte (ME/EPP)</div>
+        </div>
+        <div class="grid-cell" style="flex:1;">
+          <div class="label">Regime de Apuração Tributária pelo SN</div>
+          <div class="value">Regime de apuração dos tributos federais e municipal pelo Simples Nacional</div>
+        </div>
+      </div>
     </div>
-  </div>
-
-  <div class="section">
-    <h2>Serviço Prestado</h2>
-    <div class="row">
-      <div class="field"><label>OS</label><span>#${nota.os_numero}</span></div>
-      <div class="field"><label>Competência</label><span>${formatDate(nota.data_venda)}</span></div>
-      <div class="field"><label>Código de Tributação</label><span>14.01.01</span></div>
+    
+    <div class="section-title">TOMADOR DO SERVIÇO</div>
+    <div class="grid-container">
+      <div class="grid-row">
+        <div class="grid-cell" style="flex:2;">
+          <div class="label">Nome / Nome Empresarial</div>
+          <div class="value">${nota.cliente}</div>
+        </div>
+        <div class="grid-cell">
+          <div class="label">CNPJ / CPF / NIF</div>
+          <div class="value">${cpfCnpj}</div>
+        </div>
+        <div class="grid-cell">
+          <div class="label">Inscrição Municipal</div>
+          <div class="value">-</div>
+        </div>
+        <div class="grid-cell">
+          <div class="label">Telefone</div>
+          <div class="value">-</div>
+        </div>
+      </div>
+      <div class="grid-row">
+        <div class="grid-cell" style="flex:3;">
+          <div class="label">Endereço</div>
+          <div class="value">${nota.dados_datacar?.cliente_logradouro || ''} ${nota.dados_datacar?.cliente_numero || ''} ${nota.dados_datacar?.cliente_bairro || ''}</div>
+        </div>
+        <div class="grid-cell">
+          <div class="label">Município</div>
+          <div class="value">${nota.dados_datacar?.cliente_cidade || 'Belo Horizonte - MG'}</div>
+        </div>
+        <div class="grid-cell">
+          <div class="label">CEP</div>
+          <div class="value">${nota.dados_datacar?.cliente_cep || '-'}</div>
+        </div>
+      </div>
     </div>
-    <div class="row" style="margin-top:8px">
-      <div class="field"><label>Descrição</label><span>Serviço de manutenção veicular conforme ordem de serviço.</span></div>
+    
+    <div class="section-title" style="text-align:center; background:#fff; font-weight:normal; border-top:none;">INTERMEDIÁRIO DO SERVIÇO NÃO IDENTIFICADO NA NFS-e</div>
+    
+    <div class="section-title">SERVIÇO PRESTADO</div>
+    <div class="grid-container">
+      <div class="grid-row">
+        <div class="grid-cell" style="flex:1;">
+          <div class="label">Código de Tributação Nacional</div>
+          <div class="value">14.01.01 - Lubrificação, limpeza, lustração, revisão...</div>
+        </div>
+        <div class="grid-cell" style="flex:1;">
+          <div class="label">Código de Tributação Municipal</div>
+          <div class="value">001 - Lubrificação, limpeza, lustração, revisão...</div>
+        </div>
+        <div class="grid-cell">
+          <div class="label">Local da Prestação</div>
+          <div class="value">Belo Horizonte - MG</div>
+        </div>
+        <div class="grid-cell">
+          <div class="label">País da Prestação</div>
+          <div class="value">-</div>
+        </div>
+      </div>
+      <div class="grid-row">
+        <div class="grid-cell">
+          <div class="label">Descrição do Serviço</div>
+          <div class="value" style="text-transform:uppercase;">Serviços automotivos referentes à OS #${nota.os_numero}.</div>
+        </div>
+      </div>
     </div>
-  </div>
-
-  <div class="section">
-    <h2>Valores</h2>
-    <div class="row">
-      <div class="field"><label>Valor do Serviço</label><span>${formatCurrency(nota.valor_total)}</span></div>
-      <div class="field"><label>Deduções</label><span>R$ 0,00</span></div>
-      <div class="field total"><label>Valor Líquido</label><span>${formatCurrency(nota.valor_total)}</span></div>
+    
+    <div class="section-title">TRIBUTAÇÃO MUNICIPAL</div>
+    <div class="grid-container">
+      <div class="grid-row">
+        <div class="grid-cell"><div class="label">Tributação do ISSQN</div><div class="value">Operação Tributável</div></div>
+        <div class="grid-cell"><div class="label">País Resultado da Prestação</div><div class="value">-</div></div>
+        <div class="grid-cell"><div class="label">Município de Incidência</div><div class="value">Belo Horizonte - MG</div></div>
+        <div class="grid-cell"><div class="label">Regime Especial</div><div class="value">Nenhum</div></div>
+      </div>
+      <div class="grid-row">
+        <div class="grid-cell"><div class="label">Tipo de Imunidade</div><div class="value">-</div></div>
+        <div class="grid-cell"><div class="label">Suspensão da Exigibilidade</div><div class="value">Não</div></div>
+        <div class="grid-cell"><div class="label">Número Processo Suspensão</div><div class="value">-</div></div>
+        <div class="grid-cell"><div class="label">Benefício Municipal</div><div class="value">-</div></div>
+      </div>
+      <div class="grid-row">
+        <div class="grid-cell"><div class="label">Valor do Serviço</div><div class="value">R$ ${nota.valor_total.toFixed(2).replace('.', ',')}</div></div>
+        <div class="grid-cell"><div class="label">Desconto Incondicionado</div><div class="value">-</div></div>
+        <div class="grid-cell"><div class="label">Total Deduções/Reduções</div><div class="value">-</div></div>
+        <div class="grid-cell"><div class="label">Cálculo do BM</div><div class="value">-</div></div>
+      </div>
+      <div class="grid-row">
+        <div class="grid-cell"><div class="label">BC ISSQN</div><div class="value">-</div></div>
+        <div class="grid-cell"><div class="label">Alíquota Aplicada</div><div class="value">-</div></div>
+        <div class="grid-cell"><div class="label">Retenção do ISSQN</div><div class="value">Não Retido</div></div>
+        <div class="grid-cell"><div class="label">ISSQN Apurado</div><div class="value">-</div></div>
+      </div>
     </div>
-  </div>
-
-  <div class="footer">
-    <p>Documento gerado pelo sistema ConnectA-I — Emissão: ${formatDateTime(nota.updated_at)}</p>
-    <p style="margin-top:4px;">[Demonstração — Homologação]</p>
+    
+    <div class="section-title">TRIBUTAÇÃO FEDERAL</div>
+    <div class="grid-container">
+      <div class="grid-row">
+        <div class="grid-cell"><div class="label">IRRF</div><div class="value">-</div></div>
+        <div class="grid-cell"><div class="label">CP - Retida</div><div class="value">-</div></div>
+        <div class="grid-cell"><div class="label">CSLL - Retida</div><div class="value">-</div></div>
+        <div class="grid-cell"><div class="label">PIS - Apuração</div><div class="value">-</div></div>
+        <div class="grid-cell"><div class="label">COFINS - Apuração</div><div class="value">-</div></div>
+      </div>
+    </div>
+    
+    <div class="section-title">VALOR TOTAL DA NFS-E</div>
+    <div class="grid-container">
+      <div class="grid-row">
+        <div class="grid-cell"><div class="label">Valor do Serviço</div><div class="value">R$ ${nota.valor_total.toFixed(2).replace('.', ',')}</div></div>
+        <div class="grid-cell"><div class="label">Desconto Condicionado</div><div class="value">-</div></div>
+        <div class="grid-cell"><div class="label">Desconto Incondicionado</div><div class="value">-</div></div>
+        <div class="grid-cell"><div class="label">ISSQN Retido</div><div class="value">-</div></div>
+        <div class="grid-cell"><div class="label">Total Retenções Federais</div><div class="value">-</div></div>
+        <div class="grid-cell" style="background:#f0f0f0;"><div class="label">Valor Líquido da NFS-e</div><div class="value" style="font-weight:bold; font-size:12px;">R$ ${nota.valor_total.toFixed(2).replace('.', ',')}</div></div>
+      </div>
+    </div>
+    
+    <div class="section-title" style="text-align:center;">INFORMAÇÕES COMPLEMENTARES</div>
+    <div class="grid-container" style="border-bottom:none;">
+      <div class="grid-row" style="border-bottom:none;">
+        <div class="grid-cell" style="border-right:none;"><div class="value">NBS: 120013110</div></div>
+      </div>
+    </div>
+    
   </div>
 </body>
 </html>`
@@ -595,170 +806,324 @@ export default function NotasEmitidasPage() {
       {/* ═══════════════════════════════════════════════════════════════ */}
       {/* MODAL: VISUALIZAR NOTA                                        */}
       {/* ═══════════════════════════════════════════════════════════════ */}
-      {notaVisualizar && (
+{notaVisualizar && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-dark-800 border border-dark-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
-            {/* Header do Modal */}
-            <div className="sticky top-0 bg-dark-800 border-b border-dark-700 px-6 py-4 flex items-center justify-between z-10 rounded-t-2xl">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
-                  <FileText size={20} className="text-blue-400" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-white">
-                    NFS-e — OS #{notaVisualizar.os_numero}
-                  </h2>
-                  <p className="text-xs text-dark-400">
-                    Emissão: {formatDateTime(notaVisualizar.updated_at)}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {notaVisualizar.status === 'enviado' ? (
-                  <span className="bg-emerald-500/15 text-emerald-400 text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1">
-                    <CheckCircle size={13} /> Emitida
-                  </span>
-                ) : (
-                  <span className="bg-rose-500/15 text-rose-400 text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1">
-                    <XCircle size={13} /> Cancelada
-                  </span>
-                )}
-                <button
-                  onClick={() => setNotaVisualizar(null)}
-                  className="p-2 text-dark-400 hover:text-white hover:bg-dark-700 rounded-lg transition-colors"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
-
-            {/* Corpo */}
-            <div className="p-6 space-y-5">
-              {/* Prestador */}
-              <div className="bg-dark-900/50 rounded-xl p-4 border border-dark-700/50">
-                <h3 className="text-[11px] font-bold text-dark-400 uppercase tracking-wider mb-3">Prestador de Serviço</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-dark-500 text-xs">Razão Social</p>
-                    <p className="text-white font-medium">Empresa Emitente</p>
-                  </div>
-                  <div>
-                    <p className="text-dark-500 text-xs">Município</p>
-                    <p className="text-white font-medium">Belo Horizonte/MG</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tomador */}
-              <div className="bg-dark-900/50 rounded-xl p-4 border border-dark-700/50">
-                <h3 className="text-[11px] font-bold text-dark-400 uppercase tracking-wider mb-3">Tomador de Serviço</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-dark-500 text-xs">CPF / CNPJ</p>
-                    <p className="text-white font-medium font-mono">
-                      {notaVisualizar.dados_datacar?.cliente_cpf_cnpj || notaVisualizar.metadata?.cliente_cpf_cnpj || '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-dark-500 text-xs">Nome / Razão Social</p>
-                    <p className="text-white font-medium">{notaVisualizar.cliente}</p>
-                  </div>
-                  {notaVisualizar.dados_datacar?.cliente_logradouro && (
-                    <div className="col-span-2">
-                      <p className="text-dark-500 text-xs">Endereço</p>
-                      <p className="text-white font-medium text-xs">
-                        {[
-                          notaVisualizar.dados_datacar.cliente_logradouro,
-                          notaVisualizar.dados_datacar.cliente_numero,
-                          notaVisualizar.dados_datacar.cliente_bairro,
-                          notaVisualizar.dados_datacar.cliente_cidade
-                        ].filter(Boolean).join(', ')}
-                        {notaVisualizar.dados_datacar.cliente_cep && ` — CEP: ${notaVisualizar.dados_datacar.cliente_cep}`}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Serviço */}
-              <div className="bg-dark-900/50 rounded-xl p-4 border border-dark-700/50">
-                <h3 className="text-[11px] font-bold text-dark-400 uppercase tracking-wider mb-3">Serviço Prestado</h3>
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <p className="text-dark-500 text-xs">OS</p>
-                    <p className="text-white font-mono font-bold">#{notaVisualizar.os_numero}</p>
-                  </div>
-                  <div>
-                    <p className="text-dark-500 text-xs">Data / Competência</p>
-                    <p className="text-white">{formatDate(notaVisualizar.data_venda)}</p>
-                  </div>
-                  <div>
-                    <p className="text-dark-500 text-xs">Cód. Tributação</p>
-                    <p className="text-white font-mono">14.01.01</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Valores */}
-              <div className="bg-blue-500/5 rounded-xl p-4 border border-blue-500/20">
-                <h3 className="text-[11px] font-bold text-blue-400 uppercase tracking-wider mb-3">Valores</h3>
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <p className="text-dark-500 text-xs">Valor do Serviço</p>
-                    <p className="text-white text-lg font-bold">{formatCurrency(notaVisualizar.valor_total)}</p>
-                  </div>
-                  <div>
-                    <p className="text-dark-500 text-xs">Deduções</p>
-                    <p className="text-white">R$ 0,00</p>
-                  </div>
-                  <div>
-                    <p className="text-dark-500 text-xs">Valor Líquido</p>
-                    <p className="text-blue-400 text-lg font-bold">{formatCurrency(notaVisualizar.valor_total)}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Mensagem do sistema */}
-              {notaVisualizar.erro_mensagem && (
-                <div className="bg-dark-900/30 rounded-lg p-3 text-xs text-dark-400 border border-dark-700/30">
-                  <strong className="text-dark-300">Mensagem:</strong> {notaVisualizar.erro_mensagem}
-                </div>
-              )}
-            </div>
-
-            {/* Rodapé com ações */}
-            <div className="border-t border-dark-700 px-6 py-4 flex items-center gap-3 justify-end">
-              <button
-                onClick={() => imprimirDanfse(notaVisualizar)}
-                className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 rounded-lg text-sm font-medium transition-colors"
-              >
-                <Printer size={15} /> Imprimir
+          <div className="bg-[#f4f6f8] rounded-md w-full max-w-[1000px] max-h-[90vh] shadow-2xl flex flex-col font-sans">
+            
+            {/* Header / Barra de Ações (Simula o topo azul do portal) */}
+            <div className="bg-[#5a6b7d] px-4 py-2 flex items-center gap-2 rounded-t-md shrink-0">
+              <button className="bg-[#2c3e50] hover:bg-[#1a252f] text-white px-3 py-1.5 rounded text-sm font-bold flex items-center gap-2 transition-colors">
+                <Plus size={16} /> Nova NFS-e
               </button>
-              <button
-                onClick={() => {
-                  const xml = gerarXmlDemonstrativo(notaVisualizar)
-                  downloadAsFile(xml, `NFSe_OS_${notaVisualizar.os_numero}.xml`, 'application/xml')
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-lg text-sm font-medium transition-colors"
-              >
-                <FileCode size={15} /> XML
+              <button disabled className="bg-[#6c7d8e] text-white/50 px-2.5 py-1.5 rounded text-sm cursor-not-allowed">
+                <ChevronLeft size={16} />
               </button>
+              <button disabled className="bg-[#6c7d8e] text-white/50 px-2.5 py-1.5 rounded text-sm cursor-not-allowed">
+                <ChevronRight size={16} />
+              </button>
+              
+              <div className="h-6 w-px bg-white/20 mx-1"></div>
+
               <button
                 onClick={() => {
                   const html = gerarDanfseHtml(notaVisualizar)
                   downloadAsFile(html, `DANFSe_OS_${notaVisualizar.os_numero}.html`, 'text/html')
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-lg text-sm font-medium transition-colors"
+                className="bg-[#6c7d8e] hover:bg-[#5a6b7d] text-white px-3 py-1.5 rounded text-sm font-medium flex items-center gap-2 transition-colors border border-[#7d8e9e]"
+                title="Download PDF"
               >
-                <Download size={15} /> DANFS-e
+                <Download size={15} /> PDF
               </button>
+              
+              <button
+                onClick={() => imprimirDanfse(notaVisualizar)}
+                className="bg-[#6c7d8e] hover:bg-[#5a6b7d] text-white px-3 py-1.5 rounded text-sm font-medium flex items-center gap-2 transition-colors border border-[#7d8e9e]"
+                title="Imprimir"
+              >
+                <Printer size={15} />
+              </button>
+
+              <button
+                onClick={() => {
+                  const xml = gerarXmlDemonstrativo(notaVisualizar)
+                  downloadAsFile(xml, `NFSe_OS_${notaVisualizar.os_numero}.xml`, 'application/xml')
+                }}
+                className="bg-[#6c7d8e] hover:bg-[#5a6b7d] text-white px-3 py-1.5 rounded text-sm font-medium flex items-center gap-2 transition-colors border border-[#7d8e9e]"
+                title="Download XML"
+              >
+                <FileCode size={15} /> XML
+              </button>
+
               <button
                 onClick={() => setNotaVisualizar(null)}
-                className="px-4 py-2 bg-dark-700 text-dark-300 hover:text-white rounded-lg text-sm font-medium transition-colors"
+                className="ml-auto text-white/70 hover:text-white p-1"
+                title="Fechar"
               >
-                Fechar
+                <X size={20} />
               </button>
             </div>
+
+            {/* Corpo de Visualização (Fundo branco padrão Gov) */}
+            <div className="bg-white m-4 mb-0 overflow-y-auto p-6 border border-gray-200">
+              
+              {/* Identificação da NFS-e */}
+              <h3 className="text-[#598c73] font-medium text-[15px] mb-2">Identificação da NFS-e</h3>
+              <div className="grid grid-cols-12 gap-4 mb-6">
+                <div className="col-span-8">
+                  <label className="block text-[11px] text-gray-500 mb-1">Chave de acesso</label>
+                  <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 font-mono bg-white">
+                    31062002253159326000122000000000082426079433782989
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[11px] text-gray-500 mb-1">Data de geração</label>
+                  <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">
+                    {formatDateTime(notaVisualizar.updated_at)}
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[11px] text-gray-500 mb-1">Versão</label>
+                  <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">
+                    1.01
+                  </div>
+                </div>
+              </div>
+
+              {/* Identificação do DPS */}
+              <h3 className="text-[#598c73] font-medium text-[15px] mb-2">Identificação do DPS</h3>
+              <div className="grid grid-cols-12 gap-4 mb-6">
+                <div className="col-span-4">
+                  <label className="block text-[11px] text-gray-500 mb-1">Número</label>
+                  <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">
+                    {notaVisualizar.os_numero}
+                  </div>
+                </div>
+                <div className="col-span-4">
+                  <label className="block text-[11px] text-gray-500 mb-1">Série</label>
+                  <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">
+                    70000
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[11px] text-gray-500 mb-1">Data de emissão</label>
+                  <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">
+                    {formatDateTime(notaVisualizar.updated_at)}
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[11px] text-gray-500 mb-1">Versão</label>
+                  <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">
+                    1.01
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabs Container */}
+              <div className="flex text-sm text-gray-600 mt-2">
+                <div className="px-5 py-2 bg-[#598c73] text-white font-medium cursor-default">NFS-e</div>
+                <div className="px-5 py-2 hover:bg-gray-100 cursor-not-allowed">Pessoas</div>
+                <div className="px-5 py-2 hover:bg-gray-100 cursor-not-allowed">Serviço</div>
+                <div className="px-5 py-2 hover:bg-gray-100 cursor-not-allowed">Outros Tributos</div>
+              </div>
+
+              {/* Box Principal com Borda Verde */}
+              <div className="border border-[#598c73] p-6">
+                
+                {/* EMITENTE */}
+                <h4 className="text-[#598c73] font-medium text-[14px] mb-3">Emitente</h4>
+                <div className="space-y-4 mb-8">
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">Razão Social</label>
+                    <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">Empresa Emitente</div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] text-gray-500 mb-1">CNPJ</label>
+                      <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">00.000.000/0000-00</div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-gray-500 mb-1">Inscrição Municipal</label>
+                      <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">15219040018</div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] text-gray-500 mb-1">Situação Perante o Simples Nacional</label>
+                      <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">Microempresa ou Empresa de Pequeno Porte (ME/EPP)</div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-gray-500 mb-1">Regime Especial de Tributação</label>
+                      <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">Nenhum</div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">Endereço do Estabelecimento/Domicílio</label>
+                    <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">
+                      RUA TEIXEIRA LEITE , 186 , Bairro JOAO PINHEIRO , CEP 30530280 , Belo Horizonte/MG
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] text-gray-500 mb-1">Telefone</label>
+                      <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">(31)3309-9300</div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-gray-500 mb-1">Email</label>
+                      <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">contato@empresa.com.br</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* TOMADOR */}
+                <h4 className="text-[#598c73] font-medium text-[14px] mb-3 mt-4 border-t border-gray-200 pt-4">Tomador do Serviço</h4>
+                <div className="space-y-4 mb-8">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] text-gray-500 mb-1">CNPJ / CPF</label>
+                      <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">
+                        {notaVisualizar.dados_datacar?.cliente_cpf_cnpj || notaVisualizar.metadata?.cliente_cpf_cnpj || '—'}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-gray-500 mb-1">Razão Social / Nome</label>
+                      <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">
+                        {notaVisualizar.cliente}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">Endereço do Domicílio</label>
+                    <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">
+                      {[
+                        notaVisualizar.dados_datacar?.cliente_logradouro,
+                        notaVisualizar.dados_datacar?.cliente_numero,
+                        notaVisualizar.dados_datacar?.cliente_bairro,
+                        notaVisualizar.dados_datacar?.cliente_cidade
+                      ].filter(Boolean).join(', ') || 'Não informado'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* SERVIÇO */}
+                <h4 className="text-[#598c73] font-medium text-[14px] mb-3 mt-4 border-t border-gray-200 pt-4">Serviço Prestado</h4>
+                <div className="space-y-4 mb-8">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] text-gray-500 mb-1">Código de Tributação (CTN / NBS)</label>
+                      <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">
+                        14.01.01 — Lubrificação, limpeza, lustração, revisão...
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-gray-500 mb-1">Descrição</label>
+                      <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">
+                        Serviços automotivos referentes à OS #{notaVisualizar.os_numero}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* TRIBUTAÇÃO MUNICIPAL */}
+                <h4 className="text-[#598c73] font-medium text-[14px] mb-3 mt-4 border-t border-gray-200 pt-4">Tributação Municipal</h4>
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">Tributação do ISSQN</label>
+                    <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">1 - Operação Tributável</div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">País Resultado da Prestação de Serviço</label>
+                    <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">-</div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">Município de Incidência</label>
+                    <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">Belo Horizonte/MG</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">Tipo de Imunidade</label>
+                    <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">-</div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">Suspensão do ISSQN</label>
+                    <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">-</div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">Número processo suspensão</label>
+                    <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">-</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">Valor do Serviço</label>
+                    <div className="flex border border-gray-300 bg-gray-100">
+                      <span className="px-2 py-1.5 text-[13px] text-gray-500 border-r border-gray-300">R$</span>
+                      <div className="w-full px-3 py-1.5 text-[13px] text-gray-700 bg-white">{notaVisualizar.valor_total.toFixed(2).replace('.', ',')}</div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">Desconto incondicionado</label>
+                    <div className="flex border border-gray-300 bg-gray-100">
+                      <span className="px-2 py-1.5 text-[13px] text-gray-500 border-r border-gray-300">R$</span>
+                      <div className="w-full px-3 py-1.5 text-[13px] text-gray-700 bg-white">0,00</div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">Base de Cálculo</label>
+                    <div className="flex border border-gray-300 bg-gray-100">
+                      <span className="px-2 py-1.5 text-[13px] text-gray-500 border-r border-gray-300">R$</span>
+                      <div className="w-full px-3 py-1.5 text-[13px] text-gray-700 bg-white">0,00</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 mb-8">
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">Alíquota Aplicada</label>
+                    <div className="flex border border-gray-300 bg-white">
+                      <div className="w-full px-3 py-1.5 text-[13px] text-gray-700 bg-white">0,00</div>
+                      <span className="px-2 py-1.5 text-[13px] text-gray-500 border-l border-gray-300 bg-gray-100">%</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">Valor do ISSQN</label>
+                    <div className="flex border border-gray-300 bg-gray-100">
+                      <span className="px-2 py-1.5 text-[13px] text-gray-500 border-r border-gray-300">R$</span>
+                      <div className="w-full px-3 py-1.5 text-[13px] text-gray-700 bg-white">0,00</div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">Retenção</label>
+                    <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">1 - Não Retido</div>
+                  </div>
+                </div>
+
+                {/* OUTRAS INFORMAÇÕES */}
+                <h4 className="text-[#598c73] font-medium text-[14px] mb-3 mt-4 border-t border-gray-200 pt-4">Outras Informações</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">Versão da Aplicação</label>
+                    <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">EmissorWeb_1.6.0.0</div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">Ambiente Gerador</label>
+                    <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white">2 - Sefin Nacional NFS-e</div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">Situação da NFS-e</label>
+                    <div className="w-full border border-gray-300 px-3 py-1.5 text-[13px] text-gray-700 bg-white font-bold">
+                      {notaVisualizar.status === 'cancelado' ? '300 - Cancelada' : '100 - NFS-e Gerada'}
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+              
+              <div className="h-6"></div> {/* Espaço inferior */}
+            </div>
+            
           </div>
         </div>
       )}
