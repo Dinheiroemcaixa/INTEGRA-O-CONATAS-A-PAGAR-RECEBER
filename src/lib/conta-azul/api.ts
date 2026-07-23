@@ -793,7 +793,7 @@ export async function buscarOuCriarCliente(
   try {
     // 1. Busca por CPF/CNPJ se disponível (mais preciso, evita duplicatas)
     if (docLimpo) {
-      const urlDoc = `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=10&cpf_cnpj=${docLimpo}&tipo_perfil=Cliente`
+      const urlDoc = `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=10&busca=${docLimpo}&tipo_perfil=Cliente`
       try {
         const busca = await fetchCA(urlDoc, { headers: { 'Authorization': `Bearer ${accessToken}` } })
         if (busca.ok) {
@@ -873,7 +873,7 @@ export async function buscarOuCriarCliente(
     if (criar.status === 400 && errTextPrincipal.includes('CPF') && docLimpo) {
       console.log('[buscarOuCriarCliente] CPF/CNPJ duplicado, tentando buscar pessoa existente...')
       // Busca sem filtro de perfil para encontrar qualquer pessoa com esse doc
-      const urlBuscaDoc = `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=10&cpf_cnpj=${docLimpo}`
+      const urlBuscaDoc = `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=10&busca=${docLimpo}`
       try {
         const buscaDoc = await fetchCA(urlBuscaDoc, { headers: { 'Authorization': `Bearer ${accessToken}` } })
         if (buscaDoc.ok) {
@@ -911,14 +911,30 @@ export async function buscarOuCriarCliente(
 
 export interface VendaContaAzul {
   id: string
+  id_legado?: number
   numero?: number
   data_venda?: string
-  situacao?: string
+  situacao?: { nome?: string; descricao?: string } | string
   valor_total?: number
+  // A API v2 retorna o cliente dentro de um objeto separado no GET por id,
+  // mas no /venda/busca retorna campos planos: id_cliente, nome_cliente, documento_cliente
+  id_cliente?: string
+  nome_cliente?: string
+  documento_cliente?: string
+  // Fallback caso a estrutura mude
   cliente?: {
+    uuid?: string
     id?: string
     nome?: string
-    cpf_cnpj?: string
+    documento?: string
+    tipo_pessoa?: string
+  }
+  // Composição de valor (API v2)
+  valor_composicao?: {
+    valor_bruto?: number
+    valor_liquido?: number
+    frete?: number
+    desconto?: { tipo?: string; valor?: number }
   }
 }
 
@@ -931,7 +947,9 @@ export interface NotaFiscalContaAzul {
 
 /**
  * Busca vendas no Conta Azul dentro de um período.
- * Varre todas as páginas automaticamente.
+ * Endpoint correto da API v2: GET /v1/venda/busca
+ * Parâmetros: data_inicio, data_fim, pagina, tamanho_pagina
+ * Ref: https://developers.contaazul.com/ (Sales API)
  */
 export async function buscarVendasContaAzul(
   accessToken: string,
@@ -944,18 +962,23 @@ export async function buscarVendasContaAzul(
 
   while (continuar) {
     try {
-      const url = `${BASE_URL}/venda?data_emissao_inicial=${dataInicial}&data_emissao_final=${dataFinal}&pagina=${pagina}&tamanho_pagina=100`
+      // Endpoint correto conforme documentação oficial: /v1/venda/busca
+      const url = `${BASE_URL}/venda/busca?data_inicio=${dataInicial}&data_fim=${dataFinal}&pagina=${pagina}&tamanho_pagina=200`
+      console.log(`[buscarVendasCA] Buscando página ${pagina}: ${url}`)
       const res = await fetchCA(url, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
       })
 
       if (!res.ok) {
-        console.warn(`[buscarVendasCA] Erro ao buscar vendas página ${pagina}: ${res.status}`)
+        const errBody = await res.text().catch(() => '')
+        console.warn(`[buscarVendasCA] Erro ao buscar vendas página ${pagina}: ${res.status} — ${errBody.substring(0, 300)}`)
         break
       }
 
       const data = await res.json()
-      const itens: VendaContaAzul[] = data.itens || data.items || data.content || (Array.isArray(data) ? data : [])
+      // A API v2 retorna { totais, quantidades, total_itens, itens: [...] }
+      const itens: VendaContaAzul[] = data.itens || data.items || (Array.isArray(data) ? data : [])
+      console.log(`[buscarVendasCA] Página ${pagina}: ${itens.length} vendas retornadas`)
 
       if (itens.length === 0) {
         continuar = false
@@ -963,7 +986,9 @@ export async function buscarVendasContaAzul(
         todas.push(...itens)
         pagina++
         // Se retornou menos que o tamanho da página, é a última
-        if (itens.length < 100) continuar = false
+        if (itens.length < 200) continuar = false
+        // Segurança: não buscar mais que 20 páginas
+        if (pagina > 20) continuar = false
       }
     } catch (e) {
       console.warn('[buscarVendasCA] Erro de rede ao buscar vendas:', e)
@@ -971,6 +996,7 @@ export async function buscarVendasContaAzul(
     }
   }
 
+  console.log(`[buscarVendasCA] Total: ${todas.length} vendas encontradas no período ${dataInicial} a ${dataFinal}`)
   return todas
 }
 

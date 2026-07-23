@@ -227,9 +227,8 @@ export async function POST(req: NextRequest) {
           data_venda: venda.data_venda,
           os_numero: venda.os_numero,
           forma_pagamento: venda.forma_pagamento,
-          status: 'concluido',
-          conta_azul_id: vendaCriada!.id,
-          payload_contaazul: payload
+          status: 'enviado',
+          conta_azul_id: vendaCriada!.id
         })
 
         sucessos++
@@ -247,7 +246,7 @@ export async function POST(req: NextRequest) {
           os_numero: venda.os_numero,
           forma_pagamento: venda.forma_pagamento,
           status: 'erro',
-          erros_importacao: [msgErro]
+          erro_mensagem: msgErro
         })
       }
     }

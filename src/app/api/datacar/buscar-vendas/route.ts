@@ -311,17 +311,14 @@ export async function POST(req: NextRequest) {
       else if (os.venda_DtEncerramento) situacao = 'encerrada'
       else if (os.venda_DtConclusao) situacao = 'concluida'
       
-      let cliente = os.cliente_Nome?.trim() || os.cliente_RazaoSocial?.trim() || 'Cliente não informado'
+      // IMPORTANTE: Sempre usa o nome que veio do Datacar como principal.
+      // NÃO substitui pelo nome da Brasil API (razao_social) pois pode retornar nome incorreto.
+      const cliente = os.cliente_Nome?.trim() || os.cliente_RazaoSocial?.trim() || 'Cliente não informado'
       const cliente_cpf_cnpj = os.cliente_Cpf_Cnpj || null
       
-      // Obter dados enriquecidos se for CNPJ
+      // Obter dados enriquecidos se for CNPJ (apenas para endereço, NÃO para nome)
       const cnpjLimpo = cliente_cpf_cnpj ? cliente_cpf_cnpj.replace(/\D/g, '') : ''
       const dadosCnpjEncontrados = cnpjLimpo.length === 14 ? dadosCnpjMap.get(cnpjLimpo) : null
-      
-      // Se for CNPJ válido e retornou razao_social, prioriza o nome oficial
-      if (dadosCnpjEncontrados?.razao_social) {
-        cliente = dadosCnpjEncontrados.razao_social
-      }
 
       const osNumero = String(os.venda_Numero || '')
       const dataVenda = os.venda_DtEncerramento || os.venda_DtConclusao || os.venda_DtCriacao || ''
@@ -482,9 +479,10 @@ export async function POST(req: NextRequest) {
         // Montar mapa de chaves para cruzar: normaliza CPF/CNPJ + Data + Valor
         const vendasCAMap = new Map<string, { id: string; valor: number }[]>()
         for (const vc of vendasCA) {
-          const cpfCnpj = vc.cliente?.cpf_cnpj?.replace(/\D/g, '') || ''
+          const docRaw = (vc as any).documento_cliente || vc.cliente?.documento || (vc.cliente as any)?.cpf_cnpj || ''
+          const cpfCnpj = docRaw.replace(/\\D/g, '')
           const dataVenda = vc.data_venda?.split('T')[0] || ''
-          const valor = Math.round((vc.valor_total || 0) * 100) // centavos para evitar float
+          const valor = Math.round(((vc as any).valor_composicao?.valor_liquido || vc.valor_total || 0) * 100) // centavos
           if (cpfCnpj && dataVenda) {
             const chave = `${cpfCnpj}_${dataVenda}_${valor}`
             if (!vendasCAMap.has(chave)) vendasCAMap.set(chave, [])
@@ -495,7 +493,7 @@ export async function POST(req: NextRequest) {
         // Para cada venda do Datacar, verificar se já existe no CA
         const vendasComNfe: string[] = [] // IDs de vendas CA para verificar NFe em lote
         for (const venda of dadosFiltrados) {
-          const cpfCnpj = (venda as any).cliente_cpf_cnpj?.replace(/\D/g, '') || ''
+          const cpfCnpj = (venda as any).cliente_cpf_cnpj?.replace(/\\D/g, '') || ''
           let dataVendaISO = venda.data_venda?.split('T')[0]?.split(' ')[0] || ''
           if (dataVendaISO.includes('/')) {
             const [d, m, y] = dataVendaISO.split('/')
@@ -531,11 +529,72 @@ export async function POST(req: NextRequest) {
           }
         }
       }
+
+      // --- DETECÇÃO DE CLIENTE COM VENDAS ANTERIORES NO CA ---
+      // Apenas para os CPFs/CNPJs que não deram match exato nas vendas, vamos verificar se já possuem vendas
+      const cpfsCnpjsParaVerificar = Array.from(new Set(
+        dadosFiltrados
+          .filter((d: any) => !d.ca_status) // Somente os que ainda não têm status de duplicidade exata
+          .map((d: any) => d.cliente_cpf_cnpj?.replace(/\\D/g, ''))
+          .filter(Boolean)
+      )) as string[]
+
+      if (cpfsCnpjsParaVerificar.length > 0) {
+        const clientesExistentesCA = new Set<string>()
+        const urlBaseCA = 'https://api-v2.contaazul.com/v1/venda/busca'
+        
+        // Fazer buscas em lotes de 5 para não estourar rate limit
+        for (let i = 0; i < cpfsCnpjsParaVerificar.length; i += 5) {
+          const chunk = cpfsCnpjsParaVerificar.slice(i, i + 5)
+          await Promise.all(chunk.map(async (doc) => {
+            try {
+              // Buscar vendas para esse documento. Se existir venda, o cliente já existe e tem histórico.
+              const url = `${urlBaseCA}?termo_busca=${doc}&tamanho_pagina=1`
+              console.log(`[duplicidade-cliente] Buscando vendas anteriores para CPF/CNPJ: ${doc} em ${url}`)
+              const res = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${caToken}` }
+              })
+              console.log(`[duplicidade-cliente] Resposta para ${doc}: status=${res.status}`)
+              if (res.ok) {
+                const data = await res.json()
+                const lista = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
+                console.log(`[duplicidade-cliente] CPF/CNPJ ${doc}: ${lista.length} vendas encontradas`)
+                if (lista.length > 0) {
+                  // Se encontrou alguma venda, verifica se o documento bate
+                  const matchDoc = lista.find((v: any) => {
+                    const pDoc = (v.documento_cliente || v.cliente?.documento || '').replace(/\\D/g, '')
+                    return pDoc === doc || pDoc.includes(doc) || doc.includes(pDoc) // fallback
+                  })
+                  if (matchDoc || lista.length > 0) { // Se retornou na busca exata por CPF, confiamos
+                    clientesExistentesCA.add(doc)
+                  }
+                }
+              } else {
+                const errText = await res.text()
+                console.warn(`[duplicidade-cliente] Erro ${res.status} ao buscar ${doc}: ${errText.substring(0, 200)}`)
+              }
+            } catch (err) {
+              console.warn(`[duplicidade-cliente] Erro ao buscar vendas anteriores ${doc} no CA:`, err)
+            }
+          }))
+        }
+        
+        // Para cada venda ainda sem ca_status, marca se o cliente já existe
+        for (const venda of dadosFiltrados) {
+          if (!(venda as any).ca_status) {
+            const doc = (venda as any).cliente_cpf_cnpj?.replace(/\D/g, '') || ''
+            if (clientesExistentesCA.has(doc)) {
+              ;(venda as any).ca_status = 'cliente_existente'
+            }
+          }
+        }
+      }
+
     } catch (caErr) {
       // Se o CA não está conectado ou deu qualquer erro, simplesmente segue sem marcação
       console.log('[duplicidade] Não foi possível verificar duplicidade no CA (pode não estar conectado):', (caErr as any)?.message || caErr)
     }
-    // --- FIM DA DETECÇÃO DE DUPLICIDADE ---
+    // --- FIM DA DETECÇÃO DE DUPLICIDADE E CLIENTE ---
 
     const validos = dadosFiltrados.filter(d => d.valido).length
     const invalidos = dadosFiltrados.filter(d => !d.valido).length

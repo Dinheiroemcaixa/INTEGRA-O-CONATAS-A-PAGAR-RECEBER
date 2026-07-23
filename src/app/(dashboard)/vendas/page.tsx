@@ -7,6 +7,7 @@ import DropZoneVendas from '@/components/upload/DropZoneVendas'
 import TabelaVendasPreview from '@/components/upload/TabelaVendasPreview'
 import ModalEditarVenda from '@/components/upload/ModalEditarVenda'
 import ModalEditarDatacar from '@/components/upload/ModalEditarDatacar'
+import ModalVendasCliente from '@/components/upload/ModalVendasCliente'
 import SelectorEmpresa from '@/components/layout/SelectorEmpresa'
 import type { VendaPreview, ResultadoImportacaoVendas } from '@/types'
 import {
@@ -70,6 +71,7 @@ export default function VendasPage() {
   const [expandidoDatacar, setExpandidoDatacar] = useState<string | null>(null)
   const [enviandoDatacar, setEnviandoDatacar] = useState(false)
   const [editandoDatacarId, setEditandoDatacarId] = useState<string | null>(null)
+  const [modalClienteDoc, setModalClienteDoc] = useState<string | null>(null)
 
   // ─── Estado do Upload de Planilha Fiscal ───────────────────
   const [showPlanilhaFiscal, setShowPlanilhaFiscal] = useState(false)
@@ -162,7 +164,7 @@ export default function VendasPage() {
         valor_total: d.valor_total,
         forma_pagamento: d.forma_pagamento,
         itens: d.itens,
-        status: d.ca_status ? 'duplicidade' : 'pendente', // ca_status contém erro de duplicidade
+        status: d.ca_status === 'cliente_existente' ? 'alerta_cliente' : (d.ca_status ? 'duplicidade' : 'pendente'),
         dados_datacar: d._datacar || d,
         valido: d.valido,
         erros: d.erros,
@@ -732,6 +734,10 @@ export default function VendasPage() {
                               onClick={e => e.stopPropagation()}
                               className="accent-blue-500"
                             />
+                          ) : venda.status === 'alerta_cliente' ? (
+                            <div className="text-yellow-500 flex-shrink-0 ml-0.5" title="Cliente já cadastrado">
+                              <AlertCircle size={14} />
+                            </div>
                           ) : venda.status === 'duplicidade' ? (
                             <div className="text-amber-500 flex-shrink-0 ml-0.5" title="Venda já consta no Conta Azul">
                               <AlertCircle size={14} />
@@ -754,9 +760,11 @@ export default function VendasPage() {
                               ? 'bg-emerald-500/15 text-emerald-400'
                               : venda.status === 'duplicidade'
                                 ? 'bg-amber-500/15 text-amber-400'
-                                : 'bg-yellow-500/15 text-yellow-400'
+                                : venda.status === 'alerta_cliente'
+                                  ? 'bg-yellow-500/15 text-yellow-500'
+                                  : 'bg-yellow-500/15 text-yellow-400'
                           }`}>
-                            {venda.status === 'enviado' ? 'Enviado CA' : venda.status === 'duplicidade' ? 'Duplicada' : 'Pendente'}
+                            {venda.status === 'enviado' ? 'Enviado CA' : venda.status === 'duplicidade' ? 'Duplicada' : venda.status === 'alerta_cliente' ? 'Aviso Cliente' : 'Pendente'}
                           </span>
                           <div className="w-16 flex items-center justify-end gap-1">
                             <button
@@ -810,7 +818,18 @@ export default function VendasPage() {
                               >
                                 Editar Dados
                               </button>
-                              {venda.status === 'duplicidade' && (
+                              {venda.status === 'alerta_cliente' && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setModalClienteDoc(venda.cliente_cpf_cnpj || venda.dados_datacar?.cliente_cpf_cnpj || '');
+                                  }}
+                                  className="text-[11px] font-semibold flex items-center gap-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 px-3 py-1.5 rounded border border-yellow-500/20 transition-colors"
+                                >
+                                  Ver Vendas Anteriores
+                                </button>
+                              )}
+                              {(venda.status === 'duplicidade' || venda.status === 'alerta_cliente') && (
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -819,7 +838,7 @@ export default function VendasPage() {
                                   }}
                                   className="text-[11px] font-semibold flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 px-3 py-1.5 rounded border border-amber-500/20 transition-colors"
                                 >
-                                  Forçar Envio (Ignorar Duplicidade)
+                                  Forçar Envio (Ignorar Aviso)
                                 </button>
                               )}
                             </div>
@@ -1032,6 +1051,14 @@ export default function VendasPage() {
             setVendasDatacar(prev => prev.map(v => v.id === vendaAtualizada.id ? vendaAtualizada : v))
           }}
           onClose={() => setEditandoDatacarId(null)}
+        />
+      )}
+
+      {modalClienteDoc !== null && empresaAtiva && (
+        <ModalVendasCliente
+          empresaId={empresaAtiva.id}
+          cpfCnpj={modalClienteDoc}
+          onClose={() => setModalClienteDoc(null)}
         />
       )}
     </div>
