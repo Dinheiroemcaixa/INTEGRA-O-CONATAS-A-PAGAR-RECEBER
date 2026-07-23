@@ -273,7 +273,7 @@ function EmpresasPageContent() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Usuário não autenticado')
 
-      const cnpjLimpo = form.cnpj.replace(/\D/g, '')
+      const cnpjLimpo = (form.cnpj || '').replace(/\D/g, '')
       const razaoSocialFinal = form.razao_social.trim() || null
       const nomeFantasiaFinal = form.nome_fantasia.trim() || null
 
@@ -344,7 +344,7 @@ function EmpresasPageContent() {
   }
 
   const handleBuscarCnpj = async () => {
-    const cnpjLimpo = form.cnpj.replace(/\D/g, '')
+    const cnpjLimpo = (form.cnpj || '').replace(/\D/g, '')
     if (cnpjLimpo.length !== 14) {
       toast.error('CNPJ inválido. Digite os 14 dígitos.')
       return
@@ -374,8 +374,8 @@ function EmpresasPageContent() {
   const handleEditClick = (empresa: Empresa) => {
     setEditingId(empresa.id)
     setForm({
-      nome: empresa.nome,
-      cnpj: empresa.cnpj,
+      nome: empresa.nome || '',
+      cnpj: empresa.cnpj || '',
       email_login: empresa.email_login || '',
       tipo_empresa: empresa.tipo_empresa || 'ambos',
       datacar_token: empresa.datacar_token || '',
@@ -397,6 +397,7 @@ function EmpresasPageContent() {
           <p className="text-dark-400 text-sm mt-1">Gerencie as empresas do seu BPO</p>
         </div>
         <button
+          type="button"
           onClick={() => {
             setEditingId(null)
             setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '', razao_social: '', nome_fantasia: '' })
@@ -464,9 +465,9 @@ function EmpresasPageContent() {
                   <button
                     type="button"
                     onClick={handleBuscarCnpj}
-                    disabled={buscandoCnpj || form.cnpj.replace(/\D/g, '').length < 14}
+                    disabled={buscandoCnpj || (form.cnpj || '').replace(/\D/g, '').length < 14}
                     className={`mt-2 sm:mt-0 sm:mr-1.5 px-6 py-3 sm:py-2.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap flex items-center justify-center gap-2 ${
-                      buscandoCnpj || form.cnpj.replace(/\D/g, '').length < 14
+                      buscandoCnpj || (form.cnpj || '').replace(/\D/g, '').length < 14
                         ? 'bg-dark-800 text-dark-500 cursor-not-allowed'
                         : 'bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white shadow-[0_0_15px_rgba(245,158,11,0.3)]'
                     }`}
@@ -686,6 +687,7 @@ function EmpresasPageContent() {
                 {/* AÇÕES SUPERIORES */}
                 <div className="flex flex-col sm:flex-row gap-2 items-end sm:items-start ml-2">
                   <button
+                    type="button"
                     onClick={() => setEmpresaAtiva(empresa)}
                     className={`px-3 py-1.5 sm:px-4 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
                       isAtiva
@@ -696,7 +698,11 @@ function EmpresasPageContent() {
                     {isAtiva ? 'Selecionada' : 'Selecionar'}
                   </button>
                   <button
-                    onClick={() => handleEditClick(empresa)}
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleEditClick(empresa);
+                    }}
                     className="p-1.5 rounded-lg text-dark-500 hover:text-white hover:bg-dark-700 transition-colors border border-transparent hover:border-dark-600/50 bg-dark-900/20 hover:bg-dark-900/50"
                     title="Editar configurações"
                   >
