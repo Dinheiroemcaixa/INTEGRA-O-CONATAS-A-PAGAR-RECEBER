@@ -418,7 +418,7 @@ export interface VendaPayload {
   condicao_pagamento: {
     tipo_pagamento: string
     id_conta_financeira?: string
-    opcao_condicao_pagamento?: string
+    opcao_condicao_pagamento: string
     nsu?: string
     parcelas: Array<{
       data_vencimento: string
