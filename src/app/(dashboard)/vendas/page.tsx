@@ -242,6 +242,7 @@ export default function VendasPage() {
       
       // Converte para o formato esperado pelo endpoint de envio do CA
       const vendasFormatadas = vendasFiltradas.map(v => ({
+        id_original: v.id,
         cliente: v.cliente,
         cliente_cpf_cnpj: v.dados_datacar?.cliente_cpf_cnpj || v.cliente_cpf_cnpj || undefined,
         cliente_endereco: v.dados_datacar?.cliente_endereco || v.cliente_endereco || undefined,
@@ -253,36 +254,69 @@ export default function VendasPage() {
         valido: true,
       }))
 
-      const res = await fetch('/api/conta-azul/enviar-vendas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          empresa_id: empresaAtiva.id,
-          vendas: vendasFormatadas
-        }),
-      })
+      let sucessosTotais = 0;
+      let errosTotais = 0;
+      const detalhesErros: string[] = [];
+      const idsSucesso = new Set<string>();
 
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erro ao enviar vendas')
+      // Envia as vendas uma a uma para evitar timeout na Vercel (limite de 10s-60s)
+      for (const venda of vendasFormatadas) {
+        try {
+          const res = await fetch('/api/conta-azul/enviar-vendas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              empresa_id: empresaAtiva.id,
+              vendas: [venda]
+            }),
+          })
+          
+          const data = await res.json()
+          if (!res.ok) throw new Error(data.error || 'Erro ao enviar venda')
+          
+          if (data.sucessos > 0) {
+            sucessosTotais += data.sucessos;
+            if (venda.id_original) idsSucesso.add(venda.id_original);
+          }
+          if (data.erros > 0) {
+            errosTotais += data.erros;
+            if (data.detalhesErros?.length > 0) {
+              detalhesErros.push(...data.detalhesErros);
+            }
+          }
+        } catch (err: any) {
+          errosTotais++;
+          detalhesErros.push(`OS ${venda.os_numero || 'S/N'}: ${err.message || 'Erro de comunicação'}`);
+        }
+      }
 
       // Atualiza status localmente e limpa a seleção
-      if (data.sucessos > 0) {
-        toast.success(`${data.sucessos} vendas criadas no Conta Azul com sucesso!`)
+      if (sucessosTotais > 0) {
+        toast.success(`${sucessosTotais} vendas criadas no Conta Azul com sucesso!`)
         setVendasDatacar(prev => prev.map(v => {
-          if (selecionadosDatacar.has(v.id)) {
+          if (idsSucesso.has(v.id)) {
              return { ...v, status: 'enviado' }
           }
           return v
         }))
-        setSelecionadosDatacar(new Set())
+        
+        // Remove os sucessos dos selecionados
+        setSelecionadosDatacar(prev => {
+          const next = new Set(prev);
+          idsSucesso.forEach(id => next.delete(id));
+          return next;
+        });
       }
 
-      if (data.erros > 0) {
-        toast.error(`${data.erros} vendas com erro. Verifique os logs.`)
-        if (data.detalhesErros?.length > 0) {
-          data.detalhesErros.slice(0, 3).forEach((errMsg: string) => {
+      if (errosTotais > 0) {
+        toast.error(`${errosTotais} vendas com erro. Verifique os logs.`)
+        if (detalhesErros.length > 0) {
+          detalhesErros.slice(0, 3).forEach((errMsg: string) => {
             toast.error(errMsg, { duration: 6000 })
           })
+          if (detalhesErros.length > 3) {
+            toast.error(`E mais ${detalhesErros.length - 3} erro(s)...`, { duration: 6000 })
+          }
         }
       }
 
@@ -354,27 +388,46 @@ export default function VendasPage() {
     try {
       const itensParaEnviar = dadosEditados.filter((_, i) => selecionados.has(i))
       
-      const res = await fetch('/api/conta-azul/enviar-vendas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          empresa_id: empresaAtiva.id,
-          vendas: itensParaEnviar
-        }),
-      })
+      let sucessosTotais = 0;
+      let errosTotais = 0;
+      const detalhesErros: string[] = [];
+
+      for (const venda of itensParaEnviar) {
+        try {
+          const res = await fetch('/api/conta-azul/enviar-vendas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              empresa_id: empresaAtiva.id,
+              vendas: [venda]
+            }),
+          })
+          
+          const data = await res.json()
+          if (!res.ok) throw new Error(data.error || 'Erro ao enviar venda')
+          
+          if (data.sucessos > 0) sucessosTotais += data.sucessos;
+          if (data.erros > 0) {
+            errosTotais += data.erros;
+            if (data.detalhesErros?.length > 0) {
+              detalhesErros.push(...data.detalhesErros);
+            }
+          }
+        } catch (err: any) {
+          errosTotais++;
+          detalhesErros.push(`OS ${venda.os_numero || 'S/N'}: ${err.message || 'Erro de comunicação'}`);
+        }
+      }
       
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erro ao enviar vendas')
-      
-      if (data.sucessos > 0) toast.success(`${data.sucessos} vendas enviadas com sucesso!`)
-      if (data.erros > 0) {
-        toast.error(`${data.erros} vendas com erro. Verifique os logs.`)
-        if (data.detalhesErros && data.detalhesErros.length > 0) {
-          data.detalhesErros.slice(0, 3).forEach((errMsg: string) => {
+      if (sucessosTotais > 0) toast.success(`${sucessosTotais} vendas enviadas com sucesso!`)
+      if (errosTotais > 0) {
+        toast.error(`${errosTotais} vendas com erro. Verifique os logs.`)
+        if (detalhesErros && detalhesErros.length > 0) {
+          detalhesErros.slice(0, 3).forEach((errMsg: string) => {
             toast.error(errMsg, { duration: 6000 })
           })
-          if (data.detalhesErros.length > 3) {
-            toast.error(`E mais ${data.detalhesErros.length - 3} erro(s)...`, { duration: 6000 })
+          if (detalhesErros.length > 3) {
+            toast.error(`E mais ${detalhesErros.length - 3} erro(s)...`, { duration: 6000 })
           }
         }
       }
