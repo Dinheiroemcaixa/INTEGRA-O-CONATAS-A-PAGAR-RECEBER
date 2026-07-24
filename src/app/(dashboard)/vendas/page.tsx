@@ -258,6 +258,7 @@ export default function VendasPage() {
       let errosTotais = 0;
       const detalhesErros: string[] = [];
       const idsSucesso = new Set<string>();
+      const idsErro = new Map<string, string>();
 
       // Envia as vendas uma a uma para evitar timeout na Vercel (limite de 10s-60s)
       for (const venda of vendasFormatadas) {
@@ -282,20 +283,31 @@ export default function VendasPage() {
             errosTotais += data.erros;
             if (data.detalhesErros?.length > 0) {
               detalhesErros.push(...data.detalhesErros);
+              if (venda.id_original) idsErro.set(venda.id_original, data.detalhesErros[0]);
+            } else {
+              if (venda.id_original) idsErro.set(venda.id_original, 'Erro desconhecido no Conta Azul');
             }
           }
         } catch (err: any) {
           errosTotais++;
-          detalhesErros.push(`OS ${venda.os_numero || 'S/N'}: ${err.message || 'Erro de comunicação'}`);
+          const errMsg = err.message || 'Erro de comunicação';
+          detalhesErros.push(`OS ${venda.os_numero || 'S/N'}: ${errMsg}`);
+          if (venda.id_original) idsErro.set(venda.id_original, errMsg);
         }
       }
 
       // Atualiza status localmente e limpa a seleção
-      if (sucessosTotais > 0) {
-        toast.success(`${sucessosTotais} vendas criadas no Conta Azul com sucesso!`)
+      if (sucessosTotais > 0 || errosTotais > 0) {
+        if (sucessosTotais > 0) {
+          toast.success(`${sucessosTotais} vendas criadas no Conta Azul com sucesso!`)
+        }
+        
         setVendasDatacar(prev => prev.map(v => {
           if (idsSucesso.has(v.id)) {
-             return { ...v, status: 'enviado' }
+             return { ...v, status: 'enviado', erro_mensagem: undefined }
+          }
+          if (idsErro.has(v.id)) {
+             return { ...v, status: 'erro', erro_mensagem: idsErro.get(v.id) }
           }
           return v
         }))
@@ -309,7 +321,7 @@ export default function VendasPage() {
       }
 
       if (errosTotais > 0) {
-        toast.error(`${errosTotais} vendas com erro. Verifique os logs.`)
+        toast.error(`${errosTotais} vendas com erro. Verifique os avisos nos itens.`)
         if (detalhesErros.length > 0) {
           detalhesErros.slice(0, 3).forEach((errMsg: string) => {
             toast.error(errMsg, { duration: 6000 })
@@ -779,7 +791,7 @@ export default function VendasPage() {
                           className="flex items-center gap-3 px-4 py-3 cursor-pointer"
                           onClick={() => setExpandidoDatacar(expandidoDatacar === venda.id ? null : venda.id)}
                         >
-                          {venda.status === 'pendente' ? (
+                          {venda.status === 'pendente' || venda.status === 'erro' ? (
                             <input
                               type="checkbox"
                               checked={selecionadosDatacar.has(venda.id)}
@@ -811,13 +823,15 @@ export default function VendasPage() {
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-20 text-center ${
                             venda.status === 'enviado'
                               ? 'bg-emerald-500/15 text-emerald-400'
-                              : venda.status === 'duplicidade'
-                                ? 'bg-amber-500/15 text-amber-400'
-                                : venda.status === 'alerta_cliente'
-                                  ? 'bg-yellow-500/15 text-yellow-500'
-                                  : 'bg-yellow-500/15 text-yellow-400'
+                              : venda.status === 'erro'
+                                ? 'bg-red-500/15 text-red-400'
+                                : venda.status === 'duplicidade'
+                                  ? 'bg-amber-500/15 text-amber-400'
+                                  : venda.status === 'alerta_cliente'
+                                    ? 'bg-yellow-500/15 text-yellow-500'
+                                    : 'bg-yellow-500/15 text-yellow-400'
                           }`}>
-                            {venda.status === 'enviado' ? 'Enviado CA' : venda.status === 'duplicidade' ? 'Duplicada' : venda.status === 'alerta_cliente' ? 'Aviso Cliente' : 'Pendente'}
+                            {venda.status === 'enviado' ? 'Enviado CA' : venda.status === 'erro' ? 'Erro CA' : venda.status === 'duplicidade' ? 'Duplicada' : venda.status === 'alerta_cliente' ? 'Aviso Cliente' : 'Pendente'}
                           </span>
                           <div className="w-16 flex items-center justify-end gap-1">
                             <button
@@ -862,6 +876,9 @@ export default function VendasPage() {
                               ) : null}
                               {venda.forma_pagamento && (
                                 <p><strong className="text-dark-300">Pagamento:</strong> {venda.forma_pagamento}</p>
+                              )}
+                              {venda.status === 'erro' && venda.erro_mensagem && (
+                                <p><strong className="text-red-400">Erro:</strong> <span className="text-red-400">{venda.erro_mensagem}</span></p>
                               )}
                             </div>
                             <div className="flex items-center gap-2">
