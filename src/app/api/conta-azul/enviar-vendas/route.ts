@@ -57,19 +57,7 @@ export async function POST(req: NextRequest) {
       return 'DINHEIRO'
     }
 
-    // Determina a opcao_condicao_pagamento conforme exigido pela API do Conta Azul:
-    // 'À vista', '2x', '3x', ... ou padrão de dias '30', '30,60', etc.
-    const mapOpcaoCondicao = (forma: string): { opcao: string; numParcelas: number } => {
-      const f = forma?.toLowerCase() || ''
-      // Detecta parcelamentos do tipo "2x", "3x", "12x", "4 parcelas", "4 vezes"
-      const matchParcelas = f.match(/(\d+)\s*(?:x|parcela|vez)/)
-      if (matchParcelas) {
-        const n = parseInt(matchParcelas[1], 10)
-        if (n > 1) return { opcao: `${n}x`, numParcelas: n }
-      }
-      // Pagamento padrão → à vista
-      return { opcao: 'À vista', numParcelas: 1 }
-    }
+
 
     for (const venda of vendas as VendaPreview[]) {
       try {
@@ -140,24 +128,18 @@ export async function POST(req: NextRequest) {
           : new Date().toISOString().split('T')[0]
 
         // 3. Monta Payload
-        const { opcao, numParcelas } = mapOpcaoCondicao(venda.forma_pagamento || '')
+        // OBS: opcao_condicao_pagamento NÃO é enviado de propósito.
+        // O campo "Condição de pagamento" no CA deve ficar em branco.
+        // Apenas "Forma de pagamento" (tipo_pagamento) é preenchido.
 
         // totalLiquidoItens = sum(1 × totalItem) = exatamente o que o Conta Azul vai calcular
         const valorLiquido = totalLiquidoItens
 
-        // Gera parcelas dividindo o valor líquido pelo número de parcelas
-        const valorParcela = parseFloat((valorLiquido / numParcelas).toFixed(2))
-        const parcelasPayload = Array.from({ length: numParcelas }, (_, i) => {
-          // Cada parcela vence 30 dias após a anterior (para parcelado) ou na data da venda (à vista)
-          const dataVenc = new Date(dataVendaFormatada)
-          dataVenc.setMonth(dataVenc.getMonth() + i)
-          return {
-            data_vencimento: dataVenc.toISOString().split('T')[0],
-            valor: i === numParcelas - 1
-              ? parseFloat((valorLiquido - valorParcela * (numParcelas - 1)).toFixed(2)) // última parcela absorve centavos
-              : valorParcela
-          }
-        })
+        // Gera parcelas: 1 parcela com valor total e vencimento na data da venda
+        const parcelasPayload = [{
+          data_vencimento: dataVendaFormatada,
+          valor: valorLiquido
+        }]
 
         const payload: VendaPayload = {
           id_cliente: idCliente,
@@ -179,7 +161,7 @@ export async function POST(req: NextRequest) {
           } : undefined,
           condicao_pagamento: {
             tipo_pagamento: mapPagamento(venda.forma_pagamento || ''),
-            opcao_condicao_pagamento: opcao,
+            // opcao_condicao_pagamento: REMOVIDO - não preencher condição de pagamento no CA
             parcelas: parcelasPayload
           }
         }
