@@ -192,7 +192,8 @@ function EmpresaCard({
   onEdit,
   conectando,
   onConectarContaAzul,
-  onDesconectar
+  onDesconectar,
+  viewMode
 }: {
   empresa: Empresa;
   isAtiva: boolean;
@@ -201,12 +202,12 @@ function EmpresaCard({
   conectando: string | null;
   onConectarContaAzul: (id: string) => void;
   onDesconectar: (id: string) => void;
+  viewMode: 'vendas' | 'contas_a_pagar';
 }) {
-  const [activeTab, setActiveTab] = useState<'vendas' | 'contas_a_pagar' | null>(null)
-
   return (
     <div
-      className={`relative group rounded-2xl p-5 sm:p-6 transition-all duration-300 ${
+      onClick={onSelect}
+      className={`relative group rounded-2xl p-5 sm:p-6 transition-all duration-300 cursor-pointer ${
         isAtiva 
           ? 'bg-dark-800/80 border-brand-500/50 shadow-[0_0_30px_rgba(var(--brand-500),0.15)] ring-1 ring-brand-500/20' 
           : 'bg-dark-800/40 border-dark-700/50 hover:bg-dark-800/60 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/20 hover:border-dark-600/50'
@@ -222,7 +223,7 @@ function EmpresaCard({
         </div>
       )}
 
-      <div className="flex items-start justify-between mb-5 flex-1">
+      <div className="flex items-start justify-between mb-4 flex-1">
         <div className="flex gap-4 items-start">
           {/* AVATAR */}
           <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center flex-shrink-0 text-xl font-bold shadow-inner ${
@@ -239,13 +240,6 @@ function EmpresaCard({
               <h3 className="text-white font-bold text-base sm:text-lg leading-tight group-hover:text-brand-100 transition-colors">
                 {empresa.nome}
               </h3>
-              <span className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded-full border tracking-wider ${
-                empresa.tipo_empresa === 'vendas' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-                empresa.tipo_empresa === 'financeiro' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                'bg-purple-500/10 text-purple-400 border-purple-500/20'
-              }`}>
-                {empresa.tipo_empresa === 'ambos' ? 'VENDAS & FINANÇAS' : empresa.tipo_empresa}
-              </span>
             </div>
             {empresa.razao_social && (
               <p className="text-dark-400 text-xs font-medium truncate max-w-[180px] sm:max-w-[250px]">{empresa.razao_social}</p>
@@ -255,18 +249,7 @@ function EmpresaCard({
         </div>
 
         {/* AÇÕES SUPERIORES */}
-        <div className="flex flex-col sm:flex-row gap-2 items-end sm:items-start ml-2">
-          <button
-            type="button"
-            onClick={onSelect}
-            className={`px-3 py-1.5 sm:px-4 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
-              isAtiva
-                ? 'bg-brand-500/10 text-brand-400 border border-brand-500/20 cursor-default'
-                : 'bg-dark-900/50 text-dark-300 hover:text-white hover:bg-dark-700 border border-dark-700/50 shadow-inner'
-            }`}
-          >
-            {isAtiva ? 'Selecionada' : 'Selecionar'}
-          </button>
+        <div className="flex gap-2 ml-2 relative z-10" onClick={e => e.stopPropagation()}>
           <button
             type="button"
             onClick={(e) => {
@@ -281,154 +264,66 @@ function EmpresaCard({
         </div>
       </div>
 
-      {/* BOTÕES DE ABAS */}
-      <div className="flex gap-3 mt-auto pt-2">
-        <button
-          onClick={() => setActiveTab(activeTab === 'vendas' ? null : 'vendas')}
-          className={`flex-1 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all border flex items-center justify-center gap-1.5 sm:gap-2 ${
-            activeTab === 'vendas'
-              ? 'bg-blue-500/10 border-blue-500/30 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)]'
-              : 'bg-dark-900/40 border-dark-700/50 text-dark-400 hover:bg-dark-800 hover:text-white'
-          }`}
-        >
-          <span className="text-base">🛒</span> Vendas
-        </button>
-        <button
-          onClick={() => setActiveTab(activeTab === 'contas_a_pagar' ? null : 'contas_a_pagar')}
-          className={`flex-1 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all border flex items-center justify-center gap-1.5 sm:gap-2 ${
-            activeTab === 'contas_a_pagar'
-              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
-              : 'bg-dark-900/40 border-dark-700/50 text-dark-400 hover:bg-dark-800 hover:text-white'
-          }`}
-        >
-          <span className="text-base">💼</span> Contas a Pagar
-        </button>
-      </div>
-
-      {/* CONTEÚDO DAS ABAS */}
-      {activeTab === 'vendas' && (
-        <div className="mt-4 pt-4 border-t border-dark-700/50 animate-fade-in space-y-4">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3 bg-dark-900/40 rounded-xl border border-dark-700/30 shadow-inner">
-            <div className="flex items-center gap-3">
-              <div className="relative flex items-center justify-center w-8 h-8 rounded-lg bg-orange-500/10">
-                {empresa.datacar_token ? (
-                  <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-dark-900"></span>
-                  </span>
-                ) : (
-                  <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-dark-500 border-2 border-dark-900"></span>
-                  </span>
-                )}
-                <Unlink size={16} className="text-orange-400" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white leading-none mb-1">Datacar API</p>
-                <p className="text-[10px] text-dark-400">
-                  {empresa.datacar_token ? 'Integração ativa e configurada' : 'Integração não configurada'}
-                </p>
-              </div>
-            </div>
-            
-            {!empresa.datacar_token && (
-              <div className="flex justify-end mt-2 lg:mt-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-dark-700/30 w-full lg:w-auto">
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    onEdit();
-                  }}
-                  className="px-3 py-1.5 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 rounded-md text-xs font-bold transition-all border border-orange-500/20"
-                >
-                  Configurar
-                </button>
-              </div>
-            )}
+      {/* INFORMAÇÕES ESPECÍFICAS DO MODO */}
+      <div onClick={e => e.stopPropagation()} className="mt-2 pt-3 border-t border-dark-700/50 cursor-default">
+        {viewMode === 'vendas' && (
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${empresa.datacar_token ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-dark-500'}`} />
+            <span className="text-xs text-dark-300">
+              {empresa.datacar_token ? 'API Datacar Conectada' : 'Datacar Não Configurado'}
+            </span>
           </div>
-        </div>
-      )}
+        )}
 
-      {activeTab === 'contas_a_pagar' && (
-        <div className="mt-4 pt-4 border-t border-dark-700/50 animate-fade-in flex flex-col flex-1">
-          <div className="grid grid-cols-1 gap-3 mb-4">
-            {/* CONTA AZUL BAR */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3 bg-dark-900/40 rounded-xl border border-dark-700/30 shadow-inner">
-              <div className="flex items-center gap-3">
-                <div className="relative flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500/10">
-                  {empresa.access_token_conta_azul ? (
-                    <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-dark-900"></span>
-                    </span>
-                  ) : (
-                    <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border-2 border-dark-900"></span>
-                    </span>
-                  )}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-blue-400"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="currentColor" fillOpacity="0.2"/><path d="M15 9L9 15M9 9H15V15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-white leading-none mb-1">Conta Azul API</p>
-                  {empresa.email_login ? (
-                    <p className="text-[10px] text-dark-400 truncate max-w-[150px] sm:max-w-[200px]" title={empresa.email_login}>
-                      {empresa.email_login}
-                    </p>
-                  ) : (
-                    <p className="text-[10px] text-dark-500">Sem e-mail vinculado</p>
-                  )}
-                </div>
+        {viewMode === 'contas_a_pagar' && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${empresa.access_token_conta_azul ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`} />
+                <span className="text-xs text-dark-300">
+                  {empresa.access_token_conta_azul ? 'Conta Azul Conectado' : 'Conta Azul Desconectado'}
+                </span>
               </div>
-
-              <div className="flex items-center gap-1.5 self-end lg:self-auto w-full lg:w-auto justify-end mt-1 lg:mt-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-dark-700/30">
+              <div className="flex gap-1.5">
                 {empresa.access_token_conta_azul ? (
                   <>
                     <a
                       href={`/api/conta-azul/diagnostico?empresa_id=${empresa.id}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="p-2 lg:p-1.5 bg-dark-800 rounded-md text-yellow-500 hover:bg-yellow-500/10 hover:text-yellow-400 transition-all border border-dark-700/50 hover:border-yellow-500/30"
+                      className="p-1.5 bg-dark-800 rounded-md text-yellow-500 hover:bg-yellow-500/10 transition-all border border-dark-700/50 hover:border-yellow-500/30"
                       title="Diagnosticar Conexão"
                     >
-                      <ShieldCheck size={14} />
+                      <ShieldCheck size={12} />
                     </a>
                     <button
-                      onClick={() => onConectarContaAzul(empresa.id)}
-                      className="p-2 lg:p-1.5 bg-dark-800 rounded-md text-dark-300 hover:bg-dark-700 hover:text-white transition-all border border-dark-700/50"
-                      title="Renovar conexão (Re-autenticar)"
-                    >
-                      <RefreshCw size={14} />
-                    </button>
-                    <button
                       onClick={() => onDesconectar(empresa.id)}
-                      className="p-2 lg:p-1.5 bg-dark-800 rounded-md text-red-500/70 hover:bg-red-500/10 hover:text-red-400 transition-all border border-dark-700/50 hover:border-red-500/30"
+                      className="p-1.5 bg-dark-800 rounded-md text-red-500/70 hover:bg-red-500/10 transition-all border border-dark-700/50 hover:border-red-500/30"
                       title="Desconectar API"
                     >
-                      <Unlink size={14} />
+                      <Unlink size={12} />
                     </button>
                   </>
                 ) : (
                   <button
                     onClick={() => onConectarContaAzul(empresa.id)}
                     disabled={conectando === empresa.id}
-                    className="px-4 py-2 lg:py-1.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 rounded-md text-xs font-bold flex items-center gap-1.5 transition-all w-full lg:w-auto justify-center border border-blue-500/20"
+                    className="px-2.5 py-1 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all border border-blue-500/20"
                   >
-                    {conectando === empresa.id ? (
-                      <Loader2 size={12} className="animate-spin" />
-                    ) : (
-                      <ExternalLink size={12} />
-                    )}
-                    Conectar Conta Azul
+                    {conectando === empresa.id ? <Loader2 size={10} className="animate-spin" /> : <ExternalLink size={10} />}
+                    Conectar
                   </button>
                 )}
               </div>
             </div>
+            
+            {/* PAINEL FORNECEDORES (Compacto) */}
+            <div className="mt-1">
+              <PainelFornecedores empresa={empresa} />
+            </div>
           </div>
-
-          {/* PAINEL FORNECEDORES */}
-          <div className="mt-auto">
-            <PainelFornecedores empresa={empresa} />
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
@@ -436,6 +331,7 @@ function EmpresaCard({
 // --- Página principal ---
 function EmpresasPageContent() {
   const { empresas, recarregar, setEmpresaAtiva, empresaAtiva } = useEmpresa()
+  const [viewMode, setViewMode] = useState<'home' | 'vendas' | 'contas_a_pagar'>('home')
   const [showForm, setShowForm] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [conectando, setConectando] = useState<string | null>(null)
@@ -641,9 +537,22 @@ function EmpresasPageContent() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Empresas</h1>
-          <p className="text-dark-400 text-sm mt-1">Gerencie as empresas do seu BPO</p>
+        <div className="flex items-center gap-4">
+          {viewMode !== 'home' && (
+            <button
+              onClick={() => setViewMode('home')}
+              className="p-2 rounded-lg bg-dark-800 text-dark-300 hover:text-white hover:bg-dark-700 transition-colors border border-dark-700"
+              title="Voltar"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+          )}
+          <div>
+            <h1 className="text-2xl font-bold text-white">
+              {viewMode === 'home' ? 'Empresas' : viewMode === 'vendas' ? 'Empresas - Vendas' : 'Empresas - Contas a Pagar'}
+            </h1>
+            <p className="text-dark-400 text-sm mt-1">Gerencie as empresas do seu BPO</p>
+          </div>
         </div>
         <button
           type="button"
@@ -879,36 +788,65 @@ function EmpresasPageContent() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {empresas.map((empresa) => {
-          const isAtiva = empresaAtiva?.id === empresa.id;
-          return (
-            <EmpresaCard
-              key={empresa.id}
-              empresa={empresa}
-              isAtiva={isAtiva}
-              onSelect={() => setEmpresaAtiva(empresa)}
-              onEdit={() => handleEditClick(empresa)}
-              conectando={conectando}
-              onConectarContaAzul={handleConectarContaAzul}
-              onDesconectar={handleDesconectar}
-            />
-          );
-        })}
+      {viewMode === 'home' && !showForm && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+          <button
+            onClick={() => setViewMode('vendas')}
+            className="group relative overflow-hidden bg-dark-800/50 backdrop-blur-sm border border-dark-700 hover:border-blue-500/50 rounded-3xl p-8 sm:p-12 text-left transition-all hover:bg-dark-800 shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1 flex flex-col items-center justify-center text-center h-64"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <span className="text-5xl sm:text-6xl mb-4 group-hover:scale-110 transition-transform duration-300 relative z-10">🛒</span>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 relative z-10 group-hover:text-blue-400 transition-colors">Vendas</h2>
+            <p className="text-dark-400 text-sm sm:text-base relative z-10">Acesse as configurações e os cadastros focados nas integrações de vendas (Datacar).</p>
+          </button>
 
-        {empresas.length === 0 && !showForm && (
-          <div className="lg:col-span-2 py-20 flex flex-col items-center justify-center border-2 border-dashed border-dark-700 rounded-2xl">
-            <Building2 size={48} className="text-dark-700 mb-4" />
-            <p className="text-dark-400">Nenhuma empresa cadastrada.</p>
-            <button
-              onClick={() => setShowForm(true)}
-              className="text-brand-400 font-semibold mt-2 hover:text-brand-300 transition-colors"
-            >
-              Cadastrar agora
-            </button>
-          </div>
-        )}
-      </div>
+          <button
+            onClick={() => setViewMode('contas_a_pagar')}
+            className="group relative overflow-hidden bg-dark-800/50 backdrop-blur-sm border border-dark-700 hover:border-emerald-500/50 rounded-3xl p-8 sm:p-12 text-left transition-all hover:bg-dark-800 shadow-lg hover:shadow-emerald-500/10 hover:-translate-y-1 flex flex-col items-center justify-center text-center h-64"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <span className="text-5xl sm:text-6xl mb-4 group-hover:scale-110 transition-transform duration-300 relative z-10">💼</span>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 relative z-10 group-hover:text-emerald-400 transition-colors">Contas a Pagar</h2>
+            <p className="text-dark-400 text-sm sm:text-base relative z-10">Acesse as integrações financeiras e importação de fornecedores (Conta Azul).</p>
+          </button>
+        </div>
+      )}
+
+      {viewMode !== 'home' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {empresas
+            .filter(emp => viewMode === 'vendas' ? (emp.tipo_empresa === 'vendas' || emp.tipo_empresa === 'ambos') : (emp.tipo_empresa === 'financeiro' || emp.tipo_empresa === 'ambos'))
+            .map((empresa) => {
+              const isAtiva = empresaAtiva?.id === empresa.id;
+              return (
+                <EmpresaCard
+                  key={empresa.id}
+                  empresa={empresa}
+                  isAtiva={isAtiva}
+                  onSelect={() => setEmpresaAtiva(empresa)}
+                  onEdit={() => handleEditClick(empresa)}
+                  conectando={conectando}
+                  onConectarContaAzul={handleConectarContaAzul}
+                  onDesconectar={handleDesconectar}
+                  viewMode={viewMode}
+                />
+              );
+          })}
+
+          {empresas.filter(emp => viewMode === 'vendas' ? (emp.tipo_empresa === 'vendas' || emp.tipo_empresa === 'ambos') : (emp.tipo_empresa === 'financeiro' || emp.tipo_empresa === 'ambos')).length === 0 && !showForm && (
+            <div className="lg:col-span-2 py-20 flex flex-col items-center justify-center border-2 border-dashed border-dark-700 rounded-2xl">
+              <Building2 size={48} className="text-dark-700 mb-4" />
+              <p className="text-dark-400">Nenhuma empresa encontrada para esta categoria.</p>
+              <button
+                onClick={() => setShowForm(true)}
+                className="text-brand-400 font-semibold mt-2 hover:text-brand-300 transition-colors"
+              >
+                Cadastrar agora
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
