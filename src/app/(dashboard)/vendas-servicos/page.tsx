@@ -507,11 +507,6 @@ export default function VendasPage() {
               {empresaAtiva.datacar_token && (
                 <PainelAgendamento 
                   tipo="vendas" 
-                  filtrosAtuais={{ 
-                    tipo_periodo: tipoPeriodoVendas, 
-                    situacao: situacaoVendas, 
-                    filtro_tipo_itens: filtroTipoItens 
-                  }} 
                 />
               )}
 

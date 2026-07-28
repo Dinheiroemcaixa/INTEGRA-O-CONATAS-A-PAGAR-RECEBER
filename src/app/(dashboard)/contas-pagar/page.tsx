@@ -557,11 +557,6 @@ export default function ContasPagarPage() {
               {empresaAtiva.datacar_token && (
                 <PainelAgendamento 
                   tipo="contas_pagar" 
-                  filtrosAtuais={{ 
-                    tipo_periodo: tipoPeriodoContas, 
-                    status_pagamento: statusPagamento, 
-                    local_pagamento: localPagamento 
-                  }} 
                 />
               )}
 

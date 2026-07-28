@@ -9,6 +9,7 @@ import ModalEditarVenda from '@/components/upload/ModalEditarVenda'
 import ModalEditarDatacar from '@/components/upload/ModalEditarDatacar'
 import ModalVendasCliente from '@/components/upload/ModalVendasCliente'
 import SelectorEmpresa from '@/components/layout/SelectorEmpresa'
+import PainelAgendamento from '@/components/agendamento/PainelAgendamento'
 import type { VendaPreview, ResultadoImportacaoVendas } from '@/types'
 import {
   Upload, ArrowLeft, Loader2,
@@ -545,6 +546,13 @@ export default function VendasPage() {
             </div>
           ) : (
             <>
+              {/* Painel de Agendamento Automático */}
+              {empresaAtiva.datacar_token && (
+                <PainelAgendamento 
+                  tipo="vendas" 
+                />
+              )}
+
               {/* Formulário de Busca do Datacar */}
               <div className="bg-dark-800 border border-dark-700 rounded-xl p-5 animate-fade-in">
                 <div className="flex items-center gap-2 mb-4 text-white font-semibold">
