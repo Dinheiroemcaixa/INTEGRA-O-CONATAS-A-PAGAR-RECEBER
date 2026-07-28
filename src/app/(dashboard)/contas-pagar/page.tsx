@@ -7,6 +7,7 @@ import DropZone from '@/components/upload/DropZone'
 import ContasPreviewSection from '@/components/upload/ContasPreviewSection'
 import TabelaContas from '@/components/upload/TabelaContas'
 import SelectorEmpresa from '@/components/layout/SelectorEmpresa'
+import PainelAgendamento from '@/components/agendamento/PainelAgendamento'
 import type { ContaPagarPreview, ResultadoImportacao } from '@/types'
 import type { Empresa } from '@/types'
 import {
@@ -552,6 +553,18 @@ export default function ContasPagarPage() {
             />
           ) : (
             <>
+              {/* Painel de Agendamento Automático */}
+              {empresaAtiva.datacar_token && (
+                <PainelAgendamento 
+                  tipo="contas_pagar" 
+                  filtrosAtuais={{ 
+                    tipo_periodo: tipoPeriodoContas, 
+                    status_pagamento: statusPagamento, 
+                    local_pagamento: localPagamento 
+                  }} 
+                />
+              )}
+
               {/* Formulário de Busca do Datacar */}
               <div className="bg-dark-800 border border-dark-700 rounded-xl p-5 animate-fade-in">
                 <div className="flex items-center gap-2 mb-4 text-white font-semibold">
