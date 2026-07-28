@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Clock, Play, Save, CheckCircle, XCircle, AlertCircle, Loader2, X, Settings2 } from 'lucide-react'
+import { Clock, Play, Save, CheckCircle, XCircle, AlertCircle, Loader2, X, Settings2, Calendar } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import { formatDate } from '@/lib/utils'
@@ -9,6 +9,16 @@ import { formatDate } from '@/lib/utils'
 interface PainelAgendamentoProps {
   tipo: 'contas_pagar' | 'vendas'
   onTestarAgora?: () => void
+}
+
+// Calcula data padrão (7 dias atrás)
+function getDefaultDtIni() {
+  const d = new Date()
+  d.setDate(d.getDate() - 7)
+  return d.toISOString().split('T')[0]
+}
+function getDefaultDtFim() {
+  return new Date().toISOString().split('T')[0]
 }
 
 export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
@@ -22,13 +32,19 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
   const [horario, setHorario] = useState('22:00')
   const [dias, setDias] = useState<string[]>(['1','2','3','4','5'])
   
-  // Filtros Independentes
-  const [periodoDias, setPeriodoDias] = useState<number>(7)
-  const [tipoPeriodo, setTipoPeriodo] = useState<string>(tipo === 'vendas' ? 'abertura' : 'venc')
-  const [situacao, setSituacao] = useState<string>('todas')
-  const [statusPagamento, setStatusPagamento] = useState<string>('todas')
+  // === FILTROS CONTAS A PAGAR ===
+  const [tipoPeriodoContas, setTipoPeriodoContas] = useState<string>('venc')
+  const [statusPagamento, setStatusPagamento] = useState<string>('apagar')
   const [localPagamento, setLocalPagamento] = useState<string>('todos')
+
+  // === FILTROS VENDAS (Produtos e Serviços) ===
+  const [tipoPeriodoVendas, setTipoPeriodoVendas] = useState<string>('abertura')
+  const [situacaoVendas, setSituacaoVendas] = useState<string>('todas')
   const [filtroTipoItens, setFiltroTipoItens] = useState<string>('tudo')
+
+  // === FILTROS COMUNS ===
+  const [dtIni, setDtIni] = useState<string>(getDefaultDtIni())
+  const [dtFim, setDtFim] = useState<string>(getDefaultDtFim())
 
   const [ultimaExecucao, setUltimaExecucao] = useState<string | null>(null)
   const [ultimoStatus, setUltimoStatus] = useState<string | null>(null)
@@ -48,18 +64,25 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
       if (data) {
         setAtivo(data.ativo)
         setAcao(data.acao)
-        setHorario(data.horario)
-        setDias(data.dias_semana || [])
+        setHorario(data.horario || '22:00')
+        setDias(data.dias_semana || ['1','2','3','4','5'])
         setUltimaExecucao(data.ultima_execucao)
         setUltimoStatus(data.ultimo_status)
         setUltimoLog(data.ultimo_log)
         
-        if (data.periodo_dias !== undefined) setPeriodoDias(data.periodo_dias)
-        if (data.tipo_periodo) setTipoPeriodo(data.tipo_periodo)
-        if (data.situacao) setSituacao(data.situacao)
+        // Filtros Contas a Pagar
+        if (data.tipo_periodo_contas) setTipoPeriodoContas(data.tipo_periodo_contas)
         if (data.status_pagamento) setStatusPagamento(data.status_pagamento)
         if (data.local_pagamento) setLocalPagamento(data.local_pagamento)
+
+        // Filtros Vendas
+        if (data.tipo_periodo_vendas) setTipoPeriodoVendas(data.tipo_periodo_vendas)
+        if (data.situacao_vendas) setSituacaoVendas(data.situacao_vendas)
         if (data.filtro_tipo_itens) setFiltroTipoItens(data.filtro_tipo_itens)
+
+        // Datas comuns
+        if (data.dt_ini) setDtIni(data.dt_ini)
+        if (data.dt_fim) setDtFim(data.dt_fim)
       }
     } catch (e: any) {
       toast.error('Erro ao carregar agendamento: ' + e.message)
@@ -71,19 +94,26 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
   const handleSalvar = async () => {
     setSaving(true)
     try {
-      const payload = {
+      const payload: any = {
         empresa_id: empresaAtiva!.id,
         tipo,
         ativo,
         acao,
         horario,
         dias_semana: dias,
-        periodo_dias: periodoDias,
-        tipo_periodo: tipoPeriodo,
-        situacao,
-        status_pagamento: statusPagamento,
-        local_pagamento: localPagamento,
-        filtro_tipo_itens: filtroTipoItens
+        dt_ini: dtIni,
+        dt_fim: dtFim,
+      }
+
+      // Adiciona filtros específicos do tipo
+      if (tipo === 'contas_pagar') {
+        payload.tipo_periodo_contas = tipoPeriodoContas
+        payload.status_pagamento = statusPagamento
+        payload.local_pagamento = localPagamento
+      } else {
+        payload.tipo_periodo_vendas = tipoPeriodoVendas
+        payload.situacao_vendas = situacaoVendas
+        payload.filtro_tipo_itens = filtroTipoItens
       }
 
       const res = await fetch('/api/agendamentos', {
@@ -118,7 +148,7 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
       if (!res.ok) throw new Error(data.error || 'Erro no teste')
 
       toast.success('Teste concluído com status: ' + data.status)
-      carregarAgendamento() // Recarrega os logs
+      carregarAgendamento()
     } catch (e: any) {
       toast.error('Erro ao testar: ' + e.message)
     } finally {
@@ -164,8 +194,10 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
                   <Clock size={18} />
                 </div>
                 <div>
-                  <h3 className="text-white font-bold text-lg">Automação Diária ({tipo === 'contas_pagar' ? 'Contas a Pagar' : 'Vendas'})</h3>
-                  <p className="text-dark-400 text-xs">Configure o comportamento do robô de madrugada</p>
+                  <h3 className="text-white font-bold text-lg">
+                    Automação Diária — {tipo === 'contas_pagar' ? 'Contas a Pagar' : 'Vendas'}
+                  </h3>
+                  <p className="text-dark-400 text-xs">Configure os filtros e horário do robô automático</p>
                 </div>
               </div>
               <button onClick={() => setModalOpen(false)} className="p-1.5 rounded-lg text-dark-400 hover:text-white hover:bg-dark-700 transition-all">
@@ -181,7 +213,7 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
                 </div>
               ) : (
                 <>
-                  {/* Status Geral */}
+                  {/* Toggle Ativar */}
                   <div className="flex items-center justify-between bg-dark-800 p-4 rounded-xl border border-dark-700">
                     <div>
                       <p className="text-white font-semibold">Ativar Automação</p>
@@ -198,12 +230,13 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
                     </label>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* ==========================================
+                      SEÇÃO 1: QUANDO EXECUTAR
+                  ========================================== */}
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-bold text-white border-b border-dark-700 pb-2">Quando Executar</h4>
                     
-                    {/* Coluna 1: Comportamento */}
-                    <div className="space-y-4">
-                      <h4 className="text-sm font-bold text-white border-b border-dark-700 pb-2">Comportamento</h4>
-                      
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Ação</label>
                         <select 
@@ -218,128 +251,160 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
                       </div>
                       
                       <div className="space-y-2">
-                        <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Dias da Semana</label>
-                        <div className="flex flex-wrap gap-2">
-                          {diasOptions.map(d => (
-                            <button
-                              key={d.v}
-                              onClick={() => toggleDia(d.v)}
-                              className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${dias.includes(d.v) ? 'bg-brand-500/20 text-brand-400 border border-brand-500/50' : 'bg-dark-800 text-dark-400 border border-dark-700 hover:bg-dark-700'}`}
-                            >
-                              {d.l}
-                            </button>
-                          ))}
-                        </div>
+                        <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Horário (Brasília)</label>
+                        <input 
+                          type="time" 
+                          value={horario}
+                          onChange={(e) => setHorario(e.target.value)}
+                          className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
+                        />
                       </div>
                     </div>
 
-                    {/* Coluna 2: Filtros de Busca */}
-                    <div className="space-y-4">
-                      <h4 className="text-sm font-bold text-white border-b border-dark-700 pb-2">Filtros de Busca</h4>
-                      
-                      <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Dias da Semana</label>
+                      <div className="flex flex-wrap gap-2">
+                        {diasOptions.map(d => (
+                          <button
+                            key={d.v}
+                            onClick={() => toggleDia(d.v)}
+                            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${dias.includes(d.v) ? 'bg-brand-500/20 text-brand-400 border border-brand-500/50' : 'bg-dark-800 text-dark-400 border border-dark-700 hover:bg-dark-700'}`}
+                          >
+                            {d.l}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ==========================================
+                      SEÇÃO 2: FILTROS DE BUSCA (específicos por card)
+                  ========================================== */}
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-bold text-white border-b border-dark-700 pb-2">
+                      Filtros de Busca — {tipo === 'contas_pagar' ? 'Contas a Pagar' : 'Vendas'}
+                    </h4>
+
+                    {/* ===== FILTROS CONTAS A PAGAR ===== */}
+                    {tipo === 'contas_pagar' && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Período (Dias)</label>
-                          <input 
-                            type="number" 
-                            min="1"
-                            max="30"
-                            value={periodoDias}
-                            onChange={(e) => setPeriodoDias(parseInt(e.target.value) || 1)}
-                            className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
-                            title="Quantos dias para trás a partir de hoje?"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Data de</label>
+                          <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Por data de:</label>
                           <select 
-                            value={tipoPeriodo}
-                            onChange={(e) => setTipoPeriodo(e.target.value)}
+                            value={tipoPeriodoContas}
+                            onChange={(e) => setTipoPeriodoContas(e.target.value)}
                             className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
                           >
-                            {tipo === 'contas_pagar' ? (
-                              <>
-                                <option value="venc">Vencimento</option>
-                                <option value="emis">Emissão</option>
-                                <option value="pgto">Pagamento</option>
-                                <option value="digit">Digitação no Sistema</option>
-                              </>
-                            ) : (
-                              <>
-                                <option value="abertura">Abertura</option>
-                                <option value="previsao">Previsão</option>
-                                <option value="conclusao">Conclusão</option>
-                                <option value="encerramento">Encerramento</option>
-                                <option value="cancelamento">Cancelamento</option>
-                              </>
-                            )}
+                            <option value="venc">Vencimento</option>
+                            <option value="emis">Emissão</option>
+                            <option value="pgto">Pagamento</option>
+                            <option value="digit">Digitação no Sistema</option>
+                          </select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Pagamento:</label>
+                          <select 
+                            value={statusPagamento}
+                            onChange={(e) => setStatusPagamento(e.target.value)}
+                            className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
+                          >
+                            <option value="apagar">A pagar</option>
+                            <option value="pagas">Pagas</option>
+                            <option value="todas">A pagar e pagas</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Local:</label>
+                          <select 
+                            value={localPagamento}
+                            onChange={(e) => setLocalPagamento(e.target.value)}
+                            className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
+                          >
+                            <option value="todos">(Todos)</option>
+                            <option value="BANCO">BANCO</option>
+                            <option value="CARTEIRA">CARTEIRA</option>
+                            <option value="TRANSFERENCIA">TRANSFERENCIA</option>
                           </select>
                         </div>
                       </div>
+                    )}
 
-                      {/* Filtros específicos de Contas a Pagar */}
-                      {tipo === 'contas_pagar' && (
-                        <>
-                          <div className="space-y-2">
-                            <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Pagamento</label>
-                            <select 
-                              value={statusPagamento}
-                              onChange={(e) => setStatusPagamento(e.target.value)}
-                              className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
-                            >
-                              <option value="apagar">A pagar</option>
-                              <option value="pagas">Pagas</option>
-                              <option value="todas">A pagar e pagas</option>
-                            </select>
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Local do Pagamento</label>
-                            <select 
-                              value={localPagamento}
-                              onChange={(e) => setLocalPagamento(e.target.value)}
-                              className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
-                            >
-                              <option value="todos">(Todos)</option>
-                              <option value="BANCO">BANCO</option>
-                              <option value="CARTEIRA">CARTEIRA</option>
-                              <option value="TRANSFERENCIA">TRANSFERENCIA</option>
-                            </select>
-                          </div>
-                        </>
-                      )}
+                    {/* ===== FILTROS VENDAS (Produtos e Serviços) ===== */}
+                    {tipo === 'vendas' && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Tipo período:</label>
+                          <select 
+                            value={tipoPeriodoVendas}
+                            onChange={(e) => setTipoPeriodoVendas(e.target.value)}
+                            className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
+                          >
+                            <option value="abertura">Abertura</option>
+                            <option value="previsao">Previsão</option>
+                            <option value="conclusao">Conclusão</option>
+                            <option value="encerramento">Encerramento</option>
+                            <option value="cancelamento">Cancelamento</option>
+                          </select>
+                        </div>
 
-                      {/* Filtros específicos de Vendas */}
-                      {tipo === 'vendas' && (
-                        <>
-                          <div className="space-y-2">
-                            <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Situação</label>
-                            <select 
-                              value={situacao}
-                              onChange={(e) => setSituacao(e.target.value)}
-                              className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
-                            >
-                              <option value="todas">Todas</option>
-                              <option value="em_andamento">Em Andamento</option>
-                              <option value="concluida">Concluída</option>
-                              <option value="encerrada">Encerrada</option>
-                              <option value="cancelada">Cancelada</option>
-                            </select>
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Tipo de Itens</label>
-                            <select 
-                              value={filtroTipoItens}
-                              onChange={(e) => setFiltroTipoItens(e.target.value)}
-                              className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
-                            >
-                              <option value="tudo">Produtos e Serviços</option>
-                              <option value="produtos">Apenas Produtos</option>
-                              <option value="servicos">Apenas Serviços</option>
-                            </select>
-                          </div>
-                        </>
-                      )}
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Situação:</label>
+                          <select 
+                            value={situacaoVendas}
+                            onChange={(e) => setSituacaoVendas(e.target.value)}
+                            className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
+                          >
+                            <option value="todas">Todas</option>
+                            <option value="em_andamento">Em Andamento</option>
+                            <option value="concluida">Concluída</option>
+                            <option value="encerrada">Encerrada</option>
+                            <option value="cancelada">Cancelada</option>
+                          </select>
+                        </div>
 
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Itens a Enviar:</label>
+                          <select 
+                            value={filtroTipoItens}
+                            onChange={(e) => setFiltroTipoItens(e.target.value)}
+                            className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
+                          >
+                            <option value="tudo">Produtos e Serviços</option>
+                            <option value="produtos">Apenas Produtos</option>
+                            <option value="servicos">Apenas Serviços</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Datas (comuns a todos os cards) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Data Início</label>
+                        <div className="relative">
+                          <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+                          <input
+                            type="date"
+                            value={dtIni}
+                            onChange={(e) => setDtIni(e.target.value)}
+                            className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg pl-10 pr-3 p-2.5 focus:border-brand-500 outline-none"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Data Fim</label>
+                        <div className="relative">
+                          <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+                          <input
+                            type="date"
+                            value={dtFim}
+                            onChange={(e) => setDtFim(e.target.value)}
+                            className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg pl-10 pr-3 p-2.5 focus:border-brand-500 outline-none"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
 
