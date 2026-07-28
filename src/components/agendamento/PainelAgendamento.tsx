@@ -24,7 +24,7 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
   
   // Filtros Independentes
   const [periodoDias, setPeriodoDias] = useState<number>(7)
-  const [tipoPeriodo, setTipoPeriodo] = useState<string>('venc')
+  const [tipoPeriodo, setTipoPeriodo] = useState<string>(tipo === 'vendas' ? 'abertura' : 'venc')
   const [situacao, setSituacao] = useState<string>('todas')
   const [statusPagamento, setStatusPagamento] = useState<string>('todas')
   const [localPagamento, setLocalPagamento] = useState<string>('todos')
@@ -257,9 +257,22 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
                             onChange={(e) => setTipoPeriodo(e.target.value)}
                             className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
                           >
-                            <option value="venc">Vencimento</option>
-                            <option value="emis">Emissão</option>
-                            <option value="criacao">Criação (Datacar)</option>
+                            {tipo === 'contas_pagar' ? (
+                              <>
+                                <option value="venc">Vencimento</option>
+                                <option value="emis">Emissão</option>
+                                <option value="pgto">Pagamento</option>
+                                <option value="digit">Digitação no Sistema</option>
+                              </>
+                            ) : (
+                              <>
+                                <option value="abertura">Abertura</option>
+                                <option value="previsao">Previsão</option>
+                                <option value="conclusao">Conclusão</option>
+                                <option value="encerramento">Encerramento</option>
+                                <option value="cancelamento">Cancelamento</option>
+                              </>
+                            )}
                           </select>
                         </div>
                       </div>
@@ -274,8 +287,9 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
                               onChange={(e) => setStatusPagamento(e.target.value)}
                               className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
                             >
-                              <option value="todas">A pagar e Pagas</option>
-                              <option value="a_pagar">Somente A pagar</option>
+                              <option value="apagar">A pagar</option>
+                              <option value="pagas">Pagas</option>
+                              <option value="todas">A pagar e pagas</option>
                             </select>
                           </div>
                           <div className="space-y-2">
@@ -285,8 +299,10 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
                               onChange={(e) => setLocalPagamento(e.target.value)}
                               className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
                             >
-                              <option value="todos">Todos (Dinheiro, Bancos, etc)</option>
-                              <option value="bancos">Somente Contas Bancárias</option>
+                              <option value="todos">(Todos)</option>
+                              <option value="BANCO">BANCO</option>
+                              <option value="CARTEIRA">CARTEIRA</option>
+                              <option value="TRANSFERENCIA">TRANSFERENCIA</option>
                             </select>
                           </div>
                         </>
@@ -303,8 +319,10 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
                               className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
                             >
                               <option value="todas">Todas</option>
-                              <option value="autorizadas">Autorizadas (OS)</option>
-                              <option value="faturadas">Faturadas</option>
+                              <option value="em_andamento">Em Andamento</option>
+                              <option value="concluida">Concluída</option>
+                              <option value="encerrada">Encerrada</option>
+                              <option value="cancelada">Cancelada</option>
                             </select>
                           </div>
                           <div className="space-y-2">
@@ -315,8 +333,8 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
                               className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
                             >
                               <option value="tudo">Produtos e Serviços</option>
-                              <option value="produtos">Somente Produtos</option>
-                              <option value="servicos">Somente Serviços</option>
+                              <option value="produtos">Apenas Produtos</option>
+                              <option value="servicos">Apenas Serviços</option>
                             </select>
                           </div>
                         </>
