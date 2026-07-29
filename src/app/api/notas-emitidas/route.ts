@@ -8,7 +8,7 @@ function getSupabaseAdmin() {
   )
 }
 
-// ─── GET: Buscar notas emitidas (status = 'enviado' ou 'cancelado') ─────────
+// ─── GET: Buscar notas emitidas ─────────
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
@@ -22,111 +22,124 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'empresa_id obrigatório' }, { status: 400 })
     }
 
-    const supabase = getSupabaseAdmin()
+    const { getValidToken } = await import('@/lib/conta-azul/token-manager')
+    const { accessToken } = await getValidToken(empresa_id)
+    const CA_BASE = 'https://api-v2.contaazul.com/v1'
+    let vendasFormatadas: any[] = []
 
     // ────────────────────────────────────────────────────────
-    // ABA PRODUTOS: Buscar notas fiscais direto do Conta Azul
+    // ABA PRODUTOS: /v1/notas-fiscais
     // ────────────────────────────────────────────────────────
     if (tipo === 'produtos') {
-      try {
-        const { getValidToken } = await import('@/lib/conta-azul/token-manager')
-        const { accessToken } = await getValidToken(empresa_id)
+      let url = `${CA_BASE}/notas-fiscais?tamanho_pagina=100`
+      if (data_inicio) url += `&data_inicial=${data_inicio}`
+      if (data_fim) url += `&data_final=${data_fim}`
+      
+      console.log('[notas-emitidas] Buscando notas fiscais de PRODUTO:', url)
+      
+      const resCa = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+      
+      if (resCa.ok) {
+        const dataCa = await resCa.json()
+        let vendas = dataCa.itens || dataCa.items || []
         
-        const CA_BASE = 'https://api-v2.contaazul.com/v1'
-        
-        // Monta URL com filtros de data (formato YYYY-MM-DD)
-        let url = `${CA_BASE}/notas-fiscais?tamanho_pagina=100`
-        if (data_inicio) url += `&data_inicial=${data_inicio}`
-        if (data_fim) url += `&data_final=${data_fim}`
-        
-        console.log('[notas-emitidas] Buscando notas fiscais do CA:', url)
-        
-        const resCa = await fetch(url, { 
-          headers: { 'Authorization': `Bearer ${accessToken}` }
-        })
-        
-        if (resCa.ok) {
-          const dataCa = await resCa.json()
-          // A API v2 retorna { itens: [...], paginacao: {...} }
-          let vendas = dataCa.itens || dataCa.items || dataCa || []
-          if (!Array.isArray(vendas)) vendas = []
-          
-          console.log(`[notas-emitidas] CA retornou ${vendas.length} notas fiscais`)
-          
-          // Filtro por nome do cliente (feito em memória pois a API não suporta)
-          if (busca) {
-            const b = busca.toLowerCase()
-            vendas = vendas.filter((v: any) => {
-              const nomeCliente = v.nome_cliente || v.cliente?.nome || v.customer?.name || ''
-              return nomeCliente.toLowerCase().includes(b)
-            })
-          }
-
-          const notas = vendas.map((v: any) => ({
-            id: v.id || v.numero?.toString() || Math.random().toString(),
-            cliente: v.nome_cliente || v.cliente?.nome || v.customer?.name || 'Cliente CA',
-            os_numero: (v.numero || v.serie_numero || v.number || 'S/N').toString(),
-            data_venda: v.data_emissao || v.data_venda || v.emission || null,
-            valor_total: v.valor_total || v.valor_composicao?.valor_liquido || v.total || 0,
-            status: (v.situacao?.nome || v.situacao || v.status || '').toString().toUpperCase().includes('CANCEL') ? 'cancelado' : 'enviado',
-            erro_mensagem: 'Nota fiscal do Conta Azul',
-            conta_azul_id: v.id || v.numero?.toString() || null,
-            updated_at: v.data_emissao || new Date().toISOString()
-          }))
-          
-          return NextResponse.json({ notas })
-        } else {
-          const errTxt = await resCa.text()
-          console.warn("[notas-emitidas] Conta Azul API retornou erro:", resCa.status, errTxt, "Fazendo fallback para banco local.")
+        if (busca) {
+          const b = busca.toLowerCase()
+          vendas = vendas.filter((v: any) => {
+            const nomeCliente = v.nome_cliente || v.cliente?.nome || v.customer?.name || ''
+            return nomeCliente.toLowerCase().includes(b)
+          })
         }
-      } catch (err) {
-        console.error("[notas-emitidas] Erro ao buscar no CA:", err)
+
+        vendasFormatadas = vendas.map((v: any) => ({
+          id: v.id || v.numero?.toString() || Math.random().toString(),
+          cliente: v.nome_cliente || v.cliente?.nome || v.customer?.name || 'Cliente CA',
+          os_numero: (v.numero || v.serie_numero || v.number || 'S/N').toString(),
+          data_venda: v.data_emissao || v.data_venda || v.emission || null,
+          valor_total: v.valor_total || v.valor_composicao?.valor_liquido || v.total || 0,
+          status: (v.situacao?.nome || v.situacao || v.status || '').toString().toUpperCase().includes('CANCEL') ? 'cancelado' : 'enviado',
+          erro_mensagem: 'Sincronizado do Conta Azul',
+          conta_azul_id: v.id || v.numero?.toString() || null,
+          updated_at: v.data_emissao || new Date().toISOString()
+        }))
+      } else {
+        const errTxt = await resCa.text()
+        console.error("[notas-emitidas] Erro CA Produtos:", resCa.status, errTxt)
+        return NextResponse.json({ error: `Erro na API CA: ${resCa.status}` }, { status: 500 })
       }
     }
 
     // ────────────────────────────────────────────────────────
-    // ABA SERVIÇOS (Ou Fallback de Produtos): Banco Local
+    // ABA SERVIÇOS: /v1/notas-fiscais-servico
     // ────────────────────────────────────────────────────────
-    
-    // Busca até 1000 notas mais recentes e filtra em memória para evitar bugs do Postgrest com datas e nulos
-    let { data: todasNotas, error } = await supabase
-      .from('vendas_importadas')
-      .select('*')
-      .eq('empresa_id', empresa_id)
-      .in('status', ['enviado', 'cancelado'])
-      .order('updated_at', { ascending: false })
-      .limit(1000)
+    if (tipo === 'servicos') {
+      // O Conta Azul permite no máximo range de 15 dias para serviços.
+      // Vamos precisar fatiar o período em pedaços de no máximo 15 dias.
+      const dIni = data_inicio ? new Date(`${data_inicio}T00:00:00Z`) : new Date(Date.now() - 30 * 86400000)
+      const dFim = data_fim ? new Date(`${data_fim}T23:59:59Z`) : new Date()
+      
+      const chunks: { inicio: string, fim: string }[] = []
+      let atual = new Date(dIni)
+      
+      while (atual <= dFim) {
+        let chunkFim = new Date(atual)
+        chunkFim.setDate(chunkFim.getDate() + 14) // 15 dias de janela
+        if (chunkFim > dFim) chunkFim = new Date(dFim)
+        
+        chunks.push({
+          inicio: atual.toISOString().split('T')[0],
+          fim: chunkFim.toISOString().split('T')[0]
+        })
+        
+        atual.setDate(atual.getDate() + 15)
+      }
 
-    if (error) {
-      console.error('[notas-emitidas] Erro ao buscar DB local:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      let todasVendasServico: any[] = []
+
+      // Buscar todos os pedaços em paralelo
+      const fetchPromises = chunks.map(async chunk => {
+        const url = `${CA_BASE}/notas-fiscais-servico?tamanho_pagina=100&data_competencia_de=${chunk.inicio}&data_competencia_ate=${chunk.fim}`
+        console.log('[notas-emitidas] Buscando notas fiscais de SERVICO:', url)
+        const resCa = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+        
+        if (resCa.ok) {
+          const dataCa = await resCa.json()
+          return dataCa.itens || dataCa.items || []
+        } else {
+          console.error(`[notas-emitidas] Erro CA Servicos chunk ${chunk.inicio}-${chunk.fim}:`, resCa.status, await resCa.text())
+          return []
+        }
+      })
+
+      const arraysDeVendas = await Promise.all(fetchPromises)
+      arraysDeVendas.forEach(arr => { todasVendasServico.push(...arr) })
+
+      // Remover duplicatas caso haja sobreposição (garantia)
+      const vendasUnicas = Array.from(new Map(todasVendasServico.map(item => [item.id || item.numero, item])).values())
+
+      let vendas = vendasUnicas
+      if (busca) {
+        const b = busca.toLowerCase()
+        vendas = vendas.filter((v: any) => {
+          const nomeCliente = v.nome_cliente || v.cliente?.nome || v.customer?.name || ''
+          return nomeCliente.toLowerCase().includes(b)
+        })
+      }
+
+      vendasFormatadas = vendas.map((v: any) => ({
+        id: v.id || v.numero?.toString() || Math.random().toString(),
+        cliente: v.nome_cliente || v.cliente?.nome || v.customer?.name || 'Cliente CA',
+        os_numero: (v.numero || v.serie_numero || v.numero_nfse || v.number || 'S/N').toString(),
+        data_venda: v.data_emissao || v.data_competencia || v.data_venda || null,
+        valor_total: v.valor_total || v.valor_servico || v.valor_composicao?.valor_liquido || 0,
+        status: (v.status || v.situacao?.nome || v.situacao || '').toString().toUpperCase().includes('CANCEL') ? 'cancelado' : 'enviado',
+        erro_mensagem: 'Sincronizado do Conta Azul',
+        conta_azul_id: v.id || v.numero?.toString() || null,
+        updated_at: v.data_emissao || new Date().toISOString()
+      }))
     }
 
-    let notas = todasNotas || []
-
-    // 1. Filtro de Tipo
-    if (tipo === 'produtos') {
-      notas = notas.filter(n => n.conta_azul_id && n.conta_azul_id.trim() !== '')
-    } else {
-      notas = notas.filter(n => !n.conta_azul_id || n.conta_azul_id.trim() === '' || (n.erro_mensagem && n.erro_mensagem.includes('Gov.br')))
-    }
-
-    // 2. Filtro de Datas (garantindo formato e horas)
-    if (data_inicio) {
-      notas = notas.filter(n => n.data_venda && n.data_venda >= data_inicio)
-    }
-    if (data_fim) {
-      // Adiciona o fim do dia para garantir que pegue o dia atual inteiro
-      notas = notas.filter(n => n.data_venda && n.data_venda <= `${data_fim}T23:59:59`)
-    }
-
-    // 3. Filtro de Busca (Nome do Cliente)
-    if (busca) {
-      const b = busca.toLowerCase()
-      notas = notas.filter(n => n.cliente && n.cliente.toLowerCase().includes(b))
-    }
-
-    return NextResponse.json({ notas: notas.slice(0, 200) })
+    return NextResponse.json({ notas: vendasFormatadas })
 
   } catch (err: any) {
     console.error('[notas-emitidas] Erro fatal:', err)
