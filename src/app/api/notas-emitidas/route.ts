@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
       } else {
         const errTxt = await resCa.text()
         console.error("[notas-emitidas] Erro CA Produtos:", resCa.status, errTxt)
-        return NextResponse.json({ error: `Erro na API CA: ${resCa.status}` }, { status: 500 })
+        return NextResponse.json({ error: `Erro do Conta Azul: ${errTxt}` }, { status: resCa.status === 401 ? 401 : 400 })
       }
     }
 
@@ -73,8 +73,6 @@ export async function GET(req: NextRequest) {
     // ABA SERVIÇOS: /v1/notas-fiscais-servico
     // ────────────────────────────────────────────────────────
     if (tipo === 'servicos') {
-      // O Conta Azul permite no máximo range de 15 dias para serviços.
-      // Vamos precisar fatiar o período em pedaços de no máximo 15 dias.
       const dIni = data_inicio ? new Date(`${data_inicio}T00:00:00Z`) : new Date(Date.now() - 30 * 86400000)
       const dFim = data_fim ? new Date(`${data_fim}T23:59:59Z`) : new Date()
       
@@ -95,8 +93,8 @@ export async function GET(req: NextRequest) {
       }
 
       let todasVendasServico: any[] = []
+      let erroCA = null
 
-      // Buscar todos os pedaços em paralelo
       const fetchPromises = chunks.map(async chunk => {
         const url = `${CA_BASE}/notas-fiscais-servico?tamanho_pagina=100&data_competencia_de=${chunk.inicio}&data_competencia_ate=${chunk.fim}`
         console.log('[notas-emitidas] Buscando notas fiscais de SERVICO:', url)
@@ -106,15 +104,21 @@ export async function GET(req: NextRequest) {
           const dataCa = await resCa.json()
           return dataCa.itens || dataCa.items || []
         } else {
-          console.error(`[notas-emitidas] Erro CA Servicos chunk ${chunk.inicio}-${chunk.fim}:`, resCa.status, await resCa.text())
+          const txt = await resCa.text()
+          console.error(`[notas-emitidas] Erro CA Servicos chunk ${chunk.inicio}-${chunk.fim}:`, resCa.status, txt)
+          erroCA = `Erro ${resCa.status}: ${txt}`
           return []
         }
       })
 
       const arraysDeVendas = await Promise.all(fetchPromises)
+      
+      if (erroCA && arraysDeVendas.every(arr => arr.length === 0)) {
+        return NextResponse.json({ error: `Erro do Conta Azul: ${erroCA}` }, { status: 400 })
+      }
+      
       arraysDeVendas.forEach(arr => { todasVendasServico.push(...arr) })
 
-      // Remover duplicatas caso haja sobreposição (garantia)
       const vendasUnicas = Array.from(new Map(todasVendasServico.map(item => [item.id || item.numero, item])).values())
 
       let vendas = vendasUnicas
@@ -143,7 +147,10 @@ export async function GET(req: NextRequest) {
 
   } catch (err: any) {
     console.error('[notas-emitidas] Erro fatal:', err)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    return NextResponse.json(
+      { error: err.message || 'Erro interno do servidor' }, 
+      { status: err.statusCode || 500 }
+    )
   }
 }
 
