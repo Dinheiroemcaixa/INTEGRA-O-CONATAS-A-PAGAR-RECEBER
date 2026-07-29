@@ -437,13 +437,28 @@ export default function NotasEmitidasPage() {
         ...(busca ? { busca } : {})
       })
       const res = await fetch(`/api/notas-emitidas?${params}`)
-      const data = await res.json()
+      
+      let data
+      try {
+        data = await res.json()
+      } catch (e) {
+        toast.error(`Erro ${res.status}: Servidor retornou resposta inválida`)
+        return
+      }
+
+      if (!res.ok) {
+        toast.error(data.error || `Erro ${res.status} ao buscar notas`)
+        return
+      }
+
       if (data.notas) {
         if (tipo === 'servicos') setNotasServicos(data.notas)
         else setNotasProdutos(data.notas)
+      } else if (data.error) {
+        toast.error(data.error)
       }
-    } catch (err) {
-      toast.error('Erro ao buscar notas emitidas')
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao buscar notas emitidas')
     } finally {
       setCarregando(false)
     }
