@@ -25,47 +25,59 @@ export async function GET(req: NextRequest) {
     const supabase = getSupabaseAdmin()
 
     // ────────────────────────────────────────────────────────
-    // ABA PRODUTOS: Tentar buscar direto do Conta Azul
+    // ABA PRODUTOS: Buscar notas fiscais direto do Conta Azul
     // ────────────────────────────────────────────────────────
     if (tipo === 'produtos') {
       try {
         const { getValidToken } = await import('@/lib/conta-azul/token-manager')
         const { accessToken } = await getValidToken(empresa_id)
         
-        // Tenta usar API v1 de Sales que suporta filtro de data (emission_start/end)
-        const dInicio = data_inicio ? new Date(data_inicio + 'T00:00:00Z').toISOString() : undefined
-        const dFim = data_fim ? new Date(data_fim + 'T23:59:59Z').toISOString() : undefined
+        const CA_BASE = 'https://api-v2.contaazul.com/v1'
         
-        let url = `https://api.contaazul.com/v1/sales?size=100`
-        if (dInicio) url += `&emission_start=${dInicio}`
-        if (dFim) url += `&emission_end=${dFim}`
+        // Monta URL com filtros de data (formato YYYY-MM-DD)
+        let url = `${CA_BASE}/notas-fiscais?tamanho_pagina=100`
+        if (data_inicio) url += `&data_inicial=${data_inicio}`
+        if (data_fim) url += `&data_final=${data_fim}`
         
-        const resCa = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` }})
+        console.log('[notas-emitidas] Buscando notas fiscais do CA:', url)
+        
+        const resCa = await fetch(url, { 
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
         
         if (resCa.ok) {
           const dataCa = await resCa.json()
-          let vendas = dataCa || []
+          // A API v2 retorna { itens: [...], paginacao: {...} }
+          let vendas = dataCa.itens || dataCa.items || dataCa || []
+          if (!Array.isArray(vendas)) vendas = []
           
+          console.log(`[notas-emitidas] CA retornou ${vendas.length} notas fiscais`)
+          
+          // Filtro por nome do cliente (feito em memória pois a API não suporta)
           if (busca) {
             const b = busca.toLowerCase()
-            vendas = vendas.filter((v: any) => v.customer?.name?.toLowerCase().includes(b))
+            vendas = vendas.filter((v: any) => {
+              const nomeCliente = v.nome_cliente || v.cliente?.nome || v.customer?.name || ''
+              return nomeCliente.toLowerCase().includes(b)
+            })
           }
 
           const notas = vendas.map((v: any) => ({
-            id: v.id,
-            cliente: v.customer?.name || 'Cliente CA',
-            os_numero: v.number?.toString() || 'S/N',
-            data_venda: v.emission?.split('T')[0] || v.emission || null,
-            valor_total: v.total || 0,
-            status: v.status === 'COMMITTED' ? 'enviado' : (v.status === 'CANCELLED' ? 'cancelado' : 'enviado'),
-            erro_mensagem: 'Sincronizado do Conta Azul',
-            conta_azul_id: v.id,
-            updated_at: new Date().toISOString()
+            id: v.id || v.numero?.toString() || Math.random().toString(),
+            cliente: v.nome_cliente || v.cliente?.nome || v.customer?.name || 'Cliente CA',
+            os_numero: (v.numero || v.serie_numero || v.number || 'S/N').toString(),
+            data_venda: v.data_emissao || v.data_venda || v.emission || null,
+            valor_total: v.valor_total || v.valor_composicao?.valor_liquido || v.total || 0,
+            status: (v.situacao?.nome || v.situacao || v.status || '').toString().toUpperCase().includes('CANCEL') ? 'cancelado' : 'enviado',
+            erro_mensagem: 'Nota fiscal do Conta Azul',
+            conta_azul_id: v.id || v.numero?.toString() || null,
+            updated_at: v.data_emissao || new Date().toISOString()
           }))
           
           return NextResponse.json({ notas })
         } else {
-          console.warn("[notas-emitidas] Conta Azul API retornou erro:", resCa.status, "Fazendo fallback para banco local.")
+          const errTxt = await resCa.text()
+          console.warn("[notas-emitidas] Conta Azul API retornou erro:", resCa.status, errTxt, "Fazendo fallback para banco local.")
         }
       } catch (err) {
         console.error("[notas-emitidas] Erro ao buscar no CA:", err)
