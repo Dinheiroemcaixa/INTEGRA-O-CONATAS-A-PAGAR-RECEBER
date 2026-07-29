@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
       } else {
         const errTxt = await resCa.text()
         console.error("[notas-emitidas] Erro CA Produtos:", resCa.status, errTxt)
-        return NextResponse.json({ error: `Erro do Conta Azul: ${errTxt}` }, { status: resCa.status === 401 ? 401 : 400 })
+        return NextResponse.json({ error: `Erro do Conta Azul: ${errTxt}` }, { status: resCa.status })
       }
     }
 
