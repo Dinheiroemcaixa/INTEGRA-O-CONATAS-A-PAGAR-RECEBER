@@ -24,45 +24,97 @@ export async function GET(req: NextRequest) {
 
     const supabase = getSupabaseAdmin()
 
-    // Filtra vendas com status 'enviado' ou 'cancelado' (i.e., que já passaram pelo envio)
-    let query = supabase
+    // ────────────────────────────────────────────────────────
+    // ABA PRODUTOS: Tentar buscar direto do Conta Azul
+    // ────────────────────────────────────────────────────────
+    if (tipo === 'produtos') {
+      try {
+        const { getValidToken } = await import('@/lib/conta-azul/token-manager')
+        const { accessToken } = await getValidToken(empresa_id)
+        
+        // Tenta usar API v1 de Sales que suporta filtro de data (emission_start/end)
+        const dInicio = data_inicio ? new Date(data_inicio + 'T00:00:00Z').toISOString() : undefined
+        const dFim = data_fim ? new Date(data_fim + 'T23:59:59Z').toISOString() : undefined
+        
+        let url = `https://api.contaazul.com/v1/sales?size=100`
+        if (dInicio) url += `&emission_start=${dInicio}`
+        if (dFim) url += `&emission_end=${dFim}`
+        
+        const resCa = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` }})
+        
+        if (resCa.ok) {
+          const dataCa = await resCa.json()
+          let vendas = dataCa || []
+          
+          if (busca) {
+            const b = busca.toLowerCase()
+            vendas = vendas.filter((v: any) => v.customer?.name?.toLowerCase().includes(b))
+          }
+
+          const notas = vendas.map((v: any) => ({
+            id: v.id,
+            cliente: v.customer?.name || 'Cliente CA',
+            os_numero: v.number?.toString() || 'S/N',
+            data_venda: v.emission?.split('T')[0] || v.emission || null,
+            valor_total: v.total || 0,
+            status: v.status === 'COMMITTED' ? 'enviado' : (v.status === 'CANCELLED' ? 'cancelado' : 'enviado'),
+            erro_mensagem: 'Sincronizado do Conta Azul',
+            conta_azul_id: v.id,
+            updated_at: new Date().toISOString()
+          }))
+          
+          return NextResponse.json({ notas })
+        } else {
+          console.warn("[notas-emitidas] Conta Azul API retornou erro:", resCa.status, "Fazendo fallback para banco local.")
+        }
+      } catch (err) {
+        console.error("[notas-emitidas] Erro ao buscar no CA:", err)
+      }
+    }
+
+    // ────────────────────────────────────────────────────────
+    // ABA SERVIÇOS (Ou Fallback de Produtos): Banco Local
+    // ────────────────────────────────────────────────────────
+    
+    // Busca até 1000 notas mais recentes e filtra em memória para evitar bugs do Postgrest com datas e nulos
+    let { data: todasNotas, error } = await supabase
       .from('vendas_importadas')
       .select('*')
       .eq('empresa_id', empresa_id)
       .in('status', ['enviado', 'cancelado'])
       .order('updated_at', { ascending: false })
-
-    // Filtro de tipo: serviços = forma_pagamento com indicador de serviço
-    // Na prática, vendas importadas do Datacar para Gov.br são serviços
-    if (tipo === 'produtos') {
-      // Produtos são os enviados para Conta Azul (têm conta_azul_id preenchido)
-      query = query.not('conta_azul_id', 'is', null)
-    } else {
-      // Serviços são os emitidos via Gov.br (erro_mensagem contém 'Gov.br' ou conta_azul_id é null)
-      query = query.or('conta_azul_id.is.null,erro_mensagem.ilike.%Gov.br%')
-    }
-
-    if (data_inicio) {
-      query = query.gte('data_venda', data_inicio)
-    }
-    if (data_fim) {
-      query = query.lte('data_venda', data_fim)
-    }
-    if (busca) {
-      query = query.ilike('cliente', `%${busca}%`)
-    }
-
-    // Limitar a 200 registros
-    query = query.limit(200)
-
-    const { data, error } = await query
+      .limit(1000)
 
     if (error) {
-      console.error('[notas-emitidas] Erro ao buscar:', error)
+      console.error('[notas-emitidas] Erro ao buscar DB local:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ notas: data || [] })
+    let notas = todasNotas || []
+
+    // 1. Filtro de Tipo
+    if (tipo === 'produtos') {
+      notas = notas.filter(n => n.conta_azul_id && n.conta_azul_id.trim() !== '')
+    } else {
+      notas = notas.filter(n => !n.conta_azul_id || n.conta_azul_id.trim() === '' || (n.erro_mensagem && n.erro_mensagem.includes('Gov.br')))
+    }
+
+    // 2. Filtro de Datas (garantindo formato e horas)
+    if (data_inicio) {
+      notas = notas.filter(n => n.data_venda && n.data_venda >= data_inicio)
+    }
+    if (data_fim) {
+      // Adiciona o fim do dia para garantir que pegue o dia atual inteiro
+      notas = notas.filter(n => n.data_venda && n.data_venda <= `${data_fim}T23:59:59`)
+    }
+
+    // 3. Filtro de Busca (Nome do Cliente)
+    if (busca) {
+      const b = busca.toLowerCase()
+      notas = notas.filter(n => n.cliente && n.cliente.toLowerCase().includes(b))
+    }
+
+    return NextResponse.json({ notas: notas.slice(0, 200) })
 
   } catch (err: any) {
     console.error('[notas-emitidas] Erro fatal:', err)
