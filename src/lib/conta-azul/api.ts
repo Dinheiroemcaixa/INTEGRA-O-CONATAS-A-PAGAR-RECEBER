@@ -1031,3 +1031,43 @@ export async function verificarNfeEmitidaDaVenda(
     return { temNfe: false }
   }
 }
+
+/**
+ * Obtém as informações da empresa que está atualmente conectada (dona do token)
+ * Útil para recuperar CNPJ e Razão Social automaticamente no processo de OAuth.
+ */
+export async function obterInfoContaConectada(accessToken: string): Promise<{
+  id: string
+  nome: string
+  cnpj?: string
+  razao_social?: string
+  nome_fantasia?: string
+  email?: string
+}> {
+  try {
+    const res = await fetchCA(`${BASE_URL}/pessoas/conta-conectada`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    })
+    
+    if (!res.ok) {
+      if (res.status === 401) throw new Error('TOKEN_EXPIRADO')
+      const errText = await res.text()
+      throw new Error(`[${res.status}] ${errText}`)
+    }
+
+    const data = await res.json()
+    // O Conta Azul pode retornar os dados em vários formatos dependendo da API
+    // Retornamos os campos mapeados de forma segura
+    return {
+      id: data.id || data.uuid || '0',
+      nome: data.nome || data.nome_fantasia || data.razao_social || 'Empresa Conta Azul',
+      cnpj: data.cnpj || data.cpf || data.documento,
+      razao_social: data.razao_social || data.nome,
+      nome_fantasia: data.nome_fantasia || data.nome,
+      email: data.email
+    }
+  } catch (e) {
+    console.warn(`[obterInfoContaConectada] Erro:`, e)
+    throw e
+  }
+}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { getTokenComCodigo } from '@/lib/conta-azul/api'
+import { getTokenComCodigo, obterInfoContaConectada } from '@/lib/conta-azul/api'
 
 export const runtime = 'nodejs'
 
@@ -10,7 +10,7 @@ const supabaseAdmin = createClient(
 )
 
 export async function GET(req: NextRequest) {
-  const { searchParams, origin } = new URL(req.url)
+  const { searchParams } = new URL(req.url)
   const code = searchParams.get('code')
   const state = searchParams.get('state') // empresa_id
   const error = searchParams.get('error')
@@ -61,17 +61,84 @@ export async function GET(req: NextRequest) {
     const expires_in = tokens.expires_in || 3600
     const expiracao = new Date(Date.now() + expires_in * 1000).toISOString()
 
-    const { error: errUpdate } = await supabaseAdmin
-      .from('empresas')
-      .update({
-        access_token_conta_azul: tokens.access_token,
-        refresh_token_conta_azul: tokens.refresh_token,
-        data_expiracao_token: expiracao,
-        conta_azul_connected: true
-      })
-      .eq('id', state)
-      
-    if (errUpdate) throw new Error(`Falha ao salvar token: ${errUpdate.message}`)
+    // 1. Busca os dados da empresa no Conta Azul
+    let infoCa
+    try {
+      infoCa = await obterInfoContaConectada(tokens.access_token)
+    } catch (e) {
+      console.warn('[conta-azul/callback] Não foi possível obter info da conta conectada. Usando fallback.', e)
+    }
+
+    if (infoCa && infoCa.cnpj) {
+      const cnpjLimpo = infoCa.cnpj.replace(/\D/g, '')
+
+      // 2. Verifica se já existe uma empresa com esse CNPJ no banco
+      const { data: empresasExistentes } = await supabaseAdmin
+        .from('empresas')
+        .select('*')
+        .eq('cnpj', cnpjLimpo)
+        
+      const empresaExistente = empresasExistentes && empresasExistentes.length > 0 ? empresasExistentes[0] : null
+
+      if (empresaExistente) {
+        // CENÁRIO A: A empresa já existe (Re-autenticação por token expirado ou link duplicado)
+        await supabaseAdmin
+          .from('empresas')
+          .update({
+            access_token_conta_azul: tokens.access_token,
+            refresh_token_conta_azul: tokens.refresh_token,
+            data_expiracao_token: expiracao,
+            conta_azul_connected: true
+          })
+          .eq('id', empresaExistente.id)
+
+        // Se o usuário usou um "Card em Branco" (cujo state != empresaExistente.id), apagamos o card em branco
+        if (state !== empresaExistente.id) {
+          const { data: stateEmpresa } = await supabaseAdmin.from('empresas').select('cnpj').eq('id', state).single()
+          if (stateEmpresa && (stateEmpresa.cnpj === '00000000000000' || !stateEmpresa.cnpj)) {
+             await supabaseAdmin.from('empresas').delete().eq('id', state)
+          }
+        }
+
+        await supabaseAdmin.from('logs_integracao').insert({
+          empresa_id: empresaExistente.id,
+          acao: 'conectar_conta_azul',
+          status: 'sucesso',
+          detalhes: { expiracao, obs: 'reautenticacao', cnpj: cnpjLimpo },
+        })
+
+        return renderHtml('Autenticado com sucesso!', `A integração da empresa ${empresaExistente.nome || 'cadastrada'} foi atualizada com sucesso. Você já pode fechar esta aba.`)
+      } else {
+        // CENÁRIO B: Empresa não existe. Preenche o card em branco com os dados reais
+        const novoNome = infoCa.nome_fantasia || infoCa.razao_social || infoCa.nome
+        
+        await supabaseAdmin
+          .from('empresas')
+          .update({
+            nome: novoNome,
+            razao_social: infoCa.razao_social || null,
+            nome_fantasia: infoCa.nome_fantasia || null,
+            cnpj: cnpjLimpo,
+            email_login: infoCa.email || null,
+            access_token_conta_azul: tokens.access_token,
+            refresh_token_conta_azul: tokens.refresh_token,
+            data_expiracao_token: expiracao,
+            conta_azul_connected: true
+          })
+          .eq('id', state)
+      }
+    } else {
+      // Fallback: Atualiza apenas os tokens no card em branco
+      await supabaseAdmin
+        .from('empresas')
+        .update({
+          access_token_conta_azul: tokens.access_token,
+          refresh_token_conta_azul: tokens.refresh_token,
+          data_expiracao_token: expiracao,
+          conta_azul_connected: true
+        })
+        .eq('id', state)
+    }
 
     await supabaseAdmin.from('logs_integracao').insert({
       empresa_id: state,
@@ -80,7 +147,7 @@ export async function GET(req: NextRequest) {
       detalhes: { expiracao },
     })
 
-    return renderHtml('Autenticado com sucesso!', 'A integração com a Conta Azul foi concluída com sucesso. Você já pode fechar esta página com segurança.')
+    return renderHtml('Autenticado com sucesso!', 'A integração com a Conta Azul foi concluída com sucesso. Os dados da empresa foram vinculados automaticamente. Você já pode fechar esta página.')
   } catch (err) {
     console.error('[conta-azul/callback]', err)
     const msg = err instanceof Error ? err.message : 'erro_desconhecido'

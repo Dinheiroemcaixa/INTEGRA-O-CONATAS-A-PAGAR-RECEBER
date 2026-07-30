@@ -537,6 +537,50 @@ function EmpresasPageContent() {
     }
   }
 
+  const handleCriarVazio = async () => {
+    setSalvando(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Usuário não autenticado')
+
+      const empresaId = crypto.randomUUID()
+
+      const { error: errEmp } = await supabase
+        .from('empresas')
+        .insert({
+          id: empresaId,
+          nome: 'Aguardando Conexão...',
+          cnpj: '00000000000000',
+          created_by: user.id,
+          tipo_empresa: 'ambos',
+        })
+
+      if (errEmp) throw errEmp
+
+      const { error: errVinc } = await supabase
+        .from('usuarios_empresas')
+        .insert({
+          user_id: user.id,
+          empresa_id: empresaId,
+          papel: 'admin'
+        })
+
+      if (errVinc) throw errVinc
+
+      toast.success('Card em branco criado! Copie o link e envie ao cliente.')
+      setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '', razao_social: '', nome_fantasia: '' })
+      setDadosCnpj(null)
+      setEditingId(null)
+      setShowForm(false)
+      await recarregar()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro ao criar card em branco'
+      toast.error(msg)
+    } finally {
+      setSalvando(false)
+    }
+  }
+
   const handleBuscarCnpj = async () => {
     const cnpjLimpo = (form.cnpj || '').replace(/\D/g, '')
     if (cnpjLimpo.length !== 14) {
@@ -821,12 +865,23 @@ function EmpresasPageContent() {
                 </div>
               </div>
 
-              {/* BOTÃO SALVAR (empurrado para o fundo com mt-auto se necessário, mas aqui deixamos margin normal) */}
-              <div className="pt-6 mt-auto border-t border-dark-700/30">
+              {/* BOTÃO SALVAR E CRIAR VAZIO */}
+              <div className="pt-6 mt-auto border-t border-dark-700/30 flex flex-col sm:flex-row gap-3">
+                {!editingId && (
+                  <button
+                    type="button"
+                    onClick={handleCriarVazio}
+                    disabled={salvando}
+                    className="flex-1 bg-dark-800 hover:bg-dark-700 disabled:opacity-50 text-white border border-dark-600 px-6 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all"
+                  >
+                    {salvando ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+                    Criar Vazio (Automático via Link)
+                  </button>
+                )}
                 <button
                   type="submit"
                   disabled={salvando}
-                  className="w-full bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 disabled:opacity-50 text-white px-6 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(var(--brand-500),0.2)] hover:shadow-[0_0_25px_rgba(var(--brand-500),0.4)]"
+                  className="flex-1 bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 disabled:opacity-50 text-white px-6 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(var(--brand-500),0.2)] hover:shadow-[0_0_25px_rgba(var(--brand-500),0.4)]"
                 >
                   {salvando ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
                   {salvando ? 'Salvando configuração...' : 'Salvar Empresa'}
