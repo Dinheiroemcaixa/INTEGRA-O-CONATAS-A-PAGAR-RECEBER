@@ -347,6 +347,12 @@ export default function TabelaPreview({
                             original: {match.nomeOriginal}
                           </span>
                         )}
+                        {item.ca_duplicidade?.encontrado && (
+                          <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-400 bg-amber-400/10 px-2 py-1 rounded border border-amber-400/20 w-max cursor-help" title={`Possível duplicidade no Conta Azul:\nStatus: ${item.ca_duplicidade.status}\nData: ${item.ca_duplicidade.vencimento}\nValor: R$ ${item.ca_duplicidade.valor}\nFornecedor: ${item.ca_duplicidade.fornecedor}`}>
+                            <AlertCircle size={10} />
+                            <span>Possível Duplicidade CA</span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </td>

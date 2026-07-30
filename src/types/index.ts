@@ -94,6 +94,16 @@ export interface ContaPagarPreview {
     razaoSocialBrasilAPI?: string | null
     [key: string]: any
   }
+  /** Status de duplicidade encontrada no Conta Azul */
+  ca_duplicidade?: {
+    encontrado: boolean
+    id_conta?: string
+    vencimento?: string
+    valor?: number
+    fornecedor?: string
+    status?: string
+    detalhes?: string
+  }
 }
 
 export interface ResultadoImportacao {

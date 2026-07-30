@@ -113,6 +113,81 @@ export default function ContasPreviewSection({
               toast.success(`${corrigidos} nomes de fornecedores corrigidos automaticamente!`, { duration: 4000 })
             }
           }
+          
+          // Verificação de Duplicidades no Conta Azul
+          if (dadosComMatch.length > 0 && empresaAtiva.conta_azul_connected) {
+            const parseData = (str: string) => {
+              const [d, m, y] = str.split('/')
+              return new Date(`${y}-${m}-${d}T12:00:00Z`).getTime()
+            }
+            const datas = dadosComMatch.map(d => parseData(d.vencimento)).filter(t => !isNaN(t))
+            if (datas.length > 0) {
+              const dtIniStr = new Date(Math.min(...datas)).toISOString().split('T')[0]
+              const dtFimStr = new Date(Math.max(...datas)).toISOString().split('T')[0]
+              
+              try {
+                const dupRes = await fetch('/api/conta-azul/contas-pagar/verificar-duplicidades', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ empresa_id: empresaAtiva.id, dtIni: dtIniStr, dtFim: dtFimStr })
+                })
+                
+                if (dupRes.ok) {
+                  const dupData = await dupRes.json()
+                  const contasCa = dupData.contasCa || []
+                  
+                  if (contasCa.length > 0) {
+                    dadosComMatch = dadosComMatch.map(d => {
+                      const dData = parseData(d.vencimento)
+                      if (isNaN(dData)) return d
+                      
+                      const duplicada = contasCa.find((c: any) => {
+                        const cData = new Date(`${c.data_vencimento}T12:00:00Z`).getTime()
+                        const diffDias = Math.abs(cData - dData) / (1000 * 60 * 60 * 24)
+                        
+                        if (diffDias > 3) return false
+                        
+                        const diffValor = Math.abs(c.valor - d.valor)
+                        // Tolerância de até 2 reais para considerar como suspeita
+                        if (diffValor > 2.00) return false
+                        
+                        const caFornecedor = normalizarNome(c.descricao || '')
+                        const datacarFornecedor = normalizarNome(d.fornecedor)
+                        
+                        // Se bateu data exata e valor exato, já é grande chance.
+                        // Adicionamos match de nome se a descricao do CA contiver o nome
+                        if (diffValor < 0.1 && diffDias === 0) return true
+                        
+                        if (caFornecedor && datacarFornecedor) {
+                          if (caFornecedor.includes(datacarFornecedor) || datacarFornecedor.includes(caFornecedor)) {
+                            return true
+                          }
+                        }
+                        return false
+                      })
+                      
+                      if (duplicada) {
+                        return {
+                          ...d,
+                          ca_duplicidade: {
+                            encontrado: true,
+                            id_conta: duplicada.id,
+                            vencimento: duplicada.data_vencimento,
+                            valor: duplicada.valor,
+                            fornecedor: duplicada.descricao || 'Fornecedor Desconhecido',
+                            status: duplicada.status
+                          }
+                        }
+                      }
+                      return d
+                    })
+                  }
+                }
+              } catch (e) {
+                console.warn('Erro ao verificar duplicidades no Conta Azul', e)
+              }
+            }
+          }
         } catch {
           // falha silenciosa
         }

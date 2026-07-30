@@ -1071,3 +1071,57 @@ export async function obterInfoContaConectada(accessToken: string): Promise<{
     throw e
   }
 }
+export interface ContaPagarResumo {
+  id: string;
+  data_vencimento: string;
+  valor: number;
+  status: string;
+  fornecedor_id?: string;
+  descricao?: string;
+}
+
+export async function buscarContasPagarPorPeriodo(
+  accessToken: string,
+  dtIni: string,
+  dtFim: string
+): Promise<ContaPagarResumo[]> {
+  const todasContas: ContaPagarResumo[] = [];
+  const endpoint = `${BASE_URL}/financeiro/eventos-financeiros/contas-a-pagar/buscar`;
+  
+  try {
+    for (let page = 1; page <= 50; page++) {
+      const url = `${endpoint}?pagina=${page}&tamanho_pagina=100&data_vencimento_de=${dtIni}&data_vencimento_ate=${dtFim}`;
+      
+      const res = await fetchCA(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+      
+      if (!res.ok) {
+        if (res.status === 401) throw new Error('TOKEN_EXPIRADO');
+        console.warn(`[buscarContasPagar] erro ${res.status}:`, await res.text());
+        break;
+      }
+      
+      const data = await res.json();
+      const lista: any[] = data.itens || data.items || [];
+      
+      if (lista.length === 0) break;
+      
+      for (const item of lista) {
+        todasContas.push({
+          id: item.id || item.uuid,
+          data_vencimento: item.data_vencimento || item.vencimento,
+          valor: typeof item.valor === 'number' ? item.valor : (item.valor_total || item.valor_pago || 0),
+          status: item.status || 'DESCONHECIDO',
+          fornecedor_id: item.fornecedor?.id || item.contato?.id || item.id_contato,
+          descricao: item.descricao || item.observacao,
+        });
+      }
+      
+      if (lista.length < 100) break;
+    }
+  } catch (e: any) {
+    if (e.message === 'TOKEN_EXPIRADO') throw e;
+    console.error(`[buscarContasPagarPorPeriodo] Erro fatal:`, e);
+  }
+  
+  return todasContas;
+}
