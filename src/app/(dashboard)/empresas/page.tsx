@@ -202,6 +202,7 @@ function EmpresaCard({
   conectando: string | null;
   onConectarContaAzul: (id: string) => void;
   onDesconectar: (id: string) => void;
+  onDelete: () => void;
   viewMode: 'vendas' | 'contas_a_pagar';
 }) {
   return (
@@ -261,84 +262,96 @@ function EmpresaCard({
           >
             <Edit size={14} />
           </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              onDelete();
+            }}
+            className="p-1.5 rounded-lg text-red-500/50 hover:text-red-400 hover:bg-red-500/10 transition-colors border border-transparent hover:border-red-500/20 bg-dark-900/20 hover:bg-dark-900/50"
+            title="Excluir empresa"
+          >
+            <Trash2 size={14} />
+          </button>
         </div>
       </div>
 
-      {/* INFORMAÇÕES ESPECÍFICAS DO MODO */}
+      {/* INFORMAÇÕES DE INTEGRAÇÃO (Unificadas para ambos os modos) */}
       <div onClick={e => e.stopPropagation()} className="mt-2 pt-3 border-t border-dark-700/50 cursor-default">
-        {viewMode === 'vendas' && (
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-3">
+          
+          {/* DATACAR */}
+          <div className="flex items-center gap-2 mb-1">
             <div className={`w-2 h-2 rounded-full ${empresa.datacar_token ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-dark-500'}`} />
             <span className="text-xs text-dark-300">
               {empresa.datacar_token ? 'API Datacar Conectada' : 'Datacar Não Configurado'}
             </span>
           </div>
-        )}
 
-        {viewMode === 'contas_a_pagar' && (
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${empresa.access_token_conta_azul ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`} />
-                <span className="text-xs text-dark-300">
-                  {empresa.access_token_conta_azul ? 'Conta Azul Conectado' : 'Conta Azul Desconectado'}
-                </span>
-              </div>
-              <div className="flex gap-1.5">
-                {empresa.access_token_conta_azul ? (
-                  <>
-                    <a
-                      href={`/api/conta-azul/diagnostico?empresa_id=${empresa.id}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="p-1.5 bg-dark-800 rounded-md text-yellow-500 hover:bg-yellow-500/10 transition-all border border-dark-700/50 hover:border-yellow-500/30"
-                      title="Diagnosticar Conexão"
-                    >
-                      <ShieldCheck size={12} />
-                    </a>
-                    <button
-                      onClick={() => onDesconectar(empresa.id)}
-                      className="p-1.5 bg-dark-800 rounded-md text-red-500/70 hover:bg-red-500/10 transition-all border border-dark-700/50 hover:border-red-500/30"
-                      title="Desconectar API"
-                    >
-                      <Unlink size={12} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const link = `${window.location.origin}/api/conta-azul/autorizar?empresa_id=${empresa.id}`;
-                        navigator.clipboard.writeText(link);
-                        import('react-hot-toast').then((m) => m.default.success('Link copiado! Envie para o cliente.'));
-                      }}
-                      className="px-2.5 py-1 bg-dark-800 text-dark-300 hover:text-white hover:bg-dark-700 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all border border-dark-700/50"
-                      title="Copiar link para o cliente autorizar"
-                    >
-                      <Copy size={10} />
-                      Copiar Link
-                    </button>
-                    <button
-                      onClick={() => onConectarContaAzul(empresa.id)}
-                      disabled={conectando === empresa.id}
-                      className="px-2.5 py-1 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all border border-blue-500/20"
-                      title="Conectar agora"
-                    >
-                      {conectando === empresa.id ? <Loader2 size={10} className="animate-spin" /> : <ExternalLink size={10} />}
-                      Conectar
-                    </button>
-                  </>
-                )}
-              </div>
+          <div className="h-px w-full bg-dark-700/30"></div>
+
+          {/* CONTA AZUL */}
+          <div className="flex items-center justify-between pt-1">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${empresa.access_token_conta_azul ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`} />
+              <span className="text-xs text-dark-300">
+                {empresa.access_token_conta_azul ? 'Conta Azul Conectado' : 'Conta Azul Desconectado'}
+              </span>
             </div>
-            
-            {/* PAINEL FORNECEDORES (Compacto) */}
-            <div className="mt-1">
-              <PainelFornecedores empresa={empresa} />
+            <div className="flex gap-1.5">
+              {empresa.access_token_conta_azul ? (
+                <>
+                  <a
+                    href={`/api/conta-azul/diagnostico?empresa_id=${empresa.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-1.5 bg-dark-800 rounded-md text-yellow-500 hover:bg-yellow-500/10 transition-all border border-dark-700/50 hover:border-yellow-500/30"
+                    title="Diagnosticar Conexão"
+                  >
+                    <ShieldCheck size={12} />
+                  </a>
+                  <button
+                    onClick={() => onDesconectar(empresa.id)}
+                    className="p-1.5 bg-dark-800 rounded-md text-red-500/70 hover:bg-red-500/10 transition-all border border-dark-700/50 hover:border-red-500/30"
+                    title="Desconectar API"
+                  >
+                    <Unlink size={12} />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const link = `${window.location.origin}/api/conta-azul/autorizar?empresa_id=${empresa.id}`;
+                      navigator.clipboard.writeText(link);
+                      import('react-hot-toast').then((m) => m.default.success('Link copiado! Envie para o cliente.'));
+                    }}
+                    className="px-2.5 py-1 bg-dark-800 text-dark-300 hover:text-white hover:bg-dark-700 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all border border-dark-700/50"
+                    title="Copiar link para o cliente autorizar"
+                  >
+                    <Copy size={10} />
+                    Copiar Link
+                  </button>
+                  <button
+                    onClick={() => onConectarContaAzul(empresa.id)}
+                    disabled={conectando === empresa.id}
+                    className="px-2.5 py-1 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all border border-blue-500/20"
+                    title="Conectar agora"
+                  >
+                    {conectando === empresa.id ? <Loader2 size={10} className="animate-spin" /> : <ExternalLink size={10} />}
+                    Conectar
+                  </button>
+                </>
+              )}
             </div>
           </div>
-        )}
+          
+          {/* PAINEL FORNECEDORES (Compacto) */}
+          <div className="mt-2 border-t border-dark-700/30 pt-2">
+            <PainelFornecedores empresa={empresa} />
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -424,6 +437,28 @@ function EmpresasPageContent() {
       await recarregar()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Erro ao desconectar')
+    }
+  }
+
+  const handleExcluirEmpresa = async (empresaId: string) => {
+    if (!confirm('ATENÇÃO: Tem certeza que deseja excluir esta empresa? Todos os dados vinculados a ela serão perdidos.')) return
+    try {
+      const { error } = await supabase
+        .from('empresas')
+        .delete()
+        .eq('id', empresaId)
+      
+      if (error) throw error
+      
+      toast.success('Empresa excluída com sucesso!')
+      
+      if (empresaAtiva?.id === empresaId) {
+        setEmpresaAtiva(null)
+      }
+      
+      await recarregar()
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao excluir a empresa')
     }
   }
 
@@ -841,6 +876,7 @@ function EmpresasPageContent() {
                   isAtiva={isAtiva}
                   onSelect={() => setEmpresaAtiva(empresa)}
                   onEdit={() => handleEditClick(empresa)}
+                  onDelete={() => handleExcluirEmpresa(empresa.id)}
                   conectando={conectando}
                   onConectarContaAzul={handleConectarContaAzul}
                   onDesconectar={handleDesconectar}
