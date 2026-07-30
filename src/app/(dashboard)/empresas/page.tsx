@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   Building2, Plus, Check, Loader2, ExternalLink, Edit,
-  RefreshCw, Unlink, Upload, Users, ChevronDown, ChevronUp, Trash2, ShieldCheck, Mail, Search
+  RefreshCw, Unlink, Upload, Users, ChevronDown, ChevronUp, Trash2, ShieldCheck, Mail, Search, Copy
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatCNPJ } from '@/lib/utils'
@@ -305,14 +305,30 @@ function EmpresaCard({
                     </button>
                   </>
                 ) : (
-                  <button
-                    onClick={() => onConectarContaAzul(empresa.id)}
-                    disabled={conectando === empresa.id}
-                    className="px-2.5 py-1 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all border border-blue-500/20"
-                  >
-                    {conectando === empresa.id ? <Loader2 size={10} className="animate-spin" /> : <ExternalLink size={10} />}
-                    Conectar
-                  </button>
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const link = `${window.location.origin}/api/conta-azul/autorizar?empresa_id=${empresa.id}`;
+                        navigator.clipboard.writeText(link);
+                        import('react-hot-toast').then((m) => m.default.success('Link copiado! Envie para o cliente.'));
+                      }}
+                      className="px-2.5 py-1 bg-dark-800 text-dark-300 hover:text-white hover:bg-dark-700 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all border border-dark-700/50"
+                      title="Copiar link para o cliente autorizar"
+                    >
+                      <Copy size={10} />
+                      Copiar Link
+                    </button>
+                    <button
+                      onClick={() => onConectarContaAzul(empresa.id)}
+                      disabled={conectando === empresa.id}
+                      className="px-2.5 py-1 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all border border-blue-500/20"
+                      title="Conectar agora"
+                    >
+                      {conectando === empresa.id ? <Loader2 size={10} className="animate-spin" /> : <ExternalLink size={10} />}
+                      Conectar
+                    </button>
+                  </>
                 )}
               </div>
             </div>
