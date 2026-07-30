@@ -190,6 +190,7 @@ function EmpresaCard({
   isAtiva,
   onSelect,
   onEdit,
+  onDelete,
   conectando,
   onConectarContaAzul,
   onDesconectar,
@@ -453,11 +454,6 @@ function EmpresasPageContent() {
       if (error) throw error
       
       toast.success('Empresa excluída com sucesso!')
-      
-      if (empresaAtiva?.id === empresaId) {
-        setEmpresaAtiva(null)
-      }
-      
       await recarregar()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Erro ao excluir a empresa')
