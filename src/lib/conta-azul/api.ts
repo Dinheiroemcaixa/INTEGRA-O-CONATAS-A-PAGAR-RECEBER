@@ -1106,13 +1106,31 @@ export async function buscarContasPagarPorPeriodo(
       if (lista.length === 0) break;
       
       for (const item of lista) {
+        // A API v2 retorna a parcela. O valor total da parcela pode estar em valor_total_liquido
+        // ou ser a soma de valor_pago + nao_pago.
+        let valorDaConta = 0;
+        if (typeof item.valor === 'number') valorDaConta = item.valor;
+        else if (typeof item.valor_total_liquido === 'number') valorDaConta = item.valor_total_liquido;
+        else if (typeof item.valor_pago === 'number' || typeof item.nao_pago === 'number') {
+           valorDaConta = (item.valor_pago || 0) + (item.nao_pago || 0);
+        } else if (item.evento && typeof item.evento.valor === 'number') {
+           valorDaConta = item.evento.valor;
+        }
+
+        // Tentar obter o fornecedor de várias formas (evento.fornecedor, evento.contato, etc)
+        let fornecedorNome = item.descricao || item.observacao || '';
+        if (item.evento) {
+           const contato = item.evento.contato || item.evento.fornecedor || item.evento.cliente;
+           if (contato && contato.nome) fornecedorNome = contato.nome;
+        }
+
         todasContas.push({
           id: item.id || item.uuid,
           data_vencimento: item.data_vencimento || item.vencimento,
-          valor: typeof item.valor === 'number' ? item.valor : (item.valor_total || item.valor_pago || 0),
+          valor: valorDaConta,
           status: item.status || 'DESCONHECIDO',
-          fornecedor_id: item.fornecedor?.id || item.contato?.id || item.id_contato,
-          descricao: item.descricao || item.observacao,
+          fornecedor_id: item.fornecedor?.id || item.contato?.id || item.evento?.contato?.id,
+          descricao: fornecedorNome,
         });
       }
       
