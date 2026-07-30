@@ -325,7 +325,9 @@ function EmpresaCard({
                       e.stopPropagation();
                       const link = `${window.location.origin}/api/conta-azul/autorizar?empresa_id=${empresa.id}`;
                       navigator.clipboard.writeText(link);
-                      import('react-hot-toast').then((m) => m.default.success('Link copiado! Envie para o cliente.'));
+                      import('react-hot-toast').then((m) => m.default.success('Copiado para a memória! Agora é só colar (Ctrl+V) no WhatsApp.'));
+                      // Fallback visual para o usuário ver o link na tela
+                      window.prompt('O link também está abaixo se preferir copiar manualmente (Ctrl+C):', link);
                     }}
                     className="px-2.5 py-1 bg-dark-800 text-dark-300 hover:text-white hover:bg-dark-700 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all border border-dark-700/50"
                     title="Copiar link para o cliente autorizar"
