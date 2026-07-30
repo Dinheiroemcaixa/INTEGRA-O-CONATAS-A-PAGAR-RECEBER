@@ -243,13 +243,27 @@ export default function ContasPreviewSection({
     if (empresaAtiva) {
       const conta = dadosEditados[idx]
       const nomeFornecedor = conta.matchFornecedor?.nomeCorrigido || conta.fornecedor
+      const nomeNorm = normalizarNome(nomeFornecedor)
       try {
-        await supabase
+        // Usa upsert para garantir que a categoria seja salva mesmo que o
+        // fornecedor ainda não exista na tabela (ex: renomeado via De-Para)
+        const { error } = await supabase
           .from('fornecedores_contaazul')
-          .update({ categoria_padrao: novaCategoria })
-          .eq('empresa_id', empresaAtiva.id)
-          .eq('nome', nomeFornecedor)
-        toast.success(`Categoria '${novaCategoria}' salva para ${nomeFornecedor}`, { id: 'learn-cat' })
+          .upsert({
+            empresa_id: empresaAtiva.id,
+            nome: nomeFornecedor,
+            nome_normalizado: nomeNorm,
+            categoria_padrao: novaCategoria,
+          }, {
+            onConflict: 'empresa_id,nome_normalizado',
+          })
+
+        if (error) {
+          console.error('Erro ao salvar categoria padrão:', error)
+          toast.error('Erro ao salvar categoria.')
+        } else {
+          toast.success(`Categoria '${novaCategoria}' salva para ${nomeFornecedor}`, { id: 'learn-cat' })
+        }
       } catch (err) {
         console.error('Erro ao salvar categoria padrão:', err)
       }
@@ -314,19 +328,35 @@ export default function ContasPreviewSection({
     })
 
     if (empresaAtiva) {
-      const fornecedoresAfetados = Array.from(new Set(
+      // Garante fornecedores únicos com seus nomes normalizados
+      const fornecedoresUnicos = Array.from(new Map(
         indices.map(idx => {
           const d = dadosEditados[idx]
-          return d.matchFornecedor?.nomeCorrigido || d.fornecedor
+          const nome = d.matchFornecedor?.nomeCorrigido || d.fornecedor
+          return [normalizarNome(nome), nome]
         })
-      ))
+      ).entries()).map(([nomeNorm, nome]) => ({ nome, nomeNorm }))
+
       try {
-        await supabase
+        // Upsert para garantir que a categoria seja salva mesmo que o
+        // fornecedor ainda não exista na tabela
+        const registros = fornecedoresUnicos.map(({ nome, nomeNorm }) => ({
+          empresa_id: empresaAtiva.id,
+          nome,
+          nome_normalizado: nomeNorm,
+          categoria_padrao: novaCategoria,
+        }))
+
+        const { error } = await supabase
           .from('fornecedores_contaazul')
-          .update({ categoria_padrao: novaCategoria })
-          .eq('empresa_id', empresaAtiva.id)
-          .in('nome', fornecedoresAfetados)
-        toast.success(`Categoria salva para ${fornecedoresAfetados.length} fornecedores`, { id: 'learn-cat-lote' })
+          .upsert(registros, { onConflict: 'empresa_id,nome_normalizado' })
+
+        if (error) {
+          console.error('Erro ao salvar categoria padrão em lote:', error)
+          toast.error('Erro ao salvar categorias.')
+        } else {
+          toast.success(`Categoria salva para ${fornecedoresUnicos.length} fornecedores`, { id: 'learn-cat-lote' })
+        }
       } catch (err) {
         console.error('Erro ao salvar categoria padrão em lote:', err)
       }

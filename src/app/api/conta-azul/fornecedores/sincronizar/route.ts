@@ -43,14 +43,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, count: 0, message: 'Nenhum fornecedor encontrado no Conta Azul.' })
     }
 
-    // Preparar os registros para o banco de dados
-    const registros = fornecedoresCA.map((f) => ({
-      empresa_id: empresa.id,
-      nome: f.nome,
-      cnpj: f.documento || null,
-      categoria_padrao: null, // A API não traz categoria padrão aqui
-      nome_normalizado: normalizarNome(f.nome),
-    }))
+    // ======================================================================
+    // IMPORTANTE: Preservar as categorias personalizadas salvas pelo usuário.
+    // Antes de apagar, criamos um mapa de nome_normalizado → categoria_padrao.
+    // Assim, ao reinserir, as preferências do usuário são mantidas.
+    // ======================================================================
+    const { data: existentes } = await supabaseAdmin
+      .from('fornecedores_contaazul')
+      .select('nome_normalizado, categoria_padrao')
+      .eq('empresa_id', empresa.id)
+      .not('categoria_padrao', 'is', null)
+
+    const categoriasSalvas = new Map<string, string>()
+    if (existentes) {
+      for (const f of existentes) {
+        if (f.nome_normalizado && f.categoria_padrao) {
+          categoriasSalvas.set(f.nome_normalizado, f.categoria_padrao)
+        }
+      }
+    }
+
+    // Preparar os registros para o banco de dados, restaurando categoria salva
+    const registros = fornecedoresCA.map((f) => {
+      const nomeNorm = normalizarNome(f.nome)
+      const categoriaPreservada = categoriasSalvas.get(nomeNorm) || null
+      return {
+        empresa_id: empresa.id,
+        nome: f.nome,
+        cnpj: f.documento || null,
+        categoria_padrao: categoriaPreservada, // ← restaura a categoria que o usuário salvou
+        nome_normalizado: nomeNorm,
+      }
+    })
 
     // Limpar os antigos
     await supabaseAdmin.from('fornecedores_contaazul').delete().eq('empresa_id', empresa.id)
@@ -64,7 +88,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, count: registros.length })
+    return NextResponse.json({ 
+      success: true, 
+      count: registros.length,
+      categoriasPreservadas: categoriasSalvas.size
+    })
   } catch (err: any) {
     console.error('Erro sincronizar fornecedores:', err)
     return NextResponse.json({ error: err.message || 'Erro ao sincronizar fornecedores' }, { status: 500 })
