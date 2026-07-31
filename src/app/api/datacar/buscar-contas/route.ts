@@ -120,6 +120,8 @@ export async function POST(req: NextRequest) {
           grupoDesp: c.grupoDesp,
           subgrupoDesp: c.subgrupoDesp,
           bancoPgto: c.bancoPgto,
+          dtPgto: c.dtPgto,
+          localPgto: c.localPgto,
           razaoSocialBrasilAPI,
         }
       }
@@ -129,18 +131,18 @@ export async function POST(req: NextRequest) {
     let dadosFiltrados = dados
     if (statusPagamento === 'apagar') {
       // Somente contas A PAGAR: sem data de pagamento no Datacar
-      dadosFiltrados = dadosFiltrados.filter((_, i) => !contasDatacar[i]?.dtPgto)
+      dadosFiltrados = dadosFiltrados.filter(d => !d._datacar?.dtPgto)
     } else if (statusPagamento === 'pagas') {
       // Somente contas PAGAS: com data de pagamento no Datacar
-      dadosFiltrados = dadosFiltrados.filter((_, i) => !!contasDatacar[i]?.dtPgto)
+      dadosFiltrados = dadosFiltrados.filter(d => !!d._datacar?.dtPgto)
     }
     // 'todas' = sem filtro
 
     // Aplicar filtro de Local de Pagamento
     if (localPagamento && localPagamento !== 'todos') {
       const localUpper = localPagamento.toUpperCase()
-      dadosFiltrados = dadosFiltrados.filter((_, i) => {
-        const local = (contasDatacar[i]?.localPgto || '').toUpperCase()
+      dadosFiltrados = dadosFiltrados.filter(d => {
+        const local = (d._datacar?.localPgto || '').toUpperCase()
         return local.includes(localUpper)
       })
     }

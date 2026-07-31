@@ -91,6 +91,14 @@ export default function ContasPreviewSection({
             }))
             const matchMap = matchFornecedoresEmLote(itensDatacar, fornecedores, regrasDepara)
 
+            let defaultConta: { descricao: string, id: string } | null = null
+            if (empresaAtiva) {
+              const saved = localStorage.getItem(`contaPadrao_${empresaAtiva.id}`)
+              if (saved) {
+                try { defaultConta = JSON.parse(saved) } catch (e) {}
+              }
+            }
+
             dadosComMatch = dadosIniciais.map((d) => {
               const match = matchMap.get(d.fornecedor)
               const deveCorrigirAuto = match && ['exato', 'alto', 'medio'].includes(match.confianca)
@@ -102,6 +110,8 @@ export default function ContasPreviewSection({
                 fornecedor: nomeFinal,
                 categoria: match?.categoria || sugestao || 'Materiais para Revenda',
                 matchFornecedor: match,
+                conta_financeira: d.conta_financeira || defaultConta?.descricao,
+                conta_financeira_id: d.conta_financeira_id || defaultConta?.id,
               }
             })
 
@@ -351,7 +361,10 @@ export default function ContasPreviewSection({
       next[idx] = { ...next[idx], conta_financeira: novaConta, conta_financeira_id: contaId }
       return next
     })
-  }, [])
+    if (empresaAtiva) {
+      localStorage.setItem(`contaPadrao_${empresaAtiva.id}`, JSON.stringify({ descricao: novaConta, id: contaId }))
+    }
+  }, [empresaAtiva])
 
   const updateValor = useCallback((idx: number, novoValor: number) => {
     setDadosEditados((prev) => {
@@ -441,13 +454,18 @@ export default function ContasPreviewSection({
 
   const updateContaEmLote = async (indices: number[], novaConta: string) => {
     if (!novaConta.trim()) return
+    const contaId = contasFinanceirasCA.find(c => c.descricao === novaConta)?.id || ''
+    
     setDadosEditados((prev) => {
       const next = [...prev]
       indices.forEach(idx => {
-        next[idx] = { ...next[idx], conta_financeira: novaConta }
+        next[idx] = { ...next[idx], conta_financeira: novaConta, conta_financeira_id: contaId }
       })
       return next
     })
+    if (empresaAtiva) {
+      localStorage.setItem(`contaPadrao_${empresaAtiva.id}`, JSON.stringify({ descricao: novaConta, id: contaId }))
+    }
     setSelecionados(new Set())
   }
 
