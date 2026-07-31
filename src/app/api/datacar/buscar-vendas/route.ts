@@ -51,34 +51,17 @@ export async function POST(req: NextRequest) {
       idOperador: empresa.datacar_id_operador,
     }
 
-    // Converter datas de YYYY-MM-DD (HTML date input) para DD/MM/YYYY (formato Datacar)
-    const converterParaDatacar = (d: string) => {
-      if (!d) return d
-      if (d.includes('/')) return d // Já está no formato DD/MM/YYYY
-      const partes = d.split('-')
-      if (partes.length >= 3) {
-        const ano = partes[0]
-        const mes = partes[1]
-        const dia = partes[2].split('T')[0].split(' ')[0]
-        return `${dia}/${mes}/${ano}`
-      }
-      return d
-    }
-
     // Se um número de OS específico foi informado, ignora os filtros do usuário
     // e busca em um período amplo (desde 2022 até hoje)
     if (numeroOS) {
       tipoPeriodo = 'criacao'
-      dtIni = '01/01/2022'
+      dtIni = '2022-01-01'
       
       const hoje = new Date()
       const dia = String(hoje.getDate()).padStart(2, '0')
       const mes = String(hoje.getMonth() + 1).padStart(2, '0')
       const ano = hoje.getFullYear()
-      dtFim = `${dia}/${mes}/${ano}`
-    } else {
-      dtIni = converterParaDatacar(dtIni)
-      dtFim = converterParaDatacar(dtFim)
+      dtFim = `${ano}-${mes}-${dia}`
     }
 
     // Buscar todas as páginas (Datacar retorna max 50 por página)
