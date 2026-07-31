@@ -46,17 +46,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Credenciais do Datacar não configuradas' }, { status: 400 })
     }
 
-    // Buscar dados da API Datacar
-    const contasDatacar = await buscarContasPagar(
-      {
-        token: empresa.datacar_token,
-        codEmp: empresa.datacar_cod_emp,
-        idOperador: empresa.datacar_id_operador,
-      },
-      tipoPeriodo,
-      dtIni,
-      dtFim,
-    )
+    const credentials = {
+      token: empresa.datacar_token,
+      codEmp: empresa.datacar_cod_emp,
+      idOperador: empresa.datacar_id_operador,
+    }
+
+    // Buscar todas as páginas (Datacar retorna max 50 por página)
+    let contasDatacar: Awaited<ReturnType<typeof buscarContasPagar>> = []
+    let pagina = 1
+    let continuar = true
+
+    while (continuar) {
+      const resultado = await buscarContasPagar(credentials, tipoPeriodo, dtIni, dtFim, String(pagina))
+      if (resultado && resultado.length > 0) {
+        contasDatacar = [...contasDatacar, ...resultado]
+        pagina++
+        // Se retornou menos de 50, é a última página
+        if (resultado.length < 50) continuar = false
+      } else {
+        continuar = false
+      }
+    }
 
     // --- INTELIGÊNCIA DE FORNECEDORES (BRASIL API) ---
     const cnpjsUnicos = new Set<string>()

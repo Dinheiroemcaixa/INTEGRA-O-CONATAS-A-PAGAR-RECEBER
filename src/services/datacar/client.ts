@@ -149,12 +149,11 @@ export async function buscarContasPagar(
   tipoPeriodo: string,
   dtIni: string,
   dtFim: string,
+  noPagina?: string,
 ): Promise<DatacarContaPagar[]> {
-  return fetchDatacar<DatacarContaPagar[]>('/contaspagar', credentials, {
-    tipoPeriodo,
-    dtIni,
-    dtFim,
-  })
+  const extra: Record<string, string> = { tipoPeriodo, dtIni, dtFim }
+  if (noPagina) extra.noPagina = noPagina
+  return fetchDatacar<DatacarContaPagar[]>('/contaspagar', credentials, extra)
 }
 
 /**
