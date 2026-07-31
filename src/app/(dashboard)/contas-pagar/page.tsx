@@ -225,7 +225,7 @@ export default function ContasPagarPage() {
   const [buscando, setBuscando] = useState(false)
   const [dtIni, setDtIni] = useState(primeiroDia)
   const [dtFim, setDtFim] = useState(hoje)
-  const [tipoPeriodoContas, setTipoPeriodoContas] = useState<'venc' | 'emis' | 'pgto' | 'digit'>('venc')
+  const [tipoPeriodoContas, setTipoPeriodoContas] = useState<'venc' | 'emis' | 'digit'>('digit')
   const [statusPagamento, setStatusPagamento] = useState<'apagar' | 'pagas' | 'todas'>('todas')
   const [localPagamento, setLocalPagamento] = useState<'todos' | 'BANCO' | 'CARTEIRA' | 'TRANSFERENCIA'>('todos')
   const [contasPreviewDados, setContasPreviewDados] = useState<ContaPagarPreview[] | null>(null)
@@ -576,10 +576,9 @@ export default function ContasPagarPage() {
                       onChange={(e) => setTipoPeriodoContas(e.target.value as any)}
                       className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
                     >
+                      <option value="digit">Digitação</option>
                       <option value="venc">Vencimento</option>
                       <option value="emis">Emissão</option>
-                      <option value="pgto">Pagamento</option>
-                      <option value="digit">Digitação no Sistema</option>
                     </select>
                   </div>
 
@@ -591,9 +590,9 @@ export default function ContasPagarPage() {
                       onChange={(e) => setStatusPagamento(e.target.value as any)}
                       className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
                     >
+                      <option value="todas">A pagar e pagas</option>
                       <option value="apagar">A pagar</option>
                       <option value="pagas">Pagas</option>
-                      <option value="todas">A pagar e pagas</option>
                     </select>
                   </div>
 
