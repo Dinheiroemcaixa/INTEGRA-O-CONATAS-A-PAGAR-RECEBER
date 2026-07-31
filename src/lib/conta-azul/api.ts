@@ -18,7 +18,7 @@ const AUTHORIZE_URL = 'https://auth.contaazul.com/login'
 async function fetchCA(url: string | URL | Request, options?: RequestInit): Promise<Response> {
   const maxRetries = 3;
   for (let i = 0; i < maxRetries; i++) {
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise(r => setTimeout(r, 100)); // Delay reduzido de 200ms para 100ms para agilizar sem quebrar o limite base
     const res = await fetch(url, options);
     if (res.status === 429) {
       const waitTime = (2 ** i) * 1000;
@@ -139,6 +139,8 @@ export async function listarContasFinanceiras(accessToken: string): Promise<Cont
           todasContas.set(id, { id, descricao: item.descricao || item.nome || item.name || item.description || 'Conta Sem Nome', tipo: item.tipo || item.type })
         }
       }
+      // Se encontrou contas no endpoint atual, não precisa tentar os fallbacks
+      if (todasContas.size > 0) break
     } catch (e: any) { 
       if (e.message === 'TOKEN_EXPIRADO') throw e;
       console.warn(`[contas-financeiras] erro em ${endpoint}:`, e) 

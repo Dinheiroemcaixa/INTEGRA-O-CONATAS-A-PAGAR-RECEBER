@@ -96,18 +96,8 @@ export async function POST(req: NextRequest) {
       allOS = allOS.filter(os => String(os.venda_Numero) === String(numeroOS))
     }
 
-    // === LOG DE DIAGNÓSTICO: ver campos reais retornados pelo Datacar ===
-    if (allOS.length > 0 && allOS[0].produtos?.length > 0) {
-      const primeiroProduto = allOS[0].produtos[0]
-      console.log('[DIAG] Campos do primeiro produto Datacar:', JSON.stringify(Object.keys(primeiroProduto)))
-      console.log('[DIAG] Valores do primeiro produto Datacar:', JSON.stringify(primeiroProduto))
-    }
-    if (allOS.length > 0 && allOS[0].servicos?.length > 0) {
-      const primeiroServico = allOS[0].servicos[0]
-      console.log('[DIAG] Campos do primeiro servico Datacar:', JSON.stringify(Object.keys(primeiroServico)))
-      console.log('[DIAG] Valores do primeiro servico Datacar:', JSON.stringify(primeiroServico))
-    }
-    // === FIM LOG DE DIAGNÓSTICO ===
+    // === LOG DE DIAGNÓSTICO REMOVIDO PARA MELHORAR PERFORMANCE ===
+    // (Logs de objetos gigantes pesavam na execução e na memória)
     const codigosProdutos = new Set<string>()
     const descricoesProdutos = new Map<string, string>() // Para a busca na Brasil API
     allOS.forEach(os => {
@@ -125,9 +115,9 @@ export async function POST(req: NextRequest) {
     const produtosMetadata = new Map<string, DatacarProdutoResponse>()
     const codigosArray = Array.from(codigosProdutos)
     
-    // Chunk requests in groups of 10 para evitar timeouts e sobrecarga
-    for (let i = 0; i < codigosArray.length; i += 10) {
-      const chunk = codigosArray.slice(i, i + 10)
+    // Lotes de 20 para evitar timeouts e sobrecarga (antes era 10)
+    for (let i = 0; i < codigosArray.length; i += 20) {
+      const chunk = codigosArray.slice(i, i + 20)
       const promessas = chunk.map(async (codigo) => {
         try {
           const res = await buscarProdutos(credentials, codigo)
@@ -282,20 +272,20 @@ export async function POST(req: NextRequest) {
     const dadosCnpjMap = new Map<string, any>()
     const dadosCepMap = new Map<string, any>()
 
-    // Buscar CNPJs únicos em lotes de 10
+    // Buscar CNPJs únicos em lotes de 20 (Brasil API tem rate limit alto)
     const cnpjsArray = Array.from(cpfsCnpjsUnicos).filter(c => c.length === 14) // Só buscar CNPJ (14 dígitos)
-    for (let i = 0; i < cnpjsArray.length; i += 10) {
-      const chunk = cnpjsArray.slice(i, i + 10)
+    for (let i = 0; i < cnpjsArray.length; i += 20) {
+      const chunk = cnpjsArray.slice(i, i + 20)
       await Promise.all(chunk.map(async (cnpj) => {
         const dados = await buscarCnpj(cnpj)
         if (dados) dadosCnpjMap.set(cnpj, dados)
       }))
     }
 
-    // Buscar CEPs únicos em lotes de 10
+    // Buscar CEPs únicos em lotes de 20
     const cepsArray = Array.from(cepsUnicos).filter(c => c.length === 8) // Só buscar CEP válido (8 dígitos)
-    for (let i = 0; i < cepsArray.length; i += 10) {
-      const chunk = cepsArray.slice(i, i + 10)
+    for (let i = 0; i < cepsArray.length; i += 20) {
+      const chunk = cepsArray.slice(i, i + 20)
       await Promise.all(chunk.map(async (cep) => {
         const dados = await buscarCep(cep)
         if (dados) dadosCepMap.set(cep, dados)
@@ -512,9 +502,9 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Verificar NFe para vendas que deram match (em lotes de 5 para não sobrecarregar)
-        for (let i = 0; i < vendasComNfe.length; i += 5) {
-          const chunk = vendasComNfe.slice(i, i + 5)
+        // Verificar NFe para vendas que deram match (em lotes de 10 para não sobrecarregar)
+        for (let i = 0; i < vendasComNfe.length; i += 10) {
+          const chunk = vendasComNfe.slice(i, i + 10)
           const resultados = await Promise.all(
             chunk.map(vendaId => verificarNfeEmitidaDaVenda(caToken, vendaId))
           )
@@ -543,9 +533,9 @@ export async function POST(req: NextRequest) {
         const clientesExistentesCA = new Set<string>()
         const urlBaseCA = 'https://api-v2.contaazul.com/v1/venda/busca'
         
-        // Fazer buscas em lotes de 5 para não estourar rate limit
-        for (let i = 0; i < cpfsCnpjsParaVerificar.length; i += 5) {
-          const chunk = cpfsCnpjsParaVerificar.slice(i, i + 5)
+        // Fazer buscas em lotes de 10 para agilizar sem estourar rate limit
+        for (let i = 0; i < cpfsCnpjsParaVerificar.length; i += 10) {
+          const chunk = cpfsCnpjsParaVerificar.slice(i, i + 10)
           await Promise.all(chunk.map(async (doc) => {
             try {
               // Buscar vendas para esse documento. Se existir venda, o cliente já existe e tem histórico.
