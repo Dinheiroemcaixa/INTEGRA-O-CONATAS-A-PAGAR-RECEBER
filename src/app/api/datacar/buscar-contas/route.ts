@@ -46,6 +46,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Credenciais do Datacar não configuradas' }, { status: 400 })
     }
 
+    // Converter datas de YYYY-MM-DD (HTML date input) para DD/MM/YYYY (formato Datacar)
+    const converterParaDatacar = (d: string) => {
+      if (d.includes('/')) return d // Já está no formato DD/MM/YYYY
+      const [ano, mes, dia] = d.split('-')
+      return `${dia}/${mes}/${ano}`
+    }
+
     // Buscar dados da API Datacar
     const contasDatacar = await buscarContasPagar(
       {
@@ -54,8 +61,8 @@ export async function POST(req: NextRequest) {
         idOperador: empresa.datacar_id_operador,
       },
       tipoPeriodo,
-      dtIni,
-      dtFim,
+      converterParaDatacar(dtIni),
+      converterParaDatacar(dtFim),
     )
 
     // --- INTELIGÊNCIA DE FORNECEDORES (BRASIL API) ---
