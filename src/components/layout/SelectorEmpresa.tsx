@@ -77,6 +77,22 @@ export default function SelectorEmpresa() {
     }
   }
 
+  const handleSelectEmpresa = (emp: any) => {
+    setEmpresaAtiva(emp)
+    setOpenEmpresa(false)
+    
+    // Auto-sync fornecedores if connected to Conta Azul and in a page that needs it
+    if (emp.access_token_conta_azul && (pathname.startsWith('/contas-pagar') || pathname.startsWith('/empresas'))) {
+      fetch('/api/conta-azul/fornecedores/sincronizar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresa_id: emp.id })
+      }).catch(err => {
+        console.warn('Erro na auto-sincronização de fornecedores:', err)
+      })
+    }
+  }
+
   const contaAzulConectado = !!empresaAtiva?.access_token_conta_azul
 
   return (
@@ -108,7 +124,7 @@ export default function SelectorEmpresa() {
             empresasFiltradas.map((emp) => (
               <button
                 key={emp.id}
-                onClick={() => { setEmpresaAtiva(emp); setOpenEmpresa(false) }}
+                onClick={() => handleSelectEmpresa(emp)}
                 className="w-full flex items-center gap-3 px-3 py-3 hover:bg-dark-700 transition-colors text-left"
               >
                 <div className={`w-8 h-8 ${accentClasses.bg}/20 border ${accentClasses.border}/30 rounded-lg flex items-center justify-center flex-shrink-0`}>

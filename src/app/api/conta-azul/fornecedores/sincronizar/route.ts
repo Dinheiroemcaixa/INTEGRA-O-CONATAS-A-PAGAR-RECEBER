@@ -63,28 +63,41 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Preparar os registros para o banco de dados, restaurando categoria salva
-    const registros = fornecedoresCA.map((f) => {
+    // Preparar os registros para o banco de dados, restaurando categoria salva e deduplicando
+    const registrosMap = new Map<string, any>()
+    for (const f of fornecedoresCA) {
       const nomeNorm = normalizarNome(f.nome)
       const categoriaPreservada = categoriasSalvas.get(nomeNorm) || null
-      return {
+      
+      const novoRegistro = {
         empresa_id: empresa.id,
         nome: f.nome,
         cnpj: f.documento || null,
-        categoria_padrao: categoriaPreservada, // ← restaura a categoria que o usuário salvou
+        categoria_padrao: categoriaPreservada,
         nome_normalizado: nomeNorm,
       }
-    })
+      
+      // Se houver duplicata no array da API, preferimos manter o que tem CNPJ
+      if (registrosMap.has(nomeNorm)) {
+        const existente = registrosMap.get(nomeNorm)
+        if (!existente.cnpj && novoRegistro.cnpj) {
+          registrosMap.set(nomeNorm, novoRegistro)
+        }
+      } else {
+        registrosMap.set(nomeNorm, novoRegistro)
+      }
+    }
+    
+    const registros = Array.from(registrosMap.values())
 
-    // Limpar os antigos
-    await supabaseAdmin.from('fornecedores_contaazul').delete().eq('empresa_id', empresa.id)
-
-    // Inserir os novos em lotes de 500
+    // Fazer upsert em lotes de 500 (seguro contra duplicatas e preserva categorias)
     for (let i = 0; i < registros.length; i += 500) {
       const lote = registros.slice(i, i + 500)
-      const { error } = await supabaseAdmin.from('fornecedores_contaazul').insert(lote)
+      const { error } = await supabaseAdmin
+        .from('fornecedores_contaazul')
+        .upsert(lote, { onConflict: 'empresa_id,nome_normalizado' })
       if (error) {
-        throw new Error(`Erro ao inserir lote: ${error.message}`)
+        throw new Error(`Erro ao fazer upsert no lote: ${error.message}`)
       }
     }
 
