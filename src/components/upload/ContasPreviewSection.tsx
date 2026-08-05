@@ -292,31 +292,31 @@ export default function ContasPreviewSection({
     if (empresaAtiva && nomeOriginal && nomeOriginal !== novoNome) {
       try {
         const nomeNormalizado = normalizarNome(nomeOriginal)
-          const { error } = await supabase
-            .from('fornecedor_depara')
-            .upsert({
-              empresa_id: empresaAtiva.id,
-              nome_original: nomeOriginal,
-              nome_original_normalizado: nomeNormalizado,
-              nome_corrigido: novoNome,
-              updated_at: new Date().toISOString(),
-            }, {
-              onConflict: 'empresa_id,nome_original_normalizado',
-            })
-          
-          if (error) {
-            console.error('Erro no Supabase ao salvar regra De-Para:', error)
-            toast.error('Erro ao salvar fornecedor. A tabela fornecedor_depara existe?')
-            return
-          }
-          
-          toast.success(`Aprendido: "${nomeOriginal}" → "${novoNome}"`, { id: 'learn-depara', duration: 3000 })
-        } catch (err) {
-          console.error('Erro ao salvar regra De-Para:', err)
-          toast.error('Erro inesperado ao salvar fornecedor.')
+        const res = await fetch('/api/fornecedor-depara', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            empresa_id: empresaAtiva.id,
+            nome_original: nomeOriginal,
+            nome_original_normalizado: nomeNormalizado,
+            nome_corrigido: novoNome,
+          }),
+        })
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          console.error('Erro ao salvar regra De-Para:', data)
+          toast.error('Erro ao salvar fornecedor.')
+          return
         }
+          
+        toast.success(`Aprendido: "${nomeOriginal}" → "${novoNome}"`, { id: 'learn-depara', duration: 3000 })
+      } catch (err) {
+        console.error('Erro ao salvar regra De-Para:', err)
+        toast.error('Erro inesperado ao salvar fornecedor.')
+      }
     }
-  }, [empresaAtiva, dadosEditados, supabase])
+  }, [empresaAtiva, dadosIniciais, dadosEditados])
 
   const updateCategoria = useCallback(async (idx: number, novaCategoria: string) => {
     setDadosEditados((prev) => {
