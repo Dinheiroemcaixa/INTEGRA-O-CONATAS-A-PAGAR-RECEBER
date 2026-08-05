@@ -71,7 +71,7 @@ export default function ContasPreviewSection({
           const jsonDepara = await resDepara.json()
           const deparaDB = jsonDepara.data || []
 
-          const regrasDepara: RegraDepara[] = (deparaDB || []).map((r) => ({
+          const regrasDepara: RegraDepara[] = (deparaDB || []).map((r: any) => ({
             nomeOriginalNormalizado: r.nome_original_normalizado,
             nomeCorrigido: r.nome_corrigido,
           }))
