@@ -268,16 +268,16 @@ export default function ContasPreviewSection({
   }
 
   const updateFornecedor = useCallback(async (idx: number, novoNome: string) => {
-    const nomeOriginal = dadosEditados[idx]?.matchFornecedor?.nomeOriginal || dadosEditados[idx]?.fornecedor
+    // Para garantir que a regra seja salva corretamente, sempre usamos o nome bruto vindo do Datacar
+    const nomeOriginal = dadosIniciais[idx]?.fornecedor || dadosEditados[idx]?.fornecedor
 
     setDadosEditados((prev) => {
       const next = [...prev]
-      const original = next[idx].matchFornecedor?.nomeOriginal || next[idx].fornecedor
       next[idx] = {
         ...next[idx],
         fornecedor: novoNome,
         matchFornecedor: {
-          nomeOriginal: original,
+          nomeOriginal: nomeOriginal,
           nomeCorrigido: novoNome,
           cnpj: next[idx].matchFornecedor?.cnpj || '',
           confianca: 'exato',
