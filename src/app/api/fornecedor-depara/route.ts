@@ -41,3 +41,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }
+
+// Route GET para buscar as regras (evita cache e RLS problemáticos)
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url)
+  const empresa_id = searchParams.get('empresa_id')
+
+  if (!empresa_id) {
+    return NextResponse.json({ error: 'empresa_id obrigatório' }, { status: 400 })
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('fornecedor_depara')
+    .select('nome_original_normalizado, nome_corrigido')
+    .eq('empresa_id', empresa_id)
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ data })
+}

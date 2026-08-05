@@ -67,10 +67,9 @@ export default function ContasPreviewSection({
             .select('nome, cnpj, nome_normalizado, categoria_padrao')
             .eq('empresa_id', empresaAtiva.id)
 
-          const { data: deparaDB } = await supabase
-            .from('fornecedor_depara')
-            .select('nome_original_normalizado, nome_corrigido')
-            .eq('empresa_id', empresaAtiva.id)
+          const resDepara = await fetch(`/api/fornecedor-depara?empresa_id=${empresaAtiva.id}&t=${Date.now()}`)
+          const jsonDepara = await resDepara.json()
+          const deparaDB = jsonDepara.data || []
 
           const regrasDepara: RegraDepara[] = (deparaDB || []).map((r) => ({
             nomeOriginalNormalizado: r.nome_original_normalizado,
