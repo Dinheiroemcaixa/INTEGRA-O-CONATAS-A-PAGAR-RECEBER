@@ -51,17 +51,39 @@ export async function POST(req: NextRequest) {
       idOperador: empresa.datacar_id_operador,
     }
 
-    // Se um número de OS específico foi informado, ignora os filtros do usuário
-    // e busca em um período amplo (desde 2022 até hoje)
+    // Se um número de OS específico foi informado, usamos o tipo de período 'criacao'
+    // e buscamos em uma margem segura de 180 dias para evitar timeouts, ou no período customizado caso seja maior.
     if (numeroOS) {
       tipoPeriodo = 'criacao'
-      dtIni = '2022-01-01'
-      
-      const hoje = new Date()
-      const dia = String(hoje.getDate()).padStart(2, '0')
-      const mes = String(hoje.getMonth() + 1).padStart(2, '0')
-      const ano = hoje.getFullYear()
-      dtFim = `${ano}-${mes}-${dia}`
+      if (dtIni && dtFim) {
+        const dataIniDate = new Date(dtIni)
+        const hoje = new Date()
+        const limiteDiferenca = 180 * 24 * 60 * 60 * 1000 // 180 dias
+        
+        // Se o período for menor que 180 dias, ampliamos para 180 dias por segurança
+        if (hoje.getTime() - dataIniDate.getTime() < limiteDiferenca) {
+          const seisMesesAtras = new Date()
+          seisMesesAtras.setDate(hoje.getDate() - 180)
+          const diaI = String(seisMesesAtras.getDate()).padStart(2, '0')
+          const mesI = String(seisMesesAtras.getMonth() + 1).padStart(2, '0')
+          const anoI = seisMesesAtras.getFullYear()
+          dtIni = `${anoI}-${mesI}-${diaI}`
+        }
+      } else {
+        const hoje = new Date()
+        const seisMesesAtras = new Date()
+        seisMesesAtras.setDate(hoje.getDate() - 180)
+        
+        const diaI = String(seisMesesAtras.getDate()).padStart(2, '0')
+        const mesI = String(seisMesesAtras.getMonth() + 1).padStart(2, '0')
+        const anoI = seisMesesAtras.getFullYear()
+        dtIni = `${anoI}-${mesI}-${diaI}`
+        
+        const diaF = String(hoje.getDate()).padStart(2, '0')
+        const mesF = String(hoje.getMonth() + 1).padStart(2, '0')
+        const anoF = hoje.getFullYear()
+        dtFim = `${anoF}-${mesF}-${diaF}`
+      }
     }
 
     // Buscar todas as páginas (Datacar retorna max 50 por página)
@@ -97,12 +119,10 @@ export async function POST(req: NextRequest) {
     }
 
     // === LOG DE DIAGNÓSTICO REMOVIDO PARA MELHORAR PERFORMANCE ===
-    // (Logs de objetos gigantes pesavam na execução e na memória)
     const codigosProdutos = new Set<string>()
     const descricoesProdutos = new Map<string, string>() // Para a busca na Brasil API
     allOS.forEach(os => {
       os.produtos?.forEach(p => {
-        // CORREÇÃO: Priorizando o código interno (produto_Codigo) sobre o código do fabricante (produto_CodigoFabric)
         const cod = String(p.produto_Codigo || p.produto_CodigoFabric || p.codigo || '').trim()
         if (cod) {
           codigosProdutos.add(cod)
@@ -115,14 +135,13 @@ export async function POST(req: NextRequest) {
     const produtosMetadata = new Map<string, DatacarProdutoResponse>()
     const codigosArray = Array.from(codigosProdutos)
     
-    // Lotes de 20 para evitar timeouts e sobrecarga (antes era 10)
+    // Lotes de 20 para evitar timeouts e sobrecarga
     for (let i = 0; i < codigosArray.length; i += 20) {
       const chunk = codigosArray.slice(i, i + 20)
       const promessas = chunk.map(async (codigo) => {
         try {
           const res = await buscarProdutos(credentials, codigo)
           if (res && res.length > 0) {
-            // Find exact match just in case
             const match = res.find(p => p.codigo?.trim() === codigo)
             if (match) produtosMetadata.set(codigo, match)
           }
@@ -134,13 +153,10 @@ export async function POST(req: NextRequest) {
     }
 
     // --- NOVA LÓGICA DE INTELIGÊNCIA FISCAL ---
-    // Buscar memória fiscal para todos os produtos encontrados nestas OS
-    // Usando consulta direta ao Supabase em vez de fetch interno (evita timeout)
     let memoriaFiscalExata: Record<string, any> = {}
     let memoriaFiscalFamilia: Record<string, any> = {}
     if (codigosProdutos.size > 0) {
       try {
-        // Busca exata por código
         const listaCodigos = Array.from(codigosProdutos)
         const { data: dataExata } = await supabaseAdmin
           .from('memoria_fiscal')
@@ -154,7 +170,6 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Busca por família (todas as famílias da empresa)
         const { data: dataFamilia } = await supabaseAdmin
           .from('memoria_fiscal_familia')
           .select('*')
@@ -170,7 +185,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Preparar um mapa de NCM para CEST usando a memória fiscal inteira da empresa (para dedução)
     const ncmParaCest = new Map<string, string>()
     try {
       const { data: todosMemoria } = await supabaseAdmin.from('memoria_fiscal').select('ncm, cest').eq('empresa_id', empresa_id).not('cest', 'is', null)
@@ -181,7 +195,6 @@ export async function POST(req: NextRequest) {
       }
     } catch (e) {}
 
-    // Pré-calcular dados fiscais de cada produto
     const inteligenciaFiscal = new Map<string, any>()
     for (const codigo of Array.from(codigosProdutos)) {
       let ncm = null
@@ -193,7 +206,6 @@ export async function POST(req: NextRequest) {
       const descNormalizada = descricao.toUpperCase().replace(/\s+/g, ' ').trim()
       const palavras = descNormalizada.split(' ')
       
-      // Encontrar melhor match de família (do mais longo para o mais curto)
       let matchFamilia = null
       for (let i = palavras.length; i > 0; i--) {
         const prefixo = palavras.slice(0, i).join(' ')
@@ -203,7 +215,6 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Prioridade 1: Nossa Memória Fiscal Exata (por código)
       if (memoriaFiscalExata[codigo]) {
         const mem = memoriaFiscalExata[codigo]
         ncm = mem.ncm
@@ -212,7 +223,6 @@ export async function POST(req: NextRequest) {
         origem = mem.origem
         unidade = mem.unidade_medida || 'UN'
       } 
-      // Prioridade 2: Nossa Memória Fiscal por Família (match do maior prefixo)
       else if (matchFamilia) {
         ncm = matchFamilia.ncm
         cest = matchFamilia.cest
@@ -221,7 +231,6 @@ export async function POST(req: NextRequest) {
         unidade = matchFamilia.unidade_medida || 'UN'
       }
       else {
-        // Prioridade 3: Brasil API (apenas para NCM se não temos na memória)
         if (descricao) {
           try {
             const firstWord = descricao.split(' ')[0]
@@ -233,8 +242,6 @@ export async function POST(req: NextRequest) {
                 const ncmValido = resultados.find((r: any) => r.codigo && r.codigo.replace(/\./g, '').length === 8)
                 if (ncmValido) {
                   ncm = ncmValido.codigo.replace(/\./g, '')
-                  
-                  // Se achou NCM na Brasil API, verifica se temos um CEST conhecido para esse NCM
                   if (ncm && ncmParaCest.has(ncm)) {
                     cest = ncmParaCest.get(ncm)
                   }
@@ -247,7 +254,6 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Prioridade 4: Datacar (último caso)
       const metadados = produtosMetadata.get(codigo)
       if (!ncm) ncm = metadados?.ncm || undefined
       if (!cest) cest = metadados?.cest || undefined
@@ -257,7 +263,6 @@ export async function POST(req: NextRequest) {
 
       inteligenciaFiscal.set(codigo, { ncm, cest, tipo, origem, unidade })
     }
-    // --- FIM DA NOVA LÓGICA ---
 
     // --- INTELIGÊNCIA DE CLIENTES (BRASIL API) ---
     const cpfsCnpjsUnicos = new Set<string>()
@@ -272,8 +277,7 @@ export async function POST(req: NextRequest) {
     const dadosCnpjMap = new Map<string, any>()
     const dadosCepMap = new Map<string, any>()
 
-    // Buscar CNPJs únicos em lotes de 20 (Brasil API tem rate limit alto)
-    const cnpjsArray = Array.from(cpfsCnpjsUnicos).filter(c => c.length === 14) // Só buscar CNPJ (14 dígitos)
+    const cnpjsArray = Array.from(cpfsCnpjsUnicos).filter(c => c.length === 14)
     for (let i = 0; i < cnpjsArray.length; i += 20) {
       const chunk = cnpjsArray.slice(i, i + 20)
       await Promise.all(chunk.map(async (cnpj) => {
@@ -282,8 +286,7 @@ export async function POST(req: NextRequest) {
       }))
     }
 
-    // Buscar CEPs únicos em lotes de 20
-    const cepsArray = Array.from(cepsUnicos).filter(c => c.length === 8) // Só buscar CEP válido (8 dígitos)
+    const cepsArray = Array.from(cepsUnicos).filter(c => c.length === 8)
     for (let i = 0; i < cepsArray.length; i += 20) {
       const chunk = cepsArray.slice(i, i + 20)
       await Promise.all(chunk.map(async (cep) => {
@@ -291,36 +294,22 @@ export async function POST(req: NextRequest) {
         if (dados) dadosCepMap.set(cep, dados)
       }))
     }
-    // --- FIM DA INTELIGÊNCIA DE CLIENTES ---
 
-    // Converter para o formato VendaPreview do app (sem filtrar canceladas — o frontend filtra pela situação)
     const dados = await Promise.all(allOS.map(async (os) => {
-      // Determinar situação da OS com base nas datas disponíveis
       let situacao: 'em_andamento' | 'concluida' | 'encerrada' | 'cancelada' = 'em_andamento'
       if (os.venda_DtCancelamento) situacao = 'cancelada'
       else if (os.venda_DtEncerramento) situacao = 'encerrada'
       else if (os.venda_DtConclusao) situacao = 'concluida'
       
-      // IMPORTANTE: Sempre usa o nome que veio do Datacar como principal.
-      // NÃO substitui pelo nome da Brasil API (razao_social) pois pode retornar nome incorreto.
       const cliente = os.cliente_Nome?.trim() || os.cliente_RazaoSocial?.trim() || 'Cliente não informado'
       const cliente_cpf_cnpj = os.cliente_Cpf_Cnpj || null
       
-      // Obter dados enriquecidos se for CNPJ (apenas para endereço, NÃO para nome)
       const cnpjLimpo = cliente_cpf_cnpj ? cliente_cpf_cnpj.replace(/\D/g, '') : ''
       const dadosCnpjEncontrados = cnpjLimpo.length === 14 ? dadosCnpjMap.get(cnpjLimpo) : null
 
       const osNumero = String(os.venda_Numero || '')
       const dataVenda = os.venda_DtEncerramento || os.venda_DtConclusao || os.venda_DtCriacao || ''
 
-      // Montar itens para o Conta Azul
-      // Campos reais da API Datacar:
-      //   Produtos: produto_Codigo, produto_CodigoFabric, produto_Descricao, venda_Qtde, venda_VlBruto, venda_VlDesc, venda_Custo
-      //   Serviços: servico_Codigo, servico_Descricao, venda_Qtde, venda_VlBruto, venda_Custo
-      // venda_VlBruto = valor unitário bruto (antes do desconto)
-      // venda_VlDesc = valor do desconto unitário
-      // Valor líquido unitário = venda_VlBruto - venda_VlDesc
-      // Valor total do item = quantidade * valor líquido unitário
       const itens = [
         ...(os.produtos || []).map((p: Record<string, unknown>) => {
           const qtde = Number(p.venda_Qtde || p.quantidade || p.qtde || 1)
@@ -367,7 +356,6 @@ export async function POST(req: NextRequest) {
         }),
       ]
 
-      // Valor total da venda = soma dos valores totais de cada item
       const totalProdutos = itens.filter(i => i.tipo === 'produto').reduce((sum, i) => sum + i.valor_total, 0)
       const totalServicos = itens.filter(i => i.tipo === 'servico').reduce((sum, i) => sum + i.valor_total, 0)
       const valorTotal = parseFloat((totalProdutos + totalServicos).toFixed(2))
@@ -382,12 +370,10 @@ export async function POST(req: NextRequest) {
         cep: os.end_Cep || os.cliente_Cep || os.cliente_CEP || null,
       }
 
-      // Enriquecer endereço se tiver CEP (lembrando que enriquecerEndereco lida com dadosCnpj tb)
       if (enderecoBase.cep && enderecoBase.cep.length >= 8) {
         const cepLimpo = enderecoBase.cep.replace(/\D/g, '')
         const dadosCep = dadosCepMap.get(cepLimpo)
         if (dadosCep) {
-          // Atualiza dados base usando os dados de CEP da Brasil API (mantém numero/complemento)
           enderecoBase.logradouro = dadosCep.street || enderecoBase.logradouro
           enderecoBase.bairro = dadosCep.neighborhood || enderecoBase.bairro
           enderecoBase.cidade = dadosCep.city || enderecoBase.cidade
@@ -395,7 +381,6 @@ export async function POST(req: NextRequest) {
         }
       }
       
-      // Enriquecer endereço via CNPJ se tiver (tem precedência)
       if (dadosCnpjEncontrados) {
         enderecoBase.logradouro = dadosCnpjEncontrados.logradouro || enderecoBase.logradouro
         enderecoBase.numero = dadosCnpjEncontrados.numero || enderecoBase.numero
@@ -421,14 +406,12 @@ export async function POST(req: NextRequest) {
           !cliente ? 'Cliente não informado' : null,
           valorTotal <= 0 ? `Valor total zerado (Produtos: ${totalProdutos}, Serviços: ${totalServicos})` : null,
         ].filter(Boolean) as string[],
-        // Dados extras para referência
         _datacar: {
           venda_Id: os.venda_Id,
           empresa_sigla: os.empresa_sigla,
           vendedor: os.vendedor_Nome,
           veiculo: os.veiculo_Placa ? `${os.veiculo_Marca || ''} ${os.veiculo_Modelo || ''} - ${os.veiculo_Placa}`.trim() : null,
           cliente_cpf_cnpj: os.cliente_Cpf_Cnpj,
-          // Endereço completo do cliente (Datacar usa prefixo end_ para OS/Pedidos)
           cliente_logradouro: os.end_Rua || os.cliente_Logradouro || os.cliente_Endereco || null,
           cliente_numero: os.end_Numero || os.cliente_Numero || null,
           cliente_complemento: os.end_Complemento || os.cliente_Complemento || null,
@@ -436,21 +419,17 @@ export async function POST(req: NextRequest) {
           cliente_cidade: os.end_Cidade || os.cliente_Cidade || os.cliente_Municipio || null,
           cliente_uf: os.end_Uf || os.cliente_Uf || os.cliente_Estado || os.cliente_UF || null,
           cliente_cep: os.end_Cep || os.cliente_Cep || os.cliente_CEP || null,
-          raw: os // Salvando o raw completo para a revisão
+          raw: os
         }
       }
     }))
 
-    // Filtra pela situação solicitada antes de contar
     const dadosFiltrados = dados.filter(d => situacao === 'todas' || d.situacao === situacao)
 
     // --- DETECÇÃO DE DUPLICIDADE NO CONTA AZUL ---
-    // Tenta buscar vendas no CA para o mesmo período. Se não conseguir (ex: CA não conectado),
-    // simplesmente segue sem marcação de duplicidade — NÃO interfere no fluxo principal.
     try {
       const { accessToken: caToken } = await getValidToken(empresa_id)
 
-      // Converter datas do formato DD/MM/YYYY para YYYY-MM-DD
       let dtIniISO = dtIni
       let dtFimISO = dtFim
       if (dtIni.includes('/')) {
@@ -466,13 +445,12 @@ export async function POST(req: NextRequest) {
       console.log(`[duplicidade] Encontradas ${vendasCA.length} vendas no CA para o período ${dtIniISO} a ${dtFimISO}`)
 
       if (vendasCA.length > 0) {
-        // Montar mapa de chaves para cruzar: normaliza CPF/CNPJ + Data + Valor
         const vendasCAMap = new Map<string, { id: string; valor: number }[]>()
         for (const vc of vendasCA) {
           const docRaw = (vc as any).documento_cliente || vc.cliente?.documento || (vc.cliente as any)?.cpf_cnpj || ''
-          const cpfCnpj = docRaw.replace(/\\D/g, '')
+          const cpfCnpj = docRaw.replace(/\D/g, '')
           const dataVenda = vc.data_venda?.split('T')[0] || ''
-          const valor = Math.round(((vc as any).valor_composicao?.valor_liquido || vc.valor_total || 0) * 100) // centavos
+          const valor = Math.round(((vc as any).valor_composicao?.valor_liquido || vc.valor_total || 0) * 100)
           if (cpfCnpj && dataVenda) {
             const chave = `${cpfCnpj}_${dataVenda}_${valor}`
             if (!vendasCAMap.has(chave)) vendasCAMap.set(chave, [])
@@ -480,10 +458,9 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Para cada venda do Datacar, verificar se já existe no CA
-        const vendasComNfe: string[] = [] // IDs de vendas CA para verificar NFe em lote
+        const vendasComNfe: string[] = []
         for (const venda of dadosFiltrados) {
-          const cpfCnpj = (venda as any).cliente_cpf_cnpj?.replace(/\\D/g, '') || ''
+          const cpfCnpj = (venda as any).cliente_cpf_cnpj?.replace(/\D/g, '') || ''
           let dataVendaISO = venda.data_venda?.split('T')[0]?.split(' ')[0] || ''
           if (dataVendaISO.includes('/')) {
             const [d, m, y] = dataVendaISO.split('/')
@@ -502,7 +479,6 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Verificar NFe para vendas que deram match (em lotes de 10 para não sobrecarregar)
         for (let i = 0; i < vendasComNfe.length; i += 10) {
           const chunk = vendasComNfe.slice(i, i + 10)
           const resultados = await Promise.all(
@@ -521,11 +497,10 @@ export async function POST(req: NextRequest) {
       }
 
       // --- DETECÇÃO DE CLIENTE COM VENDAS ANTERIORES NO CA ---
-      // Apenas para os CPFs/CNPJs que não deram match exato nas vendas, vamos verificar se já possuem vendas
       const cpfsCnpjsParaVerificar = Array.from(new Set(
         dadosFiltrados
-          .filter((d: any) => !d.ca_status) // Somente os que ainda não têm status de duplicidade exata
-          .map((d: any) => d.cliente_cpf_cnpj?.replace(/\\D/g, ''))
+          .filter((d: any) => !d.ca_status)
+          .map((d: any) => d.cliente_cpf_cnpj?.replace(/\D/g, ''))
           .filter(Boolean)
       )) as string[]
 
@@ -533,12 +508,10 @@ export async function POST(req: NextRequest) {
         const clientesExistentesCA = new Set<string>()
         const urlBaseCA = 'https://api-v2.contaazul.com/v1/venda/busca'
         
-        // Fazer buscas em lotes de 10 para agilizar sem estourar rate limit
         for (let i = 0; i < cpfsCnpjsParaVerificar.length; i += 10) {
           const chunk = cpfsCnpjsParaVerificar.slice(i, i + 10)
           await Promise.all(chunk.map(async (doc) => {
             try {
-              // Buscar vendas para esse documento. Se existir venda, o cliente já existe e tem histórico.
               const url = `${urlBaseCA}?termo_busca=${doc}&tamanho_pagina=1`
               console.log(`[duplicidade-cliente] Buscando vendas anteriores para CPF/CNPJ: ${doc} em ${url}`)
               const res = await fetch(url, {
@@ -550,12 +523,11 @@ export async function POST(req: NextRequest) {
                 const lista = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
                 console.log(`[duplicidade-cliente] CPF/CNPJ ${doc}: ${lista.length} vendas encontradas`)
                 if (lista.length > 0) {
-                  // Se encontrou alguma venda, verifica se o documento bate
                   const matchDoc = lista.find((v: any) => {
-                    const pDoc = (v.documento_cliente || v.cliente?.documento || '').replace(/\\D/g, '')
-                    return pDoc === doc || pDoc.includes(doc) || doc.includes(pDoc) // fallback
+                    const pDoc = (v.documento_cliente || v.cliente?.documento || '').replace(/\D/g, '')
+                    return pDoc === doc || pDoc.includes(doc) || doc.includes(pDoc)
                   })
-                  if (matchDoc || lista.length > 0) { // Se retornou na busca exata por CPF, confiamos
+                  if (matchDoc || lista.length > 0) {
                     clientesExistentesCA.add(doc)
                   }
                 }
@@ -569,7 +541,6 @@ export async function POST(req: NextRequest) {
           }))
         }
         
-        // Para cada venda ainda sem ca_status, marca se o cliente já existe
         for (const venda of dadosFiltrados) {
           if (!(venda as any).ca_status) {
             const doc = (venda as any).cliente_cpf_cnpj?.replace(/\D/g, '') || ''
@@ -581,15 +552,12 @@ export async function POST(req: NextRequest) {
       }
 
     } catch (caErr) {
-      // Se o CA não está conectado ou deu qualquer erro, simplesmente segue sem marcação
       console.log('[duplicidade] Não foi possível verificar duplicidade no CA (pode não estar conectado):', (caErr as any)?.message || caErr)
     }
-    // --- FIM DA DETECÇÃO DE DUPLICIDADE E CLIENTE ---
 
     const validos = dadosFiltrados.filter(d => d.valido).length
     const invalidos = dadosFiltrados.filter(d => !d.valido).length
 
-    // Montar diagnóstico dos campos reais vindos do Datacar
     const _diagnostico: Record<string, unknown> = {}
     if (allOS.length > 0) {
       if (allOS[0].produtos?.length > 0) {
