@@ -235,7 +235,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
         fornecedor: fornecedor || null,
         descricao,
         data_vencimento: dataVencimento,
-        data_pagamento: hoje,
+        data_pagamento: dataVencimento || hoje,
         competencia: dataCompetencia || null,
         valor,
         categoria,

@@ -269,13 +269,13 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
 
       // Se for Transferência Recebida: sem situação (""), escrita em verde
       const situacao = isTransfRecebida ? '' : (p.status === 'agendado' ? 'Agendado' : 'Em Aberto')
-      const dataVenc = formatarDataBr(p.data_vencimento)
+      const dataPgto = formatarDataBr(p.data_pagamento || p.data_vencimento)
 
       tableRowsData.push([
         tipoLabel,
         beneficiario,
         descricaoFmt,
-        dataVenc,
+        dataPgto,
         Number(p.valor || 0),
         situacao,
       ])
@@ -299,7 +299,7 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
         { name: 'Tipo', filterButton: true },
         { name: 'Beneficiário', filterButton: true },
         { name: 'Descrição', filterButton: true },
-        { name: 'Data Vencimento', filterButton: true },
+        { name: 'Data Pagamento', filterButton: true },
         { name: 'Valor', filterButton: true },
         { name: 'Situação', filterButton: true },
       ],

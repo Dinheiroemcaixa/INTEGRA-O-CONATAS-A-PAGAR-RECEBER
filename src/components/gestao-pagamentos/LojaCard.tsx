@@ -430,17 +430,15 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       if (tipo === 'dda') {
         const registros = extraidos.map(item => {
           const categoriaAprendida = categoriasAprendidas.get(normalizarNome(item.beneficiario || ''))
-          const dt = item.data_vencimento || dataInicio
-          if (!menorDataExt || dt < menorDataExt) menorDataExt = dt
-          if (!maiorDataExt || dt > maiorDataExt) maiorDataExt = dt
+          const dtVenc = item.data_vencimento || dataInicio
 
           return {
             empresa_id: empresa.id,
             beneficiario: item.beneficiario,
             documento: item.documento,
             valor: parseFloat(String(item.valor).replace(',', '.')),
-            data_vencimento: dt,
-            data_pagamento: dataInclusaoHoje,
+            data_vencimento: dtVenc,
+            data_pagamento: dataInicio || dataInclusaoHoje,
             categoria: categoriaAprendida || 'Materiais para Revenda'
           }
         })
@@ -465,9 +463,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
           }
 
           const ehAdiantamento = (item.tipo || data.tipoCalculo) === 'Adiantamento'
-          const dt = vencimentoEspecifico || dataInicio
-          if (!menorDataExt || dt < menorDataExt) menorDataExt = dt
-          if (!maiorDataExt || dt > maiorDataExt) maiorDataExt = dt
+          const dtVenc = vencimentoEspecifico || dataInicio
 
           return {
             empresa_id: empresa.id,
@@ -475,8 +471,8 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             tipo: item.tipo || data.tipoCalculo || 'Folha',
             categoria: ehAdiantamento ? 'Adiantamento Salarial' : 'Salários',
             valor: parseFloat(String(item.valor).replace(',', '.')),
-            data_vencimento: dt,
-            data_pagamento: vencimentoEspecifico || dataInclusaoHoje,
+            data_vencimento: dtVenc,
+            data_pagamento: vencimentoEspecifico || dataInicio || dataInclusaoHoje,
             descricao: ehAdiantamento ? 'Adiantamento Salarial' : 'Salário',
             cpf_cnpj: item.cpf_cnpj,
             competencia: competencia
@@ -486,12 +482,6 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
           const { error } = await supabase.from('agendamentos').insert(registros)
           if (error) throw error
         }
-      }
-
-      // Se as datas dos lançamentos extraídos estiverem fora do filtro de período atual, ajusta automaticamente o filtro para exibi-los!
-      if (menorDataExt && (menorDataExt < dataInicio || maiorDataExt > dataFim)) {
-        if (menorDataExt < dataInicio) setDataInicio(menorDataExt)
-        if (maiorDataExt > dataFim) setDataFim(maiorDataExt)
       }
 
       toast.success(`${extraidos.length} pagamento(s) extraído(s) e salvo(s) com sucesso!`, { id: toastId })

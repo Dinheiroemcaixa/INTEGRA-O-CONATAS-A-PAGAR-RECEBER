@@ -120,23 +120,17 @@ export default function GrupoDetalhe() {
             .select('*')
             .eq('empresa_id', loja.id)
 
-          let ddasFiltrados = (ddas || []).filter((d: any) => {
+          const ddasFiltrados = (ddas || []).filter((d: any) => {
             const dt = d.data_pagamento || d.data_vencimento
-            if (!dt) return true
+            if (!dt) return false
             return dt >= periodo.inicio && dt <= periodo.fim
           })
 
-          let agendFiltrados = (agendamentos || []).filter((a: any) => {
+          const agendFiltrados = (agendamentos || []).filter((a: any) => {
             const dt = a.data_pagamento || a.data_vencimento
-            if (!dt) return true
+            if (!dt) return false
             return dt >= periodo.inicio && dt <= periodo.fim
           })
-
-          // Se o filtro de data não retornou registros mas a loja possui lançamentos cadastrados, inclui todos os lançamentos
-          if (ddasFiltrados.length === 0 && agendFiltrados.length === 0 && ((ddas?.length || 0) > 0 || (agendamentos?.length || 0) > 0)) {
-            ddasFiltrados = ddas || []
-            agendFiltrados = agendamentos || []
-          }
 
           const pagamentos: PagamentoRelatorio[] = [
             ...ddasFiltrados.map((d: any) => ({
