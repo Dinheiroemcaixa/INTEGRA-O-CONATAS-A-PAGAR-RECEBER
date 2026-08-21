@@ -60,11 +60,7 @@ export default function GrupoDetalhe() {
     setModalNovaLojaAberto(true)
     setCarregandoDisponiveis(true)
     const { data } = await supabase.from('empresas').select('*').is('grupo_id', null).order('nome')
-    const disponiveisFinanceiro = (data || []).filter(emp => {
-      const temCredencialFinanceiro = Boolean(emp.access_token_conta_azul || emp.email_login)
-      const ehSomenteBanco = emp.datacar_cod_emp === 'SOMENTE_BANCO' || (emp as any).tipo_empresa === 'somente_banco' || (emp as any).somente_banco === true
-      return temCredencialFinanceiro || ehSomenteBanco
-    })
+    const disponiveisFinanceiro = (data || []).filter(emp => Boolean(emp.access_token_conta_azul || emp.email_login))
     setEmpresasDisponiveis(disponiveisFinanceiro)
     setCarregandoDisponiveis(false)
   }

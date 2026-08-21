@@ -27,20 +27,17 @@ export default function SelectorEmpresa() {
   // Filtra empresas de acordo com o módulo (Vendas vs Contas a Pagar/Receber/Gestão de Pagamentos)
   const empresasFiltradas = useMemo(() => {
     return empresas.filter(emp => {
-      const ehSomenteBanco = emp.datacar_cod_emp === 'SOMENTE_BANCO' || (emp as any).tipo_empresa === 'somente_banco' || (emp as any).somente_banco === true
-
       const temCredencialVendas = Boolean(emp.access_token_conta_azul_vendas || emp.email_login_vendas)
       const temCredencialFinanceiro = Boolean(emp.access_token_conta_azul || emp.email_login)
 
-      // Módulos de Vendas: Exibe apenas se tiver credencial de vendas cadastrada
+      // Módulos de Vendas (/vendas, /notas-emitidas): Exibe APENAS se tiver credencial de vendas cadastrada
       if (pathname.startsWith('/vendas') || pathname.startsWith('/notas-emitidas')) {
-        if (ehSomenteBanco) return false
         return temCredencialVendas
       }
 
-      // Módulos de Financeiro / Contas a Pagar / Gestão de Pagamentos: Exibe apenas se tiver credencial de financeiro ou for Somente Banco
+      // Módulos de Financeiro / Contas a Pagar / Gestão de Pagamentos (/contas-pagar, /gestao-pagamentos, /contas-receber, /boletos, /pagamentos, /receber): Exibe APENAS se tiver credencial de financeiro cadastrada
       if (pathname.startsWith('/contas-pagar') || pathname.startsWith('/gestao-pagamentos') || pathname.startsWith('/contas-receber') || pathname.startsWith('/boletos') || pathname.startsWith('/pagamentos') || pathname.startsWith('/receber')) {
-        return temCredencialFinanceiro || ehSomenteBanco
+        return temCredencialFinanceiro
       }
 
       return true
@@ -139,7 +136,7 @@ export default function SelectorEmpresa() {
   }
 
   const isVendasModulo = pathname.startsWith('/vendas') || pathname.startsWith('/notas-emitidas')
-  const isFinanceiroModulo = pathname.startsWith('/contas-pagar') || pathname.startsWith('/contas-receber') || pathname.startsWith('/boletos') || pathname.startsWith('/pagamentos') || pathname.startsWith('/receber')
+  const isFinanceiroModulo = pathname.startsWith('/contas-pagar') || pathname.startsWith('/gestao-pagamentos') || pathname.startsWith('/contas-receber') || pathname.startsWith('/boletos') || pathname.startsWith('/pagamentos') || pathname.startsWith('/receber')
 
   const caFinanceiroConectado = !!(empresaAtiva?.access_token_conta_azul || empresaAtiva?.email_login)
   const caVendasConectado = !!(empresaAtiva?.access_token_conta_azul_vendas || empresaAtiva?.email_login_vendas)
