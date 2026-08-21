@@ -635,8 +635,8 @@ function EmpresaCard({
   onDelete: () => void;
   onRecarregar: () => void;
 }) {
-  const caFinanceiroConectado = Boolean(empresa.access_token_conta_azul);
-  const caVendasConectado = Boolean(empresa.access_token_conta_azul_vendas);
+  const caFinanceiroConectado = Boolean(empresa.access_token_conta_azul || empresa.email_login || (empresa as any).tipo_empresa === 'financeiro' || (empresa as any).tipo_empresa === 'ambos')
+  const caVendasConectado = Boolean(empresa.access_token_conta_azul_vendas || empresa.email_login_vendas || (empresa as any).tipo_empresa === 'vendas' || (empresa as any).tipo_empresa === 'ambos')
   const ehSomenteBanco = empresa.datacar_cod_emp === 'SOMENTE_BANCO' || (empresa as any).tipo_empresa === 'somente_banco' || (empresa as any).somente_banco === true
 
   const empresasComCaFinanceiro = todasEmpresas.filter(e => e.id !== empresa.id && Boolean(e.access_token_conta_azul || e.email_login));
@@ -967,8 +967,8 @@ function EmpresaRowItem({
   const [mostrarFicha, setMostrarFicha] = useState(false)
   const [mostrarFornecedores, setMostrarFornecedores] = useState(false)
 
-  const caFinanceiroConectado = Boolean(empresa.access_token_conta_azul)
-  const caVendasConectado = Boolean(empresa.access_token_conta_azul_vendas)
+  const caFinanceiroConectado = Boolean(empresa.access_token_conta_azul || empresa.email_login || (empresa as any).tipo_empresa === 'financeiro' || (empresa as any).tipo_empresa === 'ambos')
+  const caVendasConectado = Boolean(empresa.access_token_conta_azul_vendas || empresa.email_login_vendas || (empresa as any).tipo_empresa === 'vendas' || (empresa as any).tipo_empresa === 'ambos')
   const ehSomenteBanco = empresa.datacar_cod_emp === 'SOMENTE_BANCO' || (empresa as any).tipo_empresa === 'somente_banco' || (empresa as any).somente_banco === true
 
   const empresasComCaFinanceiro = todasEmpresas.filter(e => e.id !== empresa.id && Boolean(e.access_token_conta_azul || e.email_login))
