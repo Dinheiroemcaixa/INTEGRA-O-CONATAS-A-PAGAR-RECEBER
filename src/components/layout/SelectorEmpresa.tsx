@@ -24,26 +24,23 @@ export default function SelectorEmpresa() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const pathname = usePathname() || ''
 
-  // Filtra empresas de acordo com o módulo (Vendas vs Contas a Pagar/Receber/Gestão de Pagamentos) e remove lojas marcadas como "Somente Banco" no Vendas
+  // Filtra empresas de acordo com o módulo (Vendas vs Contas a Pagar/Receber/Gestão de Pagamentos)
   const empresasFiltradas = useMemo(() => {
     return empresas.filter(emp => {
       const ehSomenteBanco = emp.datacar_cod_emp === 'SOMENTE_BANCO' || (emp as any).tipo_empresa === 'somente_banco' || (emp as any).somente_banco === true
 
-      const temCredencialVendas = Boolean(emp.access_token_conta_azul_vendas || emp.email_login_vendas || (emp as any).tipo_empresa === 'vendas' || (emp as any).tipo_empresa === 'ambos')
-      const temCredencialFinanceiro = Boolean(emp.access_token_conta_azul || emp.email_login || (emp as any).tipo_empresa === 'financeiro' || (emp as any).tipo_empresa === 'ambos')
-      const ehGenericoSemCredenciais = !emp.email_login && !emp.email_login_vendas && !emp.access_token_conta_azul && !emp.access_token_conta_azul_vendas
+      const temCredencialVendas = Boolean(emp.access_token_conta_azul_vendas || emp.email_login_vendas)
+      const temCredencialFinanceiro = Boolean(emp.access_token_conta_azul || emp.email_login)
 
-      // Módulos de Vendas: Exibe apenas se tiver credencial de vendas ou for nova/sem credencial
+      // Módulos de Vendas: Exibe apenas se tiver credencial de vendas cadastrada
       if (pathname.startsWith('/vendas') || pathname.startsWith('/notas-emitidas')) {
         if (ehSomenteBanco) return false
-        if (temCredencialVendas || ehGenericoSemCredenciais) return true
-        return false
+        return temCredencialVendas
       }
 
-      // Módulos de Financeiro / Gestão de Pagamentos: Exibe apenas se tiver credencial de financeiro, for somente banco ou nova/sem credencial
+      // Módulos de Financeiro / Contas a Pagar / Gestão de Pagamentos: Exibe apenas se tiver credencial de financeiro ou for Somente Banco
       if (pathname.startsWith('/contas-pagar') || pathname.startsWith('/gestao-pagamentos') || pathname.startsWith('/contas-receber') || pathname.startsWith('/boletos') || pathname.startsWith('/pagamentos') || pathname.startsWith('/receber')) {
-        if (temCredencialFinanceiro || ehSomenteBanco || ehGenericoSemCredenciais) return true
-        return false
+        return temCredencialFinanceiro || ehSomenteBanco
       }
 
       return true
