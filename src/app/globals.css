@@ -1,0 +1,651 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --accent: #22c55e;
+  --accent-hover: #16a34a;
+  --success: #22c55e;
+  --error: #ef4444;
+  --warning: #f59e0b;
+}
+
+html:not(.dark) {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Scrollbar customizada */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Animações */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out;
+}
+
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow {
+  animation: spin-slow 1.5s linear infinite;
+}
+
+/* Drag-and-drop */
+.dropzone-active {
+  border-color: #6366f1 !important;
+  background-color: rgba(99, 102, 241, 0.08) !important;
+}
+
+/* Tabela customizada */
+.table-bpo {
+  @apply w-full text-sm;
+}
+.table-bpo thead tr {
+  @apply bg-dark-800 text-dark-400 uppercase text-xs tracking-wide;
+}
+.table-bpo thead th {
+  @apply px-4 py-3 text-left;
+}
+.table-bpo tbody tr {
+  @apply border-t border-dark-700 hover:bg-dark-800 transition-colors;
+}
+.table-bpo tbody td {
+  @apply px-4 py-3;
+}
+
+/* ─── Cosmic Parallax Background ─────────────────────────────────────────── */
+:root {
+  --animation-iteration: infinite;
+}
+
+.cosmic-parallax-container {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
+  z-index: 0;
+}
+
+/* Stars - small */
+.cosmic-stars {
+  width: 1px;
+  height: 1px;
+  background: transparent;
+  animation: animStar 50s linear var(--animation-iteration);
+}
+.cosmic-stars::after {
+  content: '';
+  position: absolute;
+  top: 2000px;
+  width: 1px;
+  height: 1px;
+  background: transparent;
+  box-shadow: inherit;
+}
+
+/* Stars - medium */
+.cosmic-stars-medium {
+  width: 2px;
+  height: 2px;
+  background: transparent;
+  animation: animStar 100s linear var(--animation-iteration);
+}
+.cosmic-stars-medium::after {
+  content: '';
+  position: absolute;
+  top: 2000px;
+  width: 2px;
+  height: 2px;
+  background: transparent;
+  box-shadow: inherit;
+}
+
+/* Stars - large */
+.cosmic-stars-large {
+  width: 3px;
+  height: 3px;
+  background: transparent;
+  animation: animStar 150s linear var(--animation-iteration);
+}
+.cosmic-stars-large::after {
+  content: '';
+  position: absolute;
+  top: 2000px;
+  width: 3px;
+  height: 3px;
+  background: transparent;
+  box-shadow: inherit;
+}
+
+@keyframes animStar {
+  from { transform: translateY(0px); }
+  to { transform: translateY(-2000px); }
+}
+
+/* Horizon */
+#horizon {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 260px;
+  background: linear-gradient(
+    to top,
+    rgba(0, 77, 205, 0.25) 0%,
+    transparent 100%
+  );
+  z-index: 1;
+}
+
+#horizon .glow {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 80px;
+  background: radial-gradient(
+    ellipse at center bottom,
+    rgba(0, 119, 255, 0.35) 0%,
+    transparent 70%
+  );
+}
+
+/* Earth */
+#earth {
+  position: absolute;
+  bottom: -300px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 800px;
+  height: 800px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 20%,
+    #0c1e3a 0%,
+    #061028 60%,
+    #020610 100%
+  );
+  box-shadow:
+    0 0 60px rgba(0, 119, 255, 0.15),
+    0 0 120px rgba(0, 119, 255, 0.08),
+    inset 0 -20px 60px rgba(0, 50, 120, 0.3);
+  z-index: 1;
+}
+
+/* Title */
+#title {
+  position: absolute;
+  top: 38%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  text-align: center;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-weight: 800;
+  font-size: clamp(2.5rem, 6vw, 5rem);
+  color: #fff;
+  letter-spacing: 0.15em;
+  z-index: 2;
+  text-shadow:
+    0 0 20px rgba(99, 102, 241, 0.5),
+    0 0 60px rgba(99, 102, 241, 0.2);
+  animation: titlePulse 3s ease-in-out infinite;
+}
+
+@keyframes titlePulse {
+  0%, 100% {
+    text-shadow:
+      0 0 20px rgba(99, 102, 241, 0.5),
+      0 0 60px rgba(99, 102, 241, 0.2);
+    opacity: 1;
+  }
+  50% {
+    text-shadow:
+      0 0 40px rgba(99, 102, 241, 0.8),
+      0 0 100px rgba(99, 102, 241, 0.4),
+      0 0 150px rgba(99, 102, 241, 0.15);
+    opacity: 0.92;
+  }
+}
+
+/* Subtitle */
+#subtitle {
+  position: absolute;
+  top: calc(38% + clamp(2.5rem, 5vw, 4rem));
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-weight: 400;
+  font-size: clamp(0.7rem, 1.5vw, 1rem);
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.4em;
+  z-index: 2;
+}
+
+#subtitle .subtitle-part-1 {
+  animation: fadeInText 2s ease-in-out forwards;
+  opacity: 0;
+}
+#subtitle .subtitle-part-2 {
+  animation: fadeInText 2s ease-in-out 0.5s forwards;
+  opacity: 0;
+}
+#subtitle .subtitle-part-3 {
+  animation: fadeInText 2s ease-in-out 1s forwards;
+  opacity: 0;
+}
+
+@keyframes fadeInText {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Landing Page Styles */
+:root {
+  --accent-a: #22c55e;
+  --accent-b: #4ade80;
+  --bg: #070b16;
+  --panel: rgba(255, 255, 255, 0.035);
+  --bd: rgba(255, 255, 255, 0.09);
+  --muted: #8b93a7;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.9; }
+}
+
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes corePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(91, 108, 255, 0.45), 0 0 60px 10px rgba(34, 211, 238, 0.25); }
+  50% { box-shadow: 0 0 0 14px rgba(91, 108, 255, 0), 0 0 80px 18px rgba(34, 211, 238, 0.35); }
+}
+
+@keyframes flowDot {
+  0% { left: 0; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+
+@keyframes riseGlow {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.85; }
+}
+
+.nav-link { transition: color 0.2s; }
+.nav-link:hover { color: #fff; }
+
+.btn-ghost { transition: all 0.2s; }
+.btn-ghost:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.btn-primary { transition: transform 0.2s; }
+.btn-primary:hover { transform: translateY(-2px); }
+
+/* ─── Light Mode Override (html:not(.dark)) ──────────────────────────────── */
+html:not(.dark) {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+}
+
+html:not(.dark) body {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+/* Redefinições de fundos escuros para fundos claros em cards, painéis e páginas */
+html:not(.dark) .bg-\[\#11141c\],
+html:not(.dark) .bg-dark-900 {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .bg-\[\#0d1017\],
+html:not(.dark) .bg-\[\#0b0e14\],
+html:not(.dark) .bg-dark-950,
+html:not(.dark) .bg-dark-850 {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .bg-dark-800,
+html:not(.dark) .bg-dark-800\/80,
+html:not(.dark) .bg-dark-800\/60,
+html:not(.dark) .bg-dark-800\/50 {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .bg-dark-800\/40,
+html:not(.dark) .bg-dark-800\/30,
+html:not(.dark) .bg-dark-800\/20,
+html:not(.dark) .bg-dark-800\/10 {
+  background-color: rgba(241, 245, 249, 0.6) !important;
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .bg-dark-900\/50,
+html:not(.dark) .bg-dark-900\/60 {
+  background-color: rgba(248, 250, 252, 0.8) !important;
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .bg-dark-700,
+html:not(.dark) .bg-dark-700\/50 {
+  background-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+/* Hover de fundos no modo claro */
+html:not(.dark) .hover\:bg-dark-800:hover,
+html:not(.dark) .hover\:bg-dark-800\/60:hover,
+html:not(.dark) .hover\:bg-dark-800\/40:hover,
+html:not(.dark) .hover\:bg-dark-800\/30:hover {
+  background-color: #f1f5f9 !important;
+}
+
+html:not(.dark) .hover\:bg-dark-700:hover,
+html:not(.dark) .hover\:bg-dark-700\/50:hover {
+  background-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .hover\:bg-dark-600:hover {
+  background-color: #cbd5e1 !important;
+}
+
+/* Sobrescreve bordas escuras por cinza claro com contraste nítido */
+html:not(.dark) .border-dark-800,
+html:not(.dark) .border-dark-700,
+html:not(.dark) .border-dark-700\/50,
+html:not(.dark) .border-dark-700\/30,
+html:not(.dark) .border-dark-700\/20 {
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .border-dark-600 {
+  border-color: #cbd5e1 !important;
+}
+
+html:not(.dark) .border-dark-500 {
+  border-color: #94a3b8 !important;
+}
+
+html:not(.dark) .divide-dark-700\/50 > :not([hidden]) ~ :not([hidden]),
+html:not(.dark) .divide-dark-700 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e2e8f0 !important;
+}
+
+/* Cores de textos principais e secundários no modo claro */
+html:not(.dark) .text-white {
+  color: #0f172a !important;
+}
+
+html:not(.dark) h1,
+html:not(.dark) h2,
+html:not(.dark) h3,
+html:not(.dark) h4,
+html:not(.dark) h5,
+html:not(.dark) h6 {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .text-dark-100 {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .text-dark-200 {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .text-dark-300 {
+  color: #334155 !important;
+}
+
+html:not(.dark) .text-dark-400 {
+  color: #475569 !important;
+}
+
+html:not(.dark) .text-dark-500 {
+  color: #64748b !important;
+}
+
+html:not(.dark) .text-dark-600 {
+  color: #94a3b8 !important;
+}
+
+html:not(.dark) .hover\:text-white:hover {
+  color: #0f172a !important;
+}
+
+/* Inputs, selects e textareas */
+html:not(.dark) input:not(.bg-transparent),
+html:not(.dark) select:not(.bg-transparent),
+html:not(.dark) textarea:not(.bg-transparent) {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+html:not(.dark) input.bg-transparent,
+html:not(.dark) select.bg-transparent,
+html:not(.dark) textarea.bg-transparent {
+  background-color: transparent !important;
+}
+
+html:not(.dark) input:focus,
+html:not(.dark) select:focus,
+html:not(.dark) textarea:focus {
+  border-color: #6366f1 !important;
+}
+
+html:not(.dark) ::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+/* Badges e tags com cores de destaque vivas no fundo claro */
+html:not(.dark) .text-blue-400,
+html:not(.dark) .text-blue-500 {
+  color: #2563eb !important;
+}
+
+html:not(.dark) .text-emerald-400,
+html:not(.dark) .text-emerald-500 {
+  color: #059669 !important;
+}
+
+html:not(.dark) .text-rose-400,
+html:not(.dark) .text-rose-500,
+html:not(.dark) .text-red-500 {
+  color: #e11d48 !important;
+}
+
+html:not(.dark) .text-violet-400,
+html:not(.dark) .text-violet-500 {
+  color: #7c3aed !important;
+}
+
+html:not(.dark) .text-amber-400,
+html:not(.dark) .text-amber-500 {
+  color: #d97706 !important;
+}
+
+html:not(.dark) .text-brand-400,
+html:not(.dark) .text-brand-500 {
+  color: #4f46e5 !important;
+}
+
+/* Fundos sutis para badges / tags no modo claro */
+html:not(.dark) .bg-blue-500\/10 {
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+}
+
+html:not(.dark) .bg-emerald-500\/10 {
+  background-color: #f0fdf4 !important;
+  border-color: #bbf7d0 !important;
+}
+
+html:not(.dark) .bg-amber-500\/10 {
+  background-color: #fffbeb !important;
+  border-color: #fde68a !important;
+}
+
+html:not(.dark) .bg-rose-500\/10,
+html:not(.dark) .bg-rose-600\/10 {
+  background-color: #fff1f2 !important;
+  border-color: #fecdd3 !important;
+}
+
+html:not(.dark) .bg-violet-500\/10 {
+  background-color: #f5f3ff !important;
+  border-color: #ddd6fe !important;
+}
+
+html:not(.dark) .bg-brand-500\/10,
+html:not(.dark) .bg-brand-500\/20 {
+  background-color: #eef2ff !important;
+  border-color: #c7d2fe !important;
+}
+
+/* GARANTIA: Botões sólidos e badges com fundo colorido forte MANTÊM texto e ícones BRANCOS */
+html:not(.dark) .bg-blue-600,
+html:not(.dark) .bg-blue-600 *,
+html:not(.dark) .bg-blue-500,
+html:not(.dark) .bg-blue-500 *,
+html:not(.dark) .bg-blue-700,
+html:not(.dark) .bg-blue-700 *,
+html:not(.dark) .bg-emerald-600,
+html:not(.dark) .bg-emerald-600 *,
+html:not(.dark) .bg-emerald-500,
+html:not(.dark) .bg-emerald-500 *,
+html:not(.dark) .bg-emerald-700,
+html:not(.dark) .bg-emerald-700 *,
+html:not(.dark) .bg-violet-600,
+html:not(.dark) .bg-violet-600 *,
+html:not(.dark) .bg-violet-500,
+html:not(.dark) .bg-violet-500 *,
+html:not(.dark) .bg-brand-600,
+html:not(.dark) .bg-brand-600 *,
+html:not(.dark) .bg-brand-500,
+html:not(.dark) .bg-brand-500 *,
+html:not(.dark) .bg-brand-700,
+html:not(.dark) .bg-brand-700 *,
+html:not(.dark) .bg-rose-600,
+html:not(.dark) .bg-rose-600 *,
+html:not(.dark) .bg-rose-500,
+html:not(.dark) .bg-rose-500 *,
+html:not(.dark) .bg-rose-700,
+html:not(.dark) .bg-rose-700 *,
+html:not(.dark) .bg-indigo-600,
+html:not(.dark) .bg-indigo-600 *,
+html:not(.dark) .bg-amber-600,
+html:not(.dark) .bg-amber-600 *,
+html:not(.dark) .bg-green-600,
+html:not(.dark) .bg-green-600 *,
+html:not(.dark) .bg-green-700,
+html:not(.dark) .bg-green-700 *,
+html:not(.dark) .bg-red-600,
+html:not(.dark) .bg-red-600 *,
+html:not(.dark) .bg-red-500,
+html:not(.dark) .bg-red-500 * {
+  color: #ffffff !important;
+}
+
+/* Modais e Menus Dropdown flutuantes no modo claro */
+html:not(.dark) .absolute.bg-dark-800,
+html:not(.dark) .absolute.bg-dark-900 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08) !important;
+}
+
+html:not(.dark) .absolute.bg-dark-800 button,
+html:not(.dark) .absolute.bg-dark-800 label,
+html:not(.dark) .absolute.bg-dark-800 a,
+html:not(.dark) .absolute.bg-dark-900 button,
+html:not(.dark) .absolute.bg-dark-900 label,
+html:not(.dark) .absolute.bg-dark-900 a {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .absolute.bg-dark-800 button:hover,
+html:not(.dark) .absolute.bg-dark-800 label:hover,
+html:not(.dark) .absolute.bg-dark-800 a:hover,
+html:not(.dark) .absolute.bg-dark-900 button:hover,
+html:not(.dark) .absolute.bg-dark-900 label:hover,
+html:not(.dark) .absolute.bg-dark-900 a:hover {
+  background-color: #f1f5f9 !important;
+}
+
+/* Scrollbars no modo claro */
+html:not(.dark) ::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+html:not(.dark) ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+html:not(.dark) ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+@media (max-width: 880px) {
+  .nav-links { display: none !important; }
+  .grid-3, .grid-4, .integ, .flow { grid-template-columns: 1fr !important; }
+  .flow { flex-wrap: wrap !important; }
+  .flow-line { display: none !important; }
+}
+
+@media (max-width: 560px) {
+  .grid-4 { grid-template-columns: 1fr 1fr !important; }
+}
+
