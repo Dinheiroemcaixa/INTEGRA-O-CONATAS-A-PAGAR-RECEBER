@@ -458,6 +458,59 @@ export default function VendasPage() {
         </div>
       </div>
 
+      {/* KPI Cards Superiores */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Valor Total */}
+        <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/10 rounded-full blur-xl group-hover:bg-cyan-500/20 transition-all pointer-events-none" />
+          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">Valor Total dos Serviços</span>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-black text-white tracking-tight">
+              {formatCurrency(vendasDatacar.reduce((acc, v) => acc + (Number(v.valor_total) || 0), 0))}
+            </span>
+            <span className="text-xs bg-cyan-500/20 text-cyan-400 font-bold px-2 py-0.5 rounded border border-cyan-500/30">
+              {vendasDatacar.length} OS
+            </span>
+          </div>
+        </div>
+
+        {/* Card 2: Selecionados */}
+        <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-xl group-hover:bg-purple-500/20 transition-all pointer-events-none" />
+          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">Serviços Selecionados</span>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-black text-purple-300 tracking-tight">
+              {selecionadosDatacar.size} <span className="text-sm font-semibold text-dark-400">notas</span>
+            </span>
+            <span className="text-xs bg-purple-500/20 text-purple-300 font-bold px-2 py-0.5 rounded border border-purple-500/30">
+              Em Lote
+            </span>
+          </div>
+        </div>
+
+        {/* Card 3: Certificado A1 */}
+        <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition-all pointer-events-none" />
+          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">Certificado Digital A1</span>
+          <div className="mt-2 flex items-center justify-between">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-lg border border-emerald-500/30">
+              <CheckCircle size={14} /> Válido (A1 ICP-Brasil)
+            </span>
+          </div>
+        </div>
+
+        {/* Card 4: Ambiente */}
+        <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-xl group-hover:bg-amber-500/20 transition-all pointer-events-none" />
+          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">Ambiente de Emissão</span>
+          <div className="mt-2 flex items-center justify-between">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 text-amber-300 text-xs font-bold rounded-lg border border-amber-500/30">
+              🧪 Homologação (Testes Gov.br)
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Sub-abas: Datacar | Planilha */}
       <div className="flex border-b border-dark-700 gap-0">
         <button
