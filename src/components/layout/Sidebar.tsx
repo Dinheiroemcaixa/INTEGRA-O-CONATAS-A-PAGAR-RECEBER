@@ -23,7 +23,6 @@ const navItems = [
   { label: 'Gestão de Pagamentos', href: '/gestao-pagamentos', icon: Database, badge: 'NOVO' },
   { label: 'Contas a Receber', href: '/contas-receber', icon: ArrowUpCircle, badge: 'EM BREVE', disabled: true },
   { label: 'Empresas', href: '/empresas', icon: Building2 },
-  { label: 'Config. Fiscal', href: '/config-fiscal', icon: FileKey2, badge: 'NOVO' },
   { label: 'Configuracoes', href: '/configuracoes', icon: Settings, disabled: true },
 ]
 

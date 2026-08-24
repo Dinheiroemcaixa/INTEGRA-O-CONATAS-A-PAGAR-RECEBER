@@ -320,6 +320,9 @@ function InlineEmpresaEditForm({
   
   // Estado Fiscal NFS-e
   const [emiteNfse, setEmiteNfse] = useState((empresa as any).emite_nfse || (empresa as any).optante_simples || false)
+  const [regimeTributario, setRegimeTributario] = useState('1')
+  const [cidadeIbge, setCidadeIbge] = useState('3106200')
+  const [codigoTributacao, setCodigoTributacao] = useState('14.01.01')
   const [inscricaoMunicipal, setInscricaoMunicipal] = useState('')
   const [aliquotaSimples, setAliquotaSimples] = useState('11.34')
   const [aliquotaIssqn, setAliquotaIssqn] = useState('')
@@ -338,6 +341,9 @@ function InlineEmpresaEditForm({
           if (data.config.inscricao_municipal) setInscricaoMunicipal(data.config.inscricao_municipal)
           if (data.config.aliquota_simples_nacional) setAliquotaSimples(String(data.config.aliquota_simples_nacional))
           if (data.config.aliquota_issqn) setAliquotaIssqn(String(data.config.aliquota_issqn))
+          if (data.config.regime_tributario) setRegimeTributario(String(data.config.regime_tributario))
+          if (data.config.cidade_ibge) setCidadeIbge(String(data.config.cidade_ibge))
+          if (data.config.codigo_tributacao_nacional) setCodigoTributacao(String(data.config.codigo_tributacao_nacional))
         }
         if (data?.temCertificado) setTemCertificadoSalvo(true)
       })
@@ -407,6 +413,9 @@ function InlineEmpresaEditForm({
         formData.append('empresa_id', empresa.id)
         formData.append('cnpj', cnpjLimpo)
         formData.append('inscricao_municipal', inscricaoMunicipal)
+        formData.append('regime_tributario', regimeTributario)
+        formData.append('cidade_ibge', cidadeIbge)
+        formData.append('codigo_tributacao_nacional', codigoTributacao)
         formData.append('aliquota_simples_nacional', aliquotaSimples)
         formData.append('aliquota_issqn', aliquotaIssqn)
         if (senhaCertificado) formData.append('senha_certificado', senhaCertificado)
@@ -590,6 +599,32 @@ function InlineEmpresaEditForm({
                 <div className="space-y-4 pt-2 border-t border-dark-700/60 animate-fade-in">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
+                      <label className="text-[11px] font-semibold text-dark-300 block mb-1">Regime Tributário *</label>
+                      <select
+                        value={regimeTributario}
+                        onChange={(e) => setRegimeTributario(e.target.value)}
+                        className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none"
+                      >
+                        <option value="1">Simples Nacional (Microempresa / EPP)</option>
+                        <option value="2">Microempreendedor Individual (MEI)</option>
+                        <option value="3">Lucro Presumido</option>
+                        <option value="4">Lucro Real</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-dark-300 block mb-1">Código IBGE da Cidade Sede *</label>
+                      <input
+                        type="text"
+                        value={cidadeIbge}
+                        onChange={(e) => setCidadeIbge(e.target.value)}
+                        placeholder="Ex: 3106200 (Belo Horizonte) ou 5215605"
+                        className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
                       <label className="text-[11px] font-semibold text-dark-300 block mb-1">Inscrição Municipal</label>
                       <input
                         type="text"
@@ -623,10 +658,23 @@ function InlineEmpresaEditForm({
                       />
                     </div>
                     <div>
+                      <label className="text-[11px] font-semibold text-dark-300 block mb-1">Cód. Tributação Nacional (LC 116)</label>
+                      <input
+                        type="text"
+                        value={codigoTributacao}
+                        onChange={(e) => setCodigoTributacao(e.target.value)}
+                        placeholder="Ex: 14.01.01 (Manutenção/Revisão)"
+                        className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
                       <label className="text-[11px] font-semibold text-dark-300 block mb-1">Certificado Digital A1 (.pfx)</label>
                       <div className="flex items-center gap-2">
                         <label className="flex-1 bg-dark-900 border border-dark-700 hover:border-dark-500 rounded-lg px-3 py-1.5 text-xs text-dark-300 cursor-pointer flex items-center justify-between truncate">
-                          <span>{certificadoFile ? certificadoFile.name : (temCertificadoSalvo ? '✓ Certificado A1 Salvo' : 'Selecionar .pfx')}</span>
+                          <span>{certificadoFile ? certificadoFile.name : (temCertificadoSalvo ? '✓ Certificado A1 Salvo (ICP-Brasil)' : 'Selecionar .pfx')}</span>
                           <input
                             type="file"
                             accept=".pfx,.p12"
@@ -636,17 +684,16 @@ function InlineEmpresaEditForm({
                         </label>
                       </div>
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-semibold text-dark-300 block mb-1">Senha do Certificado A1</label>
-                    <input
-                      type="password"
-                      value={senhaCertificado}
-                      onChange={(e) => setSenhaCertificado(e.target.value)}
-                      placeholder={temCertificadoSalvo ? '•••••••• (Inalterada)' : 'Digite a senha do certificado A1'}
-                      className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none"
-                    />
+                    <div>
+                      <label className="text-[11px] font-semibold text-dark-300 block mb-1">Senha do Certificado A1</label>
+                      <input
+                        type="password"
+                        value={senhaCertificado}
+                        onChange={(e) => setSenhaCertificado(e.target.value)}
+                        placeholder={temCertificadoSalvo ? '•••••••• (Inalterada)' : 'Digite a senha do certificado A1'}
+                        className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
