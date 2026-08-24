@@ -753,13 +753,35 @@ function InlineEmpresaEditForm({
                   <label className="text-xs font-semibold text-dark-200 block">API Datacar (Opcional)</label>
                 </div>
               </div>
-              <div className="space-y-2 pt-1">
+              <div className="space-y-2.5 pt-1">
                 <input
                   value={datacarToken}
                   onChange={(e) => setDatacarToken(e.target.value)}
-                  placeholder="Token de Acesso"
+                  placeholder="Token de Acesso Datacar"
                   className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-4 py-2.5 text-xs text-white focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all placeholder:text-dark-600 shadow-inner"
                 />
+                {!somenteBanco && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-dark-400 font-semibold block mb-1">Cód. Empresa Datacar</label>
+                      <input
+                        value={datacarCodEmp}
+                        onChange={(e) => setDatacarCodEmp(e.target.value)}
+                        placeholder="Ex: 001 ou 1"
+                        className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-3 py-2 text-xs text-white focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none font-mono placeholder:text-dark-600 shadow-inner"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-dark-400 font-semibold block mb-1">ID Operador Datacar</label>
+                      <input
+                        value={datacarIdOperador}
+                        onChange={(e) => setDatacarIdOperador(e.target.value)}
+                        placeholder="Ex: 102"
+                        className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-3 py-2 text-xs text-white focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none font-mono placeholder:text-dark-600 shadow-inner"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2053,13 +2075,35 @@ function EmpresasPageContent() {
                       <label className="text-xs font-semibold text-dark-200 block">API Datacar (Opcional)</label>
                     </div>
                   </div>
-                  <div className="space-y-2 pt-1">
+                  <div className="space-y-2.5 pt-1">
                     <input
                       value={form.datacar_token}
                       onChange={(e) => setForm({ ...form, datacar_token: e.target.value })}
-                      placeholder="Token de Acesso"
+                      placeholder="Token de Acesso Datacar"
                       className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-4 py-2.5 text-xs text-white focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all placeholder:text-dark-600 shadow-inner"
                     />
+                    {!form.somente_banco && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] text-dark-400 font-semibold block mb-1">Cód. Empresa Datacar</label>
+                          <input
+                            value={form.datacar_cod_emp}
+                            onChange={(e) => setForm({ ...form, datacar_cod_emp: e.target.value })}
+                            placeholder="Ex: 001 ou 1"
+                            className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-3 py-2 text-xs text-white focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none font-mono placeholder:text-dark-600 shadow-inner"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-dark-400 font-semibold block mb-1">ID Operador Datacar</label>
+                          <input
+                            value={form.datacar_id_operador}
+                            onChange={(e) => setForm({ ...form, datacar_id_operador: e.target.value })}
+                            placeholder="Ex: 102"
+                            className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-3 py-2 text-xs text-white focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none font-mono placeholder:text-dark-600 shadow-inner"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
