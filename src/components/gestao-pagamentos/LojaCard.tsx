@@ -1112,14 +1112,34 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                     <td className="px-4 py-2.5 text-sm text-dark-300 max-w-[110px] truncate" title={pag.categoria || ''}>
                       {pag.categoria || '—'}
                     </td>
-                    <td className="px-4 py-2.5 text-sm text-dark-300 max-w-[320px] xl:max-w-[500px] truncate" title={
-                      pag.descricao
-                        ? `${pag.descricao}${pag.documento ? ' - Doc: ' + pag.documento : ''}`
-                        : (pag.documento ? `Doc: ${pag.documento}` : '—')
-                    }>
-                      {pag.descricao
-                        ? `${pag.descricao}${pag.documento ? ' - Doc: ' + pag.documento : ''}`
-                        : (pag.documento ? `Doc: ${pag.documento}` : '—')}
+                    <td className="px-4 py-2.5 text-sm text-dark-300 max-w-[320px] xl:max-w-[500px]">
+                      <div className="truncate" title={
+                        pag.descricao
+                          ? `${pag.descricao}${pag.documento ? ' - Doc: ' + pag.documento : ''}`
+                          : (pag.documento ? `Doc: ${pag.documento}` : '—')
+                      }>
+                        {pag.descricao
+                          ? `${pag.descricao}${pag.documento ? ' - Doc: ' + pag.documento : ''}`
+                          : (pag.documento ? `Doc: ${pag.documento}` : '—')}
+                      </div>
+                      {pag.codigo_barras && (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[10px] text-dark-400 font-mono truncate max-w-[180px]">
+                            {pag.codigo_barras}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              navigator.clipboard.writeText(pag.codigo_barras)
+                              toast.success('Código/PIX copiado com sucesso!')
+                            }}
+                            className="p-1 hover:bg-dark-700 text-brand-400 hover:text-brand-300 rounded transition-colors flex-shrink-0"
+                            title="Copiar Código de Barras / PIX"
+                          >
+                            <Copy size={11} />
+                          </button>
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-2.5">
                       <button onClick={() => toggleStatus(pag)} className={`text-[10px] font-bold px-2 py-1 rounded border uppercase tracking-wider transition-colors ${

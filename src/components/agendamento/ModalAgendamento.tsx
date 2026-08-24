@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { X, Calendar as CalendarIcon, Loader2, Sparkles, FileCheck2, Paperclip, CheckCircle2 } from 'lucide-react'
+import { X, Calendar as CalendarIcon, Loader2, Sparkles, FileCheck2, Paperclip, CheckCircle2, Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { createClient } from '@/lib/supabase/client'
 import { Empresa } from '@/types'
@@ -22,7 +22,8 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
   const [fornecedor, setFornecedor] = useState('')
   const [descricao, setDescricao] = useState('')
   const [dataVencimento, setDataVencimento] = useState(hoje)
-  const [dataCompetencia, setDataCompetencia] = useState('')
+  const [dataPagamento, setDataPagamento] = useState(hoje)
+  const [dataCompetencia, setDataCompetencia] = useState(hoje)
   const [valor, setValor] = useState(0)
   const [categoria, setCategoria] = useState('')
   const [contaPagamento, setContaPagamento] = useState('')
@@ -165,6 +166,10 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
       const dados = json.dados
       if (dados.fornecedor) setFornecedor(dados.fornecedor)
       if (dados.data_vencimento) setDataVencimento(dados.data_vencimento)
+      if (dados.data_pagamento) setDataPagamento(dados.data_pagamento)
+      else setDataPagamento(hoje)
+      if (dados.data_documento) setDataCompetencia(dados.data_documento)
+      else setDataCompetencia(hoje)
       if (dados.valor) setValor(Number(dados.valor) || 0)
       if (dados.categoria) {
         const catClean = dados.categoria.trim().toLowerCase()
@@ -182,9 +187,6 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
         setDescricao(`Boleto nº ${dados.documento}`)
       } else if (dados.descricao) {
         setDescricao(dados.descricao)
-      }
-      if (dados.data_documento) {
-        setDataCompetencia(dados.data_documento)
       }
 
       toast.success('Documento lido! Confira os campos antes de salvar.', { id: 'ler_anexo' })
@@ -235,8 +237,8 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
         fornecedor: fornecedor || null,
         descricao,
         data_vencimento: dataVencimento,
-        data_pagamento: dataVencimento || hoje,
-        competencia: dataCompetencia || null,
+        data_pagamento: dataPagamento || hoje,
+        competencia: dataCompetencia || hoje,
         valor,
         categoria,
         conta_pagamento: contaPagamento,
@@ -349,18 +351,22 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-dark-400 uppercase">Data Pgto (Venc.) <span className="text-rose-400">*</span></label>
-              <input type="date" value={dataVencimento} onChange={e => setDataVencimento(e.target.value)} className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
+              <label className="text-xs font-semibold text-dark-400 uppercase">Data Vencimento <span className="text-rose-400">*</span></label>
+              <input type="date" value={dataVencimento} onChange={e => setDataVencimento(e.target.value)} className="w-full bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-white text-sm focus:border-brand-500 outline-none transition-all font-mono" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-dark-400 uppercase">Data Pagamento</label>
+              <input type="date" value={dataPagamento} onChange={e => setDataPagamento(e.target.value)} className="w-full bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-white text-sm focus:border-brand-500 outline-none transition-all font-mono" />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-semibold text-dark-400 uppercase">Data Competência</label>
-              <input type="date" value={dataCompetencia} onChange={e => setDataCompetencia(e.target.value)} className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
+              <input type="date" value={dataCompetencia} onChange={e => setDataCompetencia(e.target.value)} className="w-full bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-white text-sm focus:border-brand-500 outline-none transition-all font-mono" />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-semibold text-dark-400 uppercase">Valor (R$) <span className="text-rose-400">*</span></label>
-              <InputMoeda value={valor} onChange={setValor} className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
+              <InputMoeda value={valor} onChange={setValor} className="w-full bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-white text-sm focus:border-brand-500 outline-none transition-all" />
             </div>
           </div>
 
@@ -410,7 +416,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
                   onClick={() => setEditandoConta(true)}
                   className="w-full text-left bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm hover:border-brand-500 transition-all truncate"
                 >
-                  {contaPagamento || <span className="text-dark-500">Clique para buscar...</span>}
+                  {categoria ? (contaPagamento || <span className="text-dark-500">Clique para buscar...</span>) : <span className="text-dark-500">Clique para buscar...</span>}
                 </button>
               )}
             </div>
@@ -423,12 +429,30 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
             </div>
           )}
 
-          {(tipo === 'Boleto' || tipo === 'Imposto') && (
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-dark-400 uppercase">Código de Barras</label>
-              <input type="text" value={codigoBarras} onChange={e => setCodigoBarras(e.target.value)} placeholder="Código de barras ou linha digitável numérica" className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-dark-400 uppercase">Código de Barras / PIX Copia e Cola</label>
+              {codigoBarras && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(codigoBarras)
+                    toast.success('Código/PIX copiado com sucesso!')
+                  }}
+                  className="text-xs text-brand-400 hover:text-brand-300 font-semibold flex items-center gap-1 bg-brand-500/10 px-2 py-0.5 rounded border border-brand-500/20"
+                >
+                  <Copy size={12} /> Copiar Código
+                </button>
+              )}
             </div>
-          )}
+            <input
+              type="text"
+              value={codigoBarras}
+              onChange={e => setCodigoBarras(e.target.value)}
+              placeholder="Linha digitável de boleto ou payload do PIX Copia e Cola"
+              className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all font-mono"
+            />
+          </div>
         </div>
 
         {/* Footer */}
