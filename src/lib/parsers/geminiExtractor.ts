@@ -173,17 +173,18 @@ Se não conseguir identificar nenhum empregado, responda: []`
 }
 
 function normalizarItemAvulso(item: any): ItemAvulso {
+  const hoje = new Date().toISOString().split('T')[0]
   return {
     fornecedor: String(item?.fornecedor || '').trim(),
     descricao: String(item?.descricao || '').trim(),
     documento: String(item?.documento || '').trim(),
     data_vencimento: String(item?.data_vencimento || '').trim(),
-    data_documento: String(item?.data_documento || '').trim(),
+    data_documento: String(item?.data_documento || hoje).trim(),
     valor: Number(item?.valor) || 0,
     categoria: String(item?.categoria || '').trim(),
-    tipo: String(item?.tipo || 'Outros').trim(),
+    tipo: String(item?.tipo || 'PIX').trim(),
     chave_pix: String(item?.chave_pix || '').trim(),
-    codigo_barras: String(item?.codigo_barras || '').replace(/[^0-9]/g, '').trim(),
+    codigo_barras: String(item?.codigo_barras || item?.chave_pix || '').trim(),
   }
 }
 
@@ -191,20 +192,30 @@ export async function extrairDocumentoAvulso(file: File): Promise<ItemAvulso> {
   const { base64, mimeType } = await fileParaBase64(file)
   const model = getModel()
 
-  const prompt = `Você é um especialista em ler documentos financeiros brasileiros: boletos, guias de imposto (DAS, DARF, GPS, FGTS, ICMS, ISS etc.), taxas, notas fiscais e comprovantes de pagamento.
-Analise o documento anexado (imagem ou PDF) e extraia os dados do pagamento principal desse documento.
+  const prompt = `Você é um especialista em ler documentos financeiros brasileiros: guias de imposto (GFD - FGTS Digital, GRRF, DAS, DARF, GPS), boletos e comprovantes.
+Analise o documento anexado (imagem ou PDF) e extraia os dados do pagamento principal.
+
+REGRAS OBRIGATÓRIAS PARA GUIA DO FGTS DIGITAL (GFD / GRRF / RESCISÃO):
+1. Se for uma GFD - Guia do FGTS Digital ou GRRF:
+   - "categoria": "Multa de FGTS" (se houver valores de FGTS Rescisório ou Indenização Compensatória ou Tag GRRF) ou "FGTS" (se mensal).
+   - "fornecedor": O nome do colaborador que está na Tag, SEM as iniciais "GRRF - " (ex: se for "Tag GRRF - LEANDRO LIMA DE OLIVEIRA", o fornecedor é "LEANDRO LIMA DE OLIVEIRA").
+   - "descricao": OBRIGATORIAMENTE EM CAIXA ALTA: "RESCISÃO - NOME DO COLABORADOR" (ex: "RESCISÃO - LEANDRO LIMA DE OLIVEIRA").
+   - "data_vencimento": A data do campo "Pagar este documento até" (AAAA-MM-DD).
+   - "data_documento": A data atual de hoje (AAAA-MM-DD).
+   - "tipo": "PIX".
+   - "codigo_barras": Coloque o payload do PIX Copia e Cola completo (iniciando em 000201010212...) ou código de barras.
 
 Devolva um objeto JSON com exatamente estes campos:
-- "fornecedor": nome do beneficiário/fornecedor a quem o pagamento se destina
-- "descricao": uma descrição curta do que é esse pagamento
-- "documento": o número do documento/boleto/nota fiscal impresso nele. Deixe "" se não encontrar
-- "data_vencimento": data de vencimento no formato "AAAA-MM-DD"
-- "data_documento": a "data do documento" ou "data de emissão" impressa nele, no formato "AAAA-MM-DD". Deixe "" se não encontrar
-- "valor": valor numérico total a pagar, usando PONTO como separador decimal, sem "R$" e sem separador de milhar
-- "categoria": uma sugestão curta de categoria ("Impostos", "Fornecedores", "Salários", "Taxas", "Aluguel", "Outros")
-- "tipo": o meio de pagamento identificado ("PIX", "Boleto", "TED", "Folha", "Imposto", "Outros")
-- "chave_pix": se o documento tiver uma chave PIX visível. Caso contrário, deixe ""
-- "codigo_barras": o código de barras ou a linha digitável do boleto/guia (apenas números). Se não houver, deixe ""
+- "fornecedor": nome do colaborador (para rescisório) ou beneficiário
+- "descricao": descrição em caixa alta (ex: "RESCISÃO - NOME DO COLABORADOR")
+- "documento": número do documento. Deixe "" se não encontrar
+- "data_vencimento": data de vencimento ("AAAA-MM-DD")
+- "data_documento": data do lançamento/hoje ("AAAA-MM-DD")
+- "valor": valor numérico total a recolher (ponto decimal, sem R$)
+- "categoria": "Multa de FGTS" ou "FGTS" ou "Impostos"
+- "tipo": "PIX" ou "Boleto" ou "Imposto"
+- "chave_pix": payload do PIX Copia e Cola
+- "codigo_barras": payload do PIX Copia e Cola ou linha digitável numérica
 
 Responda APENAS com um objeto JSON válido, sem texto antes ou depois, sem markdown.`
 

@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Se a leitura nativa encontrou os dados principais (fornecedor, valor e vencimento)
+    // Se a leitura nativa encontrou os dados principais da Guia/Boleto, PRIORIZA E RETORNA IMEDIATAMENTE
     if (dadosNativos?.fornecedor || (dadosNativos?.valor && dadosNativos?.data_vencimento)) {
       return NextResponse.json({ dados: dadosNativos });
     }
@@ -38,14 +38,14 @@ export async function POST(req: NextRequest) {
     if (process.env.GEMINI_API_KEY) {
       try {
         const dadosGemini = await extrairDocumentoAvulso(file);
-        const resultadoFinal = { ...dadosNativos, ...dadosGemini }
+        // Prioriza sempre dadosNativos sobre dadosGemini
+        const resultadoFinal = { ...dadosGemini, ...dadosNativos }
         return NextResponse.json({ dados: resultadoFinal });
       } catch (errGemini) {
         console.error('[extrair-anexo] Falha na leitura IA Gemini:', errGemini);
       }
     }
 
-    // Retorna o que conseguiu extrair localmente ou objeto limpo sem dar erro 500
     return NextResponse.json({ dados: dadosNativos });
 
   } catch (error) {
