@@ -21,6 +21,7 @@ import SelectorFornecedor from '@/components/upload/SelectorFornecedor'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import { Empresa } from '@/types'
 import { normalizarNome } from '@/lib/parsers/fornecedores-contaazul'
+import { visualizarAnexo } from '@/lib/utils'
 
 interface LojaCardProps {
   empresa: Empresa
@@ -1514,9 +1515,13 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                     </div>
                   )}
                   {itemEditando.anexo_url && (
-                    <a href={itemEditando.anexo_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-xs text-emerald-400 hover:text-emerald-300 font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => visualizarAnexo(itemEditando.anexo_url)}
+                      className="inline-flex items-center gap-2 text-xs text-emerald-400 hover:text-emerald-300 font-semibold"
+                    >
                       <Paperclip size={14} /> Ver anexo
-                    </a>
+                    </button>
                   )}
                 </>
               )}
@@ -1611,14 +1616,13 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                 
                 <div className="grid grid-cols-2 gap-2.5">
                   {itemAcoes.anexo_url ? (
-                    <a
-                      href={itemAcoes.anexo_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
+                      onClick={() => visualizarAnexo(itemAcoes.anexo_url)}
                       className="flex items-center justify-center gap-2 bg-dark-800 hover:bg-dark-700 border border-dark-600 text-emerald-400 hover:text-emerald-300 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all"
                     >
                       <Paperclip size={14} /> Ver Anexo
-                    </a>
+                    </button>
                   ) : (
                     <button
                       disabled

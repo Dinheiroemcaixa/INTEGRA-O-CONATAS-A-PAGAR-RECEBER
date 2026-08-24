@@ -86,3 +86,32 @@ export function formatCNPJ(cnpj: string): string {
 export function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
+
+export function visualizarAnexo(url: string | null | undefined) {
+  if (!url) return
+  if (url.startsWith('data:')) {
+    try {
+      const parts = url.split(';base64,')
+      const contentType = parts[0].split(':')[1] || 'application/pdf'
+      const raw = window.atob(parts[1])
+      const rawLength = raw.length
+      const uInt8Array = new Uint8Array(rawLength)
+      for (let i = 0; i < rawLength; ++i) {
+        uInt8Array[i] = raw.charCodeAt(i)
+      }
+      const blob = new Blob([uInt8Array], { type: contentType })
+      const blobUrl = URL.createObjectURL(blob)
+      const win = window.open(blobUrl, '_blank')
+      if (!win) {
+        const a = document.createElement('a')
+        a.href = blobUrl
+        a.download = contentType.includes('pdf') ? 'anexo.pdf' : 'anexo'
+        a.click()
+      }
+    } catch (e) {
+      console.error('Erro ao converter e abrir data URL:', e)
+    }
+  } else {
+    window.open(url, '_blank')
+  }
+}
