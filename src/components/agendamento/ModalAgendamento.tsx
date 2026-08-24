@@ -21,6 +21,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
   const hoje = new Date().toISOString().split('T')[0]
   const [fornecedor, setFornecedor] = useState('')
   const [descricao, setDescricao] = useState('')
+  const [observacao, setObservacao] = useState('')
   const [dataVencimento, setDataVencimento] = useState(hoje)
   const [dataPagamento, setDataPagamento] = useState(hoje)
   const [dataCompetencia, setDataCompetencia] = useState(hoje)
@@ -118,6 +119,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
   const limparFormulario = () => {
     setFornecedor('')
     setDescricao('')
+    setObservacao('')
     setDataVencimento(hoje)
     setDataCompetencia('')
     setValor(0)
@@ -232,10 +234,12 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
         }
       }
 
+      const descricaoFinal = observacao.trim() ? `${descricao} - Obs: ${observacao.trim()}` : descricao
+
       const { error } = await supabase.from('agendamentos').insert({
         empresa_id: empresaAtiva.id,
         fornecedor: fornecedor || null,
-        descricao,
+        descricao: descricaoFinal,
         data_vencimento: dataVencimento,
         data_pagamento: dataPagamento || hoje,
         competencia: dataCompetencia || hoje,
@@ -346,7 +350,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
               )}
             </div>
             <div className="space-y-1 md:col-span-2">
-              <label className="text-xs font-semibold text-dark-400 uppercase">Descrição / Observações <span className="text-rose-400">*</span></label>
+              <label className="text-xs font-semibold text-dark-400 uppercase">Descrição <span className="text-rose-400">*</span></label>
               <input type="text" value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Detalhes do pagamento" className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
             </div>
           </div>
@@ -422,13 +426,19 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
             </div>
           </div>
 
-          {tipo === 'PIX' && !codigoBarras && (
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-dark-400 uppercase">Chave PIX</label>
-              <input type="text" value={chavePix} onChange={e => setChavePix(e.target.value)} placeholder="Chave do beneficiário" className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
-            </div>
-          )}
+          {/* CAMPO DEDICADO DE OBSERVAÇÃO */}
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-dark-400 uppercase">Observação</label>
+            <input
+              type="text"
+              value={observacao}
+              onChange={e => setObservacao(e.target.value)}
+              placeholder="Observações ou notas adicionais (opcional)"
+              className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all"
+            />
+          </div>
 
+          {/* CAMPO DE CÓDIGO DE BARRAS / PIX COPIA E COLA */}
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-dark-400 uppercase">Código de Barras / PIX Copia e Cola</label>
