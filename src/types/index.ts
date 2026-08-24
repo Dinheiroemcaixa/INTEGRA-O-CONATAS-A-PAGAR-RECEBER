@@ -18,6 +18,9 @@ export interface Empresa {
   refresh_token_conta_azul_vendas?: string | null
   data_expiracao_token_vendas?: string | null
   conta_azul_vendas_connected?: boolean
+  /** Marca se esta empresa é optante do Simples Nacional e emite NFS-e */
+  emite_nfse?: boolean
+  optante_simples?: boolean
   /** Tipo da empresa: vendas, financeiro (contas a pagar/receber) ou ambos */
   tipo_empresa: 'vendas' | 'financeiro' | 'ambos'
   /** Token de acesso à API do Datacar */

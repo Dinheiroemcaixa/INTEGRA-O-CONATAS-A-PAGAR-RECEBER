@@ -651,28 +651,6 @@ export default function VendasPage() {
                       className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-32 placeholder:text-dark-600"
                     />
                   </div>
-                  
-                  {/* Novos campos de alíquota no painel principal */}
-                  <div>
-                    <label className="text-[10px] font-medium mb-1 block text-dark-400 uppercase">Alíquota Simples (%)</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: 11.34"
-                      value={aliquotaSimples}
-                      onChange={(e) => setAliquotaSimples(e.target.value)}
-                      className="bg-dark-900 border border-brand-500/50 rounded-lg px-2 py-2 text-white text-sm focus:ring-2 focus:ring-brand-500/50 outline-none w-28 placeholder:text-dark-600"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-medium mb-1 block text-dark-400 uppercase">Alíquota ISSQN (%)</label>
-                    <input
-                      type="text"
-                      placeholder="Vazio se não houver"
-                      value={aliquotaIssqn}
-                      onChange={(e) => setAliquotaIssqn(e.target.value)}
-                      className="bg-dark-900 border border-brand-500/50 rounded-lg px-2 py-2 text-white text-sm focus:ring-2 focus:ring-brand-500/50 outline-none w-32 placeholder:text-dark-600"
-                    />
-                  </div>
 
                   <button
                     onClick={handleBuscarVendasDatacar}

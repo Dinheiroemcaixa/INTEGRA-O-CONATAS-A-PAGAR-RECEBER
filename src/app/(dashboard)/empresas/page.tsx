@@ -317,9 +317,32 @@ function InlineEmpresaEditForm({
   const [datacarCodEmp, setDatacarCodEmp] = useState(empresa.datacar_cod_emp === 'SOMENTE_BANCO' ? '' : (empresa.datacar_cod_emp || ''))
   const [datacarIdOperador, setDatacarIdOperador] = useState(empresa.datacar_id_operador || '')
   const [somenteBanco, setSomenteBanco] = useState(ehSomenteBancoInicial)
+  
+  // Estado Fiscal NFS-e
+  const [emiteNfse, setEmiteNfse] = useState((empresa as any).emite_nfse || (empresa as any).optante_simples || false)
+  const [inscricaoMunicipal, setInscricaoMunicipal] = useState('')
+  const [aliquotaSimples, setAliquotaSimples] = useState('11.34')
+  const [aliquotaIssqn, setAliquotaIssqn] = useState('')
+  const [senhaCertificado, setSenhaCertificado] = useState('')
+  const [certificadoFile, setCertificadoFile] = useState<File | null>(null)
+  const [temCertificadoSalvo, setTemCertificadoSalvo] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [buscandoCnpj, setBuscandoCnpj] = useState(false)
   const [dadosCnpj, setDadosCnpj] = useState<BrasilApiCnpjResponse | null>(null)
+
+  useEffect(() => {
+    fetch(`/api/config-fiscal?empresa_id=${empresa.id}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data?.config) {
+          if (data.config.inscricao_municipal) setInscricaoMunicipal(data.config.inscricao_municipal)
+          if (data.config.aliquota_simples_nacional) setAliquotaSimples(String(data.config.aliquota_simples_nacional))
+          if (data.config.aliquota_issqn) setAliquotaIssqn(String(data.config.aliquota_issqn))
+        }
+        if (data?.temCertificado) setTemCertificadoSalvo(true)
+      })
+      .catch(console.error)
+  }, [empresa.id])
 
   const handleBuscarCnpjInline = async () => {
     const cnpjLimpo = (cnpj || '').replace(/\D/g, '')
@@ -372,10 +395,28 @@ function InlineEmpresaEditForm({
           datacar_id_operador: datacarIdOperador.trim() || null,
           razao_social: razaoSocial.trim() || null,
           nome_fantasia: nomeFantasia.trim() || null,
+          emite_nfse: emiteNfse,
+          optante_simples: emiteNfse,
         })
         .eq('id', empresa.id)
 
       if (error) throw error
+
+      if (emiteNfse) {
+        const formData = new FormData()
+        formData.append('empresa_id', empresa.id)
+        formData.append('cnpj', cnpjLimpo)
+        formData.append('inscricao_municipal', inscricaoMunicipal)
+        formData.append('aliquota_simples_nacional', aliquotaSimples)
+        formData.append('aliquota_issqn', aliquotaIssqn)
+        if (senhaCertificado) formData.append('senha_certificado', senhaCertificado)
+        if (certificadoFile) formData.append('certificado', certificadoFile)
+
+        await fetch('/api/config-fiscal', {
+          method: 'POST',
+          body: formData
+        })
+      }
 
       toast.success(`Empresa "${nome}" atualizada com sucesso!`)
       onSaved()
@@ -518,6 +559,97 @@ function InlineEmpresaEditForm({
                   </span>
                 </div>
               </label>
+            </div>
+
+            {/* MARCADOR: EMPRESA DO SIMPLES NACIONAL / EMISSORA NFS-E */}
+            <div className="bg-dark-900/50 p-4 rounded-xl border border-blue-500/30 space-y-3">
+              <label className="flex items-start gap-3 cursor-pointer bg-dark-900 p-3.5 rounded-xl border border-blue-500/40 hover:border-blue-400 transition-all group">
+                <input
+                  type="checkbox"
+                  checked={emiteNfse}
+                  onChange={(e) => setEmiteNfse(e.target.checked)}
+                  className="w-4 h-4 mt-0.5 rounded text-blue-500 bg-dark-800 border-dark-600 focus:ring-blue-500/50"
+                />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-blue-400 block group-hover:text-blue-300">
+                      🏷️ Empresa do Simples Nacional (Emite NFS-e)
+                    </span>
+                    <span className="text-[10px] bg-blue-500/20 text-blue-300 font-bold px-2 py-0.5 rounded border border-blue-500/30">
+                      NFS-e Gov.br
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-dark-400 block leading-relaxed mt-1">
+                    Ative este marcador para configurar os impostos (Simples/ISSQN) e disponibilizar esta loja exclusivamente no módulo de **Vendas e Serviços (NFS-e)**.
+                  </span>
+                </div>
+              </label>
+
+              {/* PAINEL EXPANSÍVEL FISCAL */}
+              {emiteNfse && (
+                <div className="space-y-4 pt-2 border-t border-dark-700/60 animate-fade-in">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[11px] font-semibold text-dark-300 block mb-1">Inscrição Municipal</label>
+                      <input
+                        type="text"
+                        value={inscricaoMunicipal}
+                        onChange={(e) => setInscricaoMunicipal(e.target.value)}
+                        placeholder="Ex: 15219040018"
+                        className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-dark-300 block mb-1">Alíquota Simples Nacional (%)</label>
+                      <input
+                        type="text"
+                        value={aliquotaSimples}
+                        onChange={(e) => setAliquotaSimples(e.target.value)}
+                        placeholder="Ex: 11.34"
+                        className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[11px] font-semibold text-dark-300 block mb-1">Alíquota ISSQN (%)</label>
+                      <input
+                        type="text"
+                        value={aliquotaIssqn}
+                        onChange={(e) => setAliquotaIssqn(e.target.value)}
+                        placeholder="Ex: 2.00 ou deixe vazio"
+                        className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-dark-300 block mb-1">Certificado Digital A1 (.pfx)</label>
+                      <div className="flex items-center gap-2">
+                        <label className="flex-1 bg-dark-900 border border-dark-700 hover:border-dark-500 rounded-lg px-3 py-1.5 text-xs text-dark-300 cursor-pointer flex items-center justify-between truncate">
+                          <span>{certificadoFile ? certificadoFile.name : (temCertificadoSalvo ? '✓ Certificado A1 Salvo' : 'Selecionar .pfx')}</span>
+                          <input
+                            type="file"
+                            accept=".pfx,.p12"
+                            className="hidden"
+                            onChange={(e) => setCertificadoFile(e.target.files?.[0] || null)}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-dark-300 block mb-1">Senha do Certificado A1</label>
+                    <input
+                      type="password"
+                      value={senhaCertificado}
+                      onChange={(e) => setSenhaCertificado(e.target.value)}
+                      placeholder={temCertificadoSalvo ? '•••••••• (Inalterada)' : 'Digite a senha do certificado A1'}
+                      className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

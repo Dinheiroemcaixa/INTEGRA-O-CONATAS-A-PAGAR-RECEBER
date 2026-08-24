@@ -30,6 +30,13 @@ export default function SelectorEmpresa() {
       const temCredencialVendas = Boolean(emp.access_token_conta_azul_vendas || emp.email_login_vendas)
       const temCredencialFinanceiro = Boolean(emp.access_token_conta_azul || emp.email_login)
 
+      // Módulo de Vendas e Serviços (/vendas-servicos): Exibe APENAS empresas emissoras de NFS-e (ou optantes do Simples)
+      if (pathname.startsWith('/vendas-servicos')) {
+        const emissoras = empresas.filter(e => e.emite_nfse === true || e.optante_simples === true)
+        // Se houverem empresas com o marcador ativo, exibe apenas elas. Se nenhuma tiver marcado ainda, exibe com Datacar.
+        return emissoras.length > 0 ? (emp.emite_nfse === true || emp.optante_simples === true) : Boolean(emp.datacar_token || emp.email_login_vendas)
+      }
+
       // Módulos de Vendas (/vendas, /notas-emitidas): Exibe APENAS se tiver credencial de vendas cadastrada
       if (pathname.startsWith('/vendas') || pathname.startsWith('/notas-emitidas')) {
         return temCredencialVendas
