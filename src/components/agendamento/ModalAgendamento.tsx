@@ -221,16 +221,24 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
           const caminho = `${empresaAtiva.id}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${extensao}`
           const { error: erroUpload } = await supabase.storage
             .from('anexos')
-            .upload(caminho, arquivoAnexo, { upsert: false, contentType: arquivoAnexo.type || undefined })
+            .upload(caminho, arquivoAnexo, { upsert: true, contentType: arquivoAnexo.type || undefined })
 
-          if (erroUpload) {
-            toast.error('Não foi possível salvar o anexo (' + erroUpload.message + '), mas o agendamento será salvo mesmo assim.')
-          } else {
+          if (!erroUpload) {
             const { data: urlData } = supabase.storage.from('anexos').getPublicUrl(caminho)
             anexoUrl = urlData.publicUrl
+          } else {
+            console.warn('[ModalAgendamento] Supabase storage upload falhou, salvando como Data URL:', erroUpload)
+            const buffer = await arquivoAnexo.arrayBuffer()
+            const base64 = Buffer.from(buffer).toString('base64')
+            const mime = arquivoAnexo.type || 'application/pdf'
+            anexoUrl = `data:${mime};base64,${base64}`
           }
-        } catch {
-          toast.error('Não foi possível salvar o anexo, mas o agendamento será salvo mesmo assim.')
+        } catch (eUpload) {
+          console.warn('[ModalAgendamento] Erro ao fazer upload, usando fallback base64:', eUpload)
+          const buffer = await arquivoAnexo.arrayBuffer()
+          const base64 = Buffer.from(buffer).toString('base64')
+          const mime = arquivoAnexo.type || 'application/pdf'
+          anexoUrl = `data:${mime};base64,${base64}`
         }
       }
 
