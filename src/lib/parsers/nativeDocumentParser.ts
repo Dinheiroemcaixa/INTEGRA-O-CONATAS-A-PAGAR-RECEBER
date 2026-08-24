@@ -92,12 +92,12 @@ export function extrairDadosDeTextoNativo(texto: string): DadosDocumentoExtraido
       res.valor = parseCurrency(matchValor[1])
     }
 
-    // e) PIX Copia e Cola / Payload Location (colocar em codigo_barras e chave_pix)
+    // e) PIX Copia e Cola / Payload Location (colocar apenas em codigo_barras)
     const matchPix = texto.match(/(000201010212[^\s\n]+)/) ||
                      texto.match(/(pix-qrcode\.caixa\.gov\.br[^\s\n]+)/)
     if (matchPix) {
       res.codigo_barras = matchPix[1]
-      res.chave_pix = matchPix[1]
+      res.chave_pix = ''
     }
 
     return res

@@ -174,6 +174,9 @@ Se não conseguir identificar nenhum empregado, responda: []`
 
 function normalizarItemAvulso(item: any): ItemAvulso {
   const hoje = new Date().toISOString().split('T')[0]
+  const codigoBarrasFinal = String(item?.codigo_barras || item?.chave_pix || '').trim()
+  const chavePixFinal = codigoBarrasFinal.startsWith('000201') ? '' : String(item?.chave_pix || '').trim()
+
   return {
     fornecedor: String(item?.fornecedor || '').trim(),
     descricao: String(item?.descricao || '').trim(),
@@ -183,8 +186,8 @@ function normalizarItemAvulso(item: any): ItemAvulso {
     valor: Number(item?.valor) || 0,
     categoria: String(item?.categoria || '').trim(),
     tipo: String(item?.tipo || 'PIX').trim(),
-    chave_pix: String(item?.chave_pix || '').trim(),
-    codigo_barras: String(item?.codigo_barras || item?.chave_pix || '').trim(),
+    chave_pix: chavePixFinal,
+    codigo_barras: codigoBarrasFinal,
   }
 }
 
