@@ -65,20 +65,7 @@ export async function getValidToken(
   let targetEmpresa = empresa
   let rawToken = empresa[tokenKey]
 
-  // Fallback 1: Se a empresa não tem token, verificar se tem empresa pai/matriz vinculada
-  if (!rawToken && empresa.conta_azul_empresa_pai_id) {
-    const { data: pai } = await supabaseAdmin
-      .from('empresas')
-      .select('*')
-      .eq('id', empresa.conta_azul_empresa_pai_id)
-      .single()
-    if (pai && pai[tokenKey]) {
-      targetEmpresa = pai
-      rawToken = pai[tokenKey]
-    }
-  }
-
-  // Fallback 2: Se ainda não tem token, buscar qualquer empresa do mesmo grupo que esteja conectada
+  // Fallback: Se a empresa não tem token próprio, buscar qualquer empresa do mesmo grupo que esteja conectada ao Conta Azul
   if (!rawToken && empresa.grupo_id) {
     const { data: grupoEmpresas } = await supabaseAdmin
       .from('empresas')

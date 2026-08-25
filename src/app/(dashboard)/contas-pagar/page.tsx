@@ -46,8 +46,7 @@ function ModalEnvioContaAzul({
   const [abrirSeletor, setAbrirSeletor] = useState(false)
   const temTokenDireto = !!empresaSelecionada?.access_token_conta_azul
   const temTokenCompartilhado = !temTokenDireto && (
-    !!empresaSelecionada?.conta_azul_empresa_pai_id ||
-    (empresaSelecionada?.grupo_id ? todasEmpresas.some(e => e.grupo_id === empresaSelecionada.grupo_id && !!e.access_token_conta_azul) : false)
+    empresaSelecionada?.grupo_id ? todasEmpresas.some(e => e.grupo_id === empresaSelecionada.grupo_id && !!e.access_token_conta_azul) : false
   )
   const conectado = temTokenDireto || temTokenCompartilhado
 
@@ -685,7 +684,7 @@ export default function ContasPagarPage() {
                   <button
                     onClick={async () => {
                       if (!empresaAtiva) { toast.error('Selecione uma empresa'); return }
-                      const temConexaoCA = !!empresaAtiva.access_token_conta_azul || !!empresaAtiva.conta_azul_empresa_pai_id || (empresaAtiva.grupo_id ? empresas.some(e => e.grupo_id === empresaAtiva.grupo_id && !!e.access_token_conta_azul) : false)
+                      const temConexaoCA = !!empresaAtiva.access_token_conta_azul || (empresaAtiva.grupo_id ? empresas.some(e => e.grupo_id === empresaAtiva.grupo_id && !!e.access_token_conta_azul) : false)
                       if (!temConexaoCA) {
                         toast.error('Empresa não está conectada ao Conta Azul. Vá em Empresas e conecte ou espelhe primeiro.')
                         return

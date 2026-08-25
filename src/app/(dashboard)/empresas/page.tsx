@@ -315,7 +315,7 @@ function InlineEmpresaEditForm({
   const [nomeFantasia, setNomeFantasia] = useState(empresa.nome_fantasia || '')
   const [emailLogin, setEmailLogin] = useState(empresa.email_login || '')
   const [emailLoginVendas, setEmailLoginVendas] = useState(empresa.email_login_vendas || '')
-  const [contaAzulEmpresaPaiId, setContaAzulEmpresaPaiId] = useState(empresa.conta_azul_empresa_pai_id || '')
+  const [contaAzulEmpresaPaiId, setContaAzulEmpresaPaiId] = useState('')
   const [datacarToken, setDatacarToken] = useState(empresa.datacar_token || '')
   const [datacarCodEmp, setDatacarCodEmp] = useState(empresa.datacar_cod_emp === 'SOMENTE_BANCO' ? '' : (empresa.datacar_cod_emp || ''))
   const [datacarIdOperador, setDatacarIdOperador] = useState(empresa.datacar_id_operador || '')
@@ -406,7 +406,6 @@ function InlineEmpresaEditForm({
           nome_fantasia: nomeFantasia.trim() || null,
           emite_nfse: emiteNfse,
           optante_simples: emiteNfse,
-          conta_azul_empresa_pai_id: contaAzulEmpresaPaiId || null,
         })
         .eq('id', empresa.id)
 
