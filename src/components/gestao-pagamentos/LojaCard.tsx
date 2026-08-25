@@ -474,7 +474,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             valor: parseFloat(String(item.valor).replace(',', '.')),
             data_vencimento: dtVenc,
             data_pagamento: vencimentoEspecifico || dataInicio || dataInclusaoHoje,
-            descricao: ehAdiantamento ? 'Adiantamento Salarial' : 'Salário',
+            descricao: ehAdiantamento ? 'ADIANTAMENTO SALARIAL' : 'SALÁRIO',
             cpf_cnpj: item.cpf_cnpj,
             competencia: competencia
           }
@@ -1119,12 +1119,12 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                     <td className="px-4 py-2.5 text-sm text-dark-300 max-w-[320px] xl:max-w-[500px]">
                       <div className="truncate" title={
                         pag.descricao
-                          ? `${pag.descricao}${pag.documento ? ' - Doc: ' + pag.documento : ''}`
-                          : (pag.documento ? `Doc: ${pag.documento}` : '—')
+                          ? `${String(pag.descricao).toUpperCase()}${pag.documento ? ' - DOC: ' + pag.documento : ''}`
+                          : (pag.documento ? `DOC: ${pag.documento}` : '—')
                       }>
                         {pag.descricao
-                          ? `${pag.descricao}${pag.documento ? ' - Doc: ' + pag.documento : ''}`
-                          : (pag.documento ? `Doc: ${pag.documento}` : '—')}
+                          ? `${String(pag.descricao).toUpperCase()}${pag.documento ? ' - DOC: ' + pag.documento : ''}`
+                          : (pag.documento ? `DOC: ${pag.documento}` : '—')}
                       </div>
                       {pag.codigo_barras && (
                         <div className="flex items-center gap-1.5 mt-0.5">

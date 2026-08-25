@@ -164,7 +164,7 @@ Se não conseguir identificar nenhum empregado, responda: []`
       cpf_cnpj: String(item.cpf_cnpj || '').trim(),
       valor: Number(item.valor) || 0,
       tipo: String(item.tipo || tipoCalculo).trim(),
-      descricao: String(item.descricao || item.tipo || tipoCalculo).trim(),
+      descricao: String(item.descricao || item.tipo || tipoCalculo).trim().toUpperCase(),
       data_vencimento: '',
     }))
     .filter((item: ItemFolha) => item.fornecedor && item.valor > 0)

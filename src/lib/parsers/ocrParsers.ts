@@ -177,7 +177,7 @@ export function parseFolhaFromOCR(texto: string) {
                     cpf_cnpj: cpf || '',
                     valor,
                     tipo: tipoCalculo,
-                    descricao: tipoCalculo,
+                    descricao: tipoCalculo.toUpperCase(),
                     data_vencimento: ''
                 })
             }

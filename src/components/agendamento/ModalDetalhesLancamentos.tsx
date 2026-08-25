@@ -176,8 +176,8 @@ export default function ModalDetalhesLancamentos({
                   </tr>
                 ) : (
                   lancamentos.map((pag, idx) => {
-                     const docStr = pag.documento || pag.cpf_cnpj ? `Doc: ${pag.documento || pag.cpf_cnpj}` : ''
-                     const descFinal = pag.descricao ? `${pag.descricao}${docStr ? ' - ' + docStr : ''}` : (docStr || '—')
+                     const docStr = pag.documento || pag.cpf_cnpj ? `DOC: ${pag.documento || pag.cpf_cnpj}` : ''
+                     const descFinal = pag.descricao ? `${String(pag.descricao).toUpperCase()}${docStr ? ' - ' + docStr : ''}` : (docStr || '—')
                      const nome = pag.fornecedor || pag.beneficiario || '—'
                      
                      return (
