@@ -31,6 +31,12 @@ export async function GET(req: NextRequest) {
     const contas = await listarContasFinanceiras(accessToken)
     return NextResponse.json({ contas })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Erro ao buscar contas' }, { status: 500 })
+    try {
+      const resultForcado = await getValidToken(empresa_id, 'financeiro', true)
+      const contas = await listarContasFinanceiras(resultForcado.accessToken)
+      return NextResponse.json({ contas })
+    } catch (retryErr: any) {
+      return NextResponse.json({ error: retryErr.message || 'Erro ao buscar contas' }, { status: 500 })
+    }
   }
 }

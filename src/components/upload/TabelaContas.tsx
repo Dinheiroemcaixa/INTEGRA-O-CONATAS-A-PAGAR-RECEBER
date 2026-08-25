@@ -120,7 +120,8 @@ export default function TabelaContas({ empresaId }: Props) {
   }
 
   const handleAplicarBancoEmLote = async (nomeConta: string, contaId: string) => {
-    if (selecionados.length === 0) return
+    const idsAlvo = selecionados.length > 0 ? selecionados : contas.map(c => c.id)
+    if (idsAlvo.length === 0) { toast.error('Nenhuma conta na lista'); return }
     try {
       const { error } = await supabase
         .from('contas_pagar_importadas')
@@ -128,10 +129,10 @@ export default function TabelaContas({ empresaId }: Props) {
           conta_financeira: nomeConta || null,
           conta_financeira_id: contaId || null,
         })
-        .in('id', selecionados)
+        .in('id', idsAlvo)
 
       if (error) throw error
-      toast.success(`Banco atualizado em ${selecionados.length} conta(s)!`)
+      toast.success(`Banco "${nomeConta}" aplicado em ${idsAlvo.length} conta(s)!`)
       setEditandoEmMassaConta(false)
       carregar()
     } catch (e: any) {
@@ -140,15 +141,16 @@ export default function TabelaContas({ empresaId }: Props) {
   }
 
   const handleAplicarCategoriaEmLote = async (categoria: string) => {
-    if (selecionados.length === 0) return
+    const idsAlvo = selecionados.length > 0 ? selecionados : contas.map(c => c.id)
+    if (idsAlvo.length === 0) { toast.error('Nenhuma conta na lista'); return }
     try {
       const { error } = await supabase
         .from('contas_pagar_importadas')
         .update({ categoria })
-        .in('id', selecionados)
+        .in('id', idsAlvo)
 
       if (error) throw error
-      toast.success(`Categoria atualizada em ${selecionados.length} conta(s)!`)
+      toast.success(`Categoria "${categoria}" aplicada em ${idsAlvo.length} conta(s)!`)
       setEditandoEmMassaCat(false)
       carregar()
     } catch (e: any) {
@@ -242,12 +244,14 @@ export default function TabelaContas({ empresaId }: Props) {
           ))}
         </div>
 
-        {/* Ações para Selecionados em Lote */}
-        {selecionados.length > 0 && (
-          <div className="flex items-center gap-2 animate-fade-in">
-            <span className="text-xs text-blue-400 font-bold px-2 py-1 bg-blue-500/10 rounded border border-blue-500/20">
-              {selecionados.length} selecionado(s)
-            </span>
+        {/* Ações em Lote (Sempre Visíveis quando há contas na tabela) */}
+        {contas.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap animate-fade-in">
+            {selecionados.length > 0 && (
+              <span className="text-xs text-blue-400 font-bold px-2 py-1 bg-blue-500/10 rounded border border-blue-500/20">
+                {selecionados.length} selecionada(s)
+              </span>
+            )}
 
             {/* Atribuir Banco em Lote */}
             <div className="relative">
@@ -261,9 +265,10 @@ export default function TabelaContas({ empresaId }: Props) {
               ) : (
                 <button
                   onClick={() => setEditandoEmMassaConta(true)}
-                  className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shadow-sm"
+                  className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-all shadow-sm"
+                  title="Aplicar o mesmo banco a todas as contas selecionadas (ou todas da lista)"
                 >
-                  <Landmark size={13} /> Atribuir Banco
+                  <Landmark size={13} /> {selecionados.length > 0 ? `Banco (${selecionados.length})` : 'Banco em Lote'}
                 </button>
               )}
             </div>
@@ -279,19 +284,22 @@ export default function TabelaContas({ empresaId }: Props) {
               ) : (
                 <button
                   onClick={() => setEditandoEmMassaCat(true)}
-                  className="flex items-center gap-1.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shadow-sm"
+                  className="flex items-center gap-1.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-all shadow-sm"
+                  title="Aplicar a mesma categoria a todas as contas selecionadas (ou todas da lista)"
                 >
-                  <Tags size={13} /> Atribuir Categoria
+                  <Tags size={13} /> {selecionados.length > 0 ? `Categoria (${selecionados.length})` : 'Categoria em Lote'}
                 </button>
               )}
             </div>
 
-            <button
-              onClick={handleExcluirSelecionados}
-              className="flex items-center gap-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
-            >
-              <Trash2 size={13} /> Excluir
-            </button>
+            {selecionados.length > 0 && (
+              <button
+                onClick={handleExcluirSelecionados}
+                className="flex items-center gap-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <Trash2 size={13} /> Excluir ({selecionados.length})
+              </button>
+            )}
           </div>
         )}
         
