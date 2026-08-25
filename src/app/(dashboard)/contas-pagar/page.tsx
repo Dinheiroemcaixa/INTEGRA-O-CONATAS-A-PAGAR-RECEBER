@@ -258,6 +258,27 @@ export default function ContasPagarPage() {
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.email) setUserEmail(data.user.email)
     })
+    
+    if (typeof window !== 'undefined') {
+      const raw = sessionStorage.getItem('itens_para_revisao')
+      if (raw) {
+        try {
+          const itens = JSON.parse(raw)
+          sessionStorage.removeItem('itens_para_revisao')
+          if (Array.isArray(itens) && itens.length > 0) {
+            setResultado({
+              total: itens.length,
+              validos: itens.length,
+              invalidos: 0,
+              dados: itens,
+            })
+            setEtapa('preview')
+          }
+        } catch (err) {
+          console.error('Erro ao ler itens para revisao:', err)
+        }
+      }
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
