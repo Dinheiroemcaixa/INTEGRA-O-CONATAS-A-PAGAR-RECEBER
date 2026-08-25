@@ -43,7 +43,8 @@ export interface ValidTokenResult {
  */
 export async function getValidToken(
   empresaId: string,
-  modulo: 'financeiro' | 'vendas' = 'financeiro'
+  modulo: 'financeiro' | 'vendas' = 'financeiro',
+  forceRefresh: boolean = false
 ): Promise<ValidTokenResult> {
   // 1. Buscar empresa
   const { data: empresa, error: errEmp } = await supabaseAdmin
@@ -92,9 +93,9 @@ export async function getValidToken(
   const agora = new Date()
   const tokenExpirado = expiracao && expiracao <= new Date(agora.getTime() + 5 * 60 * 1000)
 
-  // 3. Renovar se necessário
+  // 3. Renovar se necessário ou se solicitado (forceRefresh)
   const currentRefreshToken = targetEmpresa[refreshKey]
-  if (tokenExpirado && currentRefreshToken) {
+  if ((tokenExpirado || forceRefresh) && currentRefreshToken) {
     try {
       const novosTokens = await refreshToken(
         currentRefreshToken,
@@ -115,10 +116,15 @@ export async function getValidToken(
         updateData.conta_azul_connected = true
       }
 
-      const { error: errUpdate } = await supabaseAdmin
-        .from('empresas')
-        .update(updateData)
-        .eq('id', targetEmpresa.id)
+      let query = supabaseAdmin.from('empresas').update(updateData)
+      if (targetEmpresa.email_login) {
+        query = query.or(`id.eq.${targetEmpresa.id},email_login.eq.${targetEmpresa.email_login}`)
+      } else if (targetEmpresa.grupo_id) {
+        query = query.or(`id.eq.${targetEmpresa.id},grupo_id.eq.${targetEmpresa.grupo_id}`)
+      } else {
+        query = query.eq('id', targetEmpresa.id)
+      }
+      const { error: errUpdate } = await query
 
       if (errUpdate) {
         console.error('[token-manager] Falha ao salvar novos tokens:', errUpdate.message)

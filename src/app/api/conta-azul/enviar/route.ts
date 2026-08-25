@@ -50,14 +50,19 @@ export async function POST(req: NextRequest) {
         listarContasFinanceiras(accessToken)
       ])
     } catch (e: any) {
-      const msgErro = e instanceof Error ? e.message : String(e)
-      console.error('[ca/enviar] ERRO ao carregar metadados:', msgErro)
-      
-      if (msgErro === 'TOKEN_EXPIRADO' || msgErro.includes('Token has expired') || msgErro.includes('TokenExpired')) {
-        return NextResponse.json({ error: 'Sua conexão com a Conta Azul expirou. Por favor, acesse o painel (icone de engrenagem) e clique em "Conectar Conta Azul" novamente.' }, { status: 401 })
+      console.warn('[ca/enviar] Erro ao carregar metadados na 1ª tentativa, tentando renovar token:', e?.message || e)
+      try {
+        const resultForcado = await getValidToken(empresa_id, 'financeiro', true)
+        accessToken = resultForcado.accessToken;
+        [todasCategorias, todasContasFinanceiras] = await Promise.all([
+          listarCategorias(accessToken),
+          listarContasFinanceiras(accessToken)
+        ])
+      } catch (retryErr: any) {
+        const msgErro = retryErr instanceof Error ? retryErr.message : String(retryErr)
+        console.error('[ca/enviar] ERRO ao carregar metadados após renovação:', msgErro)
+        return NextResponse.json({ error: 'Sua conexão com a Conta Azul precisa ser renovada. Acesse Empresas e reconecte.' }, { status: 401 })
       }
-      
-      return NextResponse.json({ error: msgErro }, { status: 400 })
     }
 
     console.log(`[ca/enviar] Categorias carregadas: ${todasCategorias.length}`)
