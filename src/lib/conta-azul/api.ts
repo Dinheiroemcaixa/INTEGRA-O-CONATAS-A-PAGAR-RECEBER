@@ -119,10 +119,14 @@ export async function refreshToken(
 export async function listarContasFinanceiras(accessToken: string): Promise<ContaFinanceira[]> {
   const todasContas = new Map<string, ContaFinanceira>()
   const endpoints = [
+    `https://api-v2.contaazul.com/v1/bank-accounts`,
+    `https://api.contaazul.com/v1/bank-accounts`,
+    `${BASE_URL}/bank-accounts`,
+    `${BASE_URL}/bank-accounts?pagina=1&tamanho_pagina=100`,
     `${BASE_URL}/conta-financeira?pagina=1&tamanho_pagina=100`,
     `${BASE_URL}/financeiro/conta-financeira?pagina=1&tamanho_pagina=100`,
     `${BASE_URL}/contas-financeiras?pagina=1&tamanho_pagina=100`,
-    `${BASE_URL}/financeiro/contas-financeiras?pagina=1&tamanho_pagina=100`,
+    `${BASE_URL}/contas?pagina=1&tamanho_pagina=100`,
   ]
   for (const endpoint of endpoints) {
     try {
@@ -132,14 +136,14 @@ export async function listarContasFinanceiras(accessToken: string): Promise<Cont
         continue
       }
       const data = await res.json()
-      const listaRaw = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
+      const listaRaw = Array.isArray(data) ? data : (data.itens || data.items || data.content || data.data || [])
       for (const item of listaRaw) {
         const id = item.id || item.uuid || item.bankAccountId || item.guid
-        if (id && !todasContas.has(id)) {
-          todasContas.set(id, { id, descricao: item.descricao || item.nome || item.name || item.description || 'Conta Sem Nome', tipo: item.tipo || item.type })
+        const nomeOuDesc = item.nome || item.name || item.descricao || item.description
+        if (id && nomeOuDesc && !todasContas.has(id)) {
+          todasContas.set(id, { id, descricao: nomeOuDesc, tipo: item.tipo || item.type })
         }
       }
-      // Se encontrou contas no endpoint atual, não precisa tentar os fallbacks
       if (todasContas.size > 0) break
     } catch (e: any) { 
       if (e.message === 'TOKEN_EXPIRADO') throw e;
