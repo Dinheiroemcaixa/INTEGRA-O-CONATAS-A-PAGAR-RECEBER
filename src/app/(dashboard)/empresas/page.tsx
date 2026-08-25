@@ -392,22 +392,34 @@ function InlineEmpresaEditForm({
         ? 'SOMENTE_BANCO'
         : (datacarCodEmp.trim() || null)
 
-      const { error } = await supabase
+      let updatePayload: Record<string, any> = {
+        nome: nome.trim(),
+        cnpj: cnpjLimpo,
+        email_login: emailLogin.trim() || null,
+        email_login_vendas: emailLoginVendas.trim() || null,
+        datacar_token: datacarToken.trim() || null,
+        datacar_cod_emp: datacarCodEmpFinal,
+        datacar_id_operador: datacarIdOperador.trim() || null,
+        razao_social: razaoSocial.trim() || null,
+        nome_fantasia: nomeFantasia.trim() || null,
+        emite_nfse: emiteNfse,
+        optante_simples: emiteNfse,
+      }
+
+      let { error } = await supabase
         .from('empresas')
-        .update({
-          nome: nome.trim(),
-          cnpj: cnpjLimpo,
-          email_login: emailLogin.trim() || null,
-          email_login_vendas: emailLoginVendas.trim() || null,
-          datacar_token: datacarToken.trim() || null,
-          datacar_cod_emp: datacarCodEmpFinal,
-          datacar_id_operador: datacarIdOperador.trim() || null,
-          razao_social: razaoSocial.trim() || null,
-          nome_fantasia: nomeFantasia.trim() || null,
-          emite_nfse: emiteNfse,
-          optante_simples: emiteNfse,
-        })
+        .update(updatePayload)
         .eq('id', empresa.id)
+
+      if (error && (error.message?.includes('emite_nfse') || error.code === 'PGRST204')) {
+        delete updatePayload.emite_nfse
+        delete updatePayload.optante_simples
+        const retry = await supabase
+          .from('empresas')
+          .update(updatePayload)
+          .eq('id', empresa.id)
+        error = retry.error
+      }
 
       if (error) throw error
 
