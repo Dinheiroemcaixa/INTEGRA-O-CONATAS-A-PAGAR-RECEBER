@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import { createClient } from '@/lib/supabase/client'
 import DropZone from '@/components/upload/DropZone'
@@ -43,7 +44,12 @@ function ModalEnvioContaAzul({
 }) {
   const [empresaSelecionada, setEmpresaSelecionada] = useState<Empresa | null>(empresaAtiva)
   const [abrirSeletor, setAbrirSeletor] = useState(false)
-  const conectado = !!empresaSelecionada?.access_token_conta_azul
+  const temTokenDireto = !!empresaSelecionada?.access_token_conta_azul
+  const temTokenCompartilhado = !temTokenDireto && (
+    !!empresaSelecionada?.conta_azul_empresa_pai_id ||
+    (empresaSelecionada?.grupo_id ? todasEmpresas.some(e => e.grupo_id === empresaSelecionada.grupo_id && !!e.access_token_conta_azul) : false)
+  )
+  const conectado = temTokenDireto || temTokenCompartilhado
 
   // Verifica se o login ativo bate com o email cadastrado na empresa
   const emailEmpresa = empresaSelecionada?.email_login
@@ -94,10 +100,15 @@ function ModalEnvioContaAzul({
               <div className="flex-1 min-w-0">
                 <p className="text-white font-semibold truncate">{empresaSelecionada?.nome || '—'}</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  {conectado ? (
+                  {temTokenDireto ? (
                     <>
                       <ShieldCheck size={11} className="text-emerald-400" />
                       <span className="text-emerald-400 text-xs font-medium">Conta Azul conectado</span>
+                    </>
+                  ) : temTokenCompartilhado ? (
+                    <>
+                      <ShieldCheck size={11} className="text-blue-400" />
+                      <span className="text-blue-400 text-xs font-medium">Conectado via Matriz / Grupo</span>
                     </>
                   ) : (
                     <>
@@ -208,7 +219,19 @@ function ModalEnvioContaAzul({
 }
 
 export default function ContasPagarPage() {
-  const { empresaAtiva, empresas } = useEmpresa()
+  const { empresaAtiva, empresas, setEmpresaAtiva } = useEmpresa()
+  const searchParams = useSearchParams()
+  const urlEmpresaId = searchParams?.get('empresa_id')
+
+  useEffect(() => {
+    if (urlEmpresaId && empresas.length > 0) {
+      const emp = empresas.find(e => e.id === urlEmpresaId)
+      if (emp && emp.id !== empresaAtiva?.id) {
+        setEmpresaAtiva(emp)
+      }
+    }
+  }, [urlEmpresaId, empresas, empresaAtiva?.id, setEmpresaAtiva])
+
   const [etapa, setEtapa] = useState<Etapa>('upload')
   const [subAba, setSubAba] = useState<SubAba>('datacar')
   const [resultado, setResultado] = useState<ResultadoImportacao | null>(null)
@@ -662,8 +685,9 @@ export default function ContasPagarPage() {
                   <button
                     onClick={async () => {
                       if (!empresaAtiva) { toast.error('Selecione uma empresa'); return }
-                      if (!empresaAtiva.access_token_conta_azul) {
-                        toast.error('Empresa não está conectada ao Conta Azul. Vá em Empresas e conecte primeiro.')
+                      const temConexaoCA = !!empresaAtiva.access_token_conta_azul || !!empresaAtiva.conta_azul_empresa_pai_id || (empresaAtiva.grupo_id ? empresas.some(e => e.grupo_id === empresaAtiva.grupo_id && !!e.access_token_conta_azul) : false)
+                      if (!temConexaoCA) {
+                        toast.error('Empresa não está conectada ao Conta Azul. Vá em Empresas e conecte ou espelhe primeiro.')
                         return
                       }
                       if (!confirm('Enviar todas as contas PENDENTES para o Conta Azul?')) return

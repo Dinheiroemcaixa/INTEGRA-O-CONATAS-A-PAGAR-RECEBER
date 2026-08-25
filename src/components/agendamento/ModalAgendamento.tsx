@@ -186,9 +186,9 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
       if (dados.codigo_barras) setCodigoBarras(dados.codigo_barras)
 
       if (dados.tipo === 'Boleto' && dados.documento) {
-        setDescricao(`Boleto nº ${dados.documento}`)
+        setDescricao(`BOLETO Nº ${dados.documento}`)
       } else if (dados.descricao) {
-        setDescricao(dados.descricao)
+        setDescricao(dados.descricao.toUpperCase())
       }
 
       toast.success('Documento lido! Confira os campos antes de salvar.', { id: 'ler_anexo' })
@@ -242,7 +242,9 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
         }
       }
 
-      const descricaoFinal = observacao.trim() ? `${descricao} - Obs: ${observacao.trim()}` : descricao
+      const descUpper = descricao.toUpperCase()
+      const obsUpper = observacao.trim().toUpperCase()
+      const descricaoFinal = obsUpper ? `${descUpper} - OBS: ${obsUpper}` : descUpper
 
       const { error } = await supabase.from('agendamentos').insert({
         empresa_id: empresaAtiva.id,

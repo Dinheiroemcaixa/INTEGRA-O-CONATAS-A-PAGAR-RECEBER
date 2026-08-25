@@ -39,6 +39,8 @@ export interface Empresa {
   saldo_caixa?: number | null
   /** Quando a loja foi colocada neste grupo */
   grupo_adicionado_em?: string | null
+  /** ID da empresa matriz/pai da qual esta empresa espelha as credenciais do Conta Azul */
+  conta_azul_empresa_pai_id?: string | null
 }
 
 export interface Grupo {

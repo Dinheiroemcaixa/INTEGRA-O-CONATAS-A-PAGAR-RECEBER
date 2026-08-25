@@ -666,7 +666,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         valor: Number(item.valor),
         vencimento: item.data_vencimento,
         categoria: item.categoria,
-        descricao: item.descricao || (item.documento ? `Doc: ${item.documento}` : null),
+        descricao: item.descricao ? String(item.descricao).toUpperCase() : (item.documento ? `DOC: ${item.documento}` : null),
         doc: item.documento || `GP-${String(item.id).slice(0, 8)}`,
         emissao: item.competencia || item.data_vencimento,
         conta_financeira: item.conta_pagamento || null,
@@ -684,7 +684,10 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
       toast.success(`${linhas.length} lançamento(s) enviado(s) para o Contas a Pagar!`)
       setEmpresaAtiva(empresa)
-      router.push('/contas-pagar')
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('empresa_ativa_id', empresa.id)
+      }
+      router.push(`/contas-pagar?empresa_id=${empresa.id}`)
     } catch (err: any) {
       toast.error(err.message || 'Erro ao enviar para o Contas a Pagar')
     }

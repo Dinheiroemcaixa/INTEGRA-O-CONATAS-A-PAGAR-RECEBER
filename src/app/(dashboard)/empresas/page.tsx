@@ -297,10 +297,12 @@ function PainelFichaCadastral({ empresa }: { empresa: Empresa }) {
 
 function InlineEmpresaEditForm({
   empresa,
+  todasEmpresas = [],
   onCancel,
   onSaved,
 }: {
   empresa: Empresa
+  todasEmpresas?: Empresa[]
   onCancel: () => void
   onSaved: () => void
 }) {
@@ -313,6 +315,7 @@ function InlineEmpresaEditForm({
   const [nomeFantasia, setNomeFantasia] = useState(empresa.nome_fantasia || '')
   const [emailLogin, setEmailLogin] = useState(empresa.email_login || '')
   const [emailLoginVendas, setEmailLoginVendas] = useState(empresa.email_login_vendas || '')
+  const [contaAzulEmpresaPaiId, setContaAzulEmpresaPaiId] = useState(empresa.conta_azul_empresa_pai_id || '')
   const [datacarToken, setDatacarToken] = useState(empresa.datacar_token || '')
   const [datacarCodEmp, setDatacarCodEmp] = useState(empresa.datacar_cod_emp === 'SOMENTE_BANCO' ? '' : (empresa.datacar_cod_emp || ''))
   const [datacarIdOperador, setDatacarIdOperador] = useState(empresa.datacar_id_operador || '')
@@ -403,10 +406,23 @@ function InlineEmpresaEditForm({
           nome_fantasia: nomeFantasia.trim() || null,
           emite_nfse: emiteNfse,
           optante_simples: emiteNfse,
+          conta_azul_empresa_pai_id: contaAzulEmpresaPaiId || null,
         })
         .eq('id', empresa.id)
 
       if (error) throw error
+
+      if (contaAzulEmpresaPaiId) {
+        await fetch('/api/conta-azul/espelhar-conexao', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            empresa_origem_id: contaAzulEmpresaPaiId,
+            empresa_destino_id: empresa.id,
+            modulo: 'ambos'
+          })
+        }).catch(err => console.warn('Erro ao espelhar conexão:', err))
+      }
 
       if (emiteNfse) {
         const formData = new FormData()
@@ -740,6 +756,31 @@ function InlineEmpresaEditForm({
                 type="email"
                 className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-4 py-2.5 text-xs text-white focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all placeholder:text-dark-600 shadow-inner"
               />
+            </div>
+            
+            <div className="h-px w-full bg-dark-700/30" />
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded bg-blue-500/10 flex items-center justify-center">
+                  <ShieldCheck size={12} className="text-blue-400" />
+                </div>
+                <label className="text-xs font-semibold text-dark-200">Compartilhar Conexão CA da Matriz</label>
+              </div>
+              <select
+                value={contaAzulEmpresaPaiId}
+                onChange={(e) => setContaAzulEmpresaPaiId(e.target.value)}
+                className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-3 py-2 text-xs text-white focus:ring-2 focus:ring-blue-500/50 outline-none"
+              >
+                <option value="">Não compartilhar (Usar login próprio)</option>
+                {todasEmpresas
+                  .filter(e => e.id !== empresa.id)
+                  .map(e => (
+                    <option key={e.id} value={e.id}>
+                      Compartilhar credenciais com {e.nome} {e.access_token_conta_azul ? '✓ (Conectado)' : ''}
+                    </option>
+                  ))}
+              </select>
             </div>
             
             <div className="h-px w-full bg-dark-700/30" />
@@ -1192,6 +1233,7 @@ function EmpresaRowItem({
     return (
       <InlineEmpresaEditForm
         empresa={empresa}
+        todasEmpresas={todasEmpresas}
         onCancel={onEdit}
         onSaved={() => {
           onEdit()

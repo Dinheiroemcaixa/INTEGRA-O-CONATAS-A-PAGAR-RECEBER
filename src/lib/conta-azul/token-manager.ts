@@ -62,23 +62,51 @@ export async function getValidToken(
   const refreshKey = isVendas ? 'refresh_token_conta_azul_vendas' : 'refresh_token_conta_azul'
   const expiracaoKey = isVendas ? 'data_expiracao_token_vendas' : 'data_expiracao_token'
 
+  let targetEmpresa = empresa
   let rawToken = empresa[tokenKey]
+
+  // Fallback 1: Se a empresa não tem token, verificar se tem empresa pai/matriz vinculada
+  if (!rawToken && empresa.conta_azul_empresa_pai_id) {
+    const { data: pai } = await supabaseAdmin
+      .from('empresas')
+      .select('*')
+      .eq('id', empresa.conta_azul_empresa_pai_id)
+      .single()
+    if (pai && pai[tokenKey]) {
+      targetEmpresa = pai
+      rawToken = pai[tokenKey]
+    }
+  }
+
+  // Fallback 2: Se ainda não tem token, buscar qualquer empresa do mesmo grupo que esteja conectada
+  if (!rawToken && empresa.grupo_id) {
+    const { data: grupoEmpresas } = await supabaseAdmin
+      .from('empresas')
+      .select('*')
+      .eq('grupo_id', empresa.grupo_id)
+      .not(tokenKey, 'is', null)
+
+    if (grupoEmpresas && grupoEmpresas.length > 0) {
+      targetEmpresa = grupoEmpresas[0]
+      rawToken = grupoEmpresas[0][tokenKey]
+    }
+  }
+
   if (!rawToken) {
-    // Se solicitou vendas mas não tem token de vendas nem token padrão
     throw new TokenError(
-      `Empresa não está conectada ao Conta Azul (${modulo === 'vendas' ? 'Vendas' : 'Financeiro'}). Acesse Empresas e clique em "Conectar Conta Azul".`,
+      `Empresa "${empresa.nome}" não está conectada ao Conta Azul (${modulo === 'vendas' ? 'Vendas' : 'Financeiro'}). Acesse Empresas e conecte ou espelhe a Conta Azul.`,
       401
     )
   }
 
   // 2. Verificar expiração (margem de 5 minutos)
   let accessToken = rawToken
-  const expiracao = empresa[expiracaoKey] ? new Date(empresa[expiracaoKey]) : null
+  const expiracao = targetEmpresa[expiracaoKey] ? new Date(targetEmpresa[expiracaoKey]) : null
   const agora = new Date()
   const tokenExpirado = expiracao && expiracao <= new Date(agora.getTime() + 5 * 60 * 1000)
 
   // 3. Renovar se necessário
-  const currentRefreshToken = empresa[refreshKey]
+  const currentRefreshToken = targetEmpresa[refreshKey]
   if (tokenExpirado && currentRefreshToken) {
     try {
       const novosTokens = await refreshToken(
@@ -103,13 +131,13 @@ export async function getValidToken(
       const { error: errUpdate } = await supabaseAdmin
         .from('empresas')
         .update(updateData)
-        .eq('id', empresaId)
+        .eq('id', targetEmpresa.id)
 
       if (errUpdate) {
         console.error('[token-manager] Falha ao salvar novos tokens:', errUpdate.message)
       }
 
-      console.log(`[token-manager] Token (${modulo}) renovado com sucesso para empresa ${empresa.nome || empresaId}`)
+      console.log(`[token-manager] Token (${modulo}) renovado com sucesso para empresa ${targetEmpresa.nome || targetEmpresa.id}`)
     } catch (errRefresh) {
       console.error('[token-manager] Falha ao renovar token:', errRefresh)
       throw new TokenError(
@@ -119,5 +147,5 @@ export async function getValidToken(
     }
   }
 
-  return { accessToken, empresa }
+  return { accessToken, empresa: targetEmpresa }
 }
