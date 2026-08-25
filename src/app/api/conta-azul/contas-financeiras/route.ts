@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { listarContasFinanceiras } from '@/lib/conta-azul/api'
-import { getValidToken, TokenError } from '@/lib/conta-azul/token-manager'
+import { getValidToken } from '@/lib/conta-azul/token-manager'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -12,31 +12,15 @@ export async function GET(req: NextRequest) {
   const empresa_id = searchParams.get('empresa_id')
 
   if (!empresa_id) {
-    return NextResponse.json({ error: 'empresa_id obrigatório' }, { status: 400 })
+    return NextResponse.json({ contas: [] })
   }
 
-  // Obter token válido (com renovação automática)
-  let accessToken: string
   try {
     const result = await getValidToken(empresa_id)
-    accessToken = result.accessToken
-  } catch (e) {
-    if (e instanceof TokenError) {
-      return NextResponse.json({ error: e.message }, { status: e.statusCode })
-    }
-    throw e
-  }
-
-  try {
-    const contas = await listarContasFinanceiras(accessToken)
+    const contas = await listarContasFinanceiras(result.accessToken)
     return NextResponse.json({ contas })
   } catch (err: any) {
-    try {
-      const resultForcado = await getValidToken(empresa_id, 'financeiro', true)
-      const contas = await listarContasFinanceiras(resultForcado.accessToken)
-      return NextResponse.json({ contas })
-    } catch (retryErr: any) {
-      return NextResponse.json({ error: retryErr.message || 'Erro ao buscar contas' }, { status: 500 })
-    }
+    console.warn(`[contas-financeiras] Empresa ${empresa_id} não possui token ativo:`, err?.message || err)
+    return NextResponse.json({ contas: [], aviso: 'Empresa sem conexão direta ao Conta Azul' })
   }
 }

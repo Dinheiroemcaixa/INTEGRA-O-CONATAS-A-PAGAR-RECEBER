@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { useEmpresa } from '@/contexts/EmpresaContext'
 import type { ContaFinanceiraOpcao } from '@/components/upload/SelectorContaFinanceira'
 import { createClient } from '@/lib/supabase/client'
 import TabelaPreview from '@/components/upload/TabelaPreview'
@@ -34,9 +35,14 @@ export default function ContasPreviewSection({
   const [loadingMatch, setLoadingMatch] = useState(false)
   const supabase = createClient()
 
+  const { empresas } = useEmpresa()
+  const empresaAlvo = empresaAtiva?.access_token_conta_azul
+    ? empresaAtiva
+    : (empresas.find(e => !!e.access_token_conta_azul) || empresaAtiva)
+
   useEffect(() => {
-    if (!empresaAtiva?.id) { setContasFinanceirasCA([]); return }
-    fetch(`/api/conta-azul/contas-financeiras?empresa_id=${empresaAtiva.id}`)
+    if (!empresaAlvo?.id) { setContasFinanceirasCA([]); return }
+    fetch(`/api/conta-azul/contas-financeiras?empresa_id=${empresaAlvo.id}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data?.contas && Array.isArray(data.contas)) {
@@ -44,7 +50,7 @@ export default function ContasPreviewSection({
         }
       })
       .catch(() => {})
-  }, [empresaAtiva?.id])
+  }, [empresaAlvo?.id])
 
   useEffect(() => {
     let mounted = true

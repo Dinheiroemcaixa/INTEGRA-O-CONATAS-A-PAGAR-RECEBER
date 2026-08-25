@@ -42,7 +42,11 @@ function ModalEnvioContaAzul({
   onCancelar: () => void
   enviando: boolean
 }) {
-  const [empresaSelecionada, setEmpresaSelecionada] = useState<Empresa | null>(empresaAtiva)
+  const empresaPadrao = empresaAtiva?.access_token_conta_azul
+    ? empresaAtiva
+    : (todasEmpresas.find(e => !!e.access_token_conta_azul) || empresaAtiva)
+
+  const [empresaSelecionada, setEmpresaSelecionada] = useState<Empresa | null>(empresaPadrao)
   const [abrirSeletor, setAbrirSeletor] = useState(false)
   const temTokenDireto = !!empresaSelecionada?.access_token_conta_azul
   const temTokenCompartilhado = !temTokenDireto && (
