@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const isVendas = modulo === 'vendas'
 
   const renderHtml = (titulo: string, mensagem: string, isError = false) => {
-    const cor = isError ? '#ef4444' : '#10b981' // red-500 ou emerald-500
+    const cor = isError ? '#ef4444' : '#10b981'
     return new NextResponse(
       `<!DOCTYPE html>
       <html>
@@ -86,71 +86,41 @@ export async function GET(req: NextRequest) {
       ...(infoCa?.email ? { email_login: infoCa.email } : {})
     }
 
+    // Atualiza SEMPRE a empresa correspondente ao clique do usuário (state)
+    await supabaseAdmin
+      .from('empresas')
+      .update(payloadUpdate)
+      .eq('id', state)
+
     if (infoCa && infoCa.cnpj) {
       const cnpjLimpo = infoCa.cnpj.replace(/\D/g, '')
 
-      // 2. Verifica se já existe uma empresa com esse CNPJ no banco
+      // Também atualiza qualquer empresa que possua esse mesmo CNPJ
       const { data: empresasExistentes } = await supabaseAdmin
         .from('empresas')
-        .select('*')
+        .select('id')
         .eq('cnpj', cnpjLimpo)
         
-      const empresaExistente = empresasExistentes && empresasExistentes.length > 0 ? empresasExistentes[0] : null
-
-      if (empresaExistente) {
-        // CENÁRIO A: A empresa já existe (Re-autenticação por token expirado ou link duplicado)
-        await supabaseAdmin
-          .from('empresas')
-          .update(payloadUpdate)
-          .eq('id', empresaExistente.id)
-
-        // Se o usuário usou um "Card em Branco" (cujo state != empresaExistente.id), apagamos o card em branco
-        if (state !== empresaExistente.id) {
-          const { data: stateEmpresa } = await supabaseAdmin.from('empresas').select('cnpj').eq('id', state).single()
-          if (stateEmpresa && (stateEmpresa.cnpj === '00000000000000' || !stateEmpresa.cnpj)) {
-             await supabaseAdmin.from('empresas').delete().eq('id', state)
+      if (empresasExistentes && empresasExistentes.length > 0) {
+        for (const emp of empresasExistentes) {
+          if (emp.id !== state) {
+            await supabaseAdmin
+              .from('empresas')
+              .update(payloadUpdate)
+              .eq('id', emp.id)
           }
         }
-
-        await supabaseAdmin.from('logs_integracao').insert({
-          empresa_id: empresaExistente.id,
-          acao: `conectar_conta_azul_${modulo}`,
-          status: 'sucesso',
-          detalhes: { expiracao, obs: 'reautenticacao', cnpj: cnpjLimpo, modulo },
-        })
-
-        return renderHtml('Autenticado com sucesso!', `A integração de ${modulo.toUpperCase()} da empresa ${empresaExistente.nome || 'cadastrada'} foi atualizada com sucesso. Você já pode fechar esta aba.`)
-      } else {
-        // CENÁRIO B: Empresa não existe. Preenche o card em branco com os dados reais
-        const novoNome = infoCa.nome_fantasia || infoCa.razao_social || infoCa.nome
-        
-        await supabaseAdmin
-          .from('empresas')
-          .update({
-            nome: novoNome,
-            razao_social: infoCa.razao_social || null,
-            nome_fantasia: infoCa.nome_fantasia || null,
-            cnpj: cnpjLimpo,
-            ...payloadUpdate
-          })
-          .eq('id', state)
       }
-    } else {
-      // Fallback: Atualiza apenas os tokens no card em branco
-      await supabaseAdmin
-        .from('empresas')
-        .update(payloadUpdate)
-        .eq('id', state)
     }
 
     await supabaseAdmin.from('logs_integracao').insert({
       empresa_id: state,
-      acao: 'conectar_conta_azul',
+      acao: `conectar_conta_azul_${modulo}`,
       status: 'sucesso',
-      detalhes: { expiracao },
+      detalhes: { expiracao, modulo },
     })
 
-    return renderHtml('Autenticado com sucesso!', 'A integração com a Conta Azul foi concluída com sucesso. Os dados da empresa foram vinculados automaticamente. Você já pode fechar esta página.')
+    return renderHtml('Autenticado com sucesso!', 'A integração com a Conta Azul foi concluída com sucesso! Os dados foram atualizados. Você já pode fechar esta aba.')
   } catch (err) {
     console.error('[conta-azul/callback]', err)
     const msg = err instanceof Error ? err.message : 'erro_desconhecido'

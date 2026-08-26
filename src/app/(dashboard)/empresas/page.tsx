@@ -1304,10 +1304,35 @@ function EmpresaRowItem({
             Datacar
           </div>
 
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-dark-900/60 border border-dark-700/40 text-[11px] font-medium text-dark-300">
-            <span className={`w-2 h-2 rounded-full ${caFinanceiroConectado ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]' : 'bg-red-500'}`} />
-            CA Financeiro
-          </div>
+          {caFinanceiroConectado ? (
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-bold text-emerald-400">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
+              <span>CA Conectado</span>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onDesconectar(empresa.id, 'financeiro') }}
+                className="ml-1 text-[10px] text-red-400 hover:text-red-300 underline font-normal"
+                title="Desconectar Conta Azul"
+              >
+                (Sair)
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onConectarContaAzul(empresa.id, 'financeiro') }}
+              disabled={conectando === `${empresa.id}:financeiro`}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold transition-all shadow-md shadow-blue-900/30 cursor-pointer"
+              title="Clique para Conectar a empresa ao Conta Azul"
+            >
+              {conectando === `${empresa.id}:financeiro` ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <ExternalLink size={12} />
+              )}
+              <span>Conectar Conta Azul</span>
+            </button>
+          )}
 
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-dark-900/60 border border-dark-700/40 text-[11px] font-medium text-dark-300">
             <span className={`w-2 h-2 rounded-full ${caVendasConectado ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]' : 'bg-red-500'}`} />
