@@ -1299,44 +1299,98 @@ function EmpresaRowItem({
             <span>{ehSomenteBanco ? 'Somente Banco' : 'Somente Banco'}</span>
           </button>
 
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-dark-900/60 border border-dark-700/40 text-[11px] font-medium text-dark-300">
+          {/* Datacar */}
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-dark-900/60 border border-dark-700/40 text-[11px] font-bold">
             <span className={`w-2 h-2 rounded-full ${empresa.datacar_token ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]' : 'bg-red-500'}`} />
-            Datacar
+            <span className={empresa.datacar_token ? 'text-emerald-400' : 'text-red-400'}>Datacar</span>
           </div>
 
-          {caFinanceiroConectado ? (
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-bold text-emerald-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
-              <span>CA Conectado</span>
+          {/* CA Financeiro */}
+          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold ${
+            caFinanceiroConectado ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'
+          }`}>
+            <span className={`w-2 h-2 rounded-full ${caFinanceiroConectado ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]' : 'bg-red-500'}`} />
+            <span>CA Financeiro</span>
+            {caFinanceiroConectado ? (
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onDesconectar(empresa.id, 'financeiro') }}
                 className="ml-1 text-[10px] text-red-400 hover:text-red-300 underline font-normal"
-                title="Desconectar Conta Azul"
+                title="Desconectar CA Financeiro"
               >
                 (Sair)
               </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onConectarContaAzul(empresa.id, 'financeiro') }}
-              disabled={conectando === `${empresa.id}:financeiro`}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold transition-all shadow-md shadow-blue-900/30 cursor-pointer"
-              title="Clique para Conectar a empresa ao Conta Azul"
-            >
-              {conectando === `${empresa.id}:financeiro` ? (
-                <Loader2 size={12} className="animate-spin" />
-              ) : (
-                <ExternalLink size={12} />
-              )}
-              <span>Conectar Conta Azul</span>
-            </button>
-          )}
+            ) : (
+              <div className="flex items-center gap-1 ml-1">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const link = `${window.location.origin}/api/conta-azul/autorizar?empresa_id=${empresa.id}&modulo=financeiro`
+                    navigator.clipboard.writeText(link)
+                    import('react-hot-toast').then(m => m.default.success('Link do CA Financeiro copiado! Envie ao cliente.'))
+                  }}
+                  className="px-1.5 py-0.5 bg-dark-800 text-dark-300 hover:text-white rounded text-[9px] font-bold border border-dark-600 flex items-center gap-0.5"
+                  title="Copiar Link de Autorização para o Cliente (BPO)"
+                >
+                  <Copy size={9} /> Link
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onConectarContaAzul(empresa.id, 'financeiro') }}
+                  disabled={conectando === `${empresa.id}:financeiro`}
+                  className="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-[9px] font-bold flex items-center gap-1 transition-all"
+                  title="Conectar Conta Azul Financeiro"
+                >
+                  {conectando === `${empresa.id}:financeiro` ? <Loader2 size={9} className="animate-spin" /> : <ExternalLink size={9} />}
+                  Conectar
+                </button>
+              </div>
+            )}
+          </div>
 
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-dark-900/60 border border-dark-700/40 text-[11px] font-medium text-dark-300">
+          {/* CA Vendas */}
+          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold ${
+            caVendasConectado ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'
+          }`}>
             <span className={`w-2 h-2 rounded-full ${caVendasConectado ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]' : 'bg-red-500'}`} />
-            CA Vendas
+            <span>CA Vendas</span>
+            {caVendasConectado ? (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onDesconectar(empresa.id, 'vendas') }}
+                className="ml-1 text-[10px] text-red-400 hover:text-red-300 underline font-normal"
+                title="Desconectar CA Vendas"
+              >
+                (Sair)
+              </button>
+            ) : (
+              <div className="flex items-center gap-1 ml-1">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const link = `${window.location.origin}/api/conta-azul/autorizar?empresa_id=${empresa.id}&modulo=vendas`
+                    navigator.clipboard.writeText(link)
+                    import('react-hot-toast').then(m => m.default.success('Link do CA Vendas copiado! Envie ao cliente.'))
+                  }}
+                  className="px-1.5 py-0.5 bg-dark-800 text-dark-300 hover:text-white rounded text-[9px] font-bold border border-dark-600 flex items-center gap-0.5"
+                  title="Copiar Link de Autorização para o Cliente (BPO)"
+                >
+                  <Copy size={9} /> Link
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onConectarContaAzul(empresa.id, 'vendas') }}
+                  disabled={conectando === `${empresa.id}:vendas`}
+                  className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[9px] font-bold flex items-center gap-1 transition-all"
+                  title="Conectar Conta Azul Vendas"
+                >
+                  {conectando === `${empresa.id}:vendas` ? <Loader2 size={9} className="animate-spin" /> : <ExternalLink size={9} />}
+                  Conectar
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
