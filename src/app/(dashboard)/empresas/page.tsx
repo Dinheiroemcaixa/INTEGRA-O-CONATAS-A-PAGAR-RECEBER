@@ -1579,8 +1579,33 @@ function EmpresasPageContent() {
       toast.error(msgs[erro] || `Erro: ${decodeURIComponent(erro)}`)
       window.history.replaceState({}, '', '/empresas')
     }
+
+    // Validação automática em segundo plano para empresas que possuem token salvo
+    if (empresas.length > 0) {
+      const comToken = empresas.filter(e => !!e.access_token_conta_azul)
+      if (comToken.length > 0) {
+        Promise.all(
+          comToken.map(async (emp) => {
+            try {
+              const res = await fetch(`/api/conta-azul/contas-financeiras?empresa_id=${emp.id}`)
+              const data = await res.json()
+              if (!res.ok || data.aviso || data.error) {
+                return true
+              }
+            } catch {
+              return true
+            }
+            return false
+          })
+        ).then((resultados) => {
+          if (resultados.some(Boolean)) {
+            recarregar()
+          }
+        })
+      }
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [empresas.length])
 
   const handleConectarContaAzul = (empresaId: string, modulo: 'financeiro' | 'vendas' = 'financeiro') => {
     setConectando(`${empresaId}:${modulo}`)
