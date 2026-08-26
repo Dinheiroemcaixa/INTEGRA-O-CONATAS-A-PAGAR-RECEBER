@@ -6,7 +6,7 @@ import type { ContaFinanceiraOpcao } from '@/components/upload/SelectorContaFina
 import { createClient } from '@/lib/supabase/client'
 import TabelaPreview from '@/components/upload/TabelaPreview'
 import type { ContaPagarPreview, Empresa } from '@/types'
-import { Loader2, FileDown, Trash2, Save } from 'lucide-react'
+import { Loader2, FileDown, Trash2, Save, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatCurrency, cn } from '@/lib/utils'
 import { matchFornecedoresEmLote, type RegraDepara } from '@/lib/utils/match-fornecedor'
@@ -503,6 +503,35 @@ export default function ContasPreviewSection({
         <Loader2 className="w-10 h-10 animate-spin text-brand-500 mb-4" />
         <p className="text-white font-medium">Analisando fornecedores...</p>
         <p className="text-dark-400 text-sm mt-1">Comparando nomes e sugerindo categorias</p>
+      </div>
+    )
+  }
+
+  if (dadosEditados.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 bg-dark-800/80 rounded-2xl border border-dark-700 space-y-4 animate-fade-in text-center my-4">
+        <div className="w-14 h-14 bg-brand-500/10 border border-brand-500/20 rounded-2xl flex items-center justify-center text-brand-400">
+          <Upload size={28} />
+        </div>
+        <div>
+          <h3 className="text-white font-bold text-base">Nenhum registro para importação</h3>
+          <p className="text-dark-400 text-xs mt-1 max-w-md">
+            A lista está limpa. Clique no botão abaixo para selecionar ou arrastar uma nova planilha Excel / CSV.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              const el = document.querySelector('button:has(svg.lucide-upload)') as HTMLButtonElement | null
+              if (el) el.click()
+              else window.location.reload()
+            }
+          }}
+          className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-3 rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-lg shadow-brand-600/20"
+        >
+          <Upload size={16} /> Arraste ou Selecione Nova Planilha
+        </button>
       </div>
     )
   }

@@ -775,14 +775,21 @@ export default function ContasPagarPage() {
               const isDone = ['upload', 'preview'].indexOf(etapa) > i
               return (
                 <div key={e} className="flex items-center gap-2">
-                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                    isActive ? 'bg-brand-600 text-white' :
-                    isDone ? 'bg-green-600/20 text-green-400' :
-                    'bg-dark-800 text-dark-500'
-                  }`}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEtapa(e)
+                      if (e === 'upload') setResultado(null)
+                    }}
+                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                      isActive ? 'bg-brand-600 text-white shadow-md shadow-brand-600/20' :
+                      isDone ? 'bg-green-600/20 text-green-400 hover:bg-green-600/30' :
+                      'bg-dark-800 text-dark-400 hover:text-white hover:bg-dark-700'
+                    }`}
+                  >
                     {isDone && <CheckCircle size={12} />}
                     {labels[i]}
-                  </div>
+                  </button>
                   {i < 1 && <div className="w-8 h-px bg-dark-700" />}
                 </div>
               )
