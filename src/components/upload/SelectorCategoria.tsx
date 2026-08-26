@@ -7,11 +7,12 @@ import { LISTA_CATEGORIAS_FLAT } from '@/lib/conta-azul/constants'
 
 interface Props {
   valorInicial: string
+  categorias?: string[]
   onSelect: (nome: string) => void
   onCancel: () => void
 }
 
-export default function SelectorCategoria({ valorInicial, onSelect, onCancel }: Props) {
+export default function SelectorCategoria({ valorInicial, categorias = [], onSelect, onCancel }: Props) {
   const [busca, setBusca] = useState(valorInicial === 'Materiais para Revenda' ? '' : valorInicial)
   const [resultados, setResultados] = useState<string[]>([])
   const [aberto, setAberto] = useState(true)
@@ -23,12 +24,13 @@ export default function SelectorCategoria({ valorInicial, onSelect, onCancel }: 
 
   useEffect(() => {
     const termo = busca.toLowerCase()
-    const filtrados = LISTA_CATEGORIAS_FLAT.filter(cat => 
+    const listaBase = categorias.length > 0 ? categorias : LISTA_CATEGORIAS_FLAT
+    const filtrados = listaBase.filter(cat => 
       cat.toLowerCase().includes(termo)
     ).slice(0, 15)
     
     setResultados(filtrados)
-  }, [busca])
+  }, [busca, categorias])
 
   return (
     <div className="relative w-full min-w-[220px]">

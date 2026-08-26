@@ -13,7 +13,7 @@ interface Props {
   filtro: 'todos' | 'erro' | 'revisao'
   selecionados: Set<number>
   onToggle: (idx: number) => void
-  onToggleTodos: () => void
+  onToggleTodosLote: (indices: number[], acao: 'marcar' | 'desmarcar') => void
   onRemover: (idx: number) => void
   onUpdateFornecedor: (idx: number, novoNome: string) => void
   onUpdateCategoria: (idx: number, novaCategoria: string) => void
@@ -23,6 +23,7 @@ interface Props {
   onUpdateContaLote: (indices: number[], novaConta: string) => void
   onUpdateFornecedorLote: (indices: number[], novoFornecedor: string) => void
   contasFinanceiras: ContaFinanceiraOpcao[]
+  categoriasCA?: string[]
   onUpdateValor: (idx: number, novoValor: number) => void
   onUpdateVencimento: (idx: number, novaData: string) => void
   onUpdateEmissao: (idx: number, novaData: string) => void
@@ -55,9 +56,9 @@ function BadgeMatch({ confianca, score }: { confianca: string; score: number }) 
 
 
 export default function TabelaPreview({
-  dados, filtro, selecionados, onToggle, onToggleTodos, onRemover, onUpdateFornecedor, onUpdateCategoria,
+  dados, filtro, selecionados, onToggle, onToggleTodosLote, onRemover, onUpdateFornecedor, onUpdateCategoria,
   onRemoverLote, onUpdateCategoriaLote, onUpdateConta, onUpdateContaLote, onUpdateFornecedorLote, contasFinanceiras,
-  onUpdateValor, onUpdateVencimento, onUpdateEmissao, onUpdateDescricao
+  categoriasCA = [], onUpdateValor, onUpdateVencimento, onUpdateEmissao, onUpdateDescricao
 }: Props) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
   const [editingCatIdx, setEditingCatIdx] = useState<number | null>(null)
@@ -89,8 +90,10 @@ export default function TabelaPreview({
     return true
   })
 
-  const todosSelecionados = selecionados.size === dados.length && dados.length > 0
-  const algunsSelecionados = selecionados.size > 0 && selecionados.size < dados.length
+  const filtradosValidos = dadosFiltrados.filter(d => d.valido)
+  const indicesFiltradosValidos = filtradosValidos.map(d => d.originalIdx as number)
+  const todosFiltradosSelecionados = filtradosValidos.length > 0 && indicesFiltradosValidos.every(idx => selecionados.has(idx))
+  const algunsFiltradosSelecionados = indicesFiltradosValidos.some(idx => selecionados.has(idx)) && !todosFiltradosSelecionados
   const temMatch = dados.some((d) => d.matchFornecedor)
   const corrigidos = dados.filter(
     (d) => d.matchFornecedor && (d.matchFornecedor.confianca === 'exato' || d.matchFornecedor.confianca === 'alto')
@@ -177,7 +180,7 @@ export default function TabelaPreview({
                       />
                       {showBulkList && (
                         <div className="absolute z-50 mt-1 w-full bg-dark-800 border border-dark-600 rounded-lg shadow-2xl overflow-hidden max-h-[200px] overflow-y-auto">
-                          {LISTA_CATEGORIAS_FLAT.filter(c => c.toLowerCase().includes(loteCategoria.toLowerCase())).slice(0, 10).map((cat, i) => (
+                          {((categoriasCA && categoriasCA.length > 0) ? categoriasCA : LISTA_CATEGORIAS_FLAT).filter(c => c.toLowerCase().includes(loteCategoria.toLowerCase())).slice(0, 10).map((cat, i) => (
                             <button
                               key={i}
                               onClick={() => { setLoteCategoria(cat); setShowBulkList(false) }}
@@ -286,9 +289,15 @@ export default function TabelaPreview({
               <th className="w-10">
                 <input
                   type="checkbox"
-                  checked={todosSelecionados}
-                  ref={(el) => { if (el) el.indeterminate = algunsSelecionados }}
-                  onChange={onToggleTodos}
+                  checked={todosFiltradosSelecionados}
+                  ref={(el) => { if (el) el.indeterminate = algunsFiltradosSelecionados }}
+                  onChange={() => {
+                    if (todosFiltradosSelecionados) {
+                      onToggleTodosLote(indicesFiltradosValidos, 'desmarcar')
+                    } else {
+                      onToggleTodosLote(indicesFiltradosValidos, 'marcar')
+                    }
+                  }}
                   className="w-4 h-4 rounded border-dark-500 bg-dark-700 checked:bg-brand-600 cursor-pointer"
                 />
               </th>
@@ -471,6 +480,7 @@ export default function TabelaPreview({
                     {editingCatIdx === idx ? (
                       <SelectorCategoria 
                         valorInicial={item.categoria || 'Materiais para Revenda'}
+                        categorias={categoriasCA}
                         onCancel={() => setEditingCatIdx(null)}
                         onSelect={(cat) => {
                           onUpdateCategoria(idx, cat)

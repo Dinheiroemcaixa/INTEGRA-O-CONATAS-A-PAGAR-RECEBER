@@ -32,6 +32,7 @@ export default function ContasPreviewSection({
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set())
   const [filtroPreview, setFiltroPreview] = useState<'todos' | 'erro' | 'revisao'>('todos')
   const [contasFinanceirasCA, setContasFinanceirasCA] = useState<ContaFinanceiraOpcao[]>([])
+  const [categoriasCA, setCategoriasCA] = useState<string[]>([])
   const [loadingMatch, setLoadingMatch] = useState(false)
   const supabase = createClient()
 
@@ -41,12 +42,22 @@ export default function ContasPreviewSection({
     : (empresas.find(e => !!e.access_token_conta_azul) || empresaAtiva)
 
   useEffect(() => {
-    if (!empresaAlvo?.id) { setContasFinanceirasCA([]); return }
+    if (!empresaAlvo?.id) { setContasFinanceirasCA([]); setCategoriasCA([]); return }
+    
     fetch(`/api/conta-azul/contas-financeiras?empresa_id=${empresaAlvo.id}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data?.contas && Array.isArray(data.contas)) {
           setContasFinanceirasCA(data.contas.map((c: any) => ({ id: c.id, descricao: c.descricao })))
+        }
+      })
+      .catch(() => {})
+
+    fetch(`/api/conta-azul/categorias?empresa_id=${empresaAlvo.id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.categorias && Array.isArray(data.categorias)) {
+          setCategoriasCA(data.categorias.map((c: any) => c.nome))
         }
       })
       .catch(() => {})
@@ -232,16 +243,17 @@ export default function ContasPreviewSection({
     })
   }
 
-  const toggleTodos = () => {
-    const validosIdx = dadosEditados.reduce((acc: number[], d, i) => {
-      if (d.valido) acc.push(i); return acc
-    }, [])
-    if (selecionados.size === dadosEditados.length) {
-      setSelecionados(new Set())
-    } else {
-      setSelecionados(new Set(validosIdx))
-    }
-  }
+  const toggleTodosLote = useCallback((indices: number[], acao: 'marcar' | 'desmarcar') => {
+    setSelecionados((prev) => {
+      const next = new Set(prev)
+      if (acao === 'desmarcar') {
+        indices.forEach(idx => next.delete(idx))
+      } else {
+        indices.forEach(idx => next.add(idx))
+      }
+      return next
+    })
+  }, [])
 
   const removerItem = (idx: number) => {
     setDadosEditados((prev) => prev.filter((_, i) => i !== idx))
@@ -641,7 +653,7 @@ export default function ContasPreviewSection({
         filtro={filtroPreview}
         selecionados={selecionados}
         onToggle={toggleItem}
-        onToggleTodos={toggleTodos}
+        onToggleTodosLote={toggleTodosLote}
         onRemover={removerItem}
         onUpdateFornecedor={updateFornecedor}
         onUpdateCategoria={updateCategoria}
@@ -651,6 +663,7 @@ export default function ContasPreviewSection({
         onUpdateContaLote={updateContaEmLote}
         onUpdateFornecedorLote={updateFornecedorEmLote}
         contasFinanceiras={contasFinanceirasCA}
+        categoriasCA={categoriasCA}
         onUpdateValor={updateValor}
         onUpdateVencimento={updateVencimento}
         onUpdateEmissao={updateEmissao}
