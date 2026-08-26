@@ -268,7 +268,6 @@ export default function ContasPagarPage() {
       if (raw) {
         try {
           const itens = JSON.parse(raw)
-          sessionStorage.removeItem('itens_para_revisao')
           if (Array.isArray(itens) && itens.length > 0) {
             setResultado({
               total: itens.length,

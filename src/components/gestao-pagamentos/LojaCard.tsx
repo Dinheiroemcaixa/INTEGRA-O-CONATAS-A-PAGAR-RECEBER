@@ -660,6 +660,30 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
     }
 
     try {
+      const linhas = itensValidos.map(item => ({
+        empresa_id: empresa.id,
+        fornecedor: String(item.fornecedor || item.beneficiario || '').trim(),
+        valor: Number(item.valor),
+        vencimento: item.data_vencimento,
+        categoria: item.categoria || 'Materiais para Revenda',
+        descricao: item.descricao ? String(item.descricao).toUpperCase() : (item.documento ? `DOC: ${item.documento}` : null),
+        doc: item.documento || `GP-${String(item.id).slice(0, 8)}`,
+        emissao: item.competencia || item.data_vencimento,
+        conta_financeira: item.conta_pagamento || null,
+        status: 'pendente',
+      }))
+
+      // 1. Salvar no banco Supabase na tabela contas_pagar_importadas
+      const { error } = await supabase
+        .from('contas_pagar_importadas')
+        .upsert(linhas, {
+          onConflict: 'empresa_id,fornecedor,valor,vencimento,doc',
+          ignoreDuplicates: true,
+        })
+
+      if (error) throw error
+
+      // 2. Guardar em sessionStorage para exibição na tela de revisão
       const itensRevisao = itensValidos.map(item => ({
         fornecedor: String(item.fornecedor || item.beneficiario || '').trim(),
         valor: Number(item.valor),
@@ -677,7 +701,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         localStorage.setItem('empresa_ativa_id', empresa.id)
       }
 
-      toast.success(`${itensRevisao.length} lançamento(s) enviado(s) para revisão no Contas a Pagar!`)
+      toast.success(`${linhas.length} lançamento(s) registrado(s) e enviado(s) para o Contas a Pagar!`)
       setEmpresaAtiva(empresa)
       router.push(`/contas-pagar?empresa_id=${empresa.id}&revisao=true`)
     } catch (err: any) {
