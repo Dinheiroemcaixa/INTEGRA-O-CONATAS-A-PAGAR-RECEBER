@@ -42,10 +42,14 @@ export default function DropZone({ onResultado, processando }: Props) {
   const processarArquivo = useCallback(async (file: File) => {
     setArquivo(file)
     setCarregando(true)
+    console.log('[DROPZONE] Arquivo selecionado:', file.name, 'Tipo:', file.type, 'Tamanho:', file.size)
     try {
       const resultado = await parseArquivo(file)
+      console.log('[DROPZONE] Resultado da análise:', resultado)
       if (resultado.total === 0) {
-        toast.error('Nenhum dado encontrado no arquivo. Verifique o formato.')
+        const msgErro = resultado.motivo || 'Nenhum dado encontrado no arquivo. Verifique se a planilha contém colunas de Valor e Vencimento.'
+        console.warn('[DROPZONE] Nenhum dado retornado:', msgErro)
+        toast.error(msgErro, { duration: 6000 })
         setArquivo(null)
         return
       }
@@ -57,7 +61,8 @@ export default function DropZone({ onResultado, processando }: Props) {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro ao processar arquivo'
-      toast.error(msg)
+      console.error('[DROPZONE] Erro durante parseArquivo:', err)
+      toast.error(`Erro ao ler planilha: ${msg}`, { duration: 6000 })
       setArquivo(null)
     } finally {
       setCarregando(false)

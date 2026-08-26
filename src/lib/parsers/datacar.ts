@@ -11,23 +11,55 @@ import type { ContaPagarPreview, ResultadoImportacao } from '@/types'
 
 // ─── EXCEL / XLSX ─────────────────────────────────────────────────────────────
 export async function parseExcelDataCar(file: File): Promise<ResultadoImportacao> {
+  console.log('[PARSER EXCEL] Iniciando leitura:', file.name, 'Tamanho:', file.size, 'bytes')
   const buffer = await file.arrayBuffer()
   const wb = XLSX.read(buffer, { type: 'array', cellDates: true })
-  const ws = wb.Sheets[wb.SheetNames[0]]
-  // raw: true preserva os valores numéricos reais (ex: 774.12 em vez de "774,12" formatado)
-  // dateNF formata as datas como string ISO para facilitar o parse
-  const rows: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, dateNF: 'yyyy-mm-dd' })
 
-  const dados: ContaPagarPreview[] = []
+  console.log('[PARSER EXCEL] Abas encontradas no arquivo:', wb.SheetNames)
 
-  // Detectar se é formato DataCar (CpRl010) pela linha 10 (índice 9) com "NF", "FORNECEDOR", "VENCIM", "VALOR"
-  const isDataCar = detectarFormatoDataCar(rows)
-
-  if (isDataCar) {
-    return parseDataCarNativo(rows)
-  } else {
-    return parseExcelGenerico(rows)
+  if (!wb.SheetNames || wb.SheetNames.length === 0) {
+    console.error('[PARSER EXCEL] Nenhuma aba encontrada no arquivo Excel.')
+    return { total: 0, validos: 0, invalidos: 0, dados: [], motivo: 'Nenhuma aba encontrada na planilha.' }
   }
+
+  let melhorResultado: ResultadoImportacao = { total: 0, validos: 0, invalidos: 0, dados: [] }
+
+  // Varrer TODAS as abas da planilha em busca dos dados
+  for (const sheetName of wb.SheetNames) {
+    const ws = wb.Sheets[sheetName]
+    if (!ws) continue
+
+    const rows: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, dateNF: 'yyyy-mm-dd' })
+    console.log(`[PARSER EXCEL] Aba "${sheetName}" lida com ${rows ? rows.length : 0} linhas.`)
+    if (!rows || rows.length === 0) continue
+
+    const isDataCar = detectarFormatoDataCar(rows)
+    let res: ResultadoImportacao
+    if (isDataCar) {
+      console.log(`[PARSER EXCEL] Relatório DataCar nativo (CpRl010) detectado na aba "${sheetName}".`)
+      res = parseDataCarNativo(rows)
+    } else {
+      console.log(`[PARSER EXCEL] Executando leitor inteligente de planilhas ERP na aba "${sheetName}".`)
+      res = parseExcelGenerico(rows)
+    }
+
+    console.log(`[PARSER EXCEL] Resultado da aba "${sheetName}": Total=${res.total}, Válidos=${res.validos}, Erro/Motivo:`, res.motivo || 'Nenhum')
+
+    if (res.validos > melhorResultado.validos || (melhorResultado.total === 0 && res.total > 0)) {
+      melhorResultado = res
+    }
+  }
+
+  if (melhorResultado.total === 0) {
+    console.warn('[PARSER EXCEL] Nenhuma aba da planilha retornou registros válidos.', melhorResultado)
+  }
+
+  return melhorResultado
+}
+
+function normalizarStringHeader(val: unknown): string {
+  if (val === null || val === undefined) return ''
+  return String(val).replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').toUpperCase().trim()
 }
 
 function detectarFormatoDataCar(rows: unknown[][]): boolean {
@@ -35,7 +67,7 @@ function detectarFormatoDataCar(rows: unknown[][]): boolean {
   for (let i = 0; i < Math.min(15, rows.length); i++) {
     const row = rows[i]
     if (!row) continue
-    const rowStr = row.map((c) => String(c || '').toUpperCase()).join(' ')
+    const rowStr = row.map((c) => normalizarStringHeader(c)).join(' ')
     if (rowStr.includes('CPRL010') || rowStr.includes('PREVISÃO DE PAGAMENTOS') || rowStr.includes('PREVISAO DE PAGAMENTOS')) {
       return true
     }
@@ -114,10 +146,21 @@ function normalizarData(raw: unknown): string {
   const str = String(raw).trim()
   const dtMatch = str.match(/^(\d{4}-\d{2}-\d{2})/)
   if (dtMatch) return dtMatch[1]
+  const brMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/)
+  if (brMatch) {
+    const d = brMatch[1].padStart(2, '0')
+    const m = brMatch[2].padStart(2, '0')
+    const y = brMatch[3].length === 2 ? '20' + brMatch[3] : brMatch[3]
+    return `${y}-${m}-${d}`
+  }
   return parseDate(str)
 }
 
 function parseExcelGenerico(rows: unknown[][]): ResultadoImportacao {
+  if (!rows || rows.length === 0) {
+    return { total: 0, validos: 0, invalidos: 0, dados: [], motivo: 'A aba selecionada não contém linhas de conteúdo.' }
+  }
+
   let headerRow = -1
   let colNomeFantasia = -1
   let colRazaoSocial = -1
@@ -128,55 +171,57 @@ function parseExcelGenerico(rows: unknown[][]): ResultadoImportacao {
   let colCategoria = -1
   let colContaFinanceira = -1
 
-  for (let i = 0; i < Math.min(30, rows.length); i++) {
-    const row = (rows[i] || []).map((c) => String(c || '').toUpperCase().trim())
+  for (let i = 0; i < Math.min(100, rows.length); i++) {
+    const row = (rows[i] || []).map((c) => normalizarStringHeader(c))
     if (!row || row.length === 0) continue
 
-    const vIdx = row.findIndex((c) => c.includes('VALOR ORIGINAL') || c.includes('SALDO BAIXAR') || c.includes('VALOR') || c.includes('VLR') || c.includes('TOTAL'))
-    const dIdx = row.findIndex((c) => c.includes('VENC. ORIGINAL') || c.includes('VENCIMENTO') || c.includes('VENC') || c.includes('PRAZO'))
-    const nfIdx = row.findIndex((c) => c.includes('NOME FANTASIA') || c.includes('FORNECEDOR') || c.includes('CREDOR') || c === 'NOME' || c.includes('RAZÃO SOCIAL') || c.includes('RAZAO SOCIAL'))
-    const hIdx = row.findIndex((c) => c.includes('HISTÓRICO') || c.includes('HISTORICO') || c.includes('DESC') || c.includes('OBS'))
+    const vIdx = row.findIndex((c) => c.includes('VALOR') || c.includes('SALDO') || c.includes('VLR') || c.includes('TOTAL') || c.includes('PREÇO') || c.includes('PRECO'))
+    const dIdx = row.findIndex((c) => c.includes('VENC') || c.includes('PRAZO') || c.includes('DATA') || c.includes('DUPLICATA'))
+    const nfIdx = row.findIndex((c) => c.includes('FANTASIA') || c.includes('FORNECEDOR') || c.includes('CREDOR') || c === 'NOME' || c.includes('RAZÃO') || c.includes('RAZAO') || c.includes('CLIENTE'))
+    const hIdx = row.findIndex((c) => c.includes('HISTÓRICO') || c.includes('HISTORICO') || c.includes('DESC') || c.includes('OBS') || c.includes('DETALHE'))
 
-    // Exigir ao menos 2 coincidências na mesma linha para confirmar a linha de cabeçalho real
     const matchesCount = (vIdx >= 0 ? 1 : 0) + (dIdx >= 0 ? 1 : 0) + (nfIdx >= 0 ? 1 : 0) + (hIdx >= 0 ? 1 : 0)
 
-    if (matchesCount >= 2) {
+    if (matchesCount >= 1) {
       headerRow = i
-      colValor = vIdx
-      colVencimento = dIdx
-      colNomeFantasia = nfIdx
+      colValor = vIdx >= 0 ? vIdx : row.findIndex(c => c.includes('VALOR') || c.includes('SALDO'))
+      colVencimento = dIdx >= 0 ? dIdx : row.findIndex(c => c.includes('VENC'))
+      colNomeFantasia = nfIdx >= 0 ? nfIdx : -1
       colRazaoSocial = row.findIndex((c) => c.includes('RAZÃO SOCIAL') || c.includes('RAZAO SOCIAL'))
-      colHistorico = hIdx
+      colHistorico = hIdx >= 0 ? hIdx : -1
       colEmissao = row.findIndex((c) => c.includes('EMISSÃO') || c.includes('EMISSAO') || c.includes('DATA ENTRADA'))
       colCategoria = row.findIndex((c) => c.includes('CENTRO DE RESULTADO') || c.includes('CATEGORIA') || c.includes('PLANO DE CONTAS') || c.includes('CENTRO DE CUSTO'))
       colContaFinanceira = row.findIndex((c) => c.includes('CONTA CAIXA') || c.includes('CONTA BANCARIA') || c.includes('BANCO'))
+      console.log(`[PARSER GENERICO] Cabeçalho encontrado na linha ${i + 1}. Mapeamento: colValor=${colValor}, colVencimento=${colVencimento}, colNomeFantasia=${colNomeFantasia}, colHistorico=${colHistorico}, colCategoria=${colCategoria}, colContaFinanceira=${colContaFinanceira}`)
       break
     }
   }
 
-  // Se não encontrou cabeçalho com 2+ marcadores, tenta 1 marcador
   if (headerRow < 0) {
-    for (let i = 0; i < Math.min(30, rows.length); i++) {
-      const row = (rows[i] || []).map((c) => String(c || '').toUpperCase().trim())
-      const vIdx = row.findIndex((c) => c.includes('VALOR ORIGINAL') || c.includes('SALDO BAIXAR') || c.includes('VALOR') || c.includes('VLR') || c.includes('TOTAL'))
-      const dIdx = row.findIndex((c) => c.includes('VENC. ORIGINAL') || c.includes('VENCIMENTO') || c.includes('VENC'))
-      if (vIdx >= 0 || dIdx >= 0) {
-        headerRow = i
-        colValor = vIdx >= 0 ? vIdx : 0
-        colVencimento = dIdx >= 0 ? dIdx : -1
-        colNomeFantasia = row.findIndex((c) => c.includes('NOME FANTASIA') || c.includes('FORNECEDOR') || c === 'NOME')
-        colRazaoSocial = row.findIndex((c) => c.includes('RAZÃO SOCIAL') || c.includes('RAZAO SOCIAL'))
-        colHistorico = row.findIndex((c) => c.includes('HISTÓRICO') || c.includes('HISTORICO') || c.includes('DESC'))
-        colEmissao = row.findIndex((c) => c.includes('EMISSÃO') || c.includes('EMISSAO'))
-        colCategoria = row.findIndex((c) => c.includes('CENTRO DE RESULTADO') || c.includes('CATEGORIA'))
-        colContaFinanceira = row.findIndex((c) => c.includes('CONTA CAIXA') || c.includes('BANCO'))
-        break
-      }
+    console.warn('[PARSER GENERICO] Nenhum nome de cabeçalho padrão encontrado nas primeiras 100 linhas. Tentando busca cega de colunas por dados.')
+    headerRow = 0
+    for (let i = 0; i < Math.min(20, rows.length); i++) {
+      const row = rows[i] || []
+      row.forEach((cell, colIdx) => {
+        const str = String(cell || '').trim()
+        if (colValor < 0 && (typeof cell === 'number' || (str && /^R?\$?\s*\d+([.,]\d+)?$/.test(str)))) {
+          colValor = colIdx
+        }
+        if (colVencimento < 0 && (cell instanceof Date || /^\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}/.test(str))) {
+          colVencimento = colIdx
+        }
+      })
     }
   }
 
-  if (headerRow < 0) {
-    return { total: 0, validos: 0, invalidos: 0, dados: [] }
+  if (colValor < 0 && colVencimento < 0) {
+    return {
+      total: 0,
+      validos: 0,
+      invalidos: 0,
+      dados: [],
+      motivo: 'Não foi possível identificar as colunas de Valor ou Vencimento na planilha.'
+    }
   }
 
   const dados: ContaPagarPreview[] = []
@@ -184,7 +229,8 @@ function parseExcelGenerico(rows: unknown[][]): ResultadoImportacao {
     const row = rows[i] as string[]
     if (!row || row.every((c) => !c)) continue
 
-    const valor = parseCurrency(String(row[colValor] || '0'))
+    const valRaw = colValor >= 0 ? row[colValor] : 0
+    const valor = parseCurrency(String(valRaw || '0'))
     const vencimento = colVencimento >= 0 ? normalizarData(row[colVencimento]) : ''
     const emissao = colEmissao >= 0 ? normalizarData(row[colEmissao]) : undefined
     
@@ -192,7 +238,6 @@ function parseExcelGenerico(rows: unknown[][]): ResultadoImportacao {
     const razaoSocial = colRazaoSocial >= 0 ? String(row[colRazaoSocial] || '').trim() : ''
     const historico = colHistorico >= 0 ? String(row[colHistorico] || '').trim() : ''
 
-    // Regra da Descrição: Juntar Nome Fantasia - Histórico - Razão Social (se Razão Social for diferente do Nome Fantasia)
     const partesDescricao: string[] = []
     if (nomeFantasia) partesDescricao.push(nomeFantasia)
     if (historico && historico.toLowerCase() !== nomeFantasia.toLowerCase()) {
@@ -202,12 +247,10 @@ function parseExcelGenerico(rows: unknown[][]): ResultadoImportacao {
       partesDescricao.push(razaoSocial)
     }
 
-    const descricaoFinal = partesDescricao.join(' - ') || 'Sem descrição'
+    const descricaoFinal = partesDescricao.join(' - ') || (nomeFantasia || razaoSocial || historico ? `${nomeFantasia || razaoSocial}` : 'Sem descrição')
 
-    // Fornecedor para exibição/identificação
     const fornecedorFinal = (nomeFantasia || razaoSocial || historico || 'NÃO INFORMADO').trim()
 
-    // Categoria e Conta Financeira
     let categoriaRaw = colCategoria >= 0 ? String(row[colCategoria] || '').trim() : ''
     if (categoriaRaw && /^\d+\s*-\s*/.test(categoriaRaw)) {
       categoriaRaw = categoriaRaw.replace(/^\d+\s*-\s*/, '').trim()
@@ -237,6 +280,7 @@ function parseExcelGenerico(rows: unknown[][]): ResultadoImportacao {
     validos: dados.filter((d) => d.valido).length,
     invalidos: dados.filter((d) => !d.valido).length,
     dados,
+    motivo: dados.length === 0 ? 'Linhas lidas, mas nenhuma continha valor e vencimento válidos.' : undefined
   }
 }
 

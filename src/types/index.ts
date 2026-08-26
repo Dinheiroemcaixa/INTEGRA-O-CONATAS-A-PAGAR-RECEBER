@@ -136,6 +136,7 @@ export interface ResultadoImportacao {
   invalidos: number
   dados: ContaPagarPreview[]
   aviso?: string
+  motivo?: string
 }
 
 export interface VendaItemPreview {
