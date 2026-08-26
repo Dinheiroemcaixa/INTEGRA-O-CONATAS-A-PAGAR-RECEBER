@@ -103,10 +103,16 @@ export async function POST(req: NextRequest) {
       try {
         // Fornecedor
         let contatoId = null
-        try {
-          contatoId = await buscarOuCriarContato(accessToken, conta.fornecedor)
-        } catch (errContato) {
-          console.error(`[ca/enviar] Erro ao buscar/criar contato ${conta.fornecedor}:`, errContato)
+        const fornecedorNome = (conta.fornecedor || '').trim()
+
+        if (fornecedorNome && fornecedorNome.toUpperCase() !== 'NÃO INFORMADO' && fornecedorNome.toUpperCase() !== 'NÃO IDENTIFICADO') {
+          try {
+            contatoId = await buscarOuCriarContato(accessToken, fornecedorNome)
+          } catch (errContato) {
+            console.error(`[ca/enviar] Erro ao buscar/criar contato ${fornecedorNome}:`, errContato)
+          }
+        } else {
+          console.log('[ca/enviar] Fornecedor vazio ou não informado. Omitindo contato do payload.')
         }
 
         // Categoria (Match Inteligente)
