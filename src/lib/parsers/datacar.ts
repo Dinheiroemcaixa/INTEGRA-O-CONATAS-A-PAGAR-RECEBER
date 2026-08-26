@@ -13,8 +13,27 @@ import type { ContaPagarPreview, ResultadoImportacao } from '@/types'
 export async function parseExcelDataCar(file: File): Promise<ResultadoImportacao> {
   console.log('[PARSER EXCEL] Iniciando leitura:', file.name, 'Tamanho:', file.size, 'bytes')
   const buffer = await file.arrayBuffer()
-  const wb = XLSX.read(buffer, { type: 'array', cellDates: true })
+  
+  // Detecção de Assinatura do Arquivo (se é ZIP/XLSX, XLS antigo ou Texto)
+  const arr = new Uint8Array(buffer.slice(0, 4))
+  const isZip = arr[0] === 0x50 && arr[1] === 0x4B // 'PK'
+  const isOldExcel = arr[0] === 0xD0 && arr[1] === 0xCF && arr[2] === 0x11 && arr[3] === 0xE0 // XLS antigo
+  
+  const textSig = Array.from(new Uint8Array(buffer.slice(0, 200))).map(c => String.fromCharCode(c)).join('')
+  console.log('[PARSER EXCEL] Assinatura do arquivo:', { isZip, isOldExcel, textSig: textSig.substring(0, 100) })
 
+  // Caso seja um CSV disfarçado de Excel (.xlsx / .xls de texto simples)
+  if (!isZip && !isOldExcel && !textSig.trim().startsWith('<')) {
+    console.log('[PARSER EXCEL] O arquivo não parece ser um binário Excel. Tratando como CSV/Texto.')
+    try {
+      const text = new TextDecoder('utf-8').decode(buffer)
+      return parseCSVTexto(text)
+    } catch (e: any) {
+      console.error('[PARSER EXCEL] Erro ao decodificar como CSV:', e)
+    }
+  }
+
+  const wb = XLSX.read(buffer, { type: 'array', cellDates: true })
   console.log('[PARSER EXCEL] Abas encontradas no arquivo:', wb.SheetNames)
 
   if (!wb.SheetNames || wb.SheetNames.length === 0) {
@@ -29,8 +48,26 @@ export async function parseExcelDataCar(file: File): Promise<ResultadoImportacao
     const ws = wb.Sheets[sheetName]
     if (!ws) continue
 
+    // Recalcular ref do range para evitar ranges corrompidos ou incompletos na exportação do ERP
+    const refOriginal = ws['!ref']
+    let maxRow = 0
+    let maxCol = 0
+    let cellsCount = 0
+    for (const key in ws) {
+      if (key[0] === '!') continue
+      cellsCount++
+      try {
+        const cell = XLSX.utils.decode_cell(key)
+        if (cell.r > maxRow) maxRow = cell.r
+        if (cell.c > maxCol) maxCol = cell.c
+      } catch (e) {}
+    }
+    const novoRef = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: maxRow, c: maxCol } })
+    console.log(`[PARSER EXCEL] Aba "${sheetName}": celulas=${cellsCount}, refOriginal=${refOriginal}, refRecalculado=${novoRef}`)
+    ws['!ref'] = novoRef
+
     const rows: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, dateNF: 'yyyy-mm-dd' })
-    console.log(`[PARSER EXCEL] Aba "${sheetName}" lida com ${rows ? rows.length : 0} linhas.`)
+    console.log(`[PARSER EXCEL] Aba "${sheetName}" lida com ${rows ? rows.length : 0} linhas reais após recalcular range.`)
     if (!rows || rows.length === 0) continue
 
     const isDataCar = detectarFormatoDataCar(rows)
@@ -55,6 +92,19 @@ export async function parseExcelDataCar(file: File): Promise<ResultadoImportacao
   }
 
   return melhorResultado
+}
+
+export function parseCSVTexto(text: string): ResultadoImportacao {
+  const results = Papa.parse(text, {
+    header: false,
+    skipEmptyLines: true,
+  })
+  const rows = results.data as unknown[][]
+  console.log('[PARSER CSV DISFARÇADO] Linhas brutas lidas do CSV texto:', rows.length)
+  if (!rows || rows.length === 0) {
+    return { total: 0, validos: 0, invalidos: 0, dados: [], motivo: 'O arquivo texto/CSV está vazio.' }
+  }
+  return parseExcelGenerico(rows)
 }
 
 function normalizarStringHeader(val: unknown): string {
