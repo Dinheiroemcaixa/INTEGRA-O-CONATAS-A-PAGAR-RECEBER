@@ -134,20 +134,44 @@ function parseExcelGenerico(rows: unknown[][]): ResultadoImportacao {
 
     const vIdx = row.findIndex((c) => c.includes('VALOR ORIGINAL') || c.includes('SALDO BAIXAR') || c.includes('VALOR') || c.includes('VLR') || c.includes('TOTAL'))
     const dIdx = row.findIndex((c) => c.includes('VENC. ORIGINAL') || c.includes('VENCIMENTO') || c.includes('VENC') || c.includes('PRAZO'))
-    const nfIdx = row.findIndex((c) => c.includes('NOME FANTASIA') || c.includes('FORNECEDOR') || c.includes('CREDOR') || c === 'NOME')
+    const nfIdx = row.findIndex((c) => c.includes('NOME FANTASIA') || c.includes('FORNECEDOR') || c.includes('CREDOR') || c === 'NOME' || c.includes('RAZÃO SOCIAL') || c.includes('RAZAO SOCIAL'))
     const hIdx = row.findIndex((c) => c.includes('HISTÓRICO') || c.includes('HISTORICO') || c.includes('DESC') || c.includes('OBS'))
 
-    if (vIdx >= 0 || dIdx >= 0 || nfIdx >= 0 || hIdx >= 0) {
+    // Exigir ao menos 2 coincidências na mesma linha para confirmar a linha de cabeçalho real
+    const matchesCount = (vIdx >= 0 ? 1 : 0) + (dIdx >= 0 ? 1 : 0) + (nfIdx >= 0 ? 1 : 0) + (hIdx >= 0 ? 1 : 0)
+
+    if (matchesCount >= 2) {
       headerRow = i
-      colValor = vIdx >= 0 ? vIdx : 0
-      colVencimento = dIdx >= 0 ? dIdx : -1
-      colNomeFantasia = nfIdx >= 0 ? nfIdx : -1
+      colValor = vIdx
+      colVencimento = dIdx
+      colNomeFantasia = nfIdx
       colRazaoSocial = row.findIndex((c) => c.includes('RAZÃO SOCIAL') || c.includes('RAZAO SOCIAL'))
-      colHistorico = hIdx >= 0 ? hIdx : -1
+      colHistorico = hIdx
       colEmissao = row.findIndex((c) => c.includes('EMISSÃO') || c.includes('EMISSAO') || c.includes('DATA ENTRADA'))
       colCategoria = row.findIndex((c) => c.includes('CENTRO DE RESULTADO') || c.includes('CATEGORIA') || c.includes('PLANO DE CONTAS') || c.includes('CENTRO DE CUSTO'))
       colContaFinanceira = row.findIndex((c) => c.includes('CONTA CAIXA') || c.includes('CONTA BANCARIA') || c.includes('BANCO'))
       break
+    }
+  }
+
+  // Se não encontrou cabeçalho com 2+ marcadores, tenta 1 marcador
+  if (headerRow < 0) {
+    for (let i = 0; i < Math.min(30, rows.length); i++) {
+      const row = (rows[i] || []).map((c) => String(c || '').toUpperCase().trim())
+      const vIdx = row.findIndex((c) => c.includes('VALOR ORIGINAL') || c.includes('SALDO BAIXAR') || c.includes('VALOR') || c.includes('VLR') || c.includes('TOTAL'))
+      const dIdx = row.findIndex((c) => c.includes('VENC. ORIGINAL') || c.includes('VENCIMENTO') || c.includes('VENC'))
+      if (vIdx >= 0 || dIdx >= 0) {
+        headerRow = i
+        colValor = vIdx >= 0 ? vIdx : 0
+        colVencimento = dIdx >= 0 ? dIdx : -1
+        colNomeFantasia = row.findIndex((c) => c.includes('NOME FANTASIA') || c.includes('FORNECEDOR') || c === 'NOME')
+        colRazaoSocial = row.findIndex((c) => c.includes('RAZÃO SOCIAL') || c.includes('RAZAO SOCIAL'))
+        colHistorico = row.findIndex((c) => c.includes('HISTÓRICO') || c.includes('HISTORICO') || c.includes('DESC'))
+        colEmissao = row.findIndex((c) => c.includes('EMISSÃO') || c.includes('EMISSAO'))
+        colCategoria = row.findIndex((c) => c.includes('CENTRO DE RESULTADO') || c.includes('CATEGORIA'))
+        colContaFinanceira = row.findIndex((c) => c.includes('CONTA CAIXA') || c.includes('BANCO'))
+        break
+      }
     }
   }
 
@@ -180,8 +204,8 @@ function parseExcelGenerico(rows: unknown[][]): ResultadoImportacao {
 
     const descricaoFinal = partesDescricao.join(' - ') || 'Sem descrição'
 
-    // Regra do Fornecedor: Fica em branco conforme solicitado
-    const fornecedorFinal = ''
+    // Fornecedor para exibição/identificação
+    const fornecedorFinal = (nomeFantasia || razaoSocial || historico || 'NÃO INFORMADO').trim()
 
     // Categoria e Conta Financeira
     let categoriaRaw = colCategoria >= 0 ? String(row[colCategoria] || '').trim() : ''
