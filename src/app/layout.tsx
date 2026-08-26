@@ -22,16 +22,18 @@ export default function RootLayout({
         <Toaster
           position="top-right"
           toastOptions={{
-            duration: 4000,
+            duration: 3000,
             style: {
               background: '#1e293b',
               color: '#f1f5f9',
               border: '1px solid #334155',
             },
             success: {
+              duration: 3000,
               iconTheme: { primary: '#22c55e', secondary: '#1e293b' },
             },
             error: {
+              duration: 4000,
               iconTheme: { primary: '#ef4444', secondary: '#1e293b' },
             },
           }}
