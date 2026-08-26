@@ -133,6 +133,20 @@ export async function getValidToken(
       console.log(`[token-manager] Token (${modulo}) renovado com sucesso para empresa ${targetEmpresa.nome || targetEmpresa.id}`)
     } catch (errRefresh) {
       console.error('[token-manager] Falha ao renovar token:', errRefresh)
+      // Limpa os tokens expirados/inválidos no Supabase para que a interface reflita o status real (Vermelho)
+      const updateDataClear: Record<string, any> = isVendas ? {
+        access_token_conta_azul_vendas: null,
+        refresh_token_conta_azul_vendas: null,
+        data_expiracao_token_vendas: null,
+        conta_azul_vendas_connected: false,
+      } : {
+        access_token_conta_azul: null,
+        refresh_token_conta_azul: null,
+        data_expiracao_token: null,
+        conta_azul_connected: false,
+      }
+      await supabaseAdmin.from('empresas').update(updateDataClear).eq('id', targetEmpresa.id)
+
       throw new TokenError(
         `Sua conexão com a Conta Azul (${modulo}) expirou. Por favor, acesse Empresas e reconecte a Conta Azul.`,
         401

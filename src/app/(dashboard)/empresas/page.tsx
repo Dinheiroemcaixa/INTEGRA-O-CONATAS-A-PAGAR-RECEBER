@@ -1156,8 +1156,8 @@ function EmpresaRowItem({
   const [mostrarFicha, setMostrarFicha] = useState(false)
   const [mostrarFornecedores, setMostrarFornecedores] = useState(false)
 
-  const caFinanceiroConectado = Boolean(empresa.access_token_conta_azul)
-  const caVendasConectado = Boolean(empresa.access_token_conta_azul_vendas)
+  const caFinanceiroConectado = Boolean(empresa.access_token_conta_azul && empresa.conta_azul_connected !== false)
+  const caVendasConectado = Boolean(empresa.access_token_conta_azul_vendas && empresa.conta_azul_vendas_connected !== false)
 
   if (isEditandoInline) {
     return (
