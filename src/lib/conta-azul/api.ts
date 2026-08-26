@@ -118,11 +118,12 @@ export async function refreshToken(
 
 export async function listarContasFinanceiras(accessToken: string): Promise<ContaFinanceira[]> {
   const todasContas = new Map<string, ContaFinanceira>()
+  const queryParams = 'pagina=1&tamanho_pagina=200&apenas_ativo=true&mostrar_caixinha=true&esconde_conta_digital=false'
   const endpoints = [
-    `${BASE_URL}/conta-financeira?pagina=1&tamanho_pagina=100&apenas_ativo=true`,
+    `${BASE_URL}/conta-financeira?${queryParams}`,
+    `https://api-v2.contaazul.com/v1/conta-financeira?${queryParams}`,
     `${BASE_URL}/conta-financeira?pagina=1&tamanho_pagina=100`,
-    `https://api-v2.contaazul.com/v1/conta-financeira?pagina=1&tamanho_pagina=100&apenas_ativo=true`,
-    `https://api.contaazul.com/v1/conta-financeira?pagina=1&tamanho_pagina=100`,
+    `https://api.contaazul.com/v1/conta-financeira?${queryParams}`,
     `${BASE_URL}/contas-financeiras?pagina=1&tamanho_pagina=100`,
     `${BASE_URL}/bank-accounts`,
   ]
@@ -143,11 +144,18 @@ export async function listarContasFinanceiras(accessToken: string): Promise<Cont
       const listaRaw = Array.isArray(data) ? data : (data.itens || data.items || data.content || data.data || [])
       for (const item of listaRaw) {
         const id = item.id || item.uuid || item.bankAccountId || item.guid
-        const nomeOuDesc = item.nome || item.name || item.descricao || item.description
-        if (id && nomeOuDesc && !todasContas.has(id)) {
+        const nomeBase = item.nome || item.descricao || item.name || item.description || ''
+        if (id && nomeBase && !todasContas.has(id)) {
+          let descFinal = String(nomeBase).trim()
+          if (item.banco && typeof item.banco === 'string') {
+            const bancoFormatado = item.banco.replace(/_/g, ' ')
+            if (!descFinal.toUpperCase().includes(bancoFormatado.toUpperCase())) {
+              descFinal = `${descFinal} (${bancoFormatado})`
+            }
+          }
           todasContas.set(id, {
             id,
-            descricao: String(nomeOuDesc).toUpperCase(),
+            descricao: descFinal.toUpperCase(),
             tipo: item.tipo || item.type
           })
         }
