@@ -457,6 +457,22 @@ export default function ContasPreviewSection({
     setSelecionados(new Set())
   }
 
+  const updateFornecedorEmLote = useCallback((indices: number[], novoFornecedor: string) => {
+    setDadosEditados((prev) => {
+      const next = [...prev]
+      indices.forEach(idx => {
+        next[idx] = { 
+          ...next[idx], 
+          fornecedor: novoFornecedor,
+          matchFornecedor: undefined // Limpa o match automático
+        }
+      })
+      return next
+    })
+    setSelecionados(new Set())
+    toast.success(`${indices.length} fornecedores atualizados em lote!`)
+  }, [])
+
   const updateContaEmLote = async (indices: number[], novaConta: string) => {
     if (!novaConta.trim()) return
     const contaId = contasFinanceirasCA.find(c => c.descricao === novaConta)?.id || ''
@@ -633,6 +649,7 @@ export default function ContasPreviewSection({
         onRemoverLote={removerEmLote}
         onUpdateCategoriaLote={updateCategoriaEmLote}
         onUpdateContaLote={updateContaEmLote}
+        onUpdateFornecedorLote={updateFornecedorEmLote}
         contasFinanceiras={contasFinanceirasCA}
         onUpdateValor={updateValor}
         onUpdateVencimento={updateVencimento}

@@ -21,6 +21,7 @@ interface Props {
   onRemoverLote: (indices: number[]) => void
   onUpdateCategoriaLote: (indices: number[], novaCategoria: string) => void
   onUpdateContaLote: (indices: number[], novaConta: string) => void
+  onUpdateFornecedorLote: (indices: number[], novoFornecedor: string) => void
   contasFinanceiras: ContaFinanceiraOpcao[]
   onUpdateValor: (idx: number, novoValor: number) => void
   onUpdateVencimento: (idx: number, novaData: string) => void
@@ -55,7 +56,7 @@ function BadgeMatch({ confianca, score }: { confianca: string; score: number }) 
 
 export default function TabelaPreview({
   dados, filtro, selecionados, onToggle, onToggleTodos, onRemover, onUpdateFornecedor, onUpdateCategoria,
-  onRemoverLote, onUpdateCategoriaLote, onUpdateConta, onUpdateContaLote, contasFinanceiras,
+  onRemoverLote, onUpdateCategoriaLote, onUpdateConta, onUpdateContaLote, onUpdateFornecedorLote, contasFinanceiras,
   onUpdateValor, onUpdateVencimento, onUpdateEmissao, onUpdateDescricao
 }: Props) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
@@ -238,6 +239,20 @@ export default function TabelaPreview({
                       Aplicar
                     </button>
                   </div>
+
+                  {/* Limpar Fornecedor em Lote */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(`Limpar o fornecedor de todos os ${selecionados.size} itens selecionados?`)) {
+                        onUpdateFornecedorLote(Array.from(selecionados), '')
+                      }
+                    }}
+                    className="bg-amber-600 hover:bg-amber-500 text-white px-2 py-1 rounded text-[10px] font-bold transition-all"
+                    title="Remove o fornecedor selecionado para enviar em branco"
+                  >
+                    Limpar Fornecedor
+                  </button>
 
                   <button onClick={() => { setShowBulkEdit(false); setShowBulkList(false); setShowBulkContaList(false) }} className="text-dark-400 text-[10px]">Fechar</button>
                 </div>
