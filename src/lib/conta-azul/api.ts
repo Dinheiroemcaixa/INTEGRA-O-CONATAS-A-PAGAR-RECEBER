@@ -119,20 +119,24 @@ export async function refreshToken(
 export async function listarContasFinanceiras(accessToken: string): Promise<ContaFinanceira[]> {
   const todasContas = new Map<string, ContaFinanceira>()
   const endpoints = [
-    `https://api-v2.contaazul.com/v1/bank-accounts`,
-    `https://api.contaazul.com/v1/bank-accounts`,
-    `${BASE_URL}/bank-accounts`,
-    `${BASE_URL}/bank-accounts?pagina=1&tamanho_pagina=100`,
+    `${BASE_URL}/conta-financeira?pagina=1&tamanho_pagina=100&apenas_ativo=true`,
     `${BASE_URL}/conta-financeira?pagina=1&tamanho_pagina=100`,
-    `${BASE_URL}/financeiro/conta-financeira?pagina=1&tamanho_pagina=100`,
+    `https://api-v2.contaazul.com/v1/conta-financeira?pagina=1&tamanho_pagina=100&apenas_ativo=true`,
+    `https://api.contaazul.com/v1/conta-financeira?pagina=1&tamanho_pagina=100`,
     `${BASE_URL}/contas-financeiras?pagina=1&tamanho_pagina=100`,
-    `${BASE_URL}/contas?pagina=1&tamanho_pagina=100`,
+    `${BASE_URL}/bank-accounts`,
   ]
   for (const endpoint of endpoints) {
     try {
-      const res = await fetchCA(endpoint, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+      const res = await fetchCA(endpoint, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/json'
+        }
+      })
       if (!res.ok) {
         if (res.status === 401) throw new Error('TOKEN_EXPIRADO')
+        console.warn(`[contas-financeiras] Resposta nao-OK (${res.status}) em ${endpoint}`)
         continue
       }
       const data = await res.json()
@@ -141,7 +145,11 @@ export async function listarContasFinanceiras(accessToken: string): Promise<Cont
         const id = item.id || item.uuid || item.bankAccountId || item.guid
         const nomeOuDesc = item.nome || item.name || item.descricao || item.description
         if (id && nomeOuDesc && !todasContas.has(id)) {
-          todasContas.set(id, { id, descricao: nomeOuDesc, tipo: item.tipo || item.type })
+          todasContas.set(id, {
+            id,
+            descricao: String(nomeOuDesc).toUpperCase(),
+            tipo: item.tipo || item.type
+          })
         }
       }
       if (todasContas.size > 0) break
