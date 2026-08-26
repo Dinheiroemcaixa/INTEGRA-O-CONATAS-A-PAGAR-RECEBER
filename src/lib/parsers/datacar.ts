@@ -31,14 +31,11 @@ export async function parseExcelDataCar(file: File): Promise<ResultadoImportacao
 }
 
 function detectarFormatoDataCar(rows: unknown[][]): boolean {
-  // Linha 10 (índice 9) tem cabeçalhos NF, FORNECEDOR, VENCIM, VALOR
+  // O relatório nativo do DataCar possui a assinatura específica CpRl010 ou a string "PREVISÃO DE PAGAMENTOS"
   for (let i = 0; i < Math.min(15, rows.length); i++) {
     const row = rows[i]
+    if (!row) continue
     const rowStr = row.map((c) => String(c || '').toUpperCase()).join(' ')
-    if (rowStr.includes('FORNECEDOR') && rowStr.includes('VENCIM') && rowStr.includes('VALOR')) {
-      return true
-    }
-    // Também detectar pelo nome do relatório CpRl010
     if (rowStr.includes('CPRL010') || rowStr.includes('PREVISÃO DE PAGAMENTOS') || rowStr.includes('PREVISAO DE PAGAMENTOS')) {
       return true
     }
@@ -48,9 +45,6 @@ function detectarFormatoDataCar(rows: unknown[][]): boolean {
 
 function parseDataCarNativo(rows: unknown[][]): ResultadoImportacao {
   const dados: ContaPagarPreview[] = []
-  // Pular linhas de cabeçalho (linhas 1-12, índices 0-11)
-  // Dados começam na linha 13 (índice 12)
-  // Identificar índices das colunas: NF=0, EMISSÃO=8, FORNECEDOR=13, DOC=16, VENCIM=19, VALOR=23
 
   for (let i = 12; i < rows.length; i++) {
     const row = rows[i] as string[]
@@ -63,7 +57,6 @@ function parseDataCarNativo(rows: unknown[][]): ResultadoImportacao {
     const vencimentoRaw = row[19]
     const valorRaw = row[23]
 
-    // Pular linhas vazias, linhas de grupo/filial e linhas de totais
     if (!nf || !fornecedor || !valorRaw) continue
     if (isLinhaGrupo(nf, row)) continue
     if (isLinhaTotal(nf)) continue
@@ -99,7 +92,6 @@ function parseDataCarNativo(rows: unknown[][]): ResultadoImportacao {
 }
 
 function isLinhaGrupo(nf: string, row: string[]): boolean {
-  // Linha de grupo/filial: NF tem texto curto sem número E fornecedor está vazio
   const semDigito = !/\d/.test(nf)
   const fornecedorVazio = !row[13] || String(row[13]).trim() === ''
   const valorVazio = !row[23] || String(row[23]).trim() === ''
@@ -120,14 +112,12 @@ function normalizarData(raw: unknown): string {
     return `${y}-${m}-${d}`
   }
   const str = String(raw).trim()
-  // Formato "2026-05-01 00:00:00" (quando XLSX serializa datetime como string)
   const dtMatch = str.match(/^(\d{4}-\d{2}-\d{2})/)
   if (dtMatch) return dtMatch[1]
   return parseDate(str)
 }
 
 function parseExcelGenerico(rows: unknown[][]): ResultadoImportacao {
-  // Detectar linha de cabeçalho genérico ou de relatório ERP (ex: Titulos_despesas)
   let headerRow = -1
   let colNomeFantasia = -1
   let colRazaoSocial = -1
@@ -138,20 +128,22 @@ function parseExcelGenerico(rows: unknown[][]): ResultadoImportacao {
   let colCategoria = -1
   let colContaFinanceira = -1
 
-  for (let i = 0; i < Math.min(20, rows.length); i++) {
-    const row = rows[i].map((c) => String(c || '').toUpperCase().trim())
-    
+  for (let i = 0; i < Math.min(30, rows.length); i++) {
+    const row = (rows[i] || []).map((c) => String(c || '').toUpperCase().trim())
+    if (!row || row.length === 0) continue
+
     const vIdx = row.findIndex((c) => c.includes('VALOR ORIGINAL') || c.includes('SALDO BAIXAR') || c.includes('VALOR') || c.includes('VLR') || c.includes('TOTAL'))
     const dIdx = row.findIndex((c) => c.includes('VENC. ORIGINAL') || c.includes('VENCIMENTO') || c.includes('VENC') || c.includes('PRAZO'))
     const nfIdx = row.findIndex((c) => c.includes('NOME FANTASIA') || c.includes('FORNECEDOR') || c.includes('CREDOR') || c === 'NOME')
+    const hIdx = row.findIndex((c) => c.includes('HISTÓRICO') || c.includes('HISTORICO') || c.includes('DESC') || c.includes('OBS'))
 
-    if ((vIdx >= 0 || dIdx >= 0) && (nfIdx >= 0 || row.some(c => c.includes('HISTÓRICO') || c.includes('HISTORICO')))) {
+    if (vIdx >= 0 || dIdx >= 0 || nfIdx >= 0 || hIdx >= 0) {
       headerRow = i
       colValor = vIdx >= 0 ? vIdx : 0
       colVencimento = dIdx >= 0 ? dIdx : -1
       colNomeFantasia = nfIdx >= 0 ? nfIdx : -1
       colRazaoSocial = row.findIndex((c) => c.includes('RAZÃO SOCIAL') || c.includes('RAZAO SOCIAL'))
-      colHistorico = row.findIndex((c) => c.includes('HISTÓRICO') || c.includes('HISTORICO') || c.includes('DESC') || c.includes('OBS'))
+      colHistorico = hIdx >= 0 ? hIdx : -1
       colEmissao = row.findIndex((c) => c.includes('EMISSÃO') || c.includes('EMISSAO') || c.includes('DATA ENTRADA'))
       colCategoria = row.findIndex((c) => c.includes('CENTRO DE RESULTADO') || c.includes('CATEGORIA') || c.includes('PLANO DE CONTAS') || c.includes('CENTRO DE CUSTO'))
       colContaFinanceira = row.findIndex((c) => c.includes('CONTA CAIXA') || c.includes('CONTA BANCARIA') || c.includes('BANCO'))
