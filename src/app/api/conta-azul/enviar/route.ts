@@ -127,11 +127,31 @@ export async function POST(req: NextRequest) {
         const buscaLimpa = limpar(categoriaOriginal)
         
         // 1. Match Categoria
-        const match = todasCategorias.find(c => {
-          const n = c.nome.toLowerCase().trim()
-          const nLimpa = limpar(n)
-          return n === categoriaOriginal.toLowerCase().trim() || nLimpa === buscaLimpa || n.includes(categoriaOriginal.toLowerCase())
+        // Prioridade 1: Match exato
+        let match = todasCategorias.find(c => {
+          return c.nome.toLowerCase().trim() === categoriaOriginal.toLowerCase().trim()
         })
+
+        // Prioridade 2: Match exato após limpeza profunda
+        if (!match) {
+          match = todasCategorias.find(c => {
+            return limpar(c.nome) === buscaLimpa
+          })
+        }
+
+        // Prioridade 3: Começa com o nome pesquisado
+        if (!match) {
+          match = todasCategorias.find(c => {
+            return c.nome.toLowerCase().trim().startsWith(categoriaOriginal.toLowerCase().trim())
+          })
+        }
+
+        // Prioridade 4: Contém o nome pesquisado
+        if (!match) {
+          match = todasCategorias.find(c => {
+            return c.nome.toLowerCase().trim().includes(categoriaOriginal.toLowerCase().trim())
+          })
+        }
         
         if (match) {
           catId = match.id
