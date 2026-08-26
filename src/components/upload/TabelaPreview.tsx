@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { ContaPagarPreview } from '@/types'
 import { CheckCircle, AlertCircle, Trash2, Edit2, ChevronDown } from 'lucide-react'
@@ -99,6 +99,21 @@ export default function TabelaPreview({
     (d) => d.matchFornecedor && (d.matchFornecedor.confianca === 'exato' || d.matchFornecedor.confianca === 'alto')
       && d.matchFornecedor.nomeOriginal !== d.matchFornecedor.nomeCorrigido
   ).length
+  // Sempre que os filtros mudarem, desmarca automaticamente os itens que não estão mais visíveis/filtrados
+  useEffect(() => {
+    const indicesFiltradosValidosSet = new Set(indicesFiltradosValidos)
+    const indicesParaDesmarcar: number[] = []
+
+    selecionados.forEach((idx) => {
+      if (!indicesFiltradosValidosSet.has(idx)) {
+        indicesParaDesmarcar.push(idx)
+      }
+    })
+
+    if (indicesParaDesmarcar.length > 0) {
+      onToggleTodosLote(indicesParaDesmarcar, 'desmarcar')
+    }
+  }, [buscaFornecedor, buscaCategoria, buscaValor, filtro, onToggleTodosLote])
 
   return (
     <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden">
