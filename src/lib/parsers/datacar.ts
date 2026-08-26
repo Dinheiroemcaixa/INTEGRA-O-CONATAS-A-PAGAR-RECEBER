@@ -127,30 +127,38 @@ function normalizarData(raw: unknown): string {
 }
 
 function parseExcelGenerico(rows: unknown[][]): ResultadoImportacao {
-  // Detectar linha de cabeçalho genérico
+  // Detectar linha de cabeçalho genérico ou de relatório ERP (ex: Titulos_despesas)
   let headerRow = -1
   let colFornecedor = -1
   let colValor = -1
   let colVencimento = -1
+  let colEmissao = -1
   let colDescricao = -1
+  let colCategoria = -1
+  let colContaFinanceira = -1
+  let colDoc = -1
 
   for (let i = 0; i < Math.min(20, rows.length); i++) {
     const row = rows[i].map((c) => String(c || '').toUpperCase().trim())
-    const fIdx = row.findIndex((c) => c.includes('FORNECEDOR') || c.includes('CREDOR') || c.includes('NOME'))
-    const vIdx = row.findIndex((c) => c.includes('VALOR') || c.includes('TOTAL') || c.includes('VLR'))
-    const dIdx = row.findIndex((c) => c.includes('VENC') || c.includes('DATA') || c.includes('PRAZO'))
+    const fIdx = row.findIndex((c) => c.includes('FORNECEDOR') || c.includes('CREDOR') || c.includes('NOME FANTASIA') || c.includes('RAZÃO SOCIAL') || c.includes('RAZAO SOCIAL') || c === 'NOME')
+    const vIdx = row.findIndex((c) => c.includes('VALOR ORIGINAL') || c.includes('SALDO BAIXAR') || c.includes('VALOR') || c.includes('VLR') || c.includes('TOTAL'))
+    const dIdx = row.findIndex((c) => c.includes('VENC. ORIGINAL') || c.includes('VENCIMENTO') || c.includes('VENC') || c.includes('PRAZO'))
+
     if (fIdx >= 0 && vIdx >= 0) {
       headerRow = i
       colFornecedor = fIdx
       colValor = vIdx
       colVencimento = dIdx >= 0 ? dIdx : -1
-      colDescricao = row.findIndex((c) => c.includes('DESC') || c.includes('OBS') || c.includes('HISTORICO'))
+      colEmissao = row.findIndex((c) => c.includes('EMISSÃO') || c.includes('EMISSAO') || c.includes('DATA ENTRADA'))
+      colDescricao = row.findIndex((c) => c.includes('HISTÓRICO') || c.includes('HISTORICO') || c.includes('DESC') || c.includes('OBS'))
+      colCategoria = row.findIndex((c) => c.includes('CENTRO DE RESULTADO') || c.includes('CATEGORIA') || c.includes('PLANO DE CONTAS') || c.includes('CENTRO DE CUSTO'))
+      colContaFinanceira = row.findIndex((c) => c.includes('CONTA CAIXA') || c.includes('CONTA BANCARIA') || c.includes('BANCO'))
+      colDoc = row.findIndex((c) => c.includes('DOCUMENTO') || c.includes('TIPO DOC') || c.includes('FATURA') || c === 'DOC')
       break
     }
   }
 
   if (headerRow < 0) {
-    // Tentar usar primeiras colunas como fallback
     return { total: 0, validos: 0, invalidos: 0, dados: [] }
   }
 
@@ -159,19 +167,58 @@ function parseExcelGenerico(rows: unknown[][]): ResultadoImportacao {
     const row = rows[i] as string[]
     if (!row || row.every((c) => !c)) continue
 
-    const fornecedor = String(row[colFornecedor] || '').trim()
+    const fornecedorRaw = String(row[colFornecedor] || '').trim()
     const valor = parseCurrency(String(row[colValor] || '0'))
     const vencimento = colVencimento >= 0 ? normalizarData(row[colVencimento]) : ''
-    const descricao = colDescricao >= 0 ? String(row[colDescricao] || '').trim() : undefined
+    const emissao = colEmissao >= 0 ? normalizarData(row[colEmissao]) : undefined
+    const historico = colDescricao >= 0 ? String(row[colDescricao] || '').trim() : ''
+    const doc = colDoc >= 0 ? String(row[colDoc] || '').trim() : ''
+    
+    // Tratamento de Categoria (ex: "02 - CONTAS VARIAVEIS" -> "Contas Variaveis")
+    let categoriaRaw = colCategoria >= 0 ? String(row[colCategoria] || '').trim() : ''
+    if (categoriaRaw && /^\d+\s*-\s*/.test(categoriaRaw)) {
+      categoriaRaw = categoriaRaw.replace(/^\d+\s*-\s*/, '').trim()
+    }
+    
+    // Tratamento de Conta Financeira (ex: "BANCO DO BRASIL", "C6", "ITAU")
+    const contaFinanceiraRaw = colContaFinanceira >= 0 ? String(row[colContaFinanceira] || '').trim() : undefined
+
+    // Construção de Descrição Inteligente
+    let descricaoFinal = historico
+    if (doc && !descricaoFinal.includes(doc)) {
+      descricaoFinal = descricaoFinal ? `${doc} - ${descricaoFinal}` : `Doc: ${doc}`
+    }
+    if (!descricaoFinal) {
+      descricaoFinal = `Pagamento - ${fornecedorRaw}`
+    }
+
     const erros: string[] = []
 
-    if (!fornecedor) erros.push('Fornecedor vazio')
+    if (!fornecedorRaw) erros.push('Fornecedor vazio')
     if (isNaN(valor) || valor <= 0) erros.push('Valor inválido')
+    if (!vencimento) erros.push('Vencimento não identificado')
 
-    dados.push({ fornecedor, valor, vencimento, descricao, valido: erros.length === 0, erros: erros.length > 0 ? erros : undefined })
+    dados.push({
+      fornecedor: fornecedorRaw || 'NÃO IDENTIFICADO',
+      valor,
+      vencimento: vencimento || '',
+      emissao: emissao || undefined,
+      categoria: categoriaRaw || undefined,
+      conta_financeira: contaFinanceiraRaw || undefined,
+      descricao: descricaoFinal,
+      doc: doc || undefined,
+      linha_original: `Linha ${i + 1}`,
+      valido: erros.length === 0,
+      erros: erros.length > 0 ? erros : undefined,
+    })
   }
 
-  return { total: dados.length, validos: dados.filter((d) => d.valido).length, invalidos: dados.filter((d) => !d.valido).length, dados }
+  return {
+    total: dados.length,
+    validos: dados.filter((d) => d.valido).length,
+    invalidos: dados.filter((d) => !d.valido).length,
+    dados,
+  }
 }
 
 // ─── CSV ───────────────────────────────────────────────────────────────────────
