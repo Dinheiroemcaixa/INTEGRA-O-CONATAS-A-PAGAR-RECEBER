@@ -307,19 +307,15 @@ function InlineEmpresaEditForm({
   onSaved: () => void
 }) {
   const supabase = createClient()
-  const ehSomenteBancoInicial = empresa.datacar_cod_emp === 'SOMENTE_BANCO' || (empresa as any).tipo_empresa === 'somente_banco' || (empresa as any).somente_banco === true
-
   const [nome, setNome] = useState(empresa.nome || '')
   const [cnpj, setCnpj] = useState(empresa.cnpj ? formatCNPJ(empresa.cnpj) : '')
   const [razaoSocial, setRazaoSocial] = useState(empresa.razao_social || '')
   const [nomeFantasia, setNomeFantasia] = useState(empresa.nome_fantasia || '')
   const [emailLogin, setEmailLogin] = useState(empresa.email_login || '')
   const [emailLoginVendas, setEmailLoginVendas] = useState(empresa.email_login_vendas || '')
-  const [contaAzulEmpresaPaiId, setContaAzulEmpresaPaiId] = useState('')
   const [datacarToken, setDatacarToken] = useState(empresa.datacar_token || '')
-  const [datacarCodEmp, setDatacarCodEmp] = useState(empresa.datacar_cod_emp === 'SOMENTE_BANCO' ? '' : (empresa.datacar_cod_emp || ''))
+  const [datacarCodEmp, setDatacarCodEmp] = useState(empresa.datacar_cod_emp || '')
   const [datacarIdOperador, setDatacarIdOperador] = useState(empresa.datacar_id_operador || '')
-  const [somenteBanco, setSomenteBanco] = useState(ehSomenteBancoInicial)
   
   // Estado Fiscal NFS-e
   const [emiteNfse, setEmiteNfse] = useState((empresa as any).emite_nfse || (empresa as any).optante_simples || false)
@@ -388,9 +384,6 @@ function InlineEmpresaEditForm({
     setSalvando(true)
     try {
       const cnpjLimpo = cnpj.replace(/\D/g, '')
-      const datacarCodEmpFinal = somenteBanco
-        ? 'SOMENTE_BANCO'
-        : (datacarCodEmp.trim() || null)
 
       let updatePayload: Record<string, any> = {
         nome: nome.trim(),
@@ -398,7 +391,7 @@ function InlineEmpresaEditForm({
         email_login: emailLogin.trim() || null,
         email_login_vendas: emailLoginVendas.trim() || null,
         datacar_token: datacarToken.trim() || null,
-        datacar_cod_emp: datacarCodEmpFinal,
+        datacar_cod_emp: datacarCodEmp.trim() || null,
         datacar_id_operador: datacarIdOperador.trim() || null,
         razao_social: razaoSocial.trim() || null,
         nome_fantasia: nomeFantasia.trim() || null,
@@ -423,17 +416,7 @@ function InlineEmpresaEditForm({
 
       if (error) throw error
 
-      if (contaAzulEmpresaPaiId) {
-        await fetch('/api/conta-azul/espelhar-conexao', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            empresa_origem_id: contaAzulEmpresaPaiId,
-            empresa_destino_id: empresa.id,
-            modulo: 'ambos'
-          })
-        }).catch(err => console.warn('Erro ao espelhar conexão:', err))
-      }
+
 
       if (emiteNfse) {
         const formData = new FormData()
@@ -573,29 +556,7 @@ function InlineEmpresaEditForm({
               />
             </div>
 
-            {/* CAMPO DE FINALIDADE / SOMENTE BANCO */}
-            <div className="bg-dark-900/50 p-3.5 rounded-xl border border-dark-700/60 space-y-2">
-              <label className="text-xs font-bold text-white flex items-center gap-2">
-                <Store size={14} className="text-amber-400" />
-                Finalidade e Visibilidade no App
-              </label>
-              <label className="flex items-start gap-3 cursor-pointer bg-dark-900 p-3 rounded-xl border border-dark-700 hover:border-amber-500/40 transition-all group">
-                <input
-                  type="checkbox"
-                  checked={somenteBanco}
-                  onChange={(e) => setSomenteBanco(e.target.checked)}
-                  className="w-4 h-4 mt-0.5 rounded text-amber-500 bg-dark-800 border-dark-600 focus:ring-amber-500/50"
-                />
-                <div>
-                  <span className="text-xs font-semibold text-amber-400 block group-hover:text-amber-300">
-                    Somente Banco (Apenas Gestão de Pagamentos)
-                  </span>
-                  <span className="text-[11px] text-dark-400 block leading-relaxed">
-                    Marque se esta loja/banco é usada apenas para pagamentos e não necessita de integração própria de Vendas ou Contas a Pagar. Ela será ocultada dos filtros de Vendas/Financeiro para não poluir o seletor.
-                  </span>
-                </div>
-              </label>
-            </div>
+
 
             {/* MARCADOR: EMPRESA DO SIMPLES NACIONAL / EMISSORA NFS-E */}
             <div className="bg-dark-900/50 p-4 rounded-xl border border-blue-500/30 space-y-3">
@@ -769,30 +730,7 @@ function InlineEmpresaEditForm({
               />
             </div>
             
-            <div className="h-px w-full bg-dark-700/30" />
 
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded bg-blue-500/10 flex items-center justify-center">
-                  <ShieldCheck size={12} className="text-blue-400" />
-                </div>
-                <label className="text-xs font-semibold text-dark-200">Compartilhar Conexão CA da Matriz</label>
-              </div>
-              <select
-                value={contaAzulEmpresaPaiId}
-                onChange={(e) => setContaAzulEmpresaPaiId(e.target.value)}
-                className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-3 py-2 text-xs text-white focus:ring-2 focus:ring-blue-500/50 outline-none"
-              >
-                <option value="">Não compartilhar (Usar login próprio)</option>
-                {todasEmpresas
-                  .filter(e => e.id !== empresa.id)
-                  .map(e => (
-                    <option key={e.id} value={e.id}>
-                      Compartilhar credenciais com {e.nome} {e.access_token_conta_azul ? '✓ (Conectado)' : ''}
-                    </option>
-                  ))}
-              </select>
-            </div>
             
             <div className="h-px w-full bg-dark-700/30" />
 
@@ -1218,27 +1156,8 @@ function EmpresaRowItem({
   const [mostrarFicha, setMostrarFicha] = useState(false)
   const [mostrarFornecedores, setMostrarFornecedores] = useState(false)
 
-  const caFinanceiroConectado = Boolean(empresa.access_token_conta_azul || empresa.email_login)
-  const caVendasConectado = Boolean(empresa.access_token_conta_azul_vendas || empresa.email_login_vendas)
-  const ehSomenteBanco = empresa.datacar_cod_emp === 'SOMENTE_BANCO' || (empresa as any).tipo_empresa === 'somente_banco' || (empresa as any).somente_banco === true
-
-  const empresasComCaFinanceiro = todasEmpresas.filter(e => e.id !== empresa.id && Boolean(e.access_token_conta_azul || e.email_login))
-  const empresasComCaVendas = todasEmpresas.filter(e => e.id !== empresa.id && Boolean(e.access_token_conta_azul_vendas || e.email_login_vendas))
-
-  const handleToggleSomenteBancoDireto = async (e: React.MouseEvent) => {
-    e.stopPropagation()
-    const novoValor = !ehSomenteBanco
-    const datacarCodEmpFinal = novoValor ? 'SOMENTE_BANCO' : (empresa.datacar_cod_emp === 'SOMENTE_BANCO' ? null : empresa.datacar_cod_emp)
-    try {
-      const supabase = createClient()
-      const { error } = await supabase.from('empresas').update({ datacar_cod_emp: datacarCodEmpFinal }).eq('id', empresa.id)
-      if (error) throw error
-      toast.success(novoValor ? `"${empresa.nome}" configurada como Somente Banco!` : `"${empresa.nome}" desmarcada de Somente Banco!`)
-      onRecarregar()
-    } catch (err: any) {
-      toast.error('Erro ao atualizar Somente Banco')
-    }
-  }
+  const caFinanceiroConectado = Boolean(empresa.access_token_conta_azul)
+  const caVendasConectado = Boolean(empresa.access_token_conta_azul_vendas)
 
   if (isEditandoInline) {
     return (
@@ -1283,22 +1202,8 @@ function EmpresaRowItem({
           </div>
         </div>
 
-        {/* CENTRO: Pill Badges de Integração Inline (Datacar, CA Financeiro, CA Vendas + Somente Banco) */}
+        {/* CENTRO: Pill Badges de Integração Inline (Datacar, CA Financeiro, CA Vendas) */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-3" onClick={e => e.stopPropagation()}>
-          <button
-            type="button"
-            onClick={handleToggleSomenteBancoDireto}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border transition-all cursor-pointer ${
-              ehSomenteBanco
-                ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.2)]'
-                : 'bg-dark-900/60 text-dark-400 border-dark-700/50 hover:text-white hover:border-dark-600'
-            }`}
-            title={ehSomenteBanco ? 'Clique para desmarcar Somente Banco' : 'Marcar como Somente Banco (Apenas Gestão de Pagamentos)'}
-          >
-            <Store size={12} className={ehSomenteBanco ? 'text-amber-400' : 'text-dark-400'} />
-            <span>{ehSomenteBanco ? 'Somente Banco' : 'Somente Banco'}</span>
-          </button>
-
           {/* Datacar */}
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-dark-900/60 border border-dark-700/40 text-[11px] font-bold">
             <span className={`w-2 h-2 rounded-full ${empresa.datacar_token ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]' : 'bg-red-500'}`} />
