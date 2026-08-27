@@ -56,6 +56,7 @@ export default function TabelaContas({ empresaId }: Props) {
         .select('*')
         .eq('empresa_id', empresaId)
         .order('created_at', { ascending: false })
+        .limit(200)
 
       if (filtro !== 'todos') {
         query = query.eq('status', filtro)

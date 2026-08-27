@@ -269,6 +269,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Limpar do banco os registros "enviados" com mais de 2 horas para evitar sobrecarregar
+    try {
+      const duasHorasAtras = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+      await supabaseAdmin
+        .from('contas_pagar_importadas')
+        .delete()
+        .eq('empresa_id', empresa_id)
+        .eq('status', 'enviado')
+        .lt('created_at', duasHorasAtras)
+    } catch (errCleanup) {
+      console.warn('[ca/enviar] Erro na limpeza automatica de enviados:', errCleanup)
+    }
+
     const { count: pendentesRestantes } = await supabaseAdmin
       .from('contas_pagar_importadas')
       .select('*', { count: 'exact', head: true })
