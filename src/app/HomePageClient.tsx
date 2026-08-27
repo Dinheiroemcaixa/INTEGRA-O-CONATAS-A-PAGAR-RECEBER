@@ -62,6 +62,26 @@ export default function HomePageClient() {
     }
   }
 
+  const handleResetSenha = async () => {
+    if (!email) {
+      toast.error('Por favor, preencha o campo de e-mail para receber o link de redefinição.')
+      return
+    }
+    setCarregando(true)
+    try {
+      const redirectUrl = `${window.location.origin}/dashboard`
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl
+      })
+      if (error) throw error
+      toast.success('E-mail de redefinição enviado! Verifique sua caixa de entrada.', { duration: 6000 })
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao enviar e-mail de redefinição.')
+    } finally {
+      setCarregando(false)
+    }
+  }
+
   return (
     <div className="relative min-h-screen bg-[#070a13] text-[#f4f6fb] overflow-x-hidden selection:bg-emerald-500 selection:text-black">
 
@@ -455,6 +475,19 @@ export default function HomePageClient() {
                     </button>
                   </div>
                 </div>
+
+                {!modoRegistro && (
+                  <div className="text-right">
+                    <button
+                      type="button"
+                      onClick={handleResetSenha}
+                      disabled={carregando}
+                      className="text-xs text-[#8b94ab] hover:text-[#2ee88a] transition-colors font-medium cursor-pointer"
+                    >
+                      Esqueceu a senha?
+                    </button>
+                  </div>
+                )}
 
                 <button
                   type="submit"
