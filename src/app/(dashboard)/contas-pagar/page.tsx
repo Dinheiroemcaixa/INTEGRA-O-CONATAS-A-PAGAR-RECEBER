@@ -244,6 +244,13 @@ export default function ContasPagarPage() {
   const [refreshContas, setRefreshContas] = useState(0)
   const [showModalEnvio, setShowModalEnvio] = useState(false)
   const [userEmail, setUserEmail] = useState('')
+  const [statusProgresso, setStatusProgresso] = useState<{
+    total: number
+    enviados: number
+    erros: number
+    restantes: number
+    emExecucao: boolean
+  } | null>(null)
 
   // Estados Datacar
   const hoje = new Date().toISOString().split('T')[0]
@@ -713,34 +720,80 @@ export default function ContasPagarPage() {
                         toast.error('Empresa não está conectada ao Conta Azul. Vá em Empresas e conecte ou espelhe primeiro.')
                         return
                       }
-                      if (!confirm('Enviar todas as contas PENDENTES para o Conta Azul?')) return
+                      
+                      if (!confirm('Enviar todas as contas PENDENTES para o Conta Azul em lotes automáticos?')) return
+                      
                       setEnviandoCA(true)
+                      
+                      // Buscar total inicial de pendentes
+                      let totalInicial = 0
                       try {
-                        const res = await fetch('/api/conta-azul/enviar', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ empresa_id: empresaAtiva.id, limite: 50 }),
-                        })
-                        const data = await res.json()
-                        if (!res.ok) throw new Error(data.error || 'Erro ao enviar')
-                        if (data.enviados > 0) {
-                          toast.success(`${data.enviados} contas enviadas com sucesso!`, { duration: 5000 })
-                        }
-                        if (data.erros > 0) {
-                          toast.error(`${data.erros} contas com erro. Verifique o status na tabela.`, { duration: 5000 })
-                        }
-                        if (data.enviados === 0 && data.erros === 0) {
-                          toast('Nenhuma conta pendente para enviar.', { icon: 'ℹ️' })
-                        }
-                        if (data.pendentes_restantes > 0) {
-                          toast(`Ainda restam ${data.pendentes_restantes} pendentes. Clique novamente para enviar mais.`, { icon: '📋', duration: 5000 })
-                        }
-                      } catch (err: any) {
-                        toast.error(err.message || 'Erro ao enviar para o Conta Azul')
-                      } finally {
-                        setEnviandoCA(false)
-                        setRefreshContas(prev => prev + 1)
+                        const { count } = await supabase
+                          .from('contas_pagar_importadas')
+                          .select('*', { count: 'exact', head: true })
+                          .eq('empresa_id', empresaAtiva.id)
+                          .eq('status', 'pendente')
+                        totalInicial = count || 0
+                      } catch (e) {
+                        console.error('Erro ao contar pendentes:', e)
                       }
+
+                      if (totalInicial === 0) {
+                        toast('Nenhuma conta pendente para enviar.', { icon: 'ℹ️' })
+                        setEnviandoCA(false)
+                        return
+                      }
+
+                      setStatusProgresso({
+                        total: totalInicial,
+                        enviados: 0,
+                        erros: 0,
+                        restantes: totalInicial,
+                        emExecucao: true
+                      })
+
+                      let acumuladoEnviados = 0
+                      let acumuladoErros = 0
+                      let loopRestantes = totalInicial
+
+                      while (loopRestantes > 0) {
+                        try {
+                          const res = await fetch('/api/conta-azul/enviar', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ empresa_id: empresaAtiva.id, limite: 50 }),
+                          })
+                          const data = await res.json()
+                          if (!res.ok) throw new Error(data.error || 'Erro no processamento do lote')
+
+                          acumuladoEnviados += data.enviados || 0
+                          acumuladoErros += data.erros || 0
+                          loopRestantes = data.pendentes_restantes || 0
+
+                          setStatusProgresso({
+                            total: totalInicial,
+                            enviados: acumuladoEnviados,
+                            erros: acumuladoErros,
+                            restantes: loopRestantes,
+                            emExecucao: true
+                          })
+
+                          setRefreshContas(prev => prev + 1)
+
+                          if (loopRestantes === 0) break
+
+                          // Delay de segurança de 1.5 segundos para evitar estouro da API
+                          await new Promise(r => setTimeout(r, 1500))
+                        } catch (err: any) {
+                          toast.error(`Falha no lote automático: ${err.message || err}`)
+                          break
+                        }
+                      }
+
+                      setEnviandoCA(false)
+                      setStatusProgresso(prev => prev ? { ...prev, emExecucao: false } : null)
+                      setRefreshContas(prev => prev + 1)
+                      toast.success(`Integração finalizada! Enviados: ${acumuladoEnviados}, Erros: ${acumuladoErros}`)
                     }}
                     disabled={enviandoCA}
                     className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-blue-900/20"
@@ -758,6 +811,46 @@ export default function ContasPagarPage() {
                   </button>
                 </div>
               </div>
+              
+              {/* Painel de Progresso do Envio Lote */}
+              {statusProgresso && (
+                <div className="bg-dark-800 border border-dark-700 rounded-xl p-4 space-y-3 mt-4 animate-fade-in">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Loader2 size={16} className={cn("text-blue-400", statusProgresso.emExecucao && "animate-spin")} />
+                      <span className="text-white font-bold text-sm">
+                        {statusProgresso.emExecucao ? 'Enviando lotes automáticos...' : 'Integração Concluída'}
+                      </span>
+                    </div>
+                    <span className="text-xs text-dark-400">
+                      {statusProgresso.total - statusProgresso.restantes} de {statusProgresso.total} contas processadas
+                    </span>
+                  </div>
+                  
+                  {/* Barra de Progresso */}
+                  <div className="w-full bg-dark-900 rounded-full h-2.5 overflow-hidden">
+                    <div 
+                      className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" 
+                      style={{ width: `${Math.min(100, Math.round(((statusProgresso.total - statusProgresso.restantes) / statusProgresso.total) * 100))}%` }}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-4 text-xs font-semibold">
+                    <span className="text-green-400 flex items-center gap-1">
+                      ✓ {statusProgresso.enviados} enviadas com sucesso
+                    </span>
+                    <span className="text-red-400 flex items-center gap-1">
+                      ✗ {statusProgresso.erros} com falha
+                    </span>
+                    {statusProgresso.restantes > 0 && (
+                      <span className="text-yellow-400 flex items-center gap-1 animate-pulse">
+                        ⏳ {statusProgresso.restantes} aguardando
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <TabelaContas key={refreshContas} empresaId={empresaAtiva?.id} />
             </>
           )}
