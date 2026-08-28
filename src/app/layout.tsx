@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   description: 'Sistema de Integração e Automação Financeira BPO',
 }
 
+// Force redeploy - original clean version
 export default function RootLayout({
   children,
 }: {
