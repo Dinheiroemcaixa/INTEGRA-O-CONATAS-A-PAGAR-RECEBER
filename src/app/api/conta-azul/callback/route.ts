@@ -92,27 +92,6 @@ export async function GET(req: NextRequest) {
       .update(payloadUpdate)
       .eq('id', state)
 
-    if (infoCa && infoCa.cnpj) {
-      const cnpjLimpo = infoCa.cnpj.replace(/\D/g, '')
-
-      // Também atualiza qualquer empresa que possua esse mesmo CNPJ
-      const { data: empresasExistentes } = await supabaseAdmin
-        .from('empresas')
-        .select('id')
-        .eq('cnpj', cnpjLimpo)
-        
-      if (empresasExistentes && empresasExistentes.length > 0) {
-        for (const emp of empresasExistentes) {
-          if (emp.id !== state) {
-            await supabaseAdmin
-              .from('empresas')
-              .update(payloadUpdate)
-              .eq('id', emp.id)
-          }
-        }
-      }
-    }
-
     await supabaseAdmin.from('logs_integracao').insert({
       empresa_id: state,
       acao: `conectar_conta_azul_${modulo}`,
