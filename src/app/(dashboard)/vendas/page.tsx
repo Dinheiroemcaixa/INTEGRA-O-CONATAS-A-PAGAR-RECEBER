@@ -251,7 +251,9 @@ export default function VendasPage() {
         os_numero: v.os_numero,
         data_venda: v.data_venda,
         valor_total: v.valor_total,
-        forma_pagamento: v.forma_pagamento,
+        // Usar a forma de pagamento original do Datacar (raw.venda_Parcelamento) para o envio ao CA, 
+        // mantendo o enriquecimento (com PIX, Boleto, etc) apenas para visualização no painel
+        forma_pagamento: v.dados_datacar?.raw?.venda_Parcelamento || v.forma_pagamento || undefined,
         itens: v.itens,
         valido: true,
       }))
