@@ -15,7 +15,7 @@ import {
   Upload, ArrowLeft, Loader2,
   CheckCircle, AlertCircle, FileDown, Send,
   X, ShieldCheck, ChevronDown, Database,
-  Search, Calendar, FileText
+  Search, Calendar, FileText, FileSpreadsheet
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
@@ -486,26 +486,125 @@ export default function ContasPagarPage() {
     }
   }
 
-  const executarEnvioContaAzul = async (empresaId: string) => {
+  const executarEnvioEmLote = async (targetEmpresaId?: string) => {
+    const idParaEnvio = targetEmpresaId || empresaAtiva?.id
+    if (!idParaEnvio) {
+      toast.error('Selecione uma empresa primeiro')
+      return
+    }
+
+    const empresaEnvio = empresas.find(e => e.id === idParaEnvio) || empresaAtiva
+    const temConexaoCA = !!empresaEnvio?.access_token_conta_azul || (
+      empresaEnvio?.grupo_id ? empresas.some(e => e.grupo_id === empresaEnvio.grupo_id && !!e.access_token_conta_azul) : false
+    )
+
+    if (!temConexaoCA) {
+      toast.error('Empresa não está conectada ao Conta Azul. Vá em Empresas e conecte ou espelhe primeiro.')
+      return
+    }
+
+    if (!confirm('Enviar todas as contas PENDENTES para o Conta Azul em lotes automáticos?')) return
+
     setEnviandoCA(true)
+    setShowModalEnvio(false)
+
+    // 1. Buscar total inicial de pendentes
+    let totalInicial = 0
     try {
-      const res = await fetch('/api/conta-azul/enviar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ empresa_id: empresaId, limite: 50 }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erro ao enviar')
-      if (data.enviados > 0) toast.success(`${data.enviados} contas enviadas com sucesso!`, { duration: 5000 })
-      if (data.erros > 0) toast.error(`${data.erros} contas com erro. Verifique o status na tabela.`, { duration: 5000 })
-      if (data.enviados === 0 && data.erros === 0) toast('Nenhuma conta pendente para enviar.', { icon: 'ℹ️' })
-      if (data.pendentes_restantes > 0) toast(`Ainda restam ${data.pendentes_restantes} pendentes. Clique novamente para enviar mais.`, { icon: '📋', duration: 5000 })
-    } catch (err: any) {
-      toast.error(err.message || 'Erro ao enviar para o Conta Azul')
-    } finally {
-      setEnviandoCA(false)
-      setShowModalEnvio(false)
-      setRefreshContas(prev => prev + 1)
+      const { count } = await supabase
+        .from('contas_pagar_importadas')
+        .select('*', { count: 'exact', head: true })
+        .eq('empresa_id', idParaEnvio)
+        .eq('status', 'pendente')
+      totalInicial = count || 0
+    } catch (e) {
+      console.error('[contas-pagar] Erro ao contar pendentes iniciais:', e)
+    }
+
+    let acumuladoEnviados = 0
+    let acumuladoErros = 0
+    let loopRestantes = totalInicial || 1
+    let totalGeral = totalInicial
+    let tentativasErroConsecutivas = 0
+
+    setStatusProgresso({
+      total: totalGeral > 0 ? totalGeral : 1,
+      enviados: 0,
+      erros: 0,
+      restantes: totalGeral > 0 ? totalGeral : 1,
+      emExecucao: true
+    })
+
+    while (loopRestantes > 0 && tentativasErroConsecutivas < 3) {
+      try {
+        const res = await fetch('/api/conta-azul/enviar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ empresa_id: idParaEnvio, limite: 50 }),
+        })
+
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}))
+          throw new Error(errBody.error || `Erro HTTP ${res.status} no lote`)
+        }
+
+        const data = await res.json()
+        tentativasErroConsecutivas = 0 // reset erros consecutivos após sucesso
+
+        const loteEnviados = data.enviados || 0
+        const loteErros = data.erros || 0
+        acumuladoEnviados += loteEnviados
+        acumuladoErros += loteErros
+
+        if (typeof data.pendentes_restantes === 'number') {
+          loopRestantes = data.pendentes_restantes
+        } else {
+          loopRestantes = Math.max(0, loopRestantes - (loteEnviados + loteErros))
+        }
+
+        if (totalGeral === 0 || acumuladoEnviados + acumuladoErros + loopRestantes > totalGeral) {
+          totalGeral = acumuladoEnviados + acumuladoErros + loopRestantes
+        }
+
+        setStatusProgresso({
+          total: totalGeral,
+          enviados: acumuladoEnviados,
+          erros: acumuladoErros,
+          restantes: loopRestantes,
+          emExecucao: true
+        })
+
+        setRefreshContas(prev => prev + 1)
+
+        // Se finalizou ou não processou nada neste ciclo
+        if (loopRestantes === 0 || (loteEnviados === 0 && loteErros === 0)) {
+          break
+        }
+
+        // Delay de segurança de 1.5 segundos entre lotes para evitar estouro da API Conta Azul
+        await new Promise(r => setTimeout(r, 1500))
+
+      } catch (err: any) {
+        tentativasErroConsecutivas++
+        console.error(`[contas-pagar] Erro no lote (tentativa ${tentativasErroConsecutivas}/3):`, err)
+        if (tentativasErroConsecutivas < 3) {
+          toast(`Aguardando para retentar lote (${tentativasErroConsecutivas}/3)...`, { icon: '⏳' })
+          await new Promise(r => setTimeout(r, 3000))
+        } else {
+          toast.error(`Falha no envio do lote automático: ${err.message || err}`)
+          break
+        }
+      }
+    }
+
+    setEnviandoCA(false)
+    setStatusProgresso(prev => prev ? { ...prev, emExecucao: false, restantes: 0 } : null)
+    setRefreshContas(prev => prev + 1)
+
+    if (acumuladoEnviados > 0 || acumuladoErros > 0) {
+      toast.success(`Integração finalizada! Enviados: ${acumuladoEnviados}, Erros: ${acumuladoErros}`, { duration: 6000 })
+    } else {
+      toast('Nenhuma conta pendente para enviar.', { icon: 'ℹ️' })
     }
   }
 
@@ -519,7 +618,7 @@ export default function ContasPagarPage() {
         empresaAtiva={empresaAtiva}
         todasEmpresas={empresas}
         loginAtual={userEmail}
-        onConfirmar={executarEnvioContaAzul}
+        onConfirmar={executarEnvioEmLote}
         onCancelar={() => setShowModalEnvio(false)}
         enviando={enviandoCA}
       />
@@ -535,6 +634,9 @@ export default function ContasPagarPage() {
               v1.2
             </span>
           </div>
+          <p className="text-dark-400 text-sm mt-1">
+            Importe contas a pagar do DataCar (CpRl010) ou planilha e envie diretamente ao Conta Azul.
+          </p>
         </div>
         <div className="flex items-center gap-4">
           <SelectorEmpresa />
@@ -557,29 +659,29 @@ export default function ContasPagarPage() {
         </div>
       </div>
 
-      {/* Sub-abas: Datacar | Planilha */}
-      <div className="flex border-b border-dark-700 gap-0">
+      {/* Tabs */}
+      <div className="flex items-center gap-2 border-b border-dark-700 pb-2">
         <button
           onClick={() => setSubAba('datacar')}
-          className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all border-b-2 ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
             subAba === 'datacar'
-              ? 'border-blue-400 text-blue-400 bg-dark-800/40'
-              : 'border-transparent text-dark-400 hover:text-white hover:bg-dark-800/20'
+              ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
+              : 'text-dark-400 hover:text-white hover:bg-dark-800'
           }`}
         >
-          <Database size={15} />
-          Importadas do Datacar
+          <Database size={16} />
+          Datacar Contas
         </button>
         <button
           onClick={() => setSubAba('planilha')}
-          className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all border-b-2 ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
             subAba === 'planilha'
-              ? 'border-brand-400 text-brand-400 bg-dark-800/40'
-              : 'border-transparent text-dark-400 hover:text-white hover:bg-dark-800/20'
+              ? 'bg-brand-600/20 text-brand-400 border border-brand-500/30'
+              : 'text-dark-400 hover:text-white hover:bg-dark-800'
           }`}
         >
-          <Upload size={15} />
-          Upload de Planilha
+          <FileSpreadsheet size={16} />
+          Importar Planilha
         </button>
       </div>
 
@@ -713,88 +815,7 @@ export default function ContasPagarPage() {
                 <h2 className="text-lg font-semibold text-white">Contas Pendentes de Envio</h2>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
-                    onClick={async () => {
-                      if (!empresaAtiva) { toast.error('Selecione uma empresa'); return }
-                      const temConexaoCA = !!empresaAtiva.access_token_conta_azul || (empresaAtiva.grupo_id ? empresas.some(e => e.grupo_id === empresaAtiva.grupo_id && !!e.access_token_conta_azul) : false)
-                      if (!temConexaoCA) {
-                        toast.error('Empresa não está conectada ao Conta Azul. Vá em Empresas e conecte ou espelhe primeiro.')
-                        return
-                      }
-                      
-                      if (!confirm('Enviar todas as contas PENDENTES para o Conta Azul em lotes automáticos?')) return
-                      
-                      setEnviandoCA(true)
-                      
-                      // Buscar total inicial de pendentes
-                      let totalInicial = 0
-                      try {
-                        const { count } = await supabase
-                          .from('contas_pagar_importadas')
-                          .select('*', { count: 'exact', head: true })
-                          .eq('empresa_id', empresaAtiva.id)
-                          .eq('status', 'pendente')
-                        totalInicial = count || 0
-                      } catch (e) {
-                        console.error('Erro ao contar pendentes:', e)
-                      }
-
-                      if (totalInicial === 0) {
-                        toast('Nenhuma conta pendente para enviar.', { icon: 'ℹ️' })
-                        setEnviandoCA(false)
-                        return
-                      }
-
-                      setStatusProgresso({
-                        total: totalInicial,
-                        enviados: 0,
-                        erros: 0,
-                        restantes: totalInicial,
-                        emExecucao: true
-                      })
-
-                      let acumuladoEnviados = 0
-                      let acumuladoErros = 0
-                      let loopRestantes = totalInicial
-
-                      while (loopRestantes > 0) {
-                        try {
-                          const res = await fetch('/api/conta-azul/enviar', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ empresa_id: empresaAtiva.id, limite: 50 }),
-                          })
-                          const data = await res.json()
-                          if (!res.ok) throw new Error(data.error || 'Erro no processamento do lote')
-
-                          acumuladoEnviados += data.enviados || 0
-                          acumuladoErros += data.erros || 0
-                          loopRestantes = data.pendentes_restantes || 0
-
-                          setStatusProgresso({
-                            total: totalInicial,
-                            enviados: acumuladoEnviados,
-                            erros: acumuladoErros,
-                            restantes: loopRestantes,
-                            emExecucao: true
-                          })
-
-                          setRefreshContas(prev => prev + 1)
-
-                          if (loopRestantes === 0) break
-
-                          // Delay de segurança de 1.5 segundos para evitar estouro da API
-                          await new Promise(r => setTimeout(r, 1500))
-                        } catch (err: any) {
-                          toast.error(`Falha no lote automático: ${err.message || err}`)
-                          break
-                        }
-                      }
-
-                      setEnviandoCA(false)
-                      setStatusProgresso(prev => prev ? { ...prev, emExecucao: false } : null)
-                      setRefreshContas(prev => prev + 1)
-                      toast.success(`Integração finalizada! Enviados: ${acumuladoEnviados}, Erros: ${acumuladoErros}`)
-                    }}
+                    onClick={() => executarEnvioEmLote()}
                     disabled={enviandoCA}
                     className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-blue-900/20"
                   >

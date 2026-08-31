@@ -90,26 +90,35 @@ export async function POST(req: NextRequest) {
     const { data: contas, error: errContas } = await query
     if (errContas) throw errContas
     if (!contas || contas.length === 0) {
-      return NextResponse.json({ enviados: 0, mensagem: 'Sem contas' })
+      return NextResponse.json({ enviados: 0, erros: 0, total: 0, pendentes_restantes: 0, mensagem: 'Sem contas' })
     }
 
     let enviados = 0
     let erros = 0
     const resultados: any[] = []
+    const contatosCache = new Map<string, string>()
 
     // 4. Processar cada conta
     for (const conta of contas) {
       let payloadFinal: any = null
       try {
         // Fornecedor
-        let contatoId = null
+        let contatoId: string | null = null
         const fornecedorNome = (conta.fornecedor || '').trim()
 
         if (fornecedorNome && fornecedorNome.toUpperCase() !== 'NÃO INFORMADO' && fornecedorNome.toUpperCase() !== 'NÃO IDENTIFICADO') {
-          try {
-            contatoId = await buscarOuCriarContato(accessToken, fornecedorNome)
-          } catch (errContato) {
-            console.error(`[ca/enviar] Erro ao buscar/criar contato ${fornecedorNome}:`, errContato)
+          if (contatosCache.has(fornecedorNome)) {
+            contatoId = contatosCache.get(fornecedorNome) || null
+          } else {
+            try {
+              const resContato = await buscarOuCriarContato(accessToken, fornecedorNome)
+              if (resContato) {
+                contatoId = resContato
+                contatosCache.set(fornecedorNome, resContato)
+              }
+            } catch (errContato) {
+              console.error(`[ca/enviar] Erro ao buscar/criar contato ${fornecedorNome}:`, errContato)
+            }
           }
         } else {
           console.log('[ca/enviar] Fornecedor vazio ou não informado. Omitindo contato do payload.')
