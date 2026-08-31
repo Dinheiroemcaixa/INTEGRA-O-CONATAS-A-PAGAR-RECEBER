@@ -360,6 +360,25 @@ export async function POST(req: NextRequest) {
       const totalServicos = itens.filter(i => i.tipo === 'servico').reduce((sum, i) => sum + i.valor_total, 0)
       const valorTotal = parseFloat((totalProdutos + totalServicos).toFixed(2))
 
+      // Calcular o desconto total da venda
+      const descontoTotal = itens.reduce((sum, i) => sum + ((i.desconto || 0) * i.quantidade), 0)
+      const descontoTotalFormatado = parseFloat(descontoTotal.toFixed(2))
+
+      // Lógica para obter a forma de pagamento enriquecida dos recebimentos
+      let formaPagamento = os.venda_Parcelamento || undefined
+      if (os.recebimentos && Array.isArray(os.recebimentos) && os.recebimentos.length > 0) {
+        const formasUnicas = Array.from(new Set(os.recebimentos.map((r: any) => r.forma).filter(Boolean))) as string[]
+        if (formasUnicas.length > 0) {
+          const formasTexto = formasUnicas.join(', ')
+          const qtParcelas = Number(os.venda_qtParcelas || 1)
+          if (qtParcelas > 1 && !formasTexto.toLowerCase().includes('parcela') && !formasTexto.toLowerCase().includes(' x')) {
+            formaPagamento = `${formasTexto} (${qtParcelas}x)`
+          } else {
+            formaPagamento = formasTexto
+          }
+        }
+      }
+
       const enderecoBase: EnderecoDatacar = {
         logradouro: os.end_Rua || os.cliente_Logradouro || os.cliente_Endereco || null,
         numero: os.end_Numero || os.cliente_Numero || null,
@@ -398,7 +417,8 @@ export async function POST(req: NextRequest) {
         os_numero: osNumero,
         data_venda: dataVenda,
         valor_total: valorTotal,
-        forma_pagamento: os.venda_Parcelamento || undefined,
+        desconto_total: descontoTotalFormatado,
+        forma_pagamento: formaPagamento,
         situacao,
         itens,
         valido: !!cliente && valorTotal > 0,

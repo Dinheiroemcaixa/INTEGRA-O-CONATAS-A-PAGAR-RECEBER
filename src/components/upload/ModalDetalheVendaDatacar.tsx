@@ -117,6 +117,11 @@ export default function ModalDetalheVendaDatacar({
                   <DollarSign size={18} className="text-emerald-400" />
                   {formatCurrency(venda.valor_total)}
                 </p>
+                {(venda.desconto_total || 0) > 0 && (
+                  <p className="text-red-400 text-xs font-semibold pl-1">
+                    Desconto: -{formatCurrency(venda.desconto_total)}
+                  </p>
+                )}
                 <p className="text-dark-400 text-xs flex items-center gap-1.5 pl-1">
                   <Calendar size={13} />
                   {formatDate(venda.data_venda)}
@@ -238,9 +243,23 @@ export default function ModalDetalheVendaDatacar({
 
                     {/* Preços e Quantidade */}
                     <div className="text-right flex sm:flex-col items-baseline sm:items-end justify-between sm:justify-start gap-2 flex-shrink-0 border-t sm:border-t-0 border-dark-700/30 pt-2 sm:pt-0">
-                      <p className="text-[10px] text-dark-500">
-                        {item.quantidade} x {formatCurrency(item.valor_unitario)}
-                      </p>
+                      {(item.desconto || 0) > 0 ? (
+                        <div className="space-y-0.5 text-right">
+                          <p className="text-[10px] text-dark-500 line-through">
+                            {item.quantidade} x {formatCurrency(item.valor_unitario_original || (item.valor_unitario + item.desconto))}
+                          </p>
+                          <p className="text-[10px] text-emerald-400 font-medium">
+                            Desc: -{formatCurrency(item.desconto * item.quantidade)}
+                          </p>
+                          <p className="text-[10px] text-dark-300">
+                            {item.quantidade} x {formatCurrency(item.valor_unitario)}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-dark-500">
+                          {item.quantidade} x {formatCurrency(item.valor_unitario)}
+                        </p>
+                      )}
                       <p className="text-white font-bold text-xs tabular-nums">
                         {formatCurrency(item.valor_total)}
                       </p>

@@ -163,6 +163,7 @@ export default function VendasPage() {
         os_numero: d.os_numero,
         data_venda: d.data_venda,
         valor_total: d.valor_total,
+        desconto_total: d.desconto_total || 0,
         forma_pagamento: d.forma_pagamento,
         itens: d.itens,
         status: d.ca_status === 'cliente_existente' ? 'alerta_cliente' : (d.ca_status ? 'duplicidade' : 'pendente'),
@@ -812,7 +813,25 @@ export default function VendasPage() {
                           )}
                           <div className="flex-1 min-w-0">
                             <p className="text-white text-sm font-medium truncate">{venda.cliente}</p>
-                            <p className="text-dark-500 text-xs font-mono">OS #{venda.os_numero}</p>
+                            <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                              <p className="text-dark-500 text-xs font-mono">OS #{venda.os_numero}</p>
+                              {venda.forma_pagamento && (
+                                <>
+                                  <span className="text-dark-600 text-[10px]">•</span>
+                                  <p className="text-dark-400 text-xs truncate max-w-[200px]" title={venda.forma_pagamento}>
+                                    {venda.forma_pagamento}
+                                  </p>
+                                </>
+                              )}
+                              {(venda.desconto_total || 0) > 0 && (
+                                <>
+                                  <span className="text-dark-600 text-[10px]">•</span>
+                                  <p className="text-red-400/80 text-[11px] font-semibold">
+                                    Desc: -{formatCurrency(venda.desconto_total)}
+                                  </p>
+                                </>
+                              )}
+                            </div>
                           </div>
                           <span className="text-white text-sm font-bold tabular-nums w-28 text-right">
                             {formatCurrency(venda.valor_total)}

@@ -73,6 +73,10 @@ export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSucc
         cliente_uf: formData.uf,
       }
 
+      const recalcularDescontoTotal = (itens: any[]) => {
+        return itens.reduce((acc, item) => acc + ((item.quantidade || 0) * (item.desconto || 0)), 0)
+      }
+
       const vendaAtualizada = {
         ...venda,
         cliente: formData.cliente,
@@ -89,7 +93,8 @@ export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSucc
         os_numero: formData.os_numero,
         dados_datacar: novosDadosDatacar,
         itens: formData.itens,
-        valor_total: recalcularTotal(formData.itens)
+        valor_total: recalcularTotal(formData.itens),
+        desconto_total: recalcularDescontoTotal(formData.itens)
       }
 
       // Salvar na Memória Fiscal (aprende com as edições do usuário)
