@@ -58,7 +58,7 @@ export async function getValidToken(
   }
 
   // Determinar qual conjunto de tokens usar
-  const isVendas = modulo === 'vendas' && empresa.access_token_conta_azul_vendas
+  const isVendas = modulo === 'vendas'
   const tokenKey = isVendas ? 'access_token_conta_azul_vendas' : 'access_token_conta_azul'
   const refreshKey = isVendas ? 'refresh_token_conta_azul_vendas' : 'refresh_token_conta_azul'
   const expiracaoKey = isVendas ? 'data_expiracao_token_vendas' : 'data_expiracao_token'

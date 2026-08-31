@@ -448,7 +448,7 @@ export async function POST(req: NextRequest) {
 
     // --- DETECÇÃO DE DUPLICIDADE NO CONTA AZUL ---
     try {
-      const { accessToken: caToken } = await getValidToken(empresa_id)
+      const { accessToken: caToken } = await getValidToken(empresa_id, 'vendas')
 
       let dtIniISO = dtIni
       let dtFimISO = dtFim
