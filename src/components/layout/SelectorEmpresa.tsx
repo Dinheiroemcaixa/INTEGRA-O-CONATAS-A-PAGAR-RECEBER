@@ -27,24 +27,23 @@ export default function SelectorEmpresa() {
   // Filtra empresas de acordo com o módulo (Vendas vs Contas a Pagar/Receber/Gestão de Pagamentos)
   const empresasFiltradas = useMemo(() => {
     return empresas.filter(emp => {
-      const temCredencialVendas = Boolean(emp.access_token_conta_azul_vendas || emp.email_login_vendas)
-      const temCredencialFinanceiro = Boolean(emp.access_token_conta_azul || emp.email_login)
-
       // Módulo de Vendas e Serviços (/vendas-servicos): Exibe APENAS empresas emissoras de NFS-e (ou optantes do Simples)
       if (pathname.startsWith('/vendas-servicos')) {
         const emissoras = empresas.filter(e => e.emite_nfse === true || e.optante_simples === true)
-        // Se houverem empresas com o marcador ativo, exibe apenas elas. Se nenhuma tiver marcado ainda, exibe com Datacar.
-        return emissoras.length > 0 ? (emp.emite_nfse === true || emp.optante_simples === true) : Boolean(emp.datacar_token || emp.email_login_vendas)
+        if (emissoras.length > 0) {
+          return emp.emite_nfse === true || emp.optante_simples === true
+        }
+        return emp.tipo_empresa === 'vendas' || emp.tipo_empresa === 'ambos'
       }
 
-      // Módulos de Vendas (/vendas, /notas-emitidas): Exibe APENAS se tiver credencial de vendas cadastrada
+      // Módulos de Vendas (/vendas, /notas-emitidas): Exibe APENAS se o tipo da empresa for 'vendas' ou 'ambos'
       if (pathname.startsWith('/vendas') || pathname.startsWith('/notas-emitidas')) {
-        return temCredencialVendas
+        return emp.tipo_empresa === 'vendas' || emp.tipo_empresa === 'ambos'
       }
 
-      // Módulos de Financeiro / Contas a Pagar / Gestão de Pagamentos (/contas-pagar, /gestao-pagamentos, /contas-receber, /boletos, /pagamentos, /receber): Exibe APENAS se tiver credencial de financeiro cadastrada
+      // Módulos de Financeiro / Contas a Pagar / Gestão de Pagamentos (/contas-pagar, /gestao-pagamentos, etc.): Exibe APENAS se o tipo da empresa for 'financeiro' ou 'ambos'
       if (pathname.startsWith('/contas-pagar') || pathname.startsWith('/gestao-pagamentos') || pathname.startsWith('/contas-receber') || pathname.startsWith('/boletos') || pathname.startsWith('/pagamentos') || pathname.startsWith('/receber')) {
-        return temCredencialFinanceiro
+        return emp.tipo_empresa === 'financeiro' || emp.tipo_empresa === 'ambos'
       }
 
       return true
