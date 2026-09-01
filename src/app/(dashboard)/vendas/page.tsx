@@ -64,7 +64,7 @@ export default function VendasPage() {
   const [dtIni, setDtIni] = useState(primeiroDia)
   const [dtFim, setDtFim] = useState(hoje)
   const [buscando, setBuscando] = useState(false)
-  const [tipoPeriodoVendas, setTipoPeriodoVendas] = useState<'criacao' | 'conclusao' | 'encerramento'>('encerramento')
+  const [tipoPeriodoVendas, setTipoPeriodoVendas] = useState<'criacao' | 'previsao' | 'conclusao' | 'encerramento' | 'cancelamento'>('encerramento')
   const [situacaoVendas, setSituacaoVendas] = useState<'todas' | 'em_andamento' | 'concluida' | 'encerrada' | 'cancelada'>('todas')
   const [numeroOS, setNumeroOS] = useState('')
   const [filtroTipoItens, setFiltroTipoItens] = useState<'tudo' | 'produtos' | 'servicos'>('tudo')
@@ -608,11 +608,14 @@ export default function VendasPage() {
                     <select
                       value={tipoPeriodoVendas}
                       onChange={(e) => setTipoPeriodoVendas(e.target.value as any)}
-                      className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
+                      disabled={!!numeroOS}
+                      className={`bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none ${numeroOS ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <option value="criacao">Criação/Abertura</option>
+                      <option value="previsao">Previsão</option>
                       <option value="conclusao">Conclusão</option>
                       <option value="encerramento">Encerramento</option>
+                      <option value="cancelamento">Cancelamento</option>
                     </select>
                   </div>
 

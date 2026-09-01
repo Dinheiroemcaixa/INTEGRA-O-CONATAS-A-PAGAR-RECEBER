@@ -80,6 +80,8 @@ export default function PainelSincronizacao({ empresa }: Props) {
   const temCredenciais = !!empresa.datacar_token && !!empresa.datacar_cod_emp && !!empresa.datacar_id_operador
 
   const [tipoPeriodoContas, setTipoPeriodoContas] = useState<'venc' | 'emis' | 'pgto' | 'digit'>('venc')
+  const [statusPagamentoContas, setStatusPagamentoContas] = useState<'todas' | 'apagar' | 'pagas'>('todas')
+  const [localPagamentoContas, setLocalPagamentoContas] = useState<string>('todos')
 
   const handleBuscarContas = async () => {
     setBuscando(true)
@@ -88,7 +90,7 @@ export default function PainelSincronizacao({ empresa }: Props) {
       const res = await fetch('/api/datacar/buscar-contas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ empresa_id: empresa.id, dtIni, dtFim, tipoPeriodo: tipoPeriodoContas }),
+        body: JSON.stringify({ empresa_id: empresa.id, dtIni, dtFim, tipoPeriodo: tipoPeriodoContas, statusPagamento: statusPagamentoContas, localPagamento: localPagamentoContas }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erro ao buscar contas')
@@ -437,6 +439,42 @@ export default function PainelSincronizacao({ empresa }: Props) {
               />
             </div>
           </div>
+
+          {/* Filtros extras Contas a Pagar */}
+          {tab === 'contas' && (
+            <>
+              <div>
+                <label className="text-xs font-medium mb-1 block text-dark-400">Pagamento:</label>
+                <select
+                  value={statusPagamentoContas}
+                  onChange={(e) => setStatusPagamentoContas(e.target.value as any)}
+                  className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
+                >
+                  <option value="todas">A pagar e pagas</option>
+                  <option value="apagar">A pagar</option>
+                  <option value="pagas">Pagas</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium mb-1 block text-dark-400">Local:</label>
+                <select
+                  value={localPagamentoContas}
+                  onChange={(e) => setLocalPagamentoContas(e.target.value)}
+                  className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
+                >
+                  <option value="todos">(Todos)</option>
+                  <option value="BANCO">BANCO</option>
+                  <option value="CARTEIRA">CARTEIRA</option>
+                  <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                  <option value="PIX">PIX</option>
+                  <option value="BOLETO">BOLETO</option>
+                  <option value="CHEQUE">CHEQUE</option>
+                  <option value="DEPOSITO">DEPOSITO</option>
+                  <option value="DEBITO">DEBITO</option>
+                </select>
+              </div>
+            </>
+          )}
 
           {/* 3. Situação (Apenas Vendas) e Número OS */}
           {tab === 'vendas' && (

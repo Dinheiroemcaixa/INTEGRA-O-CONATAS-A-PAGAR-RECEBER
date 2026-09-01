@@ -21,6 +21,7 @@ const supabaseAdmin = createClient(
 export async function POST(req: NextRequest) {
   try {
     let { empresa_id, dtIni, dtFim, tipoPeriodo = 'encerramento', situacao = 'todas', numeroOS } = await req.json()
+    if (tipoPeriodo === 'abertura') tipoPeriodo = 'criacao'
 
     if (!empresa_id) {
       return NextResponse.json({ error: 'empresa_id é obrigatório' }, { status: 400 })
