@@ -501,16 +501,26 @@ export default function ContasPagarPage() {
     setShowModalEnvio(false)
 
     // Se o usuário selecionou uma empresa de destino diferente da atual no modal de envio,
-    // transfere as contas pendentes da empresa atual para a empresa de destino antes de disparar o lote
+    // transfere as contas pendentes da empresa atual para a empresa de destino com tratamento de duplicidade
     if (empresaAtiva && idParaEnvio !== empresaAtiva.id) {
       try {
-        await supabase
-          .from('contas_pagar_importadas')
-          .update({ empresa_id: idParaEnvio })
-          .eq('empresa_id', empresaAtiva.id)
-          .eq('status', 'pendente')
-      } catch (e) {
+        const resMover = await fetch('/api/contas-pagar/mover', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            empresa_origem_id: empresaAtiva.id,
+            empresa_destino_id: idParaEnvio,
+          }),
+        })
+        if (!resMover.ok) {
+          const errData = await resMover.json()
+          throw new Error(errData.error || 'Erro ao transferir contas para a empresa destino')
+        }
+      } catch (e: any) {
         console.error('[contas-pagar] Erro ao transferir contas para a empresa destino:', e)
+        toast.error(e.message || 'Erro ao transferir contas para a empresa destino')
+        setEnviandoCA(false)
+        return
       }
     }
 
@@ -825,7 +835,7 @@ export default function ContasPagarPage() {
                 <h2 className="text-lg font-semibold text-white">Contas Pendentes de Envio</h2>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
-                    onClick={() => executarEnvioEmLote()}
+                    onClick={() => setShowModalEnvio(true)}
                     disabled={enviandoCA}
                     className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-blue-900/20"
                   >

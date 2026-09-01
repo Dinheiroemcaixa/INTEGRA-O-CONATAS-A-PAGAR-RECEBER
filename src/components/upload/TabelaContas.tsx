@@ -230,16 +230,20 @@ export default function TabelaContas({ empresaId }: Props) {
     }
 
     try {
-      const { error } = await supabase
-        .from('contas_pagar_importadas')
-        .update({
-          empresa_id: novaEmpresaId,
-        })
-        .in('id', idsParaMover)
+      const res = await fetch('/api/contas-pagar/mover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: idsParaMover,
+          empresa_origem_id: empresaId,
+          empresa_destino_id: novaEmpresaId,
+        }),
+      })
 
-      if (error) throw error
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao transferir lançamentos')
 
-      toast.success(`${idsParaMover.length} lançamento(s) transferido(s) para ${targetEmpresa.nome}!`)
+      toast.success(data.message || `${idsParaMover.length} lançamento(s) transferido(s) para ${targetEmpresa.nome}!`)
       setEditandoEmMassaLoja(false)
       setSelecionados([])
 
