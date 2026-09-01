@@ -813,43 +813,54 @@ export async function buscarOuCriarCliente(
   const tipoPessoa = docLimpo.length === 14 ? 'Jurídica' : 'Física'
 
   try {
-    // 1. Busca por CPF/CNPJ se disponível (mais preciso, evita duplicatas)
+    // 1. Busca por CPF/CNPJ se disponível (busca estrita por documento para evitar associar a homônimos)
     if (docLimpo) {
-      const urlDoc = `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=10&busca=${docLimpo}&tipo_perfil=Cliente`
-      try {
-        const busca = await fetchCA(urlDoc, { headers: { 'Authorization': `Bearer ${accessToken}` } })
-        if (busca.ok) {
-          const data = await busca.json()
-          const lista: any[] = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
-          if (lista.length > 0) {
-            const matchDoc = lista.find(p => {
-              const pDoc = (p.cpf || p.cnpj || p.documento || '').replace(/\D/g, '')
-              return pDoc === docLimpo
-            })
-            if (matchDoc) return matchDoc.id || matchDoc.uuid
+      const urlsDoc = [
+        `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=20&cpf_cnpj=${docLimpo}&tipo_perfil=Cliente`,
+        `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=20&busca=${docLimpo}&tipo_perfil=Cliente`,
+        `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=20&cpf_cnpj=${docLimpo}`,
+        `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=20&busca=${docLimpo}`,
+      ]
+      for (const urlDoc of urlsDoc) {
+        try {
+          const busca = await fetchCA(urlDoc, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+          if (busca.ok) {
+            const data = await busca.json()
+            const lista: any[] = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
+            if (lista.length > 0) {
+              const matchDoc = lista.find(p => {
+                const pDoc = (p.cpf || p.cnpj || p.documento || p.cpf_cnpj || '').replace(/\D/g, '')
+                return pDoc === docLimpo
+              })
+              if (matchDoc) {
+                console.log(`[buscarOuCriarCliente] Cliente encontrado por CPF/CNPJ (${docLimpo}): ${matchDoc.nome || matchDoc.name} (ID: ${matchDoc.id || matchDoc.uuid})`)
+                return matchDoc.id || matchDoc.uuid
+              }
+            }
           }
-        }
-      } catch (e) { console.warn('[cliente] erro na busca por doc:', e) }
-    }
-
-    // 2. Busca por nome
-    const endpointsBusca = [
-      `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=100&busca=${encodeURIComponent(nome)}&tipo_perfil=Cliente`,
-      `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=100&busca=${encodeURIComponent(nome)}`,
-    ]
-    for (const url of endpointsBusca) {
-      try {
-        const busca = await fetchCA(url, { headers: { 'Authorization': `Bearer ${accessToken}` } })
-        if (busca.ok) {
-          const data = await busca.json()
-          const lista: any[] = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
-          if (lista.length > 0) {
-            const nomeBusca = nome.toLowerCase().trim()
-            const matchExato = lista.find(p => (p.nome || p.name || '').toLowerCase().trim() === nomeBusca)
-            if (matchExato) return matchExato.id || matchExato.uuid
+        } catch (e) { console.warn('[cliente] erro na busca por doc:', e) }
+      }
+    } else if (nome && nome.trim()) {
+      // 2. Busca por nome SOMENTE se NÃO houver CPF/CNPJ informado na venda!
+      // Se houver CPF/CNPJ, JAMAIS busca por nome para evitar associar incorretamente a outro cliente homônimo (ex: outro 'Felipe' com CPF diferente).
+      const endpointsBusca = [
+        `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=100&busca=${encodeURIComponent(nome)}&tipo_perfil=Cliente`,
+        `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=100&busca=${encodeURIComponent(nome)}`,
+      ]
+      for (const url of endpointsBusca) {
+        try {
+          const busca = await fetchCA(url, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+          if (busca.ok) {
+            const data = await busca.json()
+            const lista: any[] = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
+            if (lista.length > 0) {
+              const nomeBusca = nome.toLowerCase().trim()
+              const matchExato = lista.find(p => (p.nome || p.name || '').toLowerCase().trim() === nomeBusca)
+              if (matchExato) return matchExato.id || matchExato.uuid
+            }
           }
-        }
-      } catch (e) { console.warn(`[cliente] erro na busca em ${url}:`, e) }
+        } catch (e) { console.warn(`[cliente] erro na busca em ${url}:`, e) }
+      }
     }
 
     // 3. Criar como Cliente com CPF/CNPJ
@@ -891,22 +902,31 @@ export async function buscarOuCriarCliente(
     const errTextPrincipal = await criar.text()
     console.error('[buscarOuCriarCliente] Erro POST /pessoas:', criar.status, errTextPrincipal)
 
-    // Se o erro for "já existe pessoa com esse CPF/CNPJ", buscar essa pessoa pelo doc
-    if (criar.status === 400 && errTextPrincipal.includes('CPF') && docLimpo) {
+    // Se o erro for 'já existe pessoa com esse CPF/CNPJ', buscar essa pessoa pelo doc
+    if (criar.status === 400 && (errTextPrincipal.includes('CPF') || errTextPrincipal.includes('CNPJ') || errTextPrincipal.includes('duplicad')) && docLimpo) {
       console.log('[buscarOuCriarCliente] CPF/CNPJ duplicado, tentando buscar pessoa existente...')
       // Busca sem filtro de perfil para encontrar qualquer pessoa com esse doc
-      const urlBuscaDoc = `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=10&busca=${docLimpo}`
-      try {
-        const buscaDoc = await fetchCA(urlBuscaDoc, { headers: { 'Authorization': `Bearer ${accessToken}` } })
-        if (buscaDoc.ok) {
-          const dataDoc = await buscaDoc.json()
-          const listaDoc: any[] = dataDoc.itens || dataDoc.items || dataDoc.content || dataDoc.data || (Array.isArray(dataDoc) ? dataDoc : [])
-          if (listaDoc.length > 0) {
-            console.log('[buscarOuCriarCliente] Pessoa encontrada por CPF/CNPJ duplicado:', listaDoc[0].id, listaDoc[0].nome)
-            return listaDoc[0].id || listaDoc[0].uuid
+      const urlsBuscaDoc = [
+        `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=10&cpf_cnpj=${docLimpo}`,
+        `${BASE_URL}/pessoas?pagina=1&tamanho_pagina=10&busca=${docLimpo}`
+      ]
+      for (const urlBuscaDoc of urlsBuscaDoc) {
+        try {
+          const buscaDoc = await fetchCA(urlBuscaDoc, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+          if (buscaDoc.ok) {
+            const dataDoc = await buscaDoc.json()
+            const listaDoc: any[] = dataDoc.itens || dataDoc.items || dataDoc.content || dataDoc.data || (Array.isArray(dataDoc) ? dataDoc : [])
+            if (listaDoc.length > 0) {
+              const matchDoc = listaDoc.find(p => {
+                const pDoc = (p.cpf || p.cnpj || p.documento || p.cpf_cnpj || '').replace(/\D/g, '')
+                return pDoc === docLimpo
+              }) || listaDoc[0]
+              console.log('[buscarOuCriarCliente] Pessoa encontrada por CPF/CNPJ duplicado:', matchDoc.id, matchDoc.nome)
+              return matchDoc.id || matchDoc.uuid
+            }
           }
-        }
-      } catch (e) { console.warn('[buscarOuCriarCliente] erro ao buscar por doc duplicado:', e) }
+        } catch (e) { console.warn('[buscarOuCriarCliente] erro ao buscar por doc duplicado:', e) }
+      }
     }
 
     // Se o erro for por CPF inválido, tentar criar sem CPF
