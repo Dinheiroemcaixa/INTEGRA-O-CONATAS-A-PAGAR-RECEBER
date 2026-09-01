@@ -67,7 +67,7 @@ export default function VendasPage() {
   const [tipoPeriodoVendas, setTipoPeriodoVendas] = useState<'criacao' | 'previsao' | 'conclusao' | 'encerramento' | 'cancelamento'>('encerramento')
   const [situacaoVendas, setSituacaoVendas] = useState<'todas' | 'em_andamento' | 'concluida' | 'encerrada' | 'cancelada'>('todas')
   const [numeroOS, setNumeroOS] = useState('')
-  const [filtroTipoItens, setFiltroTipoItens] = useState<'tudo' | 'produtos' | 'servicos'>('tudo')
+  const [filtroTipoItens, setFiltroTipoItens] = useState<'tudo' | 'produtos' | 'servicos'>('produtos')
   const [vendasDatacar, setVendasDatacar] = useState<any[]>([])
   const [selecionadosDatacar, setSelecionadosDatacar] = useState<Set<string>>(new Set())
   const [expandidoDatacar, setExpandidoDatacar] = useState<string | null>(null)
