@@ -16,7 +16,8 @@ import toast from 'react-hot-toast'
 
 const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Vendas & OS', href: '/vendas', icon: ShoppingCart },
+  { label: 'Vendas Produtos', href: '/vendas', icon: ShoppingCart },
+  { label: 'Vendas Serviços', href: '/vendas-servicos', icon: ShoppingCart, badge: 'NOVO' },
   { label: 'Notas Emitidas', href: '/notas-emitidas', icon: Database, badge: 'NOVO' },
   { label: 'Contas a Pagar', href: '/contas-pagar', icon: ArrowDownCircle, badge: 'ATIVO' },
   { label: 'Gestão de Pagamentos', href: '/gestao-pagamentos', icon: Database, badge: 'NOVO' },
