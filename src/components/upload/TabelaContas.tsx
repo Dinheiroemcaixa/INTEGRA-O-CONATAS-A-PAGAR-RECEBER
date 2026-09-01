@@ -1,10 +1,9 @@
-'use client'
-
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useEmpresa } from '@/contexts/EmpresaContext'
 import type { ContaPagarImportada } from '@/types'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { CheckCircle, Clock, AlertCircle, RefreshCw, Loader2, Trash2, Landmark, Tags, Edit2 } from 'lucide-react'
+import { CheckCircle, Clock, AlertCircle, RefreshCw, Loader2, Trash2, Landmark, Tags, Edit2, ArrowRightLeft, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import SelectorContaFinanceira, { type ContaFinanceiraOpcao } from '@/components/upload/SelectorContaFinanceira'
@@ -22,6 +21,7 @@ const STATUS_CONFIG = {
 }
 
 export default function TabelaContas({ empresaId }: Props) {
+  const { empresas, setEmpresaAtiva } = useEmpresa()
   const [contas, setContas] = useState<ContaPagarImportada[]>([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState<string>('pendente')
@@ -31,6 +31,7 @@ export default function TabelaContas({ empresaId }: Props) {
   const [editandoCategoriaId, setEditandoCategoriaId] = useState<string | null>(null)
   const [editandoEmMassaConta, setEditandoEmMassaConta] = useState(false)
   const [editandoEmMassaCat, setEditandoEmMassaCat] = useState(false)
+  const [editandoEmMassaLoja, setEditandoEmMassaLoja] = useState(false)
 
   const supabase = createClient()
 
@@ -209,6 +210,46 @@ export default function TabelaContas({ empresaId }: Props) {
     }
   }
 
+  const handleMoverLoja = async (novaEmpresaId: string) => {
+    const targetEmpresa = empresas.find(e => e.id === novaEmpresaId)
+    if (!targetEmpresa) return
+
+    const idsParaMover = selecionados.length > 0
+      ? selecionados
+      : contas.filter(c => c.status === 'pendente').map(c => c.id)
+
+    if (idsParaMover.length === 0) {
+      toast.error('Nenhum lançamento selecionado ou pendente para transferir.')
+      setEditandoEmMassaLoja(false)
+      return
+    }
+
+    if (!confirm(`Deseja transferir ${idsParaMover.length} lançamento(s) para a loja "${targetEmpresa.nome}"?`)) {
+      setEditandoEmMassaLoja(false)
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('contas_pagar_importadas')
+        .update({
+          empresa_id: novaEmpresaId,
+        })
+        .in('id', idsParaMover)
+
+      if (error) throw error
+
+      toast.success(`${idsParaMover.length} lançamento(s) transferido(s) para ${targetEmpresa.nome}!`)
+      setEditandoEmMassaLoja(false)
+      setSelecionados([])
+
+      // Muda o seletor da empresa ativa para a loja destino
+      setEmpresaAtiva(targetEmpresa)
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao transferir lançamentos')
+    }
+  }
+
   const totalPendente = contas.filter((c) => c.status === 'pendente').reduce((s, c) => s + Number(c.valor), 0)
   const totalEnviado = contas.filter((c) => c.status === 'enviado').reduce((s, c) => s + Number(c.valor), 0)
 
@@ -289,6 +330,42 @@ export default function TabelaContas({ empresaId }: Props) {
                   title="Aplicar a mesma categoria a todas as contas selecionadas (ou todas da lista)"
                 >
                   <Tags size={13} /> {selecionados.length > 0 ? `Categoria (${selecionados.length})` : 'Categoria em Lote'}
+                </button>
+              )}
+            </div>
+
+            {/* Transferir para Outra Loja */}
+            <div className="relative">
+              {editandoEmMassaLoja ? (
+                <div className="absolute top-0 left-0 z-30 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl p-2.5 min-w-[240px] animate-fade-in space-y-1.5">
+                  <div className="flex items-center justify-between px-2 py-1 text-[11px] font-bold text-dark-400 border-b border-dark-700/60 mb-1">
+                    <span>Transferir para Loja:</span>
+                    <button type="button" onClick={() => setEditandoEmMassaLoja(false)} className="text-dark-500 hover:text-white text-xs">✕</button>
+                  </div>
+                  {empresas.filter(e => e.id !== empresaId).length === 0 ? (
+                    <p className="text-xs text-dark-500 px-2 py-2">Nenhuma outra loja cadastrada.</p>
+                  ) : (
+                    empresas.filter(e => e.id !== empresaId).map((emp) => (
+                      <button
+                        key={emp.id}
+                        type="button"
+                        onClick={() => handleMoverLoja(emp.id)}
+                        className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-semibold text-white hover:bg-emerald-600/20 hover:text-emerald-300 transition-colors text-left border border-transparent hover:border-emerald-500/30"
+                      >
+                        <span className="truncate">{emp.nome}</span>
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${emp.access_token_conta_azul ? 'bg-emerald-400' : 'bg-dark-600'}`} />
+                      </button>
+                    ))
+                  )}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setEditandoEmMassaLoja(true)}
+                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-all shadow-sm"
+                  title="Transferir lançamentos selecionados (ou todos os pendentes) para outra empresa/loja"
+                >
+                  <ArrowRightLeft size={13} /> {selecionados.length > 0 ? `Mover Loja (${selecionados.length})` : 'Mover Loja'}
                 </button>
               )}
             </div>

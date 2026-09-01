@@ -492,10 +492,22 @@ export default function ContasPagarPage() {
       return
     }
 
-    if (!confirm('Enviar todas as contas PENDENTES para o Conta Azul em lotes automáticos?')) return
-
     setEnviandoCA(true)
     setShowModalEnvio(false)
+
+    // Se o usuário selecionou uma empresa de destino diferente da atual no modal de envio,
+    // transfere as contas pendentes da empresa atual para a empresa de destino antes de disparar o lote
+    if (empresaAtiva && idParaEnvio !== empresaAtiva.id) {
+      try {
+        await supabase
+          .from('contas_pagar_importadas')
+          .update({ empresa_id: idParaEnvio })
+          .eq('empresa_id', empresaAtiva.id)
+          .eq('status', 'pendente')
+      } catch (e) {
+        console.error('[contas-pagar] Erro ao transferir contas para a empresa destino:', e)
+      }
+    }
 
     // 1. Buscar total inicial de pendentes
     let totalInicial = 0
@@ -589,6 +601,10 @@ export default function ContasPagarPage() {
     setEnviandoCA(false)
     setStatusProgresso(prev => prev ? { ...prev, emExecucao: false, restantes: 0 } : null)
     setRefreshContas(prev => prev + 1)
+
+    if (empresaEnvio && empresaAtiva?.id !== empresaEnvio.id) {
+      setEmpresaAtiva(empresaEnvio)
+    }
 
     if (acumuladoEnviados > 0 || acumuladoErros > 0) {
       toast.success(`Integração finalizada! Enviados: ${acumuladoEnviados}, Erros: ${acumuladoErros}`, { duration: 6000 })
