@@ -1,6 +1,6 @@
 import React from 'react'
 import { 
-  X, Edit, AlertCircle, CheckCircle, Calendar, 
+  X, Edit, AlertCircle, AlertTriangle, CheckCircle, Calendar, 
   DollarSign, User, MapPin, Truck, HelpCircle
 } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -64,7 +64,7 @@ export default function ModalDetalheVendaDatacar({
                         ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'
                         : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
               }`}>
-                {venda.status === 'enviado' ? 'Enviado Conta Azul' : venda.status === 'erro' ? 'Erro Envio' : venda.status === 'duplicidade' ? 'Duplicidade no CA' : venda.status === 'alerta_cliente' ? 'Aviso Cliente' : 'Pendente de Envio'}
+                {venda.status === 'enviado' ? 'Enviado Conta Azul' : venda.status === 'erro' ? 'Erro Envio' : venda.status === 'duplicidade' ? 'Duplicidade no CA' : venda.status === 'alerta_cliente' ? 'Cliente já no CA' : 'Pendente de Envio'}
               </span>
             </div>
             <h2 className="text-lg font-bold text-white leading-tight mt-1">
@@ -82,6 +82,20 @@ export default function ModalDetalheVendaDatacar({
         {/* Conteúdo com Scroll */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1 text-sm text-dark-300">
           
+                    {/* Alerta de Cliente já cadastrado no Conta Azul */}
+          {venda.status === 'alerta_cliente' && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3 animate-fade-in">
+              <AlertTriangle className="text-amber-400 flex-shrink-0 mt-0.5" size={18} />
+              <div>
+                <p className="text-amber-300 font-bold">Cliente já cadastrado no Conta Azul</p>
+                <p className="text-amber-200/80 text-xs mt-1 leading-relaxed">
+                  Este cliente (CPF/CNPJ: {formatCNPJ(venda.cliente_cpf_cnpj || venda.dados_datacar?.cliente_cpf_cnpj)}) já possui cadastro ou vendas registradas no Conta Azul.
+                  Verifique no Conta Azul se a venda já foi emitida no balcão. Caso ainda não tenha sido emitida, clique em <strong>"Enviar assim mesmo"</strong> abaixo.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Alerta de erro do Conta Azul se aplicável */}
           {venda.status === 'erro' && venda.erro_mensagem && (
             <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-start gap-3 animate-fade-in">
@@ -291,7 +305,7 @@ export default function ModalDetalheVendaDatacar({
               onClick={onForcarEnvio}
               className="px-4 py-2 rounded-xl text-xs font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 transition-all text-center"
             >
-              Forçar Envio (Ignorar Aviso)
+              Enviar assim mesmo
             </button>
           )}
 

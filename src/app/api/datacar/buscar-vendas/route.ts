@@ -517,7 +517,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // --- DETECÇÃO DE CLIENTE COM VENDAS ANTERIORES NO CA ---
+      // --- DETECÇÃO DE CLIENTE COM CADASTRO OU VENDAS ANTERIORES NO CA ---
       const cpfsCnpjsParaVerificar = Array.from(new Set(
         dadosFiltrados
           .filter((d: any) => !d.ca_status)
@@ -533,31 +533,47 @@ export async function POST(req: NextRequest) {
           const chunk = cpfsCnpjsParaVerificar.slice(i, i + 10)
           await Promise.all(chunk.map(async (doc) => {
             try {
-              const url = `${urlBaseCA}?termo_busca=${doc}&tamanho_pagina=1`
-              console.log(`[duplicidade-cliente] Buscando vendas anteriores para CPF/CNPJ: ${doc} em ${url}`)
-              const res = await fetch(url, {
-                headers: { 'Authorization': `Bearer ${caToken}` }
-              })
-              console.log(`[duplicidade-cliente] Resposta para ${doc}: status=${res.status}`)
-              if (res.ok) {
-                const data = await res.json()
-                const lista = data.itens || data.items || data.content || data.data || (Array.isArray(data) ? data : [])
-                console.log(`[duplicidade-cliente] CPF/CNPJ ${doc}: ${lista.length} vendas encontradas`)
-                if (lista.length > 0) {
-                  const matchDoc = lista.find((v: any) => {
+              // 1. Busca no cadastro de clientes/pessoas do CA e nas vendas
+              const urlPessoas = `https://api-v2.contaazul.com/v1/pessoas?cpf_cnpj=${doc}&pagina=1&tamanho_pagina=1`
+              const urlVendas = `${urlBaseCA}?termo_busca=${doc}&tamanho_pagina=1`
+              
+              const [resPessoas, resVendas] = await Promise.all([
+                fetch(urlPessoas, { headers: { 'Authorization': `Bearer ${caToken}` } }).catch(() => null),
+                fetch(urlVendas, { headers: { 'Authorization': `Bearer ${caToken}` } }).catch(() => null)
+              ])
+              
+              let existe = false
+
+              if (resPessoas && resPessoas.ok) {
+                const dataP = await resPessoas.json()
+                const listaP = dataP.itens || dataP.items || dataP.content || dataP.data || (Array.isArray(dataP) ? dataP : [])
+                if (listaP.length > 0) {
+                  const match = listaP.find((p: any) => {
+                    const pDoc = (p.cpf || p.cnpj || p.documento || p.cpf_cnpj || '').replace(/\D/g, '')
+                    return pDoc === doc
+                  })
+                  if (match || listaP.length > 0) existe = true
+                }
+              }
+
+              if (!existe && resVendas && resVendas.ok) {
+                const dataV = await resVendas.json()
+                const listaV = dataV.itens || dataV.items || dataV.content || dataV.data || (Array.isArray(dataV) ? dataV : [])
+                if (listaV.length > 0) {
+                  const matchV = listaV.find((v: any) => {
                     const pDoc = (v.documento_cliente || v.cliente?.documento || '').replace(/\D/g, '')
                     return pDoc === doc || pDoc.includes(doc) || doc.includes(pDoc)
                   })
-                  if (matchDoc || lista.length > 0) {
-                    clientesExistentesCA.add(doc)
-                  }
+                  if (matchV || listaV.length > 0) existe = true
                 }
-              } else {
-                const errText = await res.text()
-                console.warn(`[duplicidade-cliente] Erro ${res.status} ao buscar ${doc}: ${errText.substring(0, 200)}`)
+              }
+
+              if (existe) {
+                console.log(`[duplicidade-cliente] Cliente identificado com cadastro/venda no CA para CPF/CNPJ ${doc}`)
+                clientesExistentesCA.add(doc)
               }
             } catch (err) {
-              console.warn(`[duplicidade-cliente] Erro ao buscar vendas anteriores ${doc} no CA:`, err)
+              console.warn(`[duplicidade-cliente] Erro ao buscar vendas/cliente ${doc} no CA:`, err)
             }
           }))
         }

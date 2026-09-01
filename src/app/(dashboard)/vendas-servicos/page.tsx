@@ -183,7 +183,7 @@ export default function VendasPage() {
         valor_total: d.valor_total,
         forma_pagamento: d.forma_pagamento,
         itens: d.itens,
-        status: d.ca_status ? 'duplicidade' : 'pendente', // ca_status contém erro de duplicidade
+        status: d.ca_status === 'cliente_existente' ? 'alerta_cliente' : (d.ca_status ? 'duplicidade' : 'pendente'),
         dados_datacar: d._datacar || d,
         valido: d.valido,
         erros: d.erros,
@@ -837,7 +837,7 @@ export default function VendasPage() {
                                 ? 'bg-amber-500/15 text-amber-400'
                                 : 'bg-yellow-500/15 text-yellow-400'
                           }`}>
-                            {venda.status === 'enviado' ? 'Enviado Gov.br' : venda.status === 'duplicidade' ? 'Duplicada' : 'Pendente'}
+                            {venda.status === 'enviado' ? 'Enviado Gov.br' : venda.status === 'duplicidade' ? 'Duplicada' : venda.status === 'alerta_cliente' ? 'Cliente no CA' : 'Pendente'}
                           </span>
                           <div className="flex items-center justify-end gap-1">
                             <button

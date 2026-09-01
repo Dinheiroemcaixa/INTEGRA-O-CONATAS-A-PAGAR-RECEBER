@@ -836,18 +836,15 @@ export default function VendasPage() {
                           className="flex items-center gap-3 px-4 py-3 cursor-pointer"
                           onClick={() => setExpandidoDatacar(expandidoDatacar === venda.id ? null : venda.id)}
                         >
-                          {venda.status === 'pendente' || venda.status === 'erro' ? (
+                          {venda.status === 'pendente' || venda.status === 'erro' || venda.status === 'alerta_cliente' ? (
                             <input
                               type="checkbox"
                               checked={selecionadosDatacar.has(venda.id)}
                               onChange={e => { e.stopPropagation(); toggleSelecionadoDatacar(venda.id) }}
                               onClick={e => e.stopPropagation()}
                               className="accent-blue-500"
+                              title={venda.status === 'alerta_cliente' ? 'Cliente já no CA. Marque para enviar assim mesmo.' : undefined}
                             />
-                          ) : venda.status === 'alerta_cliente' ? (
-                            <div className="text-yellow-500 flex-shrink-0 ml-0.5" title="Cliente já cadastrado">
-                              <AlertCircle size={14} />
-                            </div>
                           ) : venda.status === 'duplicidade' ? (
                             <div className="text-amber-500 flex-shrink-0 ml-0.5" title="Venda já consta no Conta Azul">
                               <AlertCircle size={14} />
@@ -894,7 +891,7 @@ export default function VendasPage() {
                                     ? 'bg-yellow-500/15 text-yellow-500'
                                     : 'bg-yellow-500/15 text-yellow-400'
                           }`}>
-                            {venda.status === 'enviado' ? 'Enviado CA' : venda.status === 'erro' ? 'Erro CA' : venda.status === 'duplicidade' ? 'Duplicada' : venda.status === 'alerta_cliente' ? 'Aviso Cliente' : 'Pendente'}
+                            {venda.status === 'enviado' ? 'Enviado CA' : venda.status === 'erro' ? 'Erro CA' : venda.status === 'duplicidade' ? 'Duplicada' : venda.status === 'alerta_cliente' ? 'Cliente no CA' : 'Pendente'}
                           </span>
                           <div className="w-16 flex items-center justify-end gap-1">
                             <button
