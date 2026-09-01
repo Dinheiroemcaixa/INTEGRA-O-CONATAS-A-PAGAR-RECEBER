@@ -63,26 +63,12 @@ export async function getValidToken(
   const refreshKey = isVendas ? 'refresh_token_conta_azul_vendas' : 'refresh_token_conta_azul'
   const expiracaoKey = isVendas ? 'data_expiracao_token_vendas' : 'data_expiracao_token'
 
-  let targetEmpresa = empresa
-  let rawToken = empresa[tokenKey]
-
-  // Fallback: Se a empresa não tem token próprio, buscar qualquer empresa do mesmo grupo que esteja conectada ao Conta Azul
-  if (!rawToken && empresa.grupo_id) {
-    const { data: grupoEmpresas } = await supabaseAdmin
-      .from('empresas')
-      .select('*')
-      .eq('grupo_id', empresa.grupo_id)
-      .not(tokenKey, 'is', null)
-
-    if (grupoEmpresas && grupoEmpresas.length > 0) {
-      targetEmpresa = grupoEmpresas[0]
-      rawToken = grupoEmpresas[0][tokenKey]
-    }
-  }
+  const targetEmpresa = empresa
+  const rawToken = empresa[tokenKey]
 
   if (!rawToken) {
     throw new TokenError(
-      `Empresa "${empresa.nome}" não está conectada ao Conta Azul (${modulo === 'vendas' ? 'Vendas' : 'Financeiro'}). Acesse Empresas e conecte ou espelhe a Conta Azul.`,
+      `Empresa "${empresa.nome}" não está conectada ao Conta Azul (${modulo === 'vendas' ? 'Vendas' : 'Financeiro'}). Acesse Empresas e conecte a Conta Azul.`,
       401
     )
   }
@@ -116,15 +102,10 @@ export async function getValidToken(
         updateData.conta_azul_connected = true
       }
 
-      let query = supabaseAdmin.from('empresas').update(updateData)
-      if (targetEmpresa.email_login) {
-        query = query.or(`id.eq.${targetEmpresa.id},email_login.eq.${targetEmpresa.email_login}`)
-      } else if (targetEmpresa.grupo_id) {
-        query = query.or(`id.eq.${targetEmpresa.id},grupo_id.eq.${targetEmpresa.grupo_id}`)
-      } else {
-        query = query.eq('id', targetEmpresa.id)
-      }
-      const { error: errUpdate } = await query
+      const { error: errUpdate } = await supabaseAdmin
+        .from('empresas')
+        .update(updateData)
+        .eq('id', targetEmpresa.id)
 
       if (errUpdate) {
         console.error('[token-manager] Falha ao salvar novos tokens:', errUpdate.message)

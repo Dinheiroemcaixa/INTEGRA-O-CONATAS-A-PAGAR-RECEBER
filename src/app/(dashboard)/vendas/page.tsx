@@ -67,7 +67,7 @@ export default function VendasPage() {
   const [tipoPeriodoVendas, setTipoPeriodoVendas] = useState<'criacao' | 'conclusao' | 'encerramento'>('encerramento')
   const [situacaoVendas, setSituacaoVendas] = useState<'todas' | 'em_andamento' | 'concluida' | 'encerrada' | 'cancelada'>('todas')
   const [numeroOS, setNumeroOS] = useState('')
-  const [filtroTipoItens, setFiltroTipoItens] = useState<'tudo' | 'produtos' | 'servicos'>('produtos')
+  const [filtroTipoItens, setFiltroTipoItens] = useState<'tudo' | 'produtos' | 'servicos'>('tudo')
   const [vendasDatacar, setVendasDatacar] = useState<any[]>([])
   const [selecionadosDatacar, setSelecionadosDatacar] = useState<Set<string>>(new Set())
   const [expandidoDatacar, setExpandidoDatacar] = useState<string | null>(null)
@@ -557,9 +557,48 @@ export default function VendasPage() {
 
               {/* Formulário de Busca do Datacar */}
               <div className="bg-dark-800 border border-dark-700 rounded-xl p-5 animate-fade-in">
-                <div className="flex items-center gap-2 mb-4 text-white font-semibold">
-                  <Database size={18} className="text-blue-400" />
-                  <h3>Buscar Vendas do Datacar {empresaAtiva ? `— ${empresaAtiva.nome}` : ''}</h3>
+                <div className="flex items-center justify-between flex-wrap gap-3 mb-4 pb-3 border-b border-dark-700/50">
+                  <div className="flex items-center gap-2 text-white font-semibold">
+                    <Database size={18} className="text-blue-400" />
+                    <h3>Buscar Vendas do Datacar {empresaAtiva ? `— ${empresaAtiva.nome}` : ''}</h3>
+                  </div>
+
+                  {/* Seletor rápido de tipo de itens */}
+                  <div className="flex items-center gap-1 bg-dark-900/80 p-1 rounded-xl border border-dark-700/60">
+                    <button
+                      type="button"
+                      onClick={() => setFiltroTipoItens('tudo')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        filtroTipoItens === 'tudo'
+                          ? 'bg-brand-600 text-white shadow-md'
+                          : 'text-dark-400 hover:text-white'
+                      }`}
+                    >
+                      🛍️ Todos os Itens
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFiltroTipoItens('produtos')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        filtroTipoItens === 'produtos'
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'text-dark-400 hover:text-white'
+                      }`}
+                    >
+                      📦 Apenas Produtos
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFiltroTipoItens('servicos')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        filtroTipoItens === 'servicos'
+                          ? 'bg-emerald-600 text-white shadow-md'
+                          : 'text-dark-400 hover:text-white'
+                      }`}
+                    >
+                      🔧 Apenas Serviços
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="flex items-end gap-4 flex-wrap">

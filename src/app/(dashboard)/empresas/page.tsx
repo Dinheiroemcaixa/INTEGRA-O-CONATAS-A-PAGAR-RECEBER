@@ -808,7 +808,6 @@ function EmpresaCard({
   conectando,
   onConectarContaAzul,
   onDesconectar,
-  onEspelharConexao,
   onRecarregar,
 }: {
   empresa: Empresa;
@@ -820,7 +819,6 @@ function EmpresaCard({
   conectando: string | null;
   onConectarContaAzul: (id: string, modulo: 'financeiro' | 'vendas') => void;
   onDesconectar: (id: string, modulo: 'financeiro' | 'vendas') => void;
-  onEspelharConexao: (empresaOrigemId: string, empresaDestinoId: string, modulo: 'financeiro' | 'vendas') => void;
   onDelete: () => void;
   onRecarregar: () => void;
 }) {
@@ -1025,26 +1023,6 @@ function EmpresaCard({
                   {conectando === `${empresa.id}:financeiro` ? <Loader2 size={11} className="animate-spin" /> : <ExternalLink size={11} />}
                   Conectar
                 </button>
-                {empresasComCaFinanceiro.length > 0 && (
-                  <select
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        onEspelharConexao(e.target.value, empresa.id, 'financeiro');
-                        e.target.value = '';
-                      }
-                    }}
-                    className="w-full mt-1 bg-dark-900 text-brand-400 hover:text-brand-300 rounded text-[10px] font-bold px-2 py-1 border border-brand-500/30 outline-none cursor-pointer"
-                    defaultValue=""
-                    title="Usar o mesmo login do Conta Azul de outra empresa"
-                  >
-                    <option value="" disabled>🔗 Usar Login de...</option>
-                    {empresasComCaFinanceiro.map(other => (
-                      <option key={other.id} value={other.id}>
-                        {other.nome} ({other.email_login || 'Conta Azul'})
-                      </option>
-                    ))}
-                  </select>
-                )}
               </>
             )}
           </div>
@@ -1136,7 +1114,6 @@ function EmpresaRowItem({
   conectando,
   onConectarContaAzul,
   onDesconectar,
-  onEspelharConexao,
   onRecarregar,
 }: {
   empresa: Empresa;
@@ -1148,7 +1125,6 @@ function EmpresaRowItem({
   conectando: string | null;
   onConectarContaAzul: (id: string, modulo: 'financeiro' | 'vendas') => void;
   onDesconectar: (id: string, modulo: 'financeiro' | 'vendas') => void;
-  onEspelharConexao: (empresaOrigemId: string, empresaDestinoId: string, modulo: 'financeiro' | 'vendas') => void;
   onDelete: () => void;
   onRecarregar: () => void;
 }) {
@@ -1610,32 +1586,6 @@ function EmpresasPageContent() {
   const handleConectarContaAzul = (empresaId: string, modulo: 'financeiro' | 'vendas' = 'financeiro') => {
     setConectando(`${empresaId}:${modulo}`)
     window.location.href = `/api/conta-azul/autorizar?empresa_id=${empresaId}&modulo=${modulo}`
-  }
-
-  const handleEspelharConexao = async (
-    empresaOrigemId: string,
-    empresaDestinoId: string,
-    modulo: 'financeiro' | 'vendas'
-  ) => {
-    try {
-      const res = await fetch('/api/conta-azul/espelhar-conexao', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          empresa_origem_id: empresaOrigemId,
-          empresa_destino_id: empresaDestinoId,
-          modulo
-        })
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erro ao espelhar conexão')
-
-      toast.success(data.message || 'Conexão espelhada com sucesso!')
-      await recarregar()
-    } catch (err: any) {
-      console.error('[handleEspelharConexao] Erro:', err)
-      toast.error(err.message || 'Erro ao espelhar conexão')
-    }
   }
 
   const handleDesconectar = async (empresaId: string, modulo: 'financeiro' | 'vendas' = 'financeiro') => {
@@ -2219,7 +2169,6 @@ function EmpresasPageContent() {
                 conectando={conectando}
                 onConectarContaAzul={handleConectarContaAzul}
                 onDesconectar={handleDesconectar}
-                onEspelharConexao={handleEspelharConexao}
                 onRecarregar={recarregar}
               />
             );
@@ -2242,7 +2191,6 @@ function EmpresasPageContent() {
                 conectando={conectando}
                 onConectarContaAzul={handleConectarContaAzul}
                 onDesconectar={handleDesconectar}
-                onEspelharConexao={handleEspelharConexao}
                 onRecarregar={recarregar}
               />
             );

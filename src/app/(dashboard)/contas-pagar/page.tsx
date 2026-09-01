@@ -48,11 +48,7 @@ function ModalEnvioContaAzul({
 
   const [empresaSelecionada, setEmpresaSelecionada] = useState<Empresa | null>(empresaPadrao)
   const [abrirSeletor, setAbrirSeletor] = useState(false)
-  const temTokenDireto = !!empresaSelecionada?.access_token_conta_azul
-  const temTokenCompartilhado = !temTokenDireto && (
-    empresaSelecionada?.grupo_id ? todasEmpresas.some(e => e.grupo_id === empresaSelecionada.grupo_id && !!e.access_token_conta_azul) : false
-  )
-  const conectado = temTokenDireto || temTokenCompartilhado
+  const conectado = !!empresaSelecionada?.access_token_conta_azul
 
   // Verifica se o login ativo bate com o email cadastrado na empresa
   const emailEmpresa = empresaSelecionada?.email_login
@@ -103,15 +99,10 @@ function ModalEnvioContaAzul({
               <div className="flex-1 min-w-0">
                 <p className="text-white font-semibold truncate">{empresaSelecionada?.nome || '—'}</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  {temTokenDireto ? (
+                  {conectado ? (
                     <>
                       <ShieldCheck size={11} className="text-emerald-400" />
                       <span className="text-emerald-400 text-xs font-medium">Conta Azul conectado</span>
-                    </>
-                  ) : temTokenCompartilhado ? (
-                    <>
-                      <ShieldCheck size={11} className="text-blue-400" />
-                      <span className="text-blue-400 text-xs font-medium">Conectado via Matriz / Grupo</span>
                     </>
                   ) : (
                     <>
@@ -494,12 +485,10 @@ export default function ContasPagarPage() {
     }
 
     const empresaEnvio = empresas.find(e => e.id === idParaEnvio) || empresaAtiva
-    const temConexaoCA = !!empresaEnvio?.access_token_conta_azul || (
-      empresaEnvio?.grupo_id ? empresas.some(e => e.grupo_id === empresaEnvio.grupo_id && !!e.access_token_conta_azul) : false
-    )
+    const temConexaoCA = !!empresaEnvio?.access_token_conta_azul
 
     if (!temConexaoCA) {
-      toast.error('Empresa não está conectada ao Conta Azul. Vá em Empresas e conecte ou espelhe primeiro.')
+      toast.error('Empresa não está conectada ao Conta Azul. Acesse Empresas e conecte primeiro.')
       return
     }
 
