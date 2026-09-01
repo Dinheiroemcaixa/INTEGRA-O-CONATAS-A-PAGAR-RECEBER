@@ -216,15 +216,20 @@ export default function ContasPagarPage() {
   const { empresaAtiva, empresas, setEmpresaAtiva } = useEmpresa()
   const searchParams = useSearchParams()
   const urlEmpresaId = searchParams?.get('empresa_id')
+  const [urlEmpresaProcessada, setUrlEmpresaProcessada] = useState(false)
 
   useEffect(() => {
-    if (urlEmpresaId && empresas.length > 0) {
+    if (!urlEmpresaProcessada && urlEmpresaId && empresas.length > 0) {
       const emp = empresas.find(e => e.id === urlEmpresaId)
-      if (emp && emp.id !== empresaAtiva?.id) {
+      if (emp) {
         setEmpresaAtiva(emp)
+        if (typeof window !== 'undefined') {
+          window.history.replaceState({}, '', window.location.pathname)
+        }
       }
+      setUrlEmpresaProcessada(true)
     }
-  }, [urlEmpresaId, empresas, empresaAtiva?.id, setEmpresaAtiva])
+  }, [urlEmpresaId, empresas, urlEmpresaProcessada, setEmpresaAtiva])
 
   const [etapa, setEtapa] = useState<Etapa>('upload')
   const [subAba, setSubAba] = useState<SubAba>('datacar')

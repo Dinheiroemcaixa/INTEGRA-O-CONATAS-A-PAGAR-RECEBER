@@ -243,6 +243,11 @@ export default function TabelaContas({ empresaId }: Props) {
       setEditandoEmMassaLoja(false)
       setSelecionados([])
 
+      // Limpa qualquer query param antigo da URL
+      if (typeof window !== 'undefined') {
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+
       // Muda o seletor da empresa ativa para a loja destino
       setEmpresaAtiva(targetEmpresa)
     } catch (err: any) {
