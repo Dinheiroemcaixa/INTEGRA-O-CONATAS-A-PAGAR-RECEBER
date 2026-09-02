@@ -50,12 +50,11 @@ function ModalEnvioContaAzul({
   const [abrirSeletor, setAbrirSeletor] = useState(false)
   const conectado = !!empresaSelecionada?.access_token_conta_azul
 
-  // Verifica se o login ativo bate com o email cadastrado na empresa
-  const emailEmpresa = empresaSelecionada?.email_login
-  const loginDivergente = !!(
-    emailEmpresa &&
-    loginAtual &&
-    emailEmpresa.toLowerCase().trim() !== loginAtual.toLowerCase().trim()
+  // Identifica se a loja selecionada para envio é diferente da loja ativa no painel
+  const lojaDiferente = !!(
+    empresaAtiva &&
+    empresaSelecionada &&
+    empresaAtiva.id !== empresaSelecionada.id
   )
 
   return (
@@ -152,23 +151,15 @@ function ModalEnvioContaAzul({
             )}
           </div>
 
-          {/* ⚠️ Aviso de login divergente — risco de enviar para empresa errada */}
-          {conectado && loginDivergente && (
-            <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-3 space-y-2">
+          {/* Aviso se loja selecionada for diferente da loja atual */}
+          {conectado && lojaDiferente && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 space-y-1.5 animate-fade-in">
               <div className="flex items-start gap-2">
-                <AlertCircle size={14} className="text-rose-400 flex-shrink-0 mt-0.5" />
-                <p className="text-rose-300 text-xs font-semibold">Atenção: login divergente!</p>
+                <AlertCircle size={15} className="text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-amber-300 text-xs font-semibold">Atenção: Loja de destino diferente!</p>
               </div>
-              <div className="pl-5 space-y-1">
-                <p className="text-xs text-dark-300">
-                  Você está logado como: <span className="text-white font-semibold">{loginAtual}</span>
-                </p>
-                <p className="text-xs text-dark-300">
-                  Esta empresa usa: <span className="text-rose-300 font-semibold">{emailEmpresa}</span>
-                </p>
-              </div>
-              <p className="text-xs text-rose-200/70 pl-5">
-                O token do Conta Azul pode estar vinculado ao login errado. Recomendamos sair e entrar com <strong>{emailEmpresa}</strong> antes de enviar.
+              <p className="text-xs text-dark-300 pl-5 leading-relaxed">
+                Você está visualizando os lançamentos de <strong className="text-white">{empresaAtiva?.nome}</strong>, mas selecionou enviar para a conexão do Conta Azul da loja <strong className="text-amber-300">{empresaSelecionada?.nome}</strong>.
               </p>
             </div>
           )}
@@ -183,7 +174,7 @@ function ModalEnvioContaAzul({
             </div>
           )}
 
-          {conectado && !loginDivergente && (
+          {conectado && !lojaDiferente && (
             <p className="text-dark-500 text-xs">
               Todas as contas <strong className="text-dark-300">pendentes</strong> desta empresa serão enviadas ao Conta Azul.
             </p>
