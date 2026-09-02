@@ -612,12 +612,13 @@ export async function buscarOuCriarProduto(
     return Object.keys(fiscal).length > 0 ? fiscal : undefined
   }
 
-  // 1. Tenta buscar o produto pelo código ou descrição
+  // 1. Tenta buscar o produto estritamente pelo CÓDIGO (se informado) ou descrição (caso sem código)
   let matchProduto = null;
-  const termoBusca = encodeURIComponent(codigo || descricao);
+  // Se tem código, busca pelo código exato. Se não tem código, busca pela descrição.
+  const termoBusca = encodeURIComponent(codigo ? codigo.trim() : descricao.trim());
   
   try {
-    // Busca paginada (até 5 páginas) para evitar que SKUs curtos se percam em muitos resultados
+    // Busca paginada (até 5 páginas) para encontrar o produto no catálogo
     for (let page = 1; page <= 5; page++) {
       const urlBusca = `${BASE_URL}/produtos?termo_busca=${termoBusca}&tamanho_pagina=100&pagina=${page}`;
       const busca = await fetchCA(urlBusca, { headers: { 'Authorization': `Bearer ${accessToken}` } });
@@ -632,12 +633,15 @@ export async function buscarOuCriarProduto(
       
       if (lista.length === 0) break; // Fim dos resultados
       
-      if (codigo) {
-        const codigoTrim = codigo.trim();
-        matchProduto = lista.find(p => p.codigo_sku?.trim() === codigoTrim || p.codigo?.trim() === codigoTrim);
-      }
-      
-      if (!matchProduto) {
+      if (codigo && codigo.trim()) {
+        const codigoTrim = codigo.trim().toLowerCase();
+        // Comparação ESTRITA por código/SKU. Jamais compara por nome se houver código!
+        matchProduto = lista.find(p => {
+          const pSku = (p.codigo_sku || p.codigo || p.sku || '').trim().toLowerCase();
+          return pSku === codigoTrim;
+        });
+      } else {
+        // Apenas se NÃO houver código na OS do Datacar, busca por descrição/nome
         const searchName = (descricao || '').toLowerCase().trim();
         matchProduto = lista.find(p => (p.nome || p.name || '').toLowerCase().trim() === searchName);
       }

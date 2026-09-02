@@ -71,13 +71,26 @@ export async function POST(req: NextRequest) {
       return { opcao: 'À vista', numParcelas: 1 }
     }
 
+    // Cache em memória durante o lote para evitar requisições repetidas ao Conta Azul
+    const cacheClientesPorDoc = new Map<string, string>()
+    const cacheProdutosPorCodigo = new Map<string, string>()
+
     for (const venda of vendas as VendaPreview[]) {
       try {
-        // 1. Busca/Cria Cliente com função dedicada e URLs corretas
-        const idCliente = await buscarOuCriarCliente(accessToken, venda.cliente, venda.cliente_cpf_cnpj, venda.cliente_endereco)
+        // 1. Busca/Cria Cliente com cache por CPF/CNPJ (ou nome se sem documento)
+        const docLimpo = (venda.cliente_cpf_cnpj || '').replace(/\D/g, '')
+        const chaveCliente = docLimpo || (venda.cliente || '').toLowerCase().trim()
+        
+        let idCliente = cacheClientesPorDoc.get(chaveCliente)
+        if (!idCliente) {
+          idCliente = await buscarOuCriarCliente(accessToken, venda.cliente, venda.cliente_cpf_cnpj, venda.cliente_endereco)
+          if (idCliente) {
+            cacheClientesPorDoc.set(chaveCliente, idCliente)
+          }
+        }
         if (!idCliente) throw new Error(`Não foi possível criar/encontrar o cliente: ${venda.cliente}`)
 
-        // 2. Busca/Cria Produtos
+        // 2. Busca/Cria Produtos com cache estrito por CÓDIGO
         const itensPayload = []
         let totalBrutoItens = 0
         let totalLiquidoItens = 0
@@ -85,19 +98,31 @@ export async function POST(req: NextRequest) {
         for (const item of venda.itens) {
           const valorUnitarioOriginal = parseFloat(Number(item.valor_unitario_original ?? item.valor_unitario).toFixed(4))
           
-          const idProduto = await buscarOuCriarProduto(
-            accessToken, 
-            item.codigo, 
-            item.descricao, 
-            valorUnitarioOriginal,
-            {
-              ncm: item.ncm,
-              origem: item.origem,
-              cest: item.cest,
-              unidade_medida: item.unidade_medida || 'UN',
-              tipo_produto: item.tipo_produto
+          // Chave de cache estritamente pelo código (ou descrição caso o item não tenha código)
+          const chaveProduto = item.codigo && item.codigo.trim() 
+            ? item.codigo.trim().toLowerCase() 
+            : `DESC:${(item.descricao || '').toLowerCase().trim()}`
+
+          let idProduto = cacheProdutosPorCodigo.get(chaveProduto)
+          if (!idProduto) {
+            idProduto = await buscarOuCriarProduto(
+              accessToken, 
+              item.codigo, 
+              item.descricao, 
+              valorUnitarioOriginal,
+              {
+                ncm: item.ncm,
+                origem: item.origem,
+                cest: item.cest,
+                unidade_medida: item.unidade_medida || 'UN',
+                tipo_produto: item.tipo_produto
+              }
+            )
+            if (idProduto) {
+              cacheProdutosPorCodigo.set(chaveProduto, idProduto)
             }
-          )
+          }
+
           if (!idProduto) {
             throw new Error(`Produto "${item.descricao}" (código: ${item.codigo || 'sem código'}) não encontrado e não pôde ser criado no Conta Azul. Verifique o cadastro do produto.`)
           }
