@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getTokenComCodigo, obterInfoContaConectada } from '@/lib/conta-azul/api'
+import { formatCNPJ } from '@/lib/utils'
 
+export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 const supabaseAdmin = createClient(
@@ -18,42 +20,93 @@ export async function GET(req: NextRequest) {
   const [state, modulo = 'financeiro'] = (rawState || '').split(':')
   const isVendas = modulo === 'vendas'
 
-  const renderHtml = (titulo: string, mensagem: string, isError = false) => {
-    const cor = isError ? '#ef4444' : '#10b981'
-    return new NextResponse(
-      `<!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <title>${titulo}</title>
-          <style>
-            body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif; background-color: #09090b; color: #fafafa; }
-            .card { background: #18181b; padding: 2rem 3rem; border-radius: 1rem; border: 1px solid #27272a; text-align: center; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); max-width: 400px; width: 90%; }
-            h1 { color: ${cor}; margin-top: 0; }
-            p { color: #a1a1aa; line-height: 1.5; }
-          </style>
-        </head>
-        <body>
-          <div class="card">
-            <h1>${titulo}</h1>
-            <p>${mensagem}</p>
-          </div>
-        </body>
-      </html>`,
-      { status: isError ? 400 : 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-    )
+  const renderHtml = (
+    titulo: string,
+    mensagem: string,
+    isError = false,
+    detalhes?: { loja?: string; modulo?: string; conta?: string }
+  ) => {
+    const corBgBadge = isError ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)'
+    const corBordaBadge = isError ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'
+    const icone = isError ? '⚠️' : '✅'
+
+    let detalhesHtml = ''
+    if (detalhes) {
+      detalhesHtml = '<div class="details">'
+      if (detalhes.loja) detalhesHtml += '<div class="details-row"><span>Loja:</span><span>' + detalhes.loja + '</span></div>'
+      if (detalhes.modulo) detalhesHtml += '<div class="details-row"><span>Modulo:</span><span>' + detalhes.modulo + '</span></div>'
+      if (detalhes.conta) detalhesHtml += '<div class="details-row"><span>Conta CA:</span><span>' + detalhes.conta + '</span></div>'
+      detalhesHtml += '</div>'
+    }
+
+    const html = '<!DOCTYPE html>' +
+      '<html lang="pt-BR">' +
+      '<head>' +
+      '<meta charset="utf-8">' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+      '<title>' + titulo + ' | Integracao Conta Azul</title>' +
+      '<style>' +
+      '* { box-sizing: border-box; }' +
+      'body { margin: 0; padding: 1.5rem; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #09090b; color: #fafafa; }' +
+      '.card { background: #18181b; padding: 2.5rem 2rem; border-radius: 1.5rem; border: 1px solid #27272a; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); max-width: 460px; width: 100%; position: relative; overflow: hidden; }' +
+      '.icon-box { width: 60px; height: 60px; border-radius: 1rem; background: ' + corBgBadge + '; border: 1px solid ' + corBordaBadge + '; display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 1.5rem auto; }' +
+      'h1 { color: #ffffff; margin: 0 0 0.75rem 0; font-size: 1.4rem; font-weight: 700; }' +
+      '.msg { color: #a1a1aa; line-height: 1.6; font-size: 0.925rem; margin-bottom: 1.5rem; }' +
+      '.msg strong { color: #f4f4f5; }' +
+      '.details { background: #09090b; border: 1px solid #27272a; border-radius: 0.75rem; padding: 0.875rem; margin-bottom: 1.5rem; text-align: left; font-size: 0.825rem; }' +
+      '.details-row { display: flex; justify-content: space-between; padding: 0.25rem 0; color: #71717a; }' +
+      '.details-row span:last-child { color: #e4e4e7; font-weight: 600; }' +
+      '.footer-note { font-size: 0.75rem; color: #71717a; margin-top: 1rem; }' +
+      '</style>' +
+      '</head>' +
+      '<body>' +
+      '<div class="card">' +
+      '<div class="icon-box">' + icone + '</div>' +
+      '<h1>' + titulo + '</h1>' +
+      '<div class="msg">' + mensagem + '</div>' +
+      detalhesHtml +
+      '<div class="footer-note">Voce ja pode fechar esta pagina.</div>' +
+      '</div>' +
+      '</body>' +
+      '</html>'
+
+    return new NextResponse(html, {
+      status: isError ? 400 : 200,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    })
   }
 
   if (error) {
-    return renderHtml('Autorização Negada', 'Você não concedeu permissão de acesso à Conta Azul. Pode fechar esta aba e tentar novamente se desejar.', true)
+    return renderHtml(
+      'Autorizacao Cancelada',
+      'Voce nao concedeu permissao de acesso a Conta Azul. Nenhuma alteracao foi realizada.',
+      true
+    )
   }
 
   if (!code || !state) {
-    return renderHtml('Parâmetros Inválidos', 'Ocorreu um erro no link de autorização. Parâmetros inválidos.', true)
+    return renderHtml(
+      'Parametros Invalidos',
+      'O link de retorno nao possui os parametros necessarios de validacao.',
+      true
+    )
   }
 
   try {
+    const { data: empresa, error: empErr } = await supabaseAdmin
+      .from('empresas')
+      .select('*')
+      .eq('id', state)
+      .single()
+
+    if (empErr || !empresa) {
+      return renderHtml(
+        'Empresa Nao Localizada',
+        'Nao foi possivel encontrar a empresa de destino no sistema para concluir o vinculo.',
+        true
+      )
+    }
+
     const tokens = await getTokenComCodigo(
       code,
       process.env.CONTA_AZUL_REDIRECT_URI!,
@@ -64,45 +117,120 @@ export async function GET(req: NextRequest) {
     const expires_in = tokens.expires_in || 3600
     const expiracao = new Date(Date.now() + expires_in * 1000).toISOString()
 
-    // 1. Busca os dados da empresa no Conta Azul
-    let infoCa
+    let infoCa: {
+      id: string
+      nome: string
+      cnpj?: string
+      razao_social?: string
+      nome_fantasia?: string
+      email?: string
+    } | null = null
     try {
       infoCa = await obterInfoContaConectada(tokens.access_token)
     } catch (e) {
-      console.warn('[conta-azul/callback] Não foi possível obter info da conta conectada. Usando fallback.', e)
+      console.warn('[conta-azul/callback] Nao foi possivel obter info da conta conectada via API.', e)
     }
 
-    const payloadUpdate: Record<string, any> = isVendas ? {
-      access_token_conta_azul_vendas: tokens.access_token,
-      refresh_token_conta_azul_vendas: tokens.refresh_token,
-      data_expiracao_token_vendas: expiracao,
-      conta_azul_vendas_connected: true,
-      ...(infoCa?.email ? { email_login_vendas: infoCa.email } : {})
-    } : {
-      access_token_conta_azul: tokens.access_token,
-      refresh_token_conta_azul: tokens.refresh_token,
-      data_expiracao_token: expiracao,
-      conta_azul_connected: true,
-      ...(infoCa?.email ? { email_login: infoCa.email } : {})
+    const nomeContaLogada = (infoCa?.nome || infoCa?.razao_social || infoCa?.nome_fantasia || '').trim()
+
+    // TRAVA DE SEGURANCA 1: Validacao de Loja / CNPJ
+    if (infoCa?.cnpj && empresa.cnpj) {
+      const cnpjCaLimpo = String(infoCa.cnpj).replace(/\D/g, '')
+      const cnpjEmpresaLimpo = String(empresa.cnpj).replace(/\D/g, '')
+
+      if (cnpjCaLimpo.length === 14 && cnpjEmpresaLimpo.length === 14 && cnpjCaLimpo !== cnpjEmpresaLimpo) {
+        return renderHtml(
+          'Loja Divergente Detectada',
+          'Voce abriu o link da loja <strong>' + empresa.nome + '</strong> (CNPJ ' + formatCNPJ(cnpjEmpresaLimpo) + '), mas fez login na empresa <strong>' + (nomeContaLogada || 'Outra Loja') + '</strong> (CNPJ ' + formatCNPJ(cnpjCaLimpo) + ').<br><br>A conexao foi cancelada para evitar misturar os dados entre lojas diferentes.<br><br>Por favor, repita o processo selecionando a conta correta.',
+          true,
+          {
+            loja: empresa.nome,
+            modulo: isVendas ? 'Vendas / NF-e' : 'Financeiro',
+            conta: nomeContaLogada || 'Divergente',
+          }
+        )
+      }
     }
 
-    // Atualiza SEMPRE a empresa correspondente ao clique do usuário (state)
-    await supabaseAdmin
-      .from('empresas')
-      .update(payloadUpdate)
-      .eq('id', state)
+    // TRAVA DE SEGURANCA 2: Validacao de Modulo (Financeiro vs Vendas)
+    const isFinNome = /(\bfin\.?|\bfinanceiro\b)/i.test(nomeContaLogada)
+
+    if (isVendas && isFinNome) {
+      return renderHtml(
+        'Modulo Incorreto (Financeiro)',
+        'Este link era exclusivo para o modulo <strong>Vendas / Emissao de NF-e</strong> da loja <strong>' + empresa.nome + '</strong>, mas voce autorizou a conta <strong>' + nomeContaLogada + '</strong> (que e do modulo Financeiro).<br><br>A conexao foi bloqueada para proteger suas configuracoes.<br><br>Por favor, repita a autorizacao selecionando a conta de Vendas (sem o prefixo Fin.).',
+        true,
+        {
+          loja: empresa.nome,
+          modulo: 'Vendas / NF-e',
+          conta: nomeContaLogada,
+        }
+      )
+    }
+
+    if (
+      !isVendas &&
+      !isFinNome &&
+      nomeContaLogada &&
+      (empresa.access_token_conta_azul_vendas || empresa.email_login_vendas)
+    ) {
+      return renderHtml(
+        'Modulo Incorreto (Vendas)',
+        'Este link era exclusivo para o modulo <strong>Financeiro (Contas a Pagar / Receber)</strong> da loja <strong>' + empresa.nome + '</strong>, mas voce autorizou a conta <strong>' + nomeContaLogada + '</strong> (que e a conta de Vendas).<br><br>A conexao foi bloqueada para evitar lancamentos no local indevido.<br><br>Por favor, repita a autorizacao selecionando a conta financeira (com prefixo <strong>Fin.</strong>).',
+        true,
+        {
+          loja: empresa.nome,
+          modulo: 'Financeiro',
+          conta: nomeContaLogada,
+        }
+      )
+    }
+
+    const payloadUpdate: Record<string, any> = isVendas
+      ? {
+          access_token_conta_azul_vendas: tokens.access_token,
+          refresh_token_conta_azul_vendas: tokens.refresh_token,
+          data_expiracao_token_vendas: expiracao,
+          conta_azul_vendas_connected: true,
+          ...(infoCa?.email ? { email_login_vendas: infoCa.email } : {}),
+        }
+      : {
+          access_token_conta_azul: tokens.access_token,
+          refresh_token_conta_azul: tokens.refresh_token,
+          data_expiracao_token: expiracao,
+          conta_azul_connected: true,
+          ...(infoCa?.email ? { email_login: infoCa.email } : {}),
+        }
+
+    await supabaseAdmin.from('empresas').update(payloadUpdate).eq('id', state)
 
     await supabaseAdmin.from('logs_integracao').insert({
       empresa_id: state,
-      acao: `conectar_conta_azul_${modulo}`,
+      acao: 'conectar_conta_azul_' + modulo,
       status: 'sucesso',
-      detalhes: { expiracao, modulo },
+      detalhes: {
+        expiracao,
+        modulo,
+        conta_conectada: nomeContaLogada || undefined,
+        email: infoCa?.email || undefined,
+      },
     })
 
-    return renderHtml('Autenticado com sucesso!', 'A integração com a Conta Azul foi concluída com sucesso! Os dados foram atualizados. Você já pode fechar esta aba.')
+    const moduloDescricao = isVendas ? 'Vendas / Emissao de NF-e' : 'Financeiro (Contas a Pagar e Receber)'
+
+    return renderHtml(
+      'Autenticado com Sucesso!',
+      'A integracao da loja <strong>' + empresa.nome + '</strong> com o Conta Azul foi autorizada e concluida com sucesso!<br><br>O sistema ja esta apto para sincronizar dados desta unidade.',
+      false,
+      {
+        loja: empresa.nome,
+        modulo: moduloDescricao,
+        conta: nomeContaLogada || 'Conectada',
+      }
+    )
   } catch (err) {
     console.error('[conta-azul/callback]', err)
     const msg = err instanceof Error ? err.message : 'erro_desconhecido'
-    return renderHtml('Erro na Integração', 'Ocorreu um erro ao processar a autorização da Conta Azul: ' + msg, true)
+    return renderHtml('Erro na Integracao', 'Ocorreu um erro ao processar a autorizacao da Conta Azul: ' + msg, true)
   }
 }

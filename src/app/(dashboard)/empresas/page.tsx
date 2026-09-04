@@ -22,6 +22,32 @@ const AVATAR_GRADIENTS = [
   'from-cyan-600 to-blue-600 border-cyan-400/30 text-white shadow-[0_0_15px_rgba(6,182,212,0.3)]',
 ]
 
+
+function formatarMensagemWhatsApp(empresa: Empresa, modulo: 'financeiro' | 'vendas') {
+  const isFin = modulo === 'financeiro';
+  const nomeBase = (empresa.nome_fantasia || empresa.nome || 'Empresa').trim();
+  const nomeContaCa = isFin
+    ? (nomeBase.toLowerCase().startsWith('fin') ? nomeBase : 'Fin. ' + nomeBase)
+    : (nomeBase.toLowerCase().startsWith('fin.') || nomeBase.toLowerCase().startsWith('fin ') ? nomeBase.replace(/^fin\.?\s*/i, '') : nomeBase);
+  const moduloLabel = isFin ? 'FINANCEIRO (Contas a Pagar / Receber)' : 'VENDAS / EMISSÃO DE NF-E';
+  const link = window.location.origin + '/conectar?empresa_id=' + empresa.id + '&modulo=' + modulo;
+  const cnpjFmt = formatCNPJ(empresa.cnpj);
+
+  return 'Olá! Segue o link para autorização da integração Conta Azul da sua unidade:\n\n' +
+    '🏢 *Loja:* ' + empresa.nome + '\n' +
+    '📌 *Módulo:* ' + moduloLabel + '\n' +
+    '🎯 *Conta a selecionar no Conta Azul:* *' + nomeContaCa + '*\n' +
+    '🔢 *CNPJ:* ' + cnpjFmt + '\n' +
+    '🔗 *Link de Conexão:* ' + link + '\n\n' +
+    '⚠️ *Importante:* Ao abrir o Conta Azul, certifique-se de selecionar a empresa indicada acima.';
+}
+
+function handleCopiarWhatsApp(empresa: Empresa, modulo: 'financeiro' | 'vendas') {
+  const msg = formatarMensagemWhatsApp(empresa, modulo);
+  navigator.clipboard.writeText(msg);
+  import('react-hot-toast').then((m) => m.default.success('Mensagem para WhatsApp copiada com sucesso!'));
+}
+
 function getAvatarGradient(id: string) {
   let hash = 0
   for (let i = 0; i < id.length; i++) hash += id.charCodeAt(i)
@@ -1005,7 +1031,7 @@ function EmpresaCard({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    const link = `${window.location.origin}/api/conta-azul/autorizar?empresa_id=${empresa.id}&modulo=financeiro`;
+                    const link = `${window.location.origin}/conectar?empresa_id=${empresa.id}&modulo=financeiro`;
                     navigator.clipboard.writeText(link);
                     import('react-hot-toast').then((m) => m.default.success('Link do Financeiro copiado!'));
                   }}
@@ -1069,7 +1095,7 @@ function EmpresaCard({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    const link = `${window.location.origin}/api/conta-azul/autorizar?empresa_id=${empresa.id}&modulo=vendas`;
+                    const link = `${window.location.origin}/conectar?empresa_id=${empresa.id}&modulo=vendas`;
                     navigator.clipboard.writeText(link);
                     import('react-hot-toast').then((m) => m.default.success('Link de Vendas copiado!'));
                   }}
@@ -1207,7 +1233,7 @@ function EmpresaRowItem({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation()
-                    const link = `${window.location.origin}/api/conta-azul/autorizar?empresa_id=${empresa.id}&modulo=financeiro`
+                    const link = `${window.location.origin}/conectar?empresa_id=${empresa.id}&modulo=financeiro`
                     navigator.clipboard.writeText(link)
                     import('react-hot-toast').then(m => m.default.success('Link do CA Financeiro copiado! Envie ao cliente.'))
                   }}
@@ -1251,7 +1277,7 @@ function EmpresaRowItem({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation()
-                    const link = `${window.location.origin}/api/conta-azul/autorizar?empresa_id=${empresa.id}&modulo=vendas`
+                    const link = `${window.location.origin}/conectar?empresa_id=${empresa.id}&modulo=vendas`
                     navigator.clipboard.writeText(link)
                     import('react-hot-toast').then(m => m.default.success('Link do CA Vendas copiado! Envie ao cliente.'))
                   }}
@@ -1401,7 +1427,7 @@ function EmpresaRowItem({
                   <>
                     <button
                       onClick={() => {
-                        const link = `${window.location.origin}/api/conta-azul/autorizar?empresa_id=${empresa.id}&modulo=financeiro`;
+                        const link = `${window.location.origin}/conectar?empresa_id=${empresa.id}&modulo=financeiro`;
                         navigator.clipboard.writeText(link);
                         import('react-hot-toast').then((m) => m.default.success('Link do Financeiro copiado!'));
                       }}
@@ -1455,7 +1481,7 @@ function EmpresaRowItem({
                   <>
                     <button
                       onClick={() => {
-                        const link = `${window.location.origin}/api/conta-azul/autorizar?empresa_id=${empresa.id}&modulo=vendas`;
+                        const link = `${window.location.origin}/conectar?empresa_id=${empresa.id}&modulo=vendas`;
                         navigator.clipboard.writeText(link);
                         import('react-hot-toast').then((m) => m.default.success('Link de Vendas copiado!'));
                       }}
@@ -1585,7 +1611,7 @@ function EmpresasPageContent() {
 
   const handleConectarContaAzul = (empresaId: string, modulo: 'financeiro' | 'vendas' = 'financeiro') => {
     setConectando(`${empresaId}:${modulo}`)
-    window.location.href = `/api/conta-azul/autorizar?empresa_id=${empresaId}&modulo=${modulo}`
+    window.location.href = `/conectar?empresa_id=${empresaId}&modulo=${modulo}`
   }
 
   const handleDesconectar = async (empresaId: string, modulo: 'financeiro' | 'vendas' = 'financeiro') => {
