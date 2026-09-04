@@ -385,6 +385,44 @@ function downloadAsFile(conteudo: string, nomeArquivo: string, mimeType: string)
   URL.revokeObjectURL(url)
 }
 
+
+async function baixarXmlNota(nota: NotaEmitida, empresaId?: string) {
+  const chave = nota.dados_datacar?.chave_acesso || nota.metadata?.chave_acesso || (nota.id && nota.id.length === 44 ? nota.id : null)
+
+  if (chave && empresaId) {
+    const toastId = 'xml-download-' + nota.id
+    import('react-hot-toast').then(m => m.default.loading('Baixando XML oficial da Conta Azul...', { id: toastId }))
+    try {
+      const url = '/api/notas-emitidas/xml?empresa_id=' + empresaId + '&chave=' + chave
+      const res = await fetch(url)
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Erro ao baixar XML oficial')
+      }
+      const blob = await res.blob()
+      const isZip = res.headers.get('content-type')?.includes('zip')
+      const filename = 'NFe_' + chave + '.' + (isZip ? 'zip' : 'xml')
+      
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(blobUrl)
+      
+      import('react-hot-toast').then(m => m.default.success('XML oficial baixado com sucesso!', { id: toastId }))
+      return
+    } catch (e: any) {
+      import('react-hot-toast').then(m => m.default.error(e.message || 'Falha ao obter XML da Conta Azul.', { id: toastId }))
+    }
+  }
+
+  const xml = gerarXmlDemonstrativo(nota)
+  downloadAsFile(xml, 'NFSe_OS_' + nota.os_numero + '.xml', 'application/xml')
+}
+
 function imprimirDanfse(nota: NotaEmitida) {
   const html = gerarDanfseHtml(nota)
   const win = window.open('', '_blank')
