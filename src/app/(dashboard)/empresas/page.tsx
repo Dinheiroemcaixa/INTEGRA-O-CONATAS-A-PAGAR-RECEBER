@@ -25,10 +25,7 @@ const AVATAR_GRADIENTS = [
 
 function formatarMensagemWhatsApp(empresa: Empresa, modulo: 'financeiro' | 'vendas') {
   const isFin = modulo === 'financeiro';
-  const nomeBase = (empresa.nome_fantasia || empresa.nome || 'Empresa').trim();
-  const nomeContaCa = isFin
-    ? (nomeBase.toLowerCase().startsWith('fin') ? nomeBase : 'Fin. ' + nomeBase)
-    : (nomeBase.toLowerCase().startsWith('fin.') || nomeBase.toLowerCase().startsWith('fin ') ? nomeBase.replace(/^fin\.?\s*/i, '') : nomeBase);
+  const nomeContaCa = (empresa.nome_fantasia || empresa.nome || empresa.razao_social || 'Empresa').trim();
   const moduloLabel = isFin ? 'FINANCEIRO (Contas a Pagar / Receber)' : 'VENDAS / EMISSÃO DE NF-E';
   const link = window.location.origin + '/conectar?empresa_id=' + empresa.id + '&modulo=' + modulo;
   const cnpjFmt = formatCNPJ(empresa.cnpj);

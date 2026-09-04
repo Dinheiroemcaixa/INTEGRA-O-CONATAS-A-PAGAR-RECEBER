@@ -29,11 +29,9 @@ export async function GET(req: NextRequest) {
     }
 
     const isFinanceiro = modulo === 'financeiro'
-    const nomeBase = (empresa.nome_fantasia || empresa.nome || 'Empresa').trim()
+    const nomeBase = (empresa.nome_fantasia || empresa.nome || empresa.razao_social || 'Empresa').trim()
     
-    const nomeEsperadoCa = isFinanceiro
-      ? (nomeBase.toLowerCase().startsWith('fin') ? nomeBase : 'Fin. ' + nomeBase)
-      : (nomeBase.toLowerCase().startsWith('fin.') || nomeBase.toLowerCase().startsWith('fin ') ? nomeBase.replace(/^fin\.?\s*/i, '') : nomeBase)
+    const nomeEsperadoCa = nomeBase
 
     return NextResponse.json({
       empresa_id: empresa.id,

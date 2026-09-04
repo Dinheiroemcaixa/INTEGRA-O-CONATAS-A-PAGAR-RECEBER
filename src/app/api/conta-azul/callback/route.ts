@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     titulo: string,
     mensagem: string,
     isError = false,
-    detalhes?: { loja?: string; modulo?: string; conta?: string }
+    detalhes?: { loja?: string; modulo?: string; conta?: string; email?: string }
   ) => {
     const corBgBadge = isError ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)'
     const corBordaBadge = isError ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'
@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
       if (detalhes.loja) detalhesHtml += '<div class="details-row"><span>Loja:</span><span>' + detalhes.loja + '</span></div>'
       if (detalhes.modulo) detalhesHtml += '<div class="details-row"><span>Modulo:</span><span>' + detalhes.modulo + '</span></div>'
       if (detalhes.conta) detalhesHtml += '<div class="details-row"><span>Conta CA:</span><span>' + detalhes.conta + '</span></div>'
+      if (detalhes.email) detalhesHtml += '<div class="details-row"><span>E-mail:</span><span>' + detalhes.email + '</span></div>'
       detalhesHtml += '</div>'
     }
 
@@ -93,6 +94,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    // 1. Busca os dados da empresa cadastrada no banco
     const { data: empresa, error: empErr } = await supabaseAdmin
       .from('empresas')
       .select('*')
@@ -107,6 +109,7 @@ export async function GET(req: NextRequest) {
       )
     }
 
+    // 2. Troca o codigo temporario pelos tokens de acesso oficiais
     const tokens = await getTokenComCodigo(
       code,
       process.env.CONTA_AZUL_REDIRECT_URI!,
@@ -117,6 +120,7 @@ export async function GET(req: NextRequest) {
     const expires_in = tokens.expires_in || 3600
     const expiracao = new Date(Date.now() + expires_in * 1000).toISOString()
 
+    // 3. Consulta informacoes da conta conectada na API Conta Azul (para capturar e-mail e nome)
     let infoCa: {
       id: string
       nome: string
@@ -128,78 +132,27 @@ export async function GET(req: NextRequest) {
     try {
       infoCa = await obterInfoContaConectada(tokens.access_token)
     } catch (e) {
-      console.warn('[conta-azul/callback] Nao foi possivel obter info da conta conectada via API.', e)
+      console.warn('[conta-azul/callback] Nao foi possivel obter info detalhada da conta conectada via API.', e)
     }
 
-    const nomeContaLogada = (infoCa?.nome || infoCa?.razao_social || infoCa?.nome_fantasia || '').trim()
+    const nomeContaLogada = (infoCa?.nome || infoCa?.razao_social || infoCa?.nome_fantasia || empresa.nome).trim()
+    const emailLoginCapturado = infoCa?.email || undefined
 
-    // TRAVA DE SEGURANCA 1: Validacao de Loja / CNPJ
-    if (infoCa?.cnpj && empresa.cnpj) {
-      const cnpjCaLimpo = String(infoCa.cnpj).replace(/\D/g, '')
-      const cnpjEmpresaLimpo = String(empresa.cnpj).replace(/\D/g, '')
-
-      if (cnpjCaLimpo.length === 14 && cnpjEmpresaLimpo.length === 14 && cnpjCaLimpo !== cnpjEmpresaLimpo) {
-        return renderHtml(
-          'Loja Divergente Detectada',
-          'Voce abriu o link da loja <strong>' + empresa.nome + '</strong> (CNPJ ' + formatCNPJ(cnpjEmpresaLimpo) + '), mas fez login na empresa <strong>' + (nomeContaLogada || 'Outra Loja') + '</strong> (CNPJ ' + formatCNPJ(cnpjCaLimpo) + ').<br><br>A conexao foi cancelada para evitar misturar os dados entre lojas diferentes.<br><br>Por favor, repita o processo selecionando a conta correta.',
-          true,
-          {
-            loja: empresa.nome,
-            modulo: isVendas ? 'Vendas / NF-e' : 'Financeiro',
-            conta: nomeContaLogada || 'Divergente',
-          }
-        )
-      }
-    }
-
-    // TRAVA DE SEGURANCA 2: Validacao de Modulo (Financeiro vs Vendas)
-    const isFinNome = /(\bfin\.?|\bfinanceiro\b)/i.test(nomeContaLogada)
-
-    if (isVendas && isFinNome) {
-      return renderHtml(
-        'Modulo Incorreto (Financeiro)',
-        'Este link era exclusivo para o modulo <strong>Vendas / Emissao de NF-e</strong> da loja <strong>' + empresa.nome + '</strong>, mas voce autorizou a conta <strong>' + nomeContaLogada + '</strong> (que e do modulo Financeiro).<br><br>A conexao foi bloqueada para proteger suas configuracoes.<br><br>Por favor, repita a autorizacao selecionando a conta de Vendas (sem o prefixo Fin.).',
-        true,
-        {
-          loja: empresa.nome,
-          modulo: 'Vendas / NF-e',
-          conta: nomeContaLogada,
-        }
-      )
-    }
-
-    if (
-      !isVendas &&
-      !isFinNome &&
-      nomeContaLogada &&
-      (empresa.access_token_conta_azul_vendas || empresa.email_login_vendas)
-    ) {
-      return renderHtml(
-        'Modulo Incorreto (Vendas)',
-        'Este link era exclusivo para o modulo <strong>Financeiro (Contas a Pagar / Receber)</strong> da loja <strong>' + empresa.nome + '</strong>, mas voce autorizou a conta <strong>' + nomeContaLogada + '</strong> (que e a conta de Vendas).<br><br>A conexao foi bloqueada para evitar lancamentos no local indevido.<br><br>Por favor, repita a autorizacao selecionando a conta financeira (com prefixo <strong>Fin.</strong>).',
-        true,
-        {
-          loja: empresa.nome,
-          modulo: 'Financeiro',
-          conta: nomeContaLogada,
-        }
-      )
-    }
-
+    // 4. Salva SEMPRE os tokens com seguranca no slot correspondente ao clique do usuario (state)
     const payloadUpdate: Record<string, any> = isVendas
       ? {
           access_token_conta_azul_vendas: tokens.access_token,
           refresh_token_conta_azul_vendas: tokens.refresh_token,
           data_expiracao_token_vendas: expiracao,
           conta_azul_vendas_connected: true,
-          ...(infoCa?.email ? { email_login_vendas: infoCa.email } : {}),
+          ...(emailLoginCapturado ? { email_login_vendas: emailLoginCapturado } : {}),
         }
       : {
           access_token_conta_azul: tokens.access_token,
           refresh_token_conta_azul: tokens.refresh_token,
           data_expiracao_token: expiracao,
           conta_azul_connected: true,
-          ...(infoCa?.email ? { email_login: infoCa.email } : {}),
+          ...(emailLoginCapturado ? { email_login: emailLoginCapturado } : {}),
         }
 
     await supabaseAdmin.from('empresas').update(payloadUpdate).eq('id', state)
@@ -212,7 +165,7 @@ export async function GET(req: NextRequest) {
         expiracao,
         modulo,
         conta_conectada: nomeContaLogada || undefined,
-        email: infoCa?.email || undefined,
+        email: emailLoginCapturado || undefined,
       },
     })
 
@@ -220,12 +173,13 @@ export async function GET(req: NextRequest) {
 
     return renderHtml(
       'Autenticado com Sucesso!',
-      'A integracao da loja <strong>' + empresa.nome + '</strong> com o Conta Azul foi autorizada e concluida com sucesso!<br><br>O sistema ja esta apto para sincronizar dados desta unidade.',
+      'A integracao da loja <strong>' + empresa.nome + '</strong> com o Conta Azul foi autorizada e concluida com sucesso!<br><br>O sistema ja esta pronto para sincronizar dados desta unidade.',
       false,
       {
         loja: empresa.nome,
         modulo: moduloDescricao,
         conta: nomeContaLogada || 'Conectada',
+        email: emailLoginCapturado
       }
     )
   } catch (err) {
