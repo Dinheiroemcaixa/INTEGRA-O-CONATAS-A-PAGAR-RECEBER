@@ -134,6 +134,20 @@ async function fetchDatacar<T>(endpoint: string, credentials: DatacarCredentials
 
   if (!res.ok) {
     const text = await res.text()
+    try {
+      const parsed = JSON.parse(text)
+      if (parsed && typeof parsed.detail === 'string') {
+        const detailStr = parsed.detail.toLowerCase()
+        if (detailStr.includes('quantidade') && (detailStr.includes('consultas') || detailStr.includes('atingida'))) {
+          throw new Error('Limite de consultas do Datacar atingido. Para continuar, acesse https://datacar.datalog.com.br (Menu: Utilitários > Datacar API Utilização > Requisições Adicionais) e adquira consultas adicionais.')
+        }
+        throw new Error(`Erro Datacar: ${parsed.detail.trim()}`)
+      }
+    } catch (e: any) {
+      if (e.message && (e.message.startsWith('Limite de consultas') || e.message.startsWith('Erro Datacar:'))) {
+        throw e
+      }
+    }
     throw new Error(`Erro na API Datacar (${res.status}): ${text}`)
   }
 
