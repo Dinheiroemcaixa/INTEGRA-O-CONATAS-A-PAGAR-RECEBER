@@ -62,6 +62,28 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
   const [modalDetalhesDda, setModalDetalhesDda] = useState(false)
   const [modalDetalhesFolha, setModalDetalhesFolha] = useState(false)
+  const [modalDetalhesAgendamentos, setModalDetalhesAgendamentos] = useState(false)
+  const [selecionadosIndividuais, setSelecionadosIndividuais] = useState<string[]>([])
+
+  const toggleItemIndividual = (id: string) => {
+    setSelecionadosIndividuais(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    )
+  }
+
+  const toggleSelecionarTodosIndividuais = () => {
+    const idsValidos = pagamentosIndividuais
+      .filter(p => p.origem !== 'Transferência' && p.origem !== 'Transferência Recebida')
+      .map(p => p.id)
+    if (idsValidos.length === 0) return
+
+    const todosJa = idsValidos.every(id => selecionadosIndividuais.includes(id))
+    if (todosJa) {
+      setSelecionadosIndividuais([])
+    } else {
+      setSelecionadosIndividuais(idsValidos)
+    }
+  }
   const [editandoCategoriaEdicao, setEditandoCategoriaEdicao] = useState(false)
   const [editandoContaEdicao, setEditandoContaEdicao] = useState(false)
   const [editandoFornecedorEdicao, setEditandoFornecedorEdicao] = useState(false)
@@ -1071,6 +1093,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
               <>
                 {pagamentosDda.length > 0 && (
                   <tr className="bg-dark-800/20 hover:bg-dark-800/40 transition-colors border-l-4 border-l-blue-500">
+                    <td className="w-10 px-3 py-2.5 text-center"></td>
                     <td className="px-4 py-2.5">
                       <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-blue-500/10 text-blue-400">DDA</span>
                     </td>
@@ -1094,6 +1117,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
                 {pagamentosFolha.length > 0 && (
                   <tr className="bg-dark-800/10 hover:bg-dark-800/30 transition-colors border-l-4 border-l-emerald-500">
+                    <td className="w-10 px-3 py-2.5 text-center"></td>
                     <td className="px-4 py-2.5">
                       <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-emerald-500/10 text-emerald-400">FOLHA</span>
                     </td>
@@ -1116,7 +1140,17 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                 )}
 
                 {pagamentosIndividuais.map((pag, idx) => (
-                  <tr key={pag.id || idx} className="bg-[#11141c] hover:bg-dark-800/30 transition-colors border-b border-dark-700/50">
+                  <tr key={pag.id || idx} className={cn("hover:bg-dark-800/30 transition-colors border-b border-dark-700/50", selecionadosIndividuais.includes(pag.id) ? "bg-blue-950/20" : "bg-[#11141c]")}>
+                    <td className="w-10 px-3 py-2.5 text-center">
+                      {pag.origem !== 'Transferência' && pag.origem !== 'Transferência Recebida' ? (
+                        <input
+                          type="checkbox"
+                          checked={selecionadosIndividuais.includes(pag.id)}
+                          onChange={() => toggleItemIndividual(pag.id)}
+                          className="rounded bg-dark-800 border-dark-600 text-blue-600 focus:ring-0 cursor-pointer w-3.5 h-3.5"
+                        />
+                      ) : null}
+                    </td>
                     <td className="px-4 py-2.5">
                       <span className={`text-[10px] font-black uppercase px-2 py-1 rounded ${
                         pag.origem === 'Transferência Recebida' ? 'bg-emerald-500/10 text-emerald-400'

@@ -1,7 +1,8 @@
 /**
  * Exportador: gera o "Relatório Financeiro – Pagamentos BPO" (Excel Geral)
  * de um Grupo com Tabelas Nativas do Excel (ws.addTable), colunas com largura compacta
- * para que a coluna Saldo Final (Coluna G) apareça 100% visível na tela sem rolagem.
+ * para que a coluna Saldo Final (Coluna G) apareça 100% visível na tela sem rolagem,
+ * agora com a coluna CATEGORIA inclusa na frente de cada lançamento!
  */
 import ExcelJS from 'exceljs'
 
@@ -9,6 +10,7 @@ export interface PagamentoRelatorio {
   origem: 'DDA' | 'Folha' | 'Agendamento' | 'Transferência' | 'Transferência Recebida'
   fornecedor?: string | null
   beneficiario?: string | null
+  categoria?: string | null
   descricao?: string | null
   documento?: string | null
   data_vencimento: string
@@ -60,11 +62,8 @@ function formatarDataBr(iso: string): string {
 
 function converterDatasTextoParaBr(texto: string): string {
   if (!texto) return ''
-  // 1. Converte AAAA-MM-DD -> DD/MM/AAAA
   let s = texto.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, '$3/$2/$1')
-  // 2. Converte AAAA/MM/DD -> DD/MM/AAAA
   s = s.replace(/\b(\d{4})\/(\d{2})\/(\d{2})\b/g, '$3/$2/$1')
-  // 3. Converte AA/MM/DD (onde AA é ano ex: 24, 25, 26) -> DD/MM/20AA
   s = s.replace(/\b(\d{2})\/(\d{2})\/(\d{2})\b/g, (match, p1, p2, p3) => {
     const ano = Number(p1)
     const dia = Number(p3)
@@ -96,15 +95,15 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
     views: [{ showGridLines: true }],
   })
 
-  // Larguras compactas e proporcionalmente ajustadas (Total: 138) para que Saldo Final (Coluna G) apareça na tela
+  // Larguras ajustadas para 7 colunas (A..G) com Categoria inclusa
   ws.columns = [
-    { width: 20 }, // A: Loja / Saldo Inicial | Tipo
-    { width: 22 }, // B: DDA | Beneficiário
-    { width: 34 }, // C: Folha | Descrição
-    { width: 16 }, // D: Agendamento | Data Vencimento
-    { width: 16 }, // E: Transferência | Valor
-    { width: 16 }, // F: Total Despesas | Situação
-    { width: 16 }, // G: Saldo Final
+    { width: 18 }, // A: Loja / Saldo Inicial | Tipo
+    { width: 24 }, // B: DDA | Beneficiário
+    { width: 22 }, // C: Folha | Categoria (NOVA COLUNA)
+    { width: 32 }, // D: Agendamento | Descrição
+    { width: 16 }, // E: Transferência | Data Vencimento
+    { width: 16 }, // F: Total Despesas | Valor
+    { width: 16 }, // G: Saldo Final | Situação
   ]
 
   ws.mergeCells('A1:G1')
@@ -175,10 +174,9 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
     rows: resumoRows,
   })
 
-  // Estilização das células da tabela de resumo
   for (let r = startRowResumo + 1; r <= endRowResumo; r++) {
     const row = ws.getRow(r)
-    row.height = 32 // Altura ampla para acomodar Nome + Saldo Inicial
+    row.height = 32
     const rIndex = r - startRowResumo - 1
     const item = resumo[rIndex]
     row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
@@ -195,7 +193,6 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
     })
   }
 
-  // Linha de TOTAL GERAL
   const totalGeral = resumo.reduce(
     (acc, r) => ({
       dda: acc.dda + r.dda,
@@ -222,7 +219,6 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
   const detalhadoRow = ws.addRow(['DETALHADO'])
   detalhadoRow.getCell(1).font = { bold: true, size: 14, color: { argb: COR_NAVY } }
 
-  // --- SEÇÃO DETALHADO (TABELAS NATIVAS DO EXCEL POR LOJA) ---
   let tabelaIndex = 1
   for (const loja of lojas) {
     ws.addRow([])
@@ -264,16 +260,14 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
         ? (p.documento ? `${p.descricao} - Doc: ${p.documento}` : p.descricao)
         : (p.documento ? `Doc: ${p.documento}` : '—')
 
-      // Converte datas no formato YYYY-MM-DD ou AA/MM/DD contidas no texto da descrição para DD/MM/AAAA
       const descricaoFmt = converterDatasTextoParaBr(descricaoBruta)
-
-      // Se for Transferência Recebida: sem situação (""), escrita em verde
       const situacao = isTransfRecebida ? '' : (p.status === 'agendado' ? 'Agendado' : 'Em Aberto')
       const dataVenc = formatarDataBr(p.data_vencimento || p.data_pagamento || '')
 
       tableRowsData.push([
         tipoLabel,
         beneficiario,
+        p.categoria || '—',
         descricaoFmt,
         dataVenc,
         Number(p.valor || 0),
@@ -285,10 +279,9 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
     const startRowTable = ws.rowCount + 1
     const endRowTable = startRowTable + tableRowsData.length
 
-    // Criação da Tabela Nativa do Excel para cada loja
     ws.addTable({
       name: `Tabela_Loja_${tabelaIndex++}`,
-      ref: `A${startRowTable}:F${endRowTable}`,
+      ref: `A${startRowTable}:G${endRowTable}`,
       headerRow: true,
       totalsRow: false,
       style: {
@@ -298,6 +291,7 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
       columns: [
         { name: 'Tipo', filterButton: true },
         { name: 'Beneficiário', filterButton: true },
+        { name: 'Categoria', filterButton: true },
         { name: 'Descrição', filterButton: true },
         { name: 'Data Vencimento', filterButton: true },
         { name: 'Valor', filterButton: true },
@@ -306,7 +300,6 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
       rows: tableRowsData,
     })
 
-    // Estilização das linhas de dados da tabela
     for (let r = startRowTable + 1; r <= endRowTable; r++) {
       const row = ws.getRow(r)
       const rIdx = r - startRowTable - 1
@@ -321,11 +314,11 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
 
         if (colNumber === 1) {
           cell.alignment = { vertical: 'middle', horizontal: 'center' }
-        } else if (colNumber === 2 || colNumber === 3) {
+        } else if (colNumber === 2 || colNumber === 3 || colNumber === 4) {
           cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true }
-        } else if (colNumber === 4 || colNumber === 6) {
+        } else if (colNumber === 5 || colNumber === 7) {
           cell.alignment = { vertical: 'middle', horizontal: 'center' }
-        } else if (colNumber === 5) {
+        } else if (colNumber === 6) {
           cell.numFmt = FMT_MOEDA
           cell.alignment = { vertical: 'middle', horizontal: 'right' }
         }
