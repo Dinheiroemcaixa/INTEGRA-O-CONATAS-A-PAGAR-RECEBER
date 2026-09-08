@@ -15,7 +15,7 @@ import {
   Upload, ArrowLeft, Loader2,
   CheckCircle, AlertCircle, FileDown, Send,
   X, ShieldCheck, ChevronDown, Database,
-  Search, Calendar, FileText, FileSpreadsheet
+  Search, Calendar, FileText, FileSpreadsheet, ExternalLink
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
@@ -42,27 +42,41 @@ function ModalEnvioContaAzul({
   onCancelar: () => void
   enviando: boolean
 }) {
-  const empresaPadrao = empresaAtiva?.access_token_conta_azul
-    ? empresaAtiva
-    : (todasEmpresas.find(e => !!e.access_token_conta_azul) || empresaAtiva)
-
-  const [empresaSelecionada, setEmpresaSelecionada] = useState<Empresa | null>(empresaPadrao)
+  // A empresa selecionada é SEMPRE a empresa ativa do painel por padrão (nunca troca silenciosamente)
+  const [empresaSelecionada, setEmpresaSelecionada] = useState<Empresa | null>(empresaAtiva)
   const [abrirSeletor, setAbrirSeletor] = useState(false)
+  const [busca, setBusca] = useState('')
+
+  // Sincroniza se a empresaAtiva mudar
+  useEffect(() => {
+    if (empresaAtiva) {
+      setEmpresaSelecionada(empresaAtiva)
+    }
+  }, [empresaAtiva])
+
   const conectado = !!empresaSelecionada?.access_token_conta_azul
 
-  // Identifica se a loja selecionada para envio é diferente da loja ativa no painel
+  // Identifica se o usuário escolheu conscientemente uma loja de destino diferente da loja ativa
   const lojaDiferente = !!(
     empresaAtiva &&
     empresaSelecionada &&
     empresaAtiva.id !== empresaSelecionada.id
   )
 
+  const empresasFiltradas = todasEmpresas.filter((emp) => {
+    if (!busca) return true
+    const termo = busca.toLowerCase()
+    const matchNome = emp.nome.toLowerCase().includes(termo)
+    const matchCnpj = emp.cnpj ? emp.cnpj.replace(/\D/g, '').includes(termo.replace(/\D/g, '')) : false
+    return matchNome || matchCnpj
+  })
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-dark-800 border border-dark-600 rounded-2xl w-full max-w-md shadow-2xl animate-fade-in">
+      <div className="bg-dark-800 border border-dark-600 rounded-2xl w-full max-w-md shadow-2xl animate-fade-in flex flex-col max-h-[90vh]">
 
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-dark-700">
+        <div className="flex items-center justify-between p-5 border-b border-dark-700 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-blue-500/10 rounded-xl flex items-center justify-center">
               <Send size={16} className="text-blue-400" />
@@ -74,9 +88,9 @@ function ModalEnvioContaAzul({
           </button>
         </div>
 
-        {/* Conteúdo */}
-        <div className="p-5 space-y-4">
-          <p className="text-dark-300 text-sm">Selecione a empresa de destino antes de enviar:</p>
+        {/* Conteúdo com scroll */}
+        <div className="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1">
+          <p className="text-dark-300 text-sm">Empresa de destino dos lançamentos:</p>
 
           {/* Seletor de empresa */}
           <div className="relative">
@@ -116,42 +130,92 @@ function ModalEnvioContaAzul({
               )}
             </button>
 
-            {/* Dropdown de empresas */}
+            {/* Dropdown de empresas com busca e rolagem */}
             {abrirSeletor && todasEmpresas.length > 1 && (
-              <div className="absolute top-full mt-1 left-0 right-0 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-10 overflow-hidden animate-fade-in">
-                {todasEmpresas.map((emp) => {
-                  const empConectada = !!emp.access_token_conta_azul
-                  const isSelected = empresaSelecionada?.id === emp.id
-                  return (
-                    <button
-                      key={emp.id}
-                      onClick={() => { setEmpresaSelecionada(emp); setAbrirSeletor(false) }}
-                      className={cn(
-                        'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
-                        isSelected ? 'bg-brand-600/10' : 'hover:bg-dark-700'
-                      )}
-                    >
-                      <div className="w-8 h-8 bg-brand-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <span className="text-brand-400 font-bold text-xs">{emp.nome.charAt(0).toUpperCase()}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white text-sm font-medium truncate">{emp.nome}</p>
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <span className={`w-1.5 h-1.5 rounded-full ${empConectada ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                          <span className={`text-xs ${empConectada ? 'text-emerald-400' : 'text-amber-400'}`}>
-                            {empConectada ? 'Conta Azul conectado' : 'Não conectado'}
-                          </span>
-                        </div>
-                      </div>
-                      {isSelected && <CheckCircle size={14} className="text-brand-400 flex-shrink-0" />}
-                    </button>
-                  )
-                })}
+              <div className="absolute top-full mt-1 left-0 right-0 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-20 overflow-hidden animate-fade-in">
+                {/* Campo de Busca */}
+                <div className="p-2 border-b border-dark-700 bg-dark-900/90">
+                  <div className="relative">
+                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-dark-400" />
+                    <input
+                      type="text"
+                      value={busca}
+                      onChange={(e) => setBusca(e.target.value)}
+                      placeholder="Pesquisar loja por nome ou CNPJ..."
+                      className="w-full bg-dark-800 border border-dark-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-dark-400 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Lista rolável */}
+                <div className="max-h-60 overflow-y-auto divide-y divide-dark-700/50 custom-scrollbar">
+                  {empresasFiltradas.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-dark-400">
+                      Nenhuma loja encontrada para "{busca}"
+                    </div>
+                  ) : (
+                    empresasFiltradas.map((emp) => {
+                      const empConectada = !!emp.access_token_conta_azul
+                      const isSelected = empresaSelecionada?.id === emp.id
+                      return (
+                        <button
+                          key={emp.id}
+                          onClick={() => { setEmpresaSelecionada(emp); setAbrirSeletor(false); setBusca('') }}
+                          className={cn(
+                            'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
+                            isSelected ? 'bg-brand-600/15' : 'hover:bg-dark-700'
+                          )}
+                        >
+                          <div className="w-8 h-8 bg-brand-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <span className="text-brand-400 font-bold text-xs">{emp.nome.charAt(0).toUpperCase()}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white text-sm font-medium truncate">{emp.nome}</p>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span className={`w-1.5 h-1.5 rounded-full ${empConectada ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                              <span className={`text-xs ${empConectada ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                {empConectada ? 'Conta Azul conectado' : 'Não conectado'}
+                              </span>
+                            </div>
+                          </div>
+                          {isSelected && <CheckCircle size={14} className="text-emerald-400 flex-shrink-0" />}
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
               </div>
             )}
           </div>
 
-          {/* Aviso se loja selecionada for diferente da loja atual */}
+          {/* Aviso se a loja NÃO estiver conectada ao Conta Azul */}
+          {!conectado && empresaSelecionada && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 space-y-2.5 animate-fade-in">
+              <div className="flex items-start gap-2">
+                <AlertCircle size={16} className="text-amber-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-amber-300 text-xs font-semibold">Conta Azul Financeiro não conectado</p>
+                  <p className="text-xs text-dark-300 mt-1 leading-relaxed">
+                    A loja <strong className="text-white">{empresaSelecionada.nome}</strong> ainda não está conectada ao Conta Azul no módulo Financeiro.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-1">
+                <a
+                  href={`/conectar?empresa_id=${empresaSelecionada.id}&modulo=financeiro`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-all shadow-md shadow-emerald-900/20"
+                >
+                  <ExternalLink size={13} />
+                  Conectar Conta Azul de {empresaSelecionada.nome}
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* Aviso se o usuário escolheu propositalmente enviar para outra loja */}
           {conectado && lojaDiferente && (
             <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 space-y-1.5 animate-fade-in">
               <div className="flex items-start gap-2">
@@ -164,25 +228,15 @@ function ModalEnvioContaAzul({
             </div>
           )}
 
-          {/* Aviso se não conectado */}
-          {!conectado && (
-            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2">
-              <AlertCircle size={14} className="text-amber-400 flex-shrink-0 mt-0.5" />
-              <p className="text-amber-300 text-xs">
-                Esta empresa não está conectada ao Conta Azul. Clique no nome da empresa no topo da tela para conectar.
-              </p>
-            </div>
-          )}
-
           {conectado && !lojaDiferente && (
             <p className="text-dark-500 text-xs">
-              Todas as contas <strong className="text-dark-300">pendentes</strong> desta empresa serão enviadas ao Conta Azul.
+              Todas as contas <strong className="text-dark-300">pendentes</strong> desta empresa serão enviadas ao Conta Azul oficial de <strong className="text-white">{empresaSelecionada?.nome}</strong>.
             </p>
           )}
         </div>
 
         {/* Ações */}
-        <div className="p-5 border-t border-dark-700 flex gap-3">
+        <div className="p-5 border-t border-dark-700 flex gap-3 flex-shrink-0">
           <button
             onClick={onCancelar}
             className="flex-1 bg-dark-700 hover:bg-dark-600 text-dark-300 hover:text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
