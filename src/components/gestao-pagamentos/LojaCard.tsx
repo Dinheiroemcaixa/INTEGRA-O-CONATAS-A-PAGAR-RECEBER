@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Trash2, Upload, Search, Calendar, RefreshCw, ChevronDown, ChevronLeft, ChevronRight,
   ArrowRightLeft, Sparkles, Edit2, X, Paperclip, FileText, Send,
-  Copy
+  Copy, CheckCircle2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ModalAgendamento from '@/components/agendamento/ModalAgendamento'
@@ -21,7 +21,7 @@ import SelectorFornecedor from '@/components/upload/SelectorFornecedor'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import { Empresa } from '@/types'
 import { normalizarNome } from '@/lib/parsers/fornecedores-contaazul'
-import { visualizarAnexo } from '@/lib/utils'
+import { visualizarAnexo, cn } from '@/lib/utils'
 
 interface LojaCardProps {
   empresa: Empresa
@@ -1056,14 +1056,14 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
           <tbody className="divide-y divide-dark-700/50">
             {carregando ? (
               <tr>
-                <td colSpan={8} className="p-12 text-center text-dark-500 font-semibold text-sm">
+                <td colSpan={9} className="p-12 text-center text-dark-500 font-semibold text-sm">
                   <RefreshCw className="animate-spin mx-auto mb-3" size={24} />
                   Carregando...
                 </td>
               </tr>
             ) : pagamentos.length === 0 ? (
               <tr>
-                <td colSpan={8} className="p-12 text-center text-dark-500 font-semibold text-sm uppercase tracking-wider">
+                <td colSpan={9} className="p-12 text-center text-dark-500 font-semibold text-sm uppercase tracking-wider">
                   Nenhum lançamento ativo para esta loja.
                 </td>
               </tr>

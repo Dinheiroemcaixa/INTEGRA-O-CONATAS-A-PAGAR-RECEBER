@@ -240,7 +240,7 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
     })
 
     if (loja.pagamentos.length === 0) {
-      const vaziRow = ws.addRow(['Sem lançamentos no período', '—', '—', '—', 0, '—'])
+      const vaziRow = ws.addRow(['Sem lançamentos no período', '—', '—', '—', '—', 0, '—'])
       vaziRow.getCell(1).font = { italic: true, color: { argb: COR_CINZA_TEXTO } }
       continue
     }
