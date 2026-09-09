@@ -28,9 +28,12 @@ type SubAba = 'datacar' | 'emitidas' | 'planilha'
 interface VendaImportada {
   id: string
   cliente: string
+  cliente_cpf_cnpj?: string | null
+  cliente_endereco?: any
   os_numero: string
   data_venda: string | null
   valor_total: number
+  desconto_total?: number
   forma_pagamento: string | null
   itens: Array<{
     codigo: string
@@ -39,6 +42,7 @@ interface VendaImportada {
     valor_unitario: number
     valor_unitario_original?: number
     desconto?: number
+    valor_total?: number
     tipo?: 'produto' | 'servico'
     ncm?: string
     cest?: string
@@ -47,8 +51,10 @@ interface VendaImportada {
     unidade_medida?: string
   }>
   status: string
-  dados_datacar: Record<string, unknown> | null
-  created_at: string
+  _datacar?: Record<string, any> | null
+  dados_datacar?: Record<string, any> | null
+  created_at?: string
+  metadata?: Record<string, any> | null
 }
 
 interface NotaServicoEmitida {
@@ -916,94 +922,233 @@ export default function VendasServicosPage() {
                 </div>
               )}
 
-              {/* Lista de vendas */}
+              
+              {/* Lista de vendas com Layout Rico de Alta Densidade */}
               {!buscando && vendasDatacar.length > 0 && (
-                <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden">
-                  {/* Cabeçalho da lista */}
-                  <div className="flex items-center gap-3 px-4 py-2.5 bg-dark-900/40 border-b border-dark-700 text-xs text-dark-400 font-semibold">
-                    <input
-                      type="checkbox"
-                      checked={
-                        selecionadosDatacar.size > 0 &&
-                        selecionadosDatacar.size === vendasDatacar.filter(v => v.status === 'pendente').length
-                      }
-                      onChange={toggleTodosDatacar}
-                      className="accent-blue-500"
-                    />
-                    <span className="flex-1">CLIENTE / OS</span>
-                    <span className="w-28 text-right">VALOR</span>
-                    <span className="w-24 text-right">DATA</span>
-                    <span className="w-24 text-center">STATUS</span>
-                    <span className="w-24 text-right">AÇÕES</span>
+                <div className="space-y-3">
+                  {/* Barra de Controle de Seleção */}
+                  <div className="flex items-center justify-between px-4 py-3 bg-dark-850 border border-dark-700/80 rounded-2xl shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={
+                          selecionadosDatacar.size > 0 &&
+                          selecionadosDatacar.size === vendasDatacar.filter(v => v.status === 'pendente').length
+                        }
+                        onChange={toggleTodosDatacar}
+                        className="w-4 h-4 rounded border-dark-600 bg-dark-900 text-emerald-500 focus:ring-emerald-500"
+                      />
+                      <span className="text-xs text-dark-300 font-semibold">
+                        Selecionar todas as pendentes (<strong className="text-white">{selecionadosDatacar.size}</strong> de {vendasDatacar.length})
+                      </span>
+                    </div>
+
+                    {selecionadosDatacar.size > 0 && (
+                      <button
+                        onClick={() => setShowPreviewEmissao(true)}
+                        disabled={enviandoDatacar}
+                        className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-600/25 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-lg"
+                      >
+                        {enviandoDatacar ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+                        {enviandoDatacar ? 'Aguarde...' : `⚡ Pré-visualizar & Emitir NFS-e (${selecionadosDatacar.size})`}
+                      </button>
+                    )}
                   </div>
 
-                  <div className="max-h-[520px] overflow-y-auto divide-y divide-dark-700/50">
-                    {vendasDatacar.map(venda => (
-                      <div key={venda.id} className="hover:bg-dark-700/20 transition-colors">
-                        <div
-                          className="flex items-center gap-3 px-4 py-3 cursor-pointer"
-                          onClick={() => setExpandidoDatacar(expandidoDatacar === venda.id ? null : venda.id)}
+                  {/* Cards de cada Ordem de Serviço */}
+                  <div className="space-y-3">
+                    {vendasDatacar.map(venda => {
+                      const isExpanded = expandidoDatacar === venda.id
+                      const isSelected = selecionadosDatacar.has(venda.id)
+                      const dDatacar = venda._datacar || venda.dados_datacar || {}
+                      const veiculo = dDatacar.veiculo || ''
+                      const vendedor = dDatacar.vendedor || ''
+                      const totalProdutos = (venda.itens || []).filter((i: any) => i.tipo === 'produto').reduce((acc: number, i: any) => acc + (Number(i.valor_total) || 0), 0)
+                      const totalServicos = (venda.itens || []).filter((i: any) => i.tipo === 'servico').reduce((acc: number, i: any) => acc + (Number(i.valor_total) || 0), 0)
+                      const totalDesconto = (venda.itens || []).reduce((acc: number, i: any) => acc + ((Number(i.desconto) || 0) * (Number(i.quantidade) || 1)), 0)
+
+                      return (
+                        <div 
+                          key={venda.id}
+                          className={`border rounded-2xl transition-all duration-200 overflow-hidden ${
+                            isSelected 
+                              ? 'border-emerald-500/40 bg-dark-850/95 shadow-[0_0_15px_rgba(16,185,129,0.1)]' 
+                              : 'border-dark-700/80 bg-dark-850/80 hover:border-dark-600'
+                          }`}
                         >
-                          {venda.status === 'pendente' ? (
-                            <input
-                              type="checkbox"
-                              checked={selecionadosDatacar.has(venda.id)}
-                              onChange={e => { e.stopPropagation(); toggleSelecionadoDatacar(venda.id) }}
-                              onClick={e => e.stopPropagation()}
-                              className="accent-blue-500"
-                            />
-                          ) : (
-                            <CheckCircle size={14} className="text-emerald-400 flex-shrink-0 ml-0.5" />
+                          {/* Cabeçalho Principal do Card da OS */}
+                          <div 
+                            className="p-4 cursor-pointer flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+                            onClick={() => setExpandidoDatacar(isExpanded ? null : venda.id)}
+                          >
+                            <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                              <div className="pt-1" onClick={(e) => e.stopPropagation()}>
+                                {venda.status === 'pendente' ? (
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => toggleSelecionadoDatacar(venda.id)}
+                                    className="w-4 h-4 rounded border-dark-600 bg-dark-900 text-emerald-500 focus:ring-emerald-500"
+                                  />
+                                ) : (
+                                  <CheckCircle size={18} className="text-emerald-400 flex-shrink-0" />
+                                )}
+                              </div>
+
+                              <div className="space-y-1.5 flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-mono font-bold text-white text-sm">
+                                    OS #{venda.os_numero}
+                                  </span>
+                                  {veiculo && (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                                      🚗 {veiculo}
+                                    </span>
+                                  )}
+                                  {vendedor && (
+                                    <span className="text-[11px] text-dark-400 bg-dark-900 px-2 py-0.5 rounded-md border border-dark-700">
+                                      👤 {vendedor}
+                                    </span>
+                                  )}
+                                  {venda.forma_pagamento && (
+                                    <span className="text-[11px] text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20 font-medium">
+                                      💳 {venda.forma_pagamento}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="text-white font-bold truncate max-w-[280px]">
+                                    {venda.cliente}
+                                  </span>
+                                  {venda.cliente_cpf_cnpj && (
+                                    <span className="text-dark-400 font-mono text-[11px]">
+                                      • {venda.cliente_cpf_cnpj}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Resumo Financeiro da OS */}
+                            <div className="flex items-center justify-between lg:justify-end gap-6 border-t lg:border-t-0 border-dark-700/50 pt-3 lg:pt-0">
+                              <div className="text-left lg:text-right space-y-0.5">
+                                <div className="flex items-center gap-2 text-[11px] text-dark-400">
+                                  <span>Peças: <strong className="text-white">{formatCurrency(totalProdutos)}</strong></span>
+                                  <span>•</span>
+                                  <span>Serviços: <strong className="text-white">{formatCurrency(totalServicos)}</strong></span>
+                                </div>
+                                {totalDesconto > 0 && (
+                                  <p className="text-[11px] text-rose-400 font-semibold">
+                                    Desconto: -{formatCurrency(totalDesconto)}
+                                  </p>
+                                )}
+                                <p className="text-base font-black text-white tabular-nums drop-shadow-sm">
+                                  {formatCurrency(venda.valor_total)}
+                                </p>
+                              </div>
+
+                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditandoDatacarId(venda.id)}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-300 bg-blue-600/15 hover:bg-blue-600/25 border border-blue-500/30 rounded-xl transition-all"
+                                  title="Editar Dados e Descontos da Venda"
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removerVendaDatacar(venda.id)}
+                                  className="p-2 text-dark-500 hover:text-rose-400 bg-dark-900 hover:bg-rose-500/10 border border-dark-700 hover:border-rose-500/30 rounded-xl transition-all"
+                                  title="Remover OS da lista"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Seção Expandida com Tabela de Itens e Descontos */}
+                          {isExpanded && (
+                            <div className="bg-dark-950/60 border-t border-dark-700/80 p-5 space-y-4 animate-fade-in">
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                  📦 Detalhamento de Peças e Serviços ({venda.itens?.length || 0})
+                                </h4>
+                                <span className="text-xs text-dark-400 font-mono">
+                                  Data da OS: {formatDate(venda.data_venda)}
+                                </span>
+                              </div>
+
+                              <div className="overflow-x-auto rounded-xl border border-dark-700/60">
+                                <table className="w-full text-left text-xs border-collapse">
+                                  <thead>
+                                    <tr className="bg-dark-900 text-dark-400 font-bold uppercase tracking-wider text-[10px] border-b border-dark-700/80">
+                                      <th className="py-2.5 px-3">Tipo</th>
+                                      <th className="py-2.5 px-3">Código</th>
+                                      <th className="py-2.5 px-3">Descrição</th>
+                                      <th className="py-2.5 px-3 text-center">Qtd</th>
+                                      <th className="py-2.5 px-3 text-right">Vl Bruto</th>
+                                      <th className="py-2.5 px-3 text-right text-rose-400">Desconto</th>
+                                      <th className="py-2.5 px-3 text-right text-emerald-400">Vl Líquido</th>
+                                      <th className="py-2.5 px-3 text-right font-bold text-white">Total</th>
+                                      <th className="py-2.5 px-3">NCM / CEST</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-dark-700/50">
+                                    {(venda.itens || []).map((item: any, idxItem: number) => {
+                                      const vBruto = Number(item.valor_unitario_original !== undefined ? item.valor_unitario_original : item.valor_unitario) || 0
+                                      const desc = Number(item.desconto) || 0
+                                      const vLiq = Number(item.valor_unitario) || 0
+                                      const totalItem = Number(item.valor_total) || (item.quantidade * vLiq)
+
+                                      return (
+                                        <tr key={idxItem} className="hover:bg-dark-900/40 transition-colors">
+                                          <td className="p-2.5">
+                                            <span className={`px-2 py-0.5 rounded text-[9px] font-black ${
+                                              item.tipo === 'servico'
+                                                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                                : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                                            }`}>
+                                              {item.tipo === 'servico' ? 'SERVIÇO' : 'PEÇA'}
+                                            </span>
+                                          </td>
+                                          <td className="p-2.5 font-mono text-dark-300 text-[11px]">{item.codigo || '-'}</td>
+                                          <td className="p-2.5 font-medium text-white">{item.descricao}</td>
+                                          <td className="p-2.5 text-center font-bold text-white">{item.quantidade} {item.unidade_medida || 'UN'}</td>
+                                          <td className="p-2.5 text-right font-mono text-dark-300">{formatCurrency(vBruto)}</td>
+                                          <td className="p-2.5 text-right font-mono text-rose-400">
+                                            {desc > 0 ? `-${formatCurrency(desc * item.quantidade)}` : '-'}
+                                          </td>
+                                          <td className="p-2.5 text-right font-mono text-emerald-400 font-semibold">{formatCurrency(vLiq)}</td>
+                                          <td className="p-2.5 text-right font-mono font-bold text-white tabular-nums">{formatCurrency(totalItem)}</td>
+                                          <td className="p-2.5 text-dark-400 font-mono text-[10px]">
+                                            {item.ncm ? `NCM: ${item.ncm}` : '-'} {item.cest ? `| CEST: ${item.cest}` : ''}
+                                          </td>
+                                        </tr>
+                                      )
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
                           )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-white text-sm font-medium truncate">{venda.cliente}</p>
-                            <p className="text-dark-500 text-xs font-mono">OS #{venda.os_numero}</p>
-                          </div>
-                          <span className="text-white text-sm font-bold tabular-nums w-28 text-right">
-                            {formatCurrency(venda.valor_total)}
-                          </span>
-                          <span className="text-dark-400 text-xs w-24 text-right tabular-nums">
-                            {formatDate(venda.data_venda)}
-                          </span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-24 text-center ${
-                            venda.status === 'enviado'
-                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                              : 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30'
-                          }`}>
-                            {venda.status === 'enviado' ? '✓ Emitida Gov.br' : 'Pendente'}
-                          </span>
-                          <div className="flex items-center justify-end gap-1 w-24">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setEditandoDatacarId(venda.id) }}
-                              className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-1 rounded transition-colors mr-1"
-                              title="Analisar e Editar NFS-e"
-                            >
-                              ANALISAR
-                            </button>
-                            <button
-                              onClick={e => { e.stopPropagation(); removerVendaDatacar(venda.id) }}
-                              className="p-1 text-dark-600 hover:text-red-400 transition-colors"
-                              title="Remover"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
 
-                  {/* Rodapé da lista */}
-                  <div className="flex items-center justify-between px-4 py-3 bg-dark-900/30 border-t border-dark-700 text-sm">
+                  {/* Rodapé da Lista com Ações em Lote */}
+                  <div className="flex items-center justify-between px-5 py-4 bg-dark-850 border border-dark-700/80 rounded-2xl shadow-sm text-sm">
                     <p className="text-dark-400">
-                      <strong className="text-white">{selecionadosDatacar.size}</strong> selecionadas ·{' '}
-                      <strong className="text-white">{vendasDatacar.length}</strong> total
+                      <strong className="text-white">{selecionadosDatacar.size}</strong> de <strong className="text-white">{vendasDatacar.length}</strong> OS selecionadas
                     </p>
                     {selecionadosDatacar.size > 0 && (
                       <button
                         onClick={() => setShowPreviewEmissao(true)}
                         disabled={enviandoDatacar}
-                        className="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-sm font-bold transition-all shadow-lg"
+                        className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-600/25 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-lg"
                       >
                         {enviandoDatacar ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                         {enviandoDatacar ? 'Aguarde...' : `⚡ Pré-visualizar & Emitir NFS-e (${selecionadosDatacar.size})`}
@@ -1012,6 +1157,7 @@ export default function VendasServicosPage() {
                   </div>
                 </div>
               )}
+
             </>
           )}
         </div>

@@ -467,16 +467,18 @@ export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSucc
                 <thead>
                   <tr className="bg-dark-950/80 text-dark-400 font-bold uppercase tracking-wider text-[10px] border-b border-dark-700/80">
                     <th className="py-2.5 px-3 w-16">Tipo</th>
-                    <th className="py-2.5 px-3 w-24">Código</th>
-                    <th className="py-2.5 px-3 min-w-[180px]">Descrição</th>
-                    <th className="py-2.5 px-3 w-14 text-center">Qtd</th>
-                    <th className="py-2.5 px-3 w-24 text-right">Vl Unit (R$)</th>
-                    <th className="py-2.5 px-3 w-14 text-center">Un</th>
-                    <th className="py-2.5 px-3 w-24">NCM</th>
-                    <th className="py-2.5 px-3 w-24">CEST</th>
-                    <th className="py-2.5 px-3 w-32">Origem</th>
-                    <th className="py-2.5 px-3 w-36">Tipo Produto</th>
-                    <th className="py-2.5 px-3 w-10 text-center"></th>
+                    <th className="py-2.5 px-3 w-20">Código</th>
+                    <th className="py-2.5 px-3 min-w-[160px]">Descrição</th>
+                    <th className="py-2.5 px-3 w-12 text-center">Qtd</th>
+                    <th className="py-2.5 px-3 w-20 text-right">Vl Bruto (R$)</th>
+                    <th className="py-2.5 px-3 w-20 text-right text-rose-400">Desc Item (R$)</th>
+                    <th className="py-2.5 px-3 w-20 text-right text-emerald-400">Vl Líq (R$)</th>
+                    <th className="py-2.5 px-3 w-12 text-center">Un</th>
+                    <th className="py-2.5 px-3 w-20">NCM</th>
+                    <th className="py-2.5 px-3 w-20">CEST</th>
+                    <th className="py-2.5 px-3 w-28">Origem</th>
+                    <th className="py-2.5 px-3 w-32">Tipo Produto</th>
+                    <th className="py-2.5 px-3 w-8 text-center"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-dark-700/50">
@@ -522,10 +524,46 @@ export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSucc
                         <input
                           type="number"
                           step="0.01"
-                          value={item.valor_unitario || 0}
-                          onChange={(e) => handleItemChange(i, 'valor_unitario', parseFloat(e.target.value) || 0)}
-                          className="w-20 bg-dark-900 border border-dark-700 rounded-lg px-2 py-1 text-white text-right text-xs outline-none focus:border-blue-500 font-bold tabular-nums"
+                          value={item.valor_unitario_original !== undefined ? item.valor_unitario_original : item.valor_unitario || 0}
+                          onChange={(e) => {
+                            const bruto = parseFloat(e.target.value) || 0;
+                            const desc = Number(item.desconto) || 0;
+                            const liquido = Math.max(0, bruto - desc);
+                            const novosItens = [...formData.itens];
+                            novosItens[i] = {
+                              ...novosItens[i],
+                              valor_unitario_original: bruto,
+                              valor_unitario: liquido,
+                              valor_total: parseFloat((novosItens[i].quantidade * liquido).toFixed(2))
+                            };
+                            setFormData({ ...formData, itens: novosItens });
+                          }}
+                          className="w-20 bg-dark-900 border border-dark-700 rounded-lg px-2 py-1 text-white text-right text-xs outline-none focus:border-blue-500 font-medium tabular-nums"
                         />
+                      </td>
+                      <td className="p-2 text-right">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={item.desconto || 0}
+                          onChange={(e) => {
+                            const desc = parseFloat(e.target.value) || 0;
+                            const bruto = Number(item.valor_unitario_original ?? item.valor_unitario) || 0;
+                            const liquido = Math.max(0, bruto - desc);
+                            const novosItens = [...formData.itens];
+                            novosItens[i] = {
+                              ...novosItens[i],
+                              desconto: desc,
+                              valor_unitario: liquido,
+                              valor_total: parseFloat((novosItens[i].quantidade * liquido).toFixed(2))
+                            };
+                            setFormData({ ...formData, itens: novosItens });
+                          }}
+                          className="w-20 bg-dark-900 border border-rose-500/30 rounded-lg px-2 py-1 text-rose-300 text-right text-xs outline-none focus:border-rose-400 font-bold tabular-nums"
+                        />
+                      </td>
+                      <td className="p-2 text-right font-mono font-bold text-emerald-400 tabular-nums text-xs">
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.valor_unitario || 0)}
                       </td>
                       <td className="p-2 text-center">
                         <input
@@ -595,12 +633,18 @@ export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSucc
             </div>
 
             {/* Totalizador */}
-            <div className="flex items-center justify-between pt-2">
-              <span className="text-xs text-dark-400 font-semibold">
-                {formData.itens.length} itens cadastrados
-              </span>
+            <div className="flex items-center justify-between pt-3 border-t border-dark-700/50 flex-wrap gap-4">
+              <div className="flex items-center gap-4 text-xs">
+                <span className="text-dark-400 font-semibold">{formData.itens.length} itens</span>
+                <span className="text-dark-400">
+                  Bruto: <strong className="text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.itens.reduce((acc: number, item: any) => acc + (Number(item.quantidade) * Number(item.valor_unitario_original ?? item.valor_unitario)), 0))}</strong>
+                </span>
+                <span className="text-rose-400">
+                  Descontos: <strong className="text-rose-400">-{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.itens.reduce((acc: number, item: any) => acc + (Number(item.quantidade) * Number(item.desconto || 0)), 0))}</strong>
+                </span>
+              </div>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-dark-300 font-bold uppercase tracking-wider">Valor Total da OS:</span>
+                <span className="text-xs text-emerald-400 font-bold uppercase tracking-wider">Líquido Final da OS:</span>
                 <span className="text-2xl font-black text-white tabular-nums drop-shadow-sm">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(recalcularTotal(formData.itens))}
                 </span>
