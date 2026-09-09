@@ -20,15 +20,26 @@ const supabaseAdmin = createClient(
  */
 export async function POST(req: NextRequest) {
   try {
-    let { empresa_id, dtIni, dtFim, tipoPeriodo = 'encerramento', situacao = 'todas', numeroOS } = await req.json()
-    if (tipoPeriodo === 'abertura') tipoPeriodo = 'criacao'
+    const body = await req.json()
+    const empresa_id = body.empresa_id
+    let dtIni = body.dtIni || body.data_inicio
+    let dtFim = body.dtFim || body.data_fim
+    let tipoPeriodo = body.tipoPeriodo || body.tipo_periodo || "encerramento"
+    let situacao = body.situacao || "todas"
+    let numeroOS = body.numeroOS || body.numero_os
+    const tipoItens = body.tipo_itens || body.tipoItens
+
+    if (tipoPeriodo === "abertura") tipoPeriodo = "criacao"
 
     if (!empresa_id) {
-      return NextResponse.json({ error: 'empresa_id é obrigatório' }, { status: 400 })
+      return NextResponse.json({ error: "empresa_id é obrigatório" }, { status: 400 })
     }
 
+    // Se datas não forem passadas, assume a data de hoje por padrão
     if (!numeroOS && (!dtIni || !dtFim)) {
-      return NextResponse.json({ error: 'dtIni e dtFim são obrigatórios se número da OS não for informado' }, { status: 400 })
+      const hoje = new Date().toISOString().split("T")[0]
+      if (!dtIni) dtIni = hoje
+      if (!dtFim) dtFim = hoje
     }
 
     // Buscar credenciais do Datacar

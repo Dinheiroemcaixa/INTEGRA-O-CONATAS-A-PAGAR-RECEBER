@@ -230,10 +230,14 @@ export default function VendasServicosPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           empresa_id: empresaAtiva.id,
-          tipo_periodo: tipoPeriodoVendas,
+          dtIni: dtIni,
+          dtFim: dtFim,
           data_inicio: dtIni,
           data_fim: dtFim,
+          tipoPeriodo: tipoPeriodoVendas,
+          tipo_periodo: tipoPeriodoVendas,
           situacao: situacaoVendas,
+          numeroOS: numeroOS.trim() || undefined,
           numero_os: numeroOS.trim() || undefined,
           tipo_itens: 'servicos'
         }),
