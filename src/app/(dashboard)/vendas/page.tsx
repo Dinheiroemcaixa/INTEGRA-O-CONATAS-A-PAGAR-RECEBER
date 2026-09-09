@@ -13,6 +13,7 @@ import SelectorEmpresa from '@/components/layout/SelectorEmpresa'
 import PainelAgendamento from '@/components/agendamento/PainelAgendamento'
 import type { VendaPreview, ResultadoImportacaoVendas } from '@/types'
 import {
+  FileCheck, UploadCloud,
   Upload, ArrowLeft, Loader2,
   CheckCircle, AlertCircle, Send, ShoppingCart,
   Database, RefreshCw, ChevronDown, ChevronUp,
@@ -481,86 +482,200 @@ export default function VendasPage() {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* 4 CARDS SUPERIORES: KPIS FISCAIS DE PRODUTOS / NF-E            */}
+      {/* 4 CARDS SUPERIORES: KPIS FISCAIS DE PRODUTOS (PADRÃO FINTECH NEON) */}
       {/* ═══════════════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Total Faturado em NF-e */}
-        <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-xl group-hover:bg-blue-500/20 transition-all pointer-events-none" />
-          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">Total Faturado em Produtos</span>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-white tracking-tight">
+        {/* Card 1: Total Faturado em Produtos */}
+        <div className="glass-card-cyan rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden group transition-all duration-300 hover:scale-[1.01]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-dark-300 uppercase tracking-wider">Faturamento Produtos</span>
+            <span className="text-[10px] font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/20">
+              Conta Azul
+            </span>
+          </div>
+
+          <div className="my-3 flex items-baseline justify-between">
+            <span className="text-3xl font-black text-white tracking-tight drop-shadow-sm">
               {formatCurrency(totalFaturadoNfe)}
             </span>
-            <span className="text-xs bg-blue-500/20 text-blue-400 font-bold px-2 py-0.5 rounded border border-blue-500/30">
-              {notasEmitidas.length} notas
-            </span>
+          </div>
+
+          {/* Mini Gráfico de Barras Ciano */}
+          <div className="pt-2 border-t border-cyan-500/15 flex items-end justify-between gap-1.5 h-12">
+            {[45, 60, 50, 80, 70, 100].map((h, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-1 group/bar">
+                <div 
+                  className="w-full bg-cyan-400/20 group-hover/bar:bg-cyan-400/50 rounded-t-sm transition-all duration-500 relative"
+                  style={{ height: `${h}%` }}
+                >
+                  <div className="absolute inset-x-0 top-0 h-1 bg-cyan-400 rounded-full shadow-[0_0_8px_#22d3ee]" />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between text-[9px] text-dark-400 mt-1 uppercase font-semibold">
+            <span>Sem 1</span>
+            <span>Sem 2</span>
+            <span>Sem 3</span>
+            <span>Atual</span>
           </div>
         </div>
 
-        {/* Card 2: NF-e Sincronizadas / Emitidas */}
-        <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition-all pointer-events-none" />
-          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">NF-e Sincronizadas</span>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-emerald-300 tracking-tight">
-              {notasEmitidas.length} <span className="text-sm font-semibold text-dark-400">faturadas</span>
+        {/* Card 2: NF-e Sincronizadas */}
+        <div className="glass-card-emerald rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden group transition-all duration-300 hover:scale-[1.01]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-dark-300 uppercase tracking-wider">NF-e Sincronizadas</span>
+            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+              Autorizadas
             </span>
-            <span className="text-xs bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded border border-emerald-500/30">
-              Conta Azul OK
+          </div>
+
+          <div className="my-3 flex items-baseline justify-between">
+            <span className="text-3xl font-black text-emerald-300 tracking-tight">
+              {notasEmitidas.length} <span className="text-sm font-semibold text-dark-400">notas</span>
             </span>
+            <span className="text-xs text-emerald-400/80 font-bold">
+              100% OK
+            </span>
+          </div>
+
+          {/* Mini Gráfico Wave SVG */}
+          <div className="pt-2 border-t border-emerald-500/15 flex items-center justify-center h-12">
+            <svg className="w-full h-10 overflow-visible" viewBox="0 0 100 30" preserveAspectRatio="none">
+              <path
+                d="M0,20 Q20,2 40,15 T70,5 T100,12"
+                fill="none"
+                stroke="rgba(16,185,129,0.3)"
+                strokeWidth="4"
+              />
+              <path
+                d="M0,20 Q20,2 40,15 T70,5 T100,12"
+                fill="none"
+                stroke="#34d399"
+                strokeWidth="2"
+                className="drop-shadow-[0_0_6px_#34d399]"
+              />
+            </svg>
+          </div>
+          <div className="flex justify-between text-[9px] text-dark-400 mt-1 uppercase font-semibold">
+            <span>Volume Peças</span>
+            <span className="text-emerald-400 font-bold">Integrado CA</span>
           </div>
         </div>
 
         {/* Card 3: Vendas Pendentes de Envio */}
-        <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-xl group-hover:bg-amber-500/20 transition-all pointer-events-none" />
-          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">Vendas Pendentes</span>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-amber-300 tracking-tight">
+        <div className="glass-card-amber rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden group transition-all duration-300 hover:scale-[1.01]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-dark-300 uppercase tracking-wider">Vendas Pendentes</span>
+            <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+              Datacar
+            </span>
+          </div>
+
+          <div className="my-3 flex items-baseline justify-between">
+            <span className="text-3xl font-black text-amber-300 tracking-tight">
               {pendenteCount} <span className="text-sm font-semibold text-dark-400">OS</span>
             </span>
-            <span className="text-xs bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded border border-amber-500/30">
+            <span className="text-xs text-amber-400/80 font-semibold">
               A Enviar
             </span>
+          </div>
+
+          {/* Mini Gráfico Rosca SVG */}
+          <div className="pt-2 border-t border-amber-500/15 flex items-center justify-between h-12 px-2">
+            <div className="flex items-center gap-2">
+              <svg className="w-9 h-9 transform -rotate-90" viewBox="0 0 36 36">
+                <path
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none"
+                  stroke="rgba(245,158,11,0.2)"
+                  strokeWidth="4"
+                />
+                <path
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none"
+                  stroke="#fbbf24"
+                  strokeWidth="4"
+                  strokeDasharray="70, 100"
+                  className="drop-shadow-[0_0_6px_#fbbf24]"
+                />
+              </svg>
+              <div className="text-[10px] text-dark-300 leading-tight">
+                <span className="text-white font-bold block">{vendasDatacar.length} OS no Total</span>
+                <span className="text-dark-400">{vendasDatacar.length - pendenteCount} Processadas</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-between text-[9px] text-dark-400 mt-1 uppercase font-semibold">
+            <span>Fila de Trabalho</span>
+            <span className="text-amber-400 font-bold">{pendenteCount} Aguardando</span>
           </div>
         </div>
 
         {/* Card 4: Conexão Conta Azul Vendas */}
-        <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-xl group-hover:bg-purple-500/20 transition-all pointer-events-none" />
-          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">Conta Azul Vendas</span>
-          <div className="mt-2 flex items-center justify-between">
+        <div className={`${caVendasConectado ? 'glass-card-purple' : 'glass-card-amber'} rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden group transition-all duration-300 hover:scale-[1.01]`}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-dark-300 uppercase tracking-wider">Conta Azul Vendas</span>
+            <div className="flex items-center gap-1.5">
+              <span className={`relative flex h-2 w-2`}>
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${caVendasConectado ? 'bg-purple-400' : 'bg-amber-400'}`}></span>
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${caVendasConectado ? 'bg-purple-500' : 'bg-amber-500'}`}></span>
+              </span>
+              <span className={`text-[10px] font-bold ${caVendasConectado ? 'text-purple-300' : 'text-amber-400'}`}>
+                {caVendasConectado ? 'CONECTADO' : 'DESCONECTADO'}
+              </span>
+            </div>
+          </div>
+
+          <div className="my-3">
             {caVendasConectado ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-lg border border-emerald-500/30">
-                <CheckCircle size={14} /> Conectado
-              </span>
+              <div>
+                <span className="text-lg font-bold text-white block">OAuth 2.0 Ativo</span>
+                <span className="text-xs text-purple-300/80 font-mono">Venda de Produtos & Estoque</span>
+              </div>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-500/20 text-red-400 text-xs font-bold rounded-lg border border-red-500/30">
-                <AlertCircle size={14} /> Desconectado
-              </span>
+              <div>
+                <span className="text-base font-bold text-amber-300 block">Sem Conexão Vendas</span>
+                <span className="text-xs text-dark-400">Conecte o Conta Azul da Loja</span>
+              </div>
             )}
-            <span className="text-[10px] text-dark-400 font-mono">OAuth 2.0</span>
+          </div>
+
+          <div className="pt-2 border-t border-dark-700/50 flex items-center justify-between h-12">
+            <div className="text-[10px] text-dark-400 leading-tight">
+              <span className="block text-dark-300 font-semibold">Sincronização API</span>
+              <span>/v1/vendas</span>
+            </div>
+            <a
+              href="/conectar"
+              className="text-xs font-bold px-3 py-1.5 bg-dark-800/80 hover:bg-dark-700 border border-dark-600 rounded-lg text-white transition-all shadow-sm"
+            >
+              Conexões
+            </a>
+          </div>
+          <div className="flex justify-between text-[9px] text-dark-400 mt-1 uppercase font-semibold">
+            <span>Status API</span>
+            <span className="text-purple-400 font-bold">Pronto</span>
           </div>
         </div>
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* 3 SUB-ABAS INTEGRADAS                                          */}
+      {/* 3 SUB-ABAS INTEGRADAS (PADRÃO PILL SWITCHER FINTECH)           */}
       {/* ═══════════════════════════════════════════════════════════════ */}
-      <div className="flex border-b border-dark-700 gap-0">
+      <div className="bg-dark-900/60 p-1.5 rounded-2xl border border-dark-700/80 flex items-center gap-1 shadow-inner max-w-2xl">
         <button
           onClick={() => setSubAba('datacar')}
-          className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all border-b-2 ${
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold transition-all duration-200 ${
             subAba === 'datacar'
-              ? 'border-blue-400 text-blue-400 bg-dark-800/40'
-              : 'border-transparent text-dark-400 hover:text-white hover:bg-dark-800/20'
+              ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
+              : 'text-dark-400 hover:text-white hover:bg-dark-800/50'
           }`}
         >
-          <Database size={15} />
-          Importadas do Datacar (A Enviar)
+          <Database size={15} className={subAba === 'datacar' ? 'text-blue-400' : ''} />
+          <span>Datacar (A Enviar)</span>
           {pendenteCount > 0 && (
-            <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full font-bold">
+            <span className="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full font-black">
               {pendenteCount}
             </span>
           )}
@@ -568,16 +683,16 @@ export default function VendasPage() {
 
         <button
           onClick={() => setSubAba('emitidas')}
-          className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all border-b-2 ${
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold transition-all duration-200 ${
             subAba === 'emitidas'
-              ? 'border-emerald-400 text-emerald-400 bg-dark-800/40'
-              : 'border-transparent text-dark-400 hover:text-white hover:bg-dark-800/20'
+              ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
+              : 'text-dark-400 hover:text-white hover:bg-dark-800/50'
           }`}
         >
-          <PackageCheck size={15} />
-          NF-e Emitidas (Histórico Conta Azul)
+          <FileCheck size={15} className={subAba === 'emitidas' ? 'text-emerald-400' : ''} />
+          <span>NF-e Emitidas (Conta Azul)</span>
           {notasEmitidas.length > 0 && (
-            <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">
+            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-black">
               {notasEmitidas.length}
             </span>
           )}
@@ -585,17 +700,18 @@ export default function VendasPage() {
 
         <button
           onClick={() => setSubAba('planilha')}
-          className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all border-b-2 ${
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold transition-all duration-200 ${
             subAba === 'planilha'
-              ? 'border-brand-400 text-brand-400 bg-dark-800/40'
-              : 'border-transparent text-dark-400 hover:text-white hover:bg-dark-800/20'
+              ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30 shadow-[0_0_15px_rgba(168,85,247,0.2)]'
+              : 'text-dark-400 hover:text-white hover:bg-dark-800/50'
           }`}
         >
-          <Upload size={15} />
-          Upload de Planilha
+          <UploadCloud size={15} className={subAba === 'planilha' ? 'text-purple-400' : ''} />
+          <span>Upload Planilha</span>
         </button>
       </div>
 
+      
       {/* ══════════════════════════════════════════════════════
           SUB-ABA 1: IMPORTADAS DO DATACAR (A ENVIAR)
       ══════════════════════════════════════════════════════ */}

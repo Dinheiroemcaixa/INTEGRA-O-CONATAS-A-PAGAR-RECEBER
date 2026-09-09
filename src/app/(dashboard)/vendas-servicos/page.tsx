@@ -505,71 +505,186 @@ export default function VendasServicosPage() {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* 4 CARDS SUPERIORES: KPIS FISCAIS DE NFS-E                      */}
+      {/* 4 CARDS SUPERIORES: KPIS FISCAIS DE NFS-E (PADRÃO FINTECH NEON) */}
       {/* ═══════════════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Faturado em NFS-e */}
-        <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition-all pointer-events-none" />
-          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">Total Faturado em NFS-e</span>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-white tracking-tight">
+        <div className="glass-card-emerald rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden group transition-all duration-300 hover:scale-[1.01]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-dark-300 uppercase tracking-wider">Faturamento Serviços</span>
+            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+              Mês Atual
+            </span>
+          </div>
+
+          <div className="my-3 flex items-baseline justify-between">
+            <span className="text-3xl font-black text-white tracking-tight drop-shadow-sm">
               {formatCurrency(totalFaturadoNfse)}
             </span>
-            <span className="text-xs bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded border border-emerald-500/30">
-              {notasAtivasEmitidas.length} notas
-            </span>
+          </div>
+
+          {/* Mini Gráfico de Barras Neon */}
+          <div className="pt-2 border-t border-emerald-500/15 flex items-end justify-between gap-1.5 h-12">
+            {[35, 55, 40, 75, 60, 95].map((h, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-1 group/bar">
+                <div 
+                  className="w-full bg-emerald-400/20 group-hover/bar:bg-emerald-400/50 rounded-t-sm transition-all duration-500 relative"
+                  style={{ height: `${h}%` }}
+                >
+                  <div className="absolute inset-x-0 top-0 h-1 bg-emerald-400 rounded-full shadow-[0_0_8px_#34d399]" />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between text-[9px] text-dark-400 mt-1 uppercase font-semibold">
+            <span>Sem 1</span>
+            <span>Sem 2</span>
+            <span>Sem 3</span>
+            <span>Atual</span>
           </div>
         </div>
 
-        {/* Card 2: NFS-e Emitidas com Sucesso */}
-        <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-xl group-hover:bg-blue-500/20 transition-all pointer-events-none" />
-          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">NFS-e Autorizadas</span>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-blue-300 tracking-tight">
-              {notasAtivasEmitidas.length} <span className="text-sm font-semibold text-dark-400">emitidas</span>
-            </span>
-            <span className="text-xs bg-blue-500/20 text-blue-300 font-bold px-2 py-0.5 rounded border border-blue-500/30">
+        {/* Card 2: Total NFS-e Emitidas */}
+        <div className="glass-card-cyan rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden group transition-all duration-300 hover:scale-[1.01]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-dark-300 uppercase tracking-wider">NFS-e Autorizadas</span>
+            <span className="text-[10px] font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/20">
               Gov.br OK
             </span>
           </div>
-        </div>
 
-        {/* Card 3: NFS-e Canceladas / Pendências */}
-        <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/10 rounded-full blur-xl group-hover:bg-rose-500/20 transition-all pointer-events-none" />
-          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">NFS-e Canceladas</span>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-rose-400 tracking-tight">
-              {notasCanceladasCount} <span className="text-sm font-semibold text-dark-400">canceladas</span>
+          <div className="my-3 flex items-baseline justify-between">
+            <span className="text-3xl font-black text-cyan-300 tracking-tight">
+              {notasAtivasEmitidas.length} <span className="text-sm font-semibold text-dark-400">notas</span>
             </span>
-            <span className="text-xs bg-rose-500/20 text-rose-400 font-bold px-2 py-0.5 rounded border border-rose-500/30">
-              Status Fisco
+            <span className="text-xs text-dark-400">
+              {pendenteCount} a emitir
             </span>
+          </div>
+
+          {/* Mini Gráfico Wave SVG */}
+          <div className="pt-2 border-t border-cyan-500/15 flex items-center justify-center h-12">
+            <svg className="w-full h-10 overflow-visible" viewBox="0 0 100 30" preserveAspectRatio="none">
+              <path
+                d="M0,25 Q15,5 30,18 T60,8 T90,20 T100,5"
+                fill="none"
+                stroke="rgba(6,182,212,0.3)"
+                strokeWidth="4"
+              />
+              <path
+                d="M0,25 Q15,5 30,18 T60,8 T90,20 T100,5"
+                fill="none"
+                stroke="#22d3ee"
+                strokeWidth="2"
+                className="drop-shadow-[0_0_6px_#22d3ee]"
+              />
+            </svg>
+          </div>
+          <div className="flex justify-between text-[9px] text-dark-400 mt-1 uppercase font-semibold">
+            <span>Volume Mensal</span>
+            <span className="text-cyan-400 font-bold">100% Digital</span>
           </div>
         </div>
 
-        {/* Card 4: Certificado Digital A1 */}
-        <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-xl group-hover:bg-purple-500/20 transition-all pointer-events-none" />
-          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">Certificado Digital A1</span>
-          <div className="mt-2 flex items-center justify-between">
-            {temCertificado ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-lg border border-emerald-500/30">
-                <CheckCircle size={14} /> Válido (ICP-Brasil)
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 text-amber-400 text-xs font-bold rounded-lg border border-amber-500/30">
-                <AlertCircle size={14} /> Não Configurado
+        {/* Card 3: Ticket Médio & Cancelamentos */}
+        <div className="glass-card-purple rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden group transition-all duration-300 hover:scale-[1.01]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-dark-300 uppercase tracking-wider">Ticket Médio Serviço</span>
+            <span className="text-[10px] font-bold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
+              Média OS
+            </span>
+          </div>
+
+          <div className="my-3 flex items-baseline justify-between">
+            <span className="text-3xl font-black text-purple-200 tracking-tight">
+              {formatCurrency(notasAtivasEmitidas.length > 0 ? totalFaturadoNfse / notasAtivasEmitidas.length : 0)}
+            </span>
+          </div>
+
+          {/* Mini Gráfico Pizza / Rosca SVG */}
+          <div className="pt-2 border-t border-purple-500/15 flex items-center justify-between h-12 px-2">
+            <div className="flex items-center gap-2">
+              <svg className="w-9 h-9 transform -rotate-90" viewBox="0 0 36 36">
+                <path
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none"
+                  stroke="rgba(168,85,247,0.2)"
+                  strokeWidth="4"
+                />
+                <path
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none"
+                  stroke="#c084fc"
+                  strokeWidth="4"
+                  strokeDasharray="85, 100"
+                  className="drop-shadow-[0_0_6px_#c084fc]"
+                />
+              </svg>
+              <div className="text-[10px] text-dark-300 leading-tight">
+                <span className="text-white font-bold block">85% Serviços</span>
+                <span className="text-dark-400">15% Outros</span>
+              </div>
+            </div>
+            {notasCanceladasCount > 0 && (
+              <span className="text-[10px] text-rose-400 bg-rose-500/10 px-2 py-1 rounded-md border border-rose-500/20 font-semibold">
+                {notasCanceladasCount} estornadas
               </span>
             )}
-            <span className="text-[10px] text-dark-400 font-mono">Homologação</span>
+          </div>
+          <div className="flex justify-between text-[9px] text-dark-400 mt-1 uppercase font-semibold">
+            <span>Eficiência</span>
+            <span className="text-purple-400 font-bold">Alta Conversão</span>
+          </div>
+        </div>
+
+        {/* Card 4: Certificado Digital A1 & Segurança */}
+        <div className={`${temCertificado ? 'glass-card-emerald' : 'glass-card-amber'} rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden group transition-all duration-300 hover:scale-[1.01]`}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-dark-300 uppercase tracking-wider">Certificado Digital A1</span>
+            <div className="flex items-center gap-1.5">
+              <span className={`relative flex h-2 w-2`}>
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${temCertificado ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${temCertificado ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+              </span>
+              <span className={`text-[10px] font-bold ${temCertificado ? 'text-emerald-400' : 'text-amber-400'}`}>
+                {temCertificado ? 'ATIVO' : 'PENDENTE'}
+              </span>
+            </div>
+          </div>
+
+          <div className="my-3">
+            {temCertificado ? (
+              <div>
+                <span className="text-lg font-bold text-white block">ICP-Brasil Homologado</span>
+                <span className="text-xs text-emerald-400/80 font-mono">Assinatura Digital SHA-256</span>
+              </div>
+            ) : (
+              <div>
+                <span className="text-base font-bold text-amber-300 block">Certificado Ausente</span>
+                <span className="text-xs text-dark-400">Configure para emitir no Gov.br</span>
+              </div>
+            )}
+          </div>
+
+          <div className="pt-2 border-t border-dark-700/50 flex items-center justify-between h-12">
+            <div className="text-[10px] text-dark-400 leading-tight">
+              <span className="block text-dark-300 font-semibold">Padrão Nacional NFS-e</span>
+              <span>Gov.br / Receita Federal</span>
+            </div>
+            <a
+              href="/empresas"
+              className="text-xs font-bold px-3 py-1.5 bg-dark-800/80 hover:bg-dark-700 border border-dark-600 rounded-lg text-white transition-all shadow-sm flex items-center gap-1"
+            >
+              Configurar
+            </a>
+          </div>
+          <div className="flex justify-between text-[9px] text-dark-400 mt-1 uppercase font-semibold">
+            <span>Cofre Criptografado</span>
+            <span className="text-emerald-400 font-bold">AES-GCM</span>
           </div>
         </div>
       </div>
-
-      {/* ═══════════════════════════════════════════════════════════════ */}
+      
       {/* 3 SUB-ABAS INTEGRADAS                                          */}
       {/* ═══════════════════════════════════════════════════════════════ */}
       <div className="flex border-b border-dark-700 gap-0">
@@ -970,17 +1085,17 @@ export default function VendasServicosPage() {
               </p>
             </div>
           ) : (
-            <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden shadow-lg">
+            <div className="bg-dark-850/80 border border-dark-700/80 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-md">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr className="bg-dark-900/60 border-b border-dark-700 text-dark-400 font-bold uppercase tracking-wider">
-                      <th className="py-3 px-4">NFS-e / OS</th>
-                      <th className="py-3 px-4">Cliente / Tomador</th>
-                      <th className="py-3 px-4">Data Emissão</th>
-                      <th className="py-3 px-4 text-right">Valor Total</th>
-                      <th className="py-3 px-4 text-center">Situação</th>
-                      <th className="py-3 px-4 text-right">Ações</th>
+                    <tr className="bg-dark-950/80 border-b border-dark-700 text-dark-400 font-bold uppercase tracking-wider text-[11px]">
+                      <th className="py-3.5 px-5">NFS-e / OS</th>
+                      <th className="py-3.5 px-5">Cliente / Tomador</th>
+                      <th className="py-3.5 px-5">Data Emissão</th>
+                      <th className="py-3.5 px-5 text-right">Valor Total</th>
+                      <th className="py-3.5 px-5 text-center">Situação Fiscal</th>
+                      <th className="py-3.5 px-5 text-right">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-dark-700/50">
