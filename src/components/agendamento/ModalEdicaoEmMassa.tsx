@@ -10,11 +10,12 @@ interface ModalEdicaoEmMassaProps {
   onClose: () => void
   itens: any[]
   contas: ContaFinanceiraOpcao[]
+  categorias?: string[]
   onConfirmar: (dados: { categoria?: string; competencia?: string; contaPagamento?: string; dataPagamento?: string }) => void
   salvando: boolean
 }
 
-export default function ModalEdicaoEmMassa({ open, onClose, itens, contas, onConfirmar, salvando }: ModalEdicaoEmMassaProps) {
+export default function ModalEdicaoEmMassa({ open, onClose, itens, contas, categorias = [], onConfirmar, salvando }: ModalEdicaoEmMassaProps) {
   const [categoria, setCategoria] = useState('')
   const [editandoCategoria, setEditandoCategoria] = useState(false)
   const [competencia, setCompetencia] = useState('')
@@ -73,6 +74,7 @@ export default function ModalEdicaoEmMassa({ open, onClose, itens, contas, onCon
             {editandoCategoria ? (
               <SelectorCategoria
                 valorInicial={categoria}
+                categorias={categorias}
                 onSelect={nome => { setCategoria(nome); setEditandoCategoria(false) }}
                 onCancel={() => setEditandoCategoria(false)}
               />

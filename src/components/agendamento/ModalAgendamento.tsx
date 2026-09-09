@@ -42,6 +42,8 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
 
+  const [categoriasCA, setCategoriasCA] = useState<string[]>([])
+
   useEffect(() => {
     if (!open || !empresaAtiva?.id) return
     fetch(`/api/conta-azul/contas-financeiras?empresa_id=${empresaAtiva.id}`)
@@ -51,10 +53,16 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
           setContasFinanceiras(data.contas)
         }
       })
-      .catch(() => {
-        // Sem conexão com o Conta Azul (ou token expirado) — o campo
-        // continua funcionando, só sem sugestões automáticas.
+      .catch(() => {})
+
+    fetch(`/api/conta-azul/categorias?empresa_id=${empresaAtiva.id}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (data?.categorias && Array.isArray(data.categorias)) {
+          setCategoriasCA(data.categorias.map((c: any) => c.nome))
+        }
       })
+      .catch(() => {})
   }, [open, empresaAtiva?.id])
 
   useEffect(() => {
@@ -173,13 +181,10 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
       if (dados.data_documento) setDataCompetencia(dados.data_documento)
       else setDataCompetencia(hoje)
       if (dados.valor) setValor(Number(dados.valor) || 0)
-      if (dados.categoria) {
-        const catClean = dados.categoria.trim().toLowerCase()
-        if (catClean.includes('fornecedor')) {
-          setCategoria('')
-        } else {
-          setCategoria(dados.categoria)
-        }
+      // Não forçar categorias genéricas (ex: Impostos, Boleto, Diversos)
+      // O carregarCategoriaAprendida cuidará de puxar a categoria real do CA caso já aprendida
+      if (dados.categoria && (dados.categoria.includes('FGTS') || dados.categoria.includes('Salário') || dados.categoria.includes('Adiantamento'))) {
+        setCategoria(dados.categoria)
       }
       if (dados.tipo) setTipo(dados.tipo)
       if (dados.chave_pix) setChavePix(dados.chave_pix)
@@ -390,6 +395,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
               {editandoCategoria ? (
                 <SelectorCategoria
                   valorInicial={categoria}
+                  categorias={categoriasCA}
                   onSelect={nome => { setCategoria(nome); setEditandoCategoria(false) }}
                   onCancel={() => setEditandoCategoria(false)}
                 />

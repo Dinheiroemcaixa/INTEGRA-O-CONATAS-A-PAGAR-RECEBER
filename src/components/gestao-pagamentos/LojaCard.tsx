@@ -97,11 +97,22 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
     setModalAcoesAberto(true)
   }
 
+  const [categoriasCA, setCategoriasCA] = useState<string[]>([])
+
   useEffect(() => {
     fetch(`/api/conta-azul/contas-financeiras?empresa_id=${empresa.id}`)
       .then(r => (r.ok ? r.json() : null))
       .then(data => {
         if (data?.contas && Array.isArray(data.contas)) setContasFinanceiras(data.contas)
+      })
+      .catch(() => {})
+
+    fetch(`/api/conta-azul/categorias?empresa_id=${empresa.id}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (data?.categorias && Array.isArray(data.categorias)) {
+          setCategoriasCA(data.categorias.map((c: any) => c.nome))
+        }
       })
       .catch(() => {})
   }, [empresa.id])
@@ -462,7 +473,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             valor: parseFloat(String(item.valor).replace(',', '.')),
             data_vencimento: dtVenc,
             data_pagamento: dataInicio || dataInclusaoHoje,
-            categoria: categoriaAprendida || 'Materiais para Revenda'
+            categoria: categoriaAprendida || null
           }
         })
         if (registros.length > 0) {
@@ -1435,6 +1446,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         onClose={() => setModalEdicaoMassaAberto(false)}
         itens={itensEdicaoMassa}
         contas={contasFinanceiras}
+        categorias={categoriasCA}
         onConfirmar={handleConfirmarEdicaoEmMassa}
         salvando={salvandoEdicaoMassa}
       />
@@ -1492,6 +1504,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                       {editandoCategoriaEdicao ? (
                         <SelectorCategoria
                           valorInicial={itemEditando.categoria || ''}
+                          categorias={categoriasCA}
                           onSelect={nome => { setItemEditando({ ...itemEditando, categoria: nome }); setEditandoCategoriaEdicao(false) }}
                           onCancel={() => setEditandoCategoriaEdicao(false)}
                         />
@@ -1595,7 +1608,25 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Categoria <span className="text-rose-400">*</span></label>
-                      <input type="text" value={itemEditando.categoria || ''} onChange={e => setItemEditando({ ...itemEditando, categoria: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Ex: Diversos" />
+                      {editandoCategoriaEdicao ? (
+                        <SelectorCategoria
+                          valorInicial={itemEditando.categoria || ''}
+                          categorias={categoriasCA}
+                          onSelect={nome => { setItemEditando({ ...itemEditando, categoria: nome }); setEditandoCategoriaEdicao(false) }}
+                          onCancel={() => setEditandoCategoriaEdicao(false)}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setEditandoCategoriaEdicao(true)}
+                          className="w-full text-left bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm hover:border-blue-500 transition-all truncate flex items-center justify-between"
+                        >
+                          <span className={itemEditando.categoria ? "text-white" : "text-dark-500"}>
+                            {itemEditando.categoria || 'Clique para buscar categoria do Conta Azul...'}
+                          </span>
+                          <ChevronDown size={14} className="text-dark-500" />
+                        </button>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Conta de Pagamento</label>
