@@ -501,8 +501,8 @@ export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSucc
                     <th className="py-2.5 px-3 w-28 text-right text-rose-400">Desc Item (R$)</th>
                     <th className="py-2.5 px-3 w-28 text-right text-emerald-400">Vl Líq (R$)</th>
                     <th className="py-2.5 px-3 w-14 text-center">Un</th>
-                    <th className="py-2.5 px-3 w-28">NCM</th>
-                    <th className="py-2.5 px-3 w-24">CEST</th>
+                    <th className="py-2.5 px-3 min-w-[125px] text-center">NCM (8 Dígitos)</th>
+                    <th className="py-2.5 px-3 min-w-[105px] text-center">CEST</th>
                     <th className="py-2.5 px-3 w-8 text-center"></th>
                   </tr>
                 </thead>
@@ -622,8 +622,9 @@ export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSucc
                             type="text"
                             value={item.ncm || ''}
                             onChange={(e) => handleItemChange(i, 'ncm', e.target.value)}
-                            placeholder="NCM"
-                            className="w-full bg-dark-900 border border-dark-700 rounded-lg px-2 py-1 text-white font-mono text-[11px] outline-none"
+                            placeholder="00000000"
+                            maxLength={10}
+                            className="w-full min-w-[115px] bg-dark-900 border border-dark-700 rounded-lg px-2.5 py-1.5 text-white font-mono text-xs text-center font-bold outline-none focus:border-slate-400 tabular-nums tracking-wider"
                           />
                         </td>
                         <td className="p-2">
@@ -631,8 +632,9 @@ export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSucc
                             type="text"
                             value={item.cest || ''}
                             onChange={(e) => handleItemChange(i, 'cest', e.target.value)}
-                            placeholder="CEST"
-                            className="w-full bg-dark-900 border border-dark-700 rounded-lg px-2 py-1 text-white font-mono text-[11px] outline-none"
+                            placeholder="0000000"
+                            maxLength={9}
+                            className="w-full min-w-[95px] bg-dark-900 border border-dark-700 rounded-lg px-2 py-1.5 text-white font-mono text-xs text-center outline-none focus:border-slate-400 tabular-nums"
                           />
                         </td>
                         <td className="p-2 text-center">
