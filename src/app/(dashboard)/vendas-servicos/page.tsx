@@ -17,12 +17,13 @@ import {
   CheckCircle, AlertCircle, Send, ShoppingCart,
   Database, RefreshCw, ChevronDown, ChevronUp,
   Trash2, FileSpreadsheet, BookOpen,
-  Search, Calendar
-, ExternalLink } from 'lucide-react'
+  Search, Calendar, ExternalLink, FileText, Eye, Printer, X,
+  XCircle, AlertTriangle, Download, ShieldCheck
+} from 'lucide-react'
 import toast from 'react-hot-toast'
 
 type Etapa = 'upload' | 'preview'
-type SubAba = 'datacar' | 'planilha'
+type SubAba = 'datacar' | 'emitidas' | 'planilha'
 
 interface VendaImportada {
   id: string
@@ -50,11 +51,26 @@ interface VendaImportada {
   created_at: string
 }
 
-export default function VendasPage() {
+interface NotaServicoEmitida {
+  id: string
+  cliente: string
+  os_numero: string
+  data_venda: string | null
+  valor_total: number
+  status: 'enviado' | 'cancelado'
+  erro_mensagem: string | null
+  metadata: any
+  dados_datacar: any
+  updated_at: string
+  created_at: string
+  conta_azul_id: string | null
+}
+
+export default function VendasServicosPage() {
   const { empresaAtiva } = useEmpresa()
   const supabase = createClient()
 
-  // Sub-aba ativa
+  // Sub-aba ativa: Datacar | NFS-e Emitidas (Histórico Gov.br) | Planilha
   const [subAba, setSubAba] = useState<SubAba>('datacar')
 
   // ─── Estado da sub-aba Datacar ───────────────────────────────
@@ -68,31 +84,29 @@ export default function VendasPage() {
   const [situacaoVendas, setSituacaoVendas] = useState<'todas' | 'em_andamento' | 'concluida' | 'encerrada' | 'cancelada'>('todas')
   const [numeroOS, setNumeroOS] = useState('')
   const [filtroTipoItens, setFiltroTipoItens] = useState<'tudo' | 'produtos' | 'servicos'>('servicos')
-  const [vendasDatacar, setVendasDatacar] = useState<any[]>([])
+
+  const [vendasDatacar, setVendasDatacar] = useState<VendaImportada[]>([])
   const [selecionadosDatacar, setSelecionadosDatacar] = useState<Set<string>>(new Set())
   const [expandidoDatacar, setExpandidoDatacar] = useState<string | null>(null)
   const [enviandoDatacar, setEnviandoDatacar] = useState(false)
   const [editandoDatacarId, setEditandoDatacarId] = useState<string | null>(null)
+  const [detalheVendaDatacar, setDetalheVendaDatacar] = useState<VendaImportada | null>(null)
   const [showPreviewEmissao, setShowPreviewEmissao] = useState(false)
   
-  // ─── Estado das Alíquotas Padrão (Painel) ────────────────────
+  // ─── Estado das Alíquotas Padrão & Certificado ────────────────
   const [aliquotaSimples, setAliquotaSimples] = useState('11.34')
   const [aliquotaIssqn, setAliquotaIssqn] = useState('')
   const [temCertificado, setTemCertificado] = useState(false)
 
-  useEffect(() => {
-    if (empresaAtiva) {
-      fetch(`/api/config-fiscal?empresa_id=${empresaAtiva.id}`)
-        .then(r => r.json())
-        .then(data => {
-          if (data?.config) {
-            if (data.config.aliquota_simples_nacional) setAliquotaSimples(String(data.config.aliquota_simples_nacional))
-            if (data.config.aliquota_issqn) setAliquotaIssqn(String(data.config.aliquota_issqn))
-          }
-        })
-        .catch(console.error)
-    }
-  }, [empresaAtiva])
+  // ─── Estado da sub-aba NFS-e Emitidas (Histórico Gov.br) ─────
+  const [notasEmitidas, setNotasEmitidas] = useState<NotaServicoEmitida[]>([])
+  const [carregandoNotas, setCarregandoNotas] = useState(false)
+  const [buscaEmitidas, setBuscaEmitidas] = useState('')
+  const [dtIniEmitidas, setDtIniEmitidas] = useState(primeiroDia)
+  const [dtFimEmitidas, setDtFimEmitidas] = useState(hoje)
+  const [notaVisualizar, setNotaVisualizar] = useState<NotaServicoEmitida | null>(null)
+  const [confirmandoCancelar, setConfirmandoCancelar] = useState<NotaServicoEmitida | null>(null)
+  const [cancelando, setCancelando] = useState(false)
 
   // ─── Estado do Upload de Planilha Fiscal ───────────────────
   const [showPlanilhaFiscal, setShowPlanilhaFiscal] = useState(false)
@@ -103,6 +117,224 @@ export default function VendasPage() {
     exemplos: string[];
   } | null>(null)
 
+  // ─── Estado da sub-aba Planilha (Upload normal) ──────────────
+  const [etapa, setEtapa] = useState<Etapa>('upload')
+  const [resultado, setResultado] = useState<ResultadoImportacaoVendas | null>(null)
+  const [dadosEditados, setDadosEditados] = useState<VendaPreview[]>([])
+  const [selecionados, setSelecionados] = useState<Set<number>>(new Set())
+  const [editandoIdx, setEditandoIdx] = useState<number | null>(null)
+  const [enviandoCA, setEnviandoCA] = useState(false)
+
+  // Carrega configuração fiscal da empresa ativa
+  const carregarConfigFiscal = useCallback(() => {
+    if (empresaAtiva) {
+      fetch(`/api/config-fiscal?empresa_id=${empresaAtiva.id}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data?.config) {
+            if (data.config.aliquota_simples_nacional) setAliquotaSimples(String(data.config.aliquota_simples_nacional))
+            if (data.config.aliquota_issqn) setAliquotaIssqn(String(data.config.aliquota_issqn))
+          }
+          setTemCertificado(Boolean(data?.temCertificado))
+        })
+        .catch(console.error)
+    }
+  }, [empresaAtiva])
+
+  // Carrega histórico de notas emitidas
+  const carregarNotasEmitidas = useCallback(async () => {
+    if (!empresaAtiva) return
+    setCarregandoNotas(true)
+    try {
+      const params = new URLSearchParams({
+        empresa_id: empresaAtiva.id,
+        tipo: 'servicos',
+        data_inicio: dtIniEmitidas,
+        data_fim: dtFimEmitidas,
+        busca: buscaEmitidas
+      })
+      const res = await fetch(`/api/notas-emitidas?${params.toString()}`)
+      if (!res.ok) throw new Error('Erro ao buscar histórico de NFS-e')
+      const data = await res.json()
+      setNotasEmitidas(data.notas || [])
+    } catch (err) {
+      console.error(err)
+      toast.error('Erro ao carregar histórico de NFS-e')
+    } finally {
+      setCarregandoNotas(false)
+    }
+  }, [empresaAtiva, dtIniEmitidas, dtFimEmitidas, buscaEmitidas])
+
+  useEffect(() => {
+    carregarConfigFiscal()
+    carregarNotasEmitidas()
+  }, [empresaAtiva, carregarConfigFiscal, carregarNotasEmitidas])
+
+  // Recarregar notas quando mudar para a subAba emitidas
+  useEffect(() => {
+    if (subAba === 'emitidas') {
+      carregarNotasEmitidas()
+    }
+  }, [subAba, carregarNotasEmitidas])
+
+  // ─── Handlers Datacar ────────────────────────────────────────
+  const buscarDatacar = async () => {
+    if (!empresaAtiva) {
+      toast.error('Selecione uma empresa primeiro')
+      return
+    }
+
+    if (!empresaAtiva.datacar_token) {
+      toast.error(`A empresa "${empresaAtiva.nome}" não possui o Token do Datacar configurado.`)
+      return
+    }
+
+    setBuscando(true)
+    try {
+      const res = await fetch('/api/datacar/buscar-vendas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresa_id: empresaAtiva.id,
+          tipo_periodo: tipoPeriodoVendas,
+          data_inicio: dtIni,
+          data_fim: dtFim,
+          situacao: situacaoVendas,
+          numero_os: numeroOS.trim() || undefined,
+          tipo_itens: 'servicos'
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao buscar dados no Datacar')
+
+      setVendasDatacar(data.vendas || [])
+      const pendentes = (data.vendas || []).filter((v: VendaImportada) => v.status === 'pendente')
+      setSelecionadosDatacar(new Set(pendentes.map((v: VendaImportada) => v.id)))
+
+      if (data.vendas?.length === 0) {
+        toast('Nenhuma venda de serviços encontrada para o período informado.', { icon: '🔍' })
+      } else {
+        toast.success(`${data.vendas.length} OS de serviços encontradas!`)
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro ao buscar dados no Datacar'
+      toast.error(msg)
+    } finally {
+      setBuscando(false)
+    }
+  }
+
+  const toggleSelecionadoDatacar = (id: string) => {
+    setSelecionadosDatacar(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  const toggleTodosDatacar = () => {
+    const pendentes = vendasDatacar.filter(v => v.status === 'pendente')
+    if (selecionadosDatacar.size === pendentes.length) {
+      setSelecionadosDatacar(new Set())
+    } else {
+      setSelecionadosDatacar(new Set(pendentes.map(v => v.id)))
+    }
+  }
+
+  const removerVendaDatacar = async (id: string) => {
+    const { error } = await supabase.from('vendas_importadas').delete().eq('id', id)
+    if (error) {
+      toast.error('Erro ao remover venda: ' + error.message)
+      return
+    }
+    setVendasDatacar(prev => prev.filter(v => v.id !== id))
+    setSelecionadosDatacar(prev => { const next = new Set(prev); next.delete(id); return next })
+    toast.success('Venda removida')
+  }
+
+  // ─── Emissão Real via Gov.br ─────────────────────────────────
+  const handleConfirmarEmissaoLote = async (vendasAjustadas: any[]) => {
+    if (!empresaAtiva) { toast.error('Selecione uma empresa primeiro'); return }
+    if (!vendasAjustadas || vendasAjustadas.length === 0) { toast.error('Nenhuma venda selecionada'); return }
+
+    setEnviandoDatacar(true)
+    setShowPreviewEmissao(false)
+    try {
+      const res = await fetch('/api/gov-br/enviar-servicos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresa_id: empresaAtiva.id,
+          vendas: vendasAjustadas
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao emitir NFS-e')
+
+      if (data.sucessos > 0) {
+        toast.success(`${data.sucessos} NFS-e emitidas com sucesso via Gov.br!`, { duration: 5000 })
+        
+        // Atualiza a tabela Datacar
+        setVendasDatacar(prev => prev.map(v => {
+          if (selecionadosDatacar.has(v.id)) {
+             return { ...v, status: 'enviado' }
+          }
+          return v
+        }))
+        setSelecionadosDatacar(new Set())
+        
+        // Atualiza o histórico de emitidas
+        carregarNotasEmitidas()
+      }
+
+      if (data.erros > 0) {
+        toast.error(`${data.erros} notas com erro. Verifique os logs.`)
+        if (data.detalhesErros?.length > 0) {
+          data.detalhesErros.slice(0, 3).forEach((errMsg: string) => {
+            toast.error(errMsg, { duration: 6000 })
+          })
+        }
+      }
+
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro ao emitir NFS-e via Gov.br'
+      toast.error(msg)
+    } finally {
+      setEnviandoDatacar(false)
+    }
+  }
+
+  // ─── Cancelamento de NFS-e ───────────────────────────────────
+  const handleCancelarNota = async (nota: NotaServicoEmitida) => {
+    if (!empresaAtiva) return
+    setCancelando(true)
+    try {
+      const res = await fetch('/api/notas-emitidas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresa_id: empresaAtiva.id,
+          nota_id: nota.id,
+          acao: 'cancelar'
+        })
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao cancelar nota')
+
+      toast.success(data.mensagem || 'NFS-e cancelada com sucesso.')
+      setConfirmandoCancelar(null)
+      carregarNotasEmitidas()
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao cancelar')
+    } finally {
+      setCancelando(false)
+    }
+  }
+
+  // ─── Handlers Planilha ───────────────────────────────────────
   const handleUploadPlanilhaFiscal = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !empresaAtiva) return
@@ -116,219 +348,19 @@ export default function VendasPage() {
 
       const res = await fetch('/api/memoria-fiscal/importar-planilha', {
         method: 'POST',
-        body: formData
+        body: formData,
       })
+
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erro ao importar')
+      if (!res.ok) throw new Error(data.error || 'Erro ao importar planilha fiscal')
 
       setResultadoPlanilha(data)
-      toast.success(`${data.salvos} famílias de produtos aprendidas com sucesso!`)
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao importar planilha'
-      toast.error(msg)
+      toast.success(`Planilha processada! ${data.salvos} famílias cadastradas.`)
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao importar planilha')
     } finally {
       setUploadingPlanilha(false)
-      // Reset o input para permitir reimportar
       e.target.value = ''
-    }
-  }
-
-  // ─── Estado da sub-aba Planilha ──────────────────────────────
-  const [etapa, setEtapa] = useState<Etapa>('upload')
-  const [resultado, setResultado] = useState<ResultadoImportacaoVendas | null>(null)
-  const [dadosEditados, setDadosEditados] = useState<VendaPreview[]>([])
-  const [selecionados, setSelecionados] = useState<Set<number>>(new Set())
-  const [enviandoCA, setEnviandoCA] = useState(false)
-  const [editandoIdx, setEditandoIdx] = useState<number | null>(null)
-
-  // ─── Buscar vendas do Datacar ──────────────────────────────
-  const handleBuscarVendasDatacar = async () => {
-    if (!empresaAtiva) { toast.error('Selecione uma empresa primeiro'); return }
-    if (!empresaAtiva.datacar_token) {
-      toast.error('Configure as credenciais do Datacar para esta empresa na tela de Empresas.')
-      return
-    }
-    if (!numeroOS && (!dtIni || !dtFim)) {
-      toast.error('Preencha a data de início e fim, ou informe um Número de OS.')
-      return
-    }
-
-    setBuscando(true)
-    setVendasDatacar([])
-    try {
-      const mappedTipoPeriodo = tipoPeriodoVendas as string
-
-      const res = await fetch('/api/datacar/buscar-vendas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          empresa_id: empresaAtiva.id, 
-          dtIni, 
-          dtFim, 
-          tipoPeriodo: mappedTipoPeriodo,
-          situacao: situacaoVendas,
-          numeroOS: numeroOS.trim() || undefined
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erro ao buscar vendas no Datacar')
-
-      // Mapear resultado para manter compatibilidade visual com VendaImportada
-      const validas: any[] = data.dados.map((d: any) => ({
-        id: crypto.randomUUID(), // ID temporário apenas para manipulação na tela
-        cliente: d.cliente,
-        cliente_cpf_cnpj: d.cliente_cpf_cnpj || d._datacar?.cliente_cpf_cnpj || null,
-        cliente_endereco: d.cliente_endereco || null,
-        os_numero: d.os_numero,
-        data_venda: d.data_venda,
-        valor_total: d.valor_total,
-        forma_pagamento: d.forma_pagamento,
-        itens: d.itens,
-        status: d.ca_status === 'cliente_existente' ? 'alerta_cliente' : (d.ca_status ? 'duplicidade' : 'pendente'),
-        dados_datacar: d._datacar || d,
-        valido: d.valido,
-        erros: d.erros,
-      }))
-
-      setVendasDatacar(validas)
-      
-      // Auto-selecionar as pendentes e válidas
-      const validasIds = validas
-        .filter(v => v.status === 'pendente' && v.valido)
-        .map(v => v.id)
-      setSelecionadosDatacar(new Set(validasIds))
-
-      toast.success(`${data.total} OS/Pedidos encontrados!`)
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Erro ao buscar vendas')
-    } finally {
-      setBuscando(false)
-    }
-  }
-
-  // ─── Toggles Datacar ─────────────────────────────────────────
-  const toggleSelecionadoDatacar = (id: string) => {
-    setSelecionadosDatacar(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else next.add(id)
-      return next
-    })
-  }
-
-  const toggleTodosDatacar = () => {
-    const pendentes = vendasDatacar.filter(v => v.status === 'pendente').map(v => v.id)
-    if (selecionadosDatacar.size === pendentes.length) {
-      setSelecionadosDatacar(new Set())
-    } else {
-      setSelecionadosDatacar(new Set(pendentes))
-    }
-  }
-
-  const removerVendaDatacar = async (id: string) => {
-    if (!confirm('Remover esta venda da lista? Ela sairá do seu painel e não será enviada.')) return
-    setVendasDatacar(prev => prev.filter(v => v.id !== id))
-    toast.success('Venda ignorada da lista de importação.')
-  }
-
-  // ─── Enviar para Gov.br NFS-e (vindas do Datacar) ──────────────
-  const handleEnviarDatacarParaCA = async (vendasOverride?: any[]) => {
-    if (!empresaAtiva) { toast.error('Selecione uma empresa'); return }
-    if (selecionadosDatacar.size === 0) { toast.error('Selecione ao menos uma venda'); return }
-
-    setEnviandoDatacar(true)
-    try {
-      const baseVendas = vendasOverride || vendasDatacar
-      const vendasFiltradas = baseVendas
-        .filter(v => selecionadosDatacar.has(v.id))
-        .map(v => {
-          let itensFiltrados = v.itens
-          if (filtroTipoItens === 'produtos') itensFiltrados = v.itens.filter((i: any) => i.tipo === 'produto')
-          if (filtroTipoItens === 'servicos') itensFiltrados = v.itens.filter((i: any) => i.tipo === 'servico')
-          
-          const valorTotalRecalculado = itensFiltrados.reduce((acc: number, i: any) => acc + (i.quantidade * i.valor_unitario), 0)
-          
-          return {
-            ...v,
-            itens: itensFiltrados,
-            valor_total: valorTotalRecalculado
-          }
-        })
-        .filter(v => v.itens.length > 0)
-
-      if (vendasFiltradas.length === 0) {
-        setEnviandoDatacar(false)
-        toast.error('O filtro de itens excluiu todas as vendas selecionadas. Não há nada para enviar.')
-        return
-      }
-      
-      // Converte para o formato esperado pelo endpoint de envio do CA
-      const vendasFormatadas = vendasFiltradas.map(v => ({
-        cliente: v._fiscal?.clienteNome || v.cliente,
-        cliente_cpf_cnpj: v._fiscal?.clienteCpfCnpj || v.dados_datacar?.cliente_cpf_cnpj || v.cliente_cpf_cnpj || undefined,
-        cliente_endereco: v._fiscal?.clienteLogradouro 
-          ? `${v._fiscal.clienteLogradouro}, ${v._fiscal.clienteNumero}, ${v._fiscal.clienteBairro}, ${v._fiscal.clienteCidade}, ${v._fiscal.clienteUf} - CEP ${v._fiscal.clienteCep}`
-          : v.dados_datacar?.cliente_endereco || v.cliente_endereco || undefined,
-        os_numero: v.os_numero,
-        data_venda: v.data_venda,
-        valor_total: v.valor_total,
-        forma_pagamento: v.forma_pagamento,
-        itens: v.itens,
-        valido: true,
-        _fiscal: v._fiscal // Repassa o bloco fiscal editado no modal
-      }))
-
-      const res = await fetch('/api/gov-br/enviar-servicos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          empresa_id: empresaAtiva.id,
-          vendas: vendasFormatadas
-        }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erro ao enviar vendas')
-
-      // Atualiza status localmente e limpa a seleção
-      if (data.sucessos > 0) {
-        toast.success(`${data.sucessos} NFS-e emitidas via Gov.br com sucesso!`)
-        setVendasDatacar(prev => prev.map(v => {
-          if (selecionadosDatacar.has(v.id)) {
-             return { ...v, status: 'enviado' }
-          }
-          return v
-        }))
-        setSelecionadosDatacar(new Set())
-      }
-
-      if (data.erros > 0) {
-        toast.error(`${data.erros} vendas com erro. Verifique os logs.`)
-        if (data.detalhesErros?.length > 0) {
-          data.detalhesErros.slice(0, 3).forEach((errMsg: string) => {
-            toast.error(errMsg, { duration: 6000 })
-          })
-        }
-      }
-
-
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao emitir NFS-e via Gov.br'
-      toast.error(msg)
-    } finally {
-      setEnviandoDatacar(false)
-    }
-  }
-
-  // ─── Handlers sub-aba Planilha ───────────────────────────────
-  const handleSaveEdicao = (vendaAtualizada: VendaPreview) => {
-    if (editandoIdx !== null) {
-      setDadosEditados(prev => {
-        const novos = [...prev]
-        novos[editandoIdx] = vendaAtualizada
-        return novos
-      })
-      setEditandoIdx(null)
-      toast.success('Venda atualizada com sucesso!')
     }
   }
 
@@ -342,80 +374,52 @@ export default function VendasPage() {
     setEtapa('preview')
   }, [])
 
+  
   const toggleItem = (idx: number) => {
-    setSelecionados((prev) => {
+    setSelecionados(prev => {
       const next = new Set(prev)
-      if (next.has(idx)) next.delete(idx); else next.add(idx)
+      if (next.has(idx)) next.delete(idx)
+      else next.add(idx)
       return next
     })
   }
 
   const toggleTodos = () => {
-    const validosIdx = dadosEditados.reduce((acc: number[], d, i) => {
-      if (d.valido) acc.push(i); return acc
-    }, [])
-    if (selecionados.size === validosIdx.length) {
+    if (selecionados.size === dadosEditados.filter(d => d.valido).length) {
       setSelecionados(new Set())
     } else {
-      setSelecionados(new Set(validosIdx))
+      const validos = new Set<number>(
+        dadosEditados.reduce((acc: number[], d, i) => { if (d.valido) acc.push(i); return acc }, [])
+      )
+      setSelecionados(validos)
     }
   }
 
   const removerItem = (idx: number) => {
-    setDadosEditados((prev) => prev.filter((_, i) => i !== idx))
-    setSelecionados((prev) => {
+    setDadosEditados(prev => prev.filter((_, i) => i !== idx))
+    setSelecionados(prev => {
       const next = new Set<number>()
-      prev.forEach((i) => { if (i < idx) next.add(i); else if (i > idx) next.add(i - 1) })
+      prev.forEach(i => {
+        if (i < idx) next.add(i)
+        else if (i > idx) next.add(i - 1)
+      })
       return next
     })
   }
 
-  const handleEnviarContaAzul = async () => {
-    if (!empresaAtiva) { toast.error('Selecione uma empresa primeiro'); return }
-    if (selecionados.size === 0) { toast.error('Selecione ao menos uma venda'); return }
-
-    setEnviandoCA(true)
-    try {
-      const itensParaEnviar = dadosEditados.filter((_, i) => selecionados.has(i))
-      
-      const res = await fetch('/api/gov-br/enviar-servicos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          empresa_id: empresaAtiva.id,
-          vendas: itensParaEnviar
-        }),
+  const handleSaveEdicao = (vendaAtualizada: VendaPreview) => {
+    if (editandoIdx !== null) {
+      setDadosEditados(prev => {
+        const novos = [...prev]
+        novos[editandoIdx] = vendaAtualizada
+        return novos
       })
-      
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erro ao enviar vendas')
-      
-      if (data.sucessos > 0) toast.success(`${data.sucessos} vendas enviadas com sucesso!`)
-      if (data.erros > 0) {
-        toast.error(`${data.erros} vendas com erro. Verifique os logs.`)
-        if (data.detalhesErros && data.detalhesErros.length > 0) {
-          data.detalhesErros.slice(0, 3).forEach((errMsg: string) => {
-            toast.error(errMsg, { duration: 6000 })
-          })
-          if (data.detalhesErros.length > 3) {
-            toast.error(`E mais ${data.detalhesErros.length - 3} erro(s)...`, { duration: 6000 })
-          }
-        }
-      }
-      
-      setEtapa('upload')
-      setResultado(null)
-      setDadosEditados([])
-      setSelecionados(new Set())
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao enviar para o Conta Azul'
-      toast.error(msg)
-    } finally {
-      setEnviandoCA(false)
+      setEditandoIdx(null)
+      toast.success('Venda atualizada com sucesso!')
     }
   }
 
-  // ─── Helpers ─────────────────────────────────────────────────
+  // ─── Métricas e KPIs de NFS-e ────────────────────────────────
   const formatCurrency = (val: number) =>
     val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -428,23 +432,30 @@ export default function VendasPage() {
     } catch { return dt }
   }
 
+  // Calcula faturamento de NFS-e emitidas (não canceladas)
+  const notasAtivasEmitidas = notasEmitidas.filter(n => n.status === 'enviado')
+  const totalFaturadoNfse = notasAtivasEmitidas.reduce((acc, n) => acc + (Number(n.valor_total) || 0), 0)
+  const notasCanceladasCount = notasEmitidas.filter(n => n.status === 'cancelado').length
   const pendenteCount = vendasDatacar.filter(v => v.status === 'pendente').length
 
   // ─── Render ──────────────────────────────────────────────────
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-white flex items-center gap-2">
               <ShoppingCart className="text-brand-500" />
-              Vendas Serviços
+              Vendas Serviços (Emissor NFS-e)
             </h1>
             <span className="px-2 py-0.5 bg-brand-500/20 text-brand-400 text-[10px] font-bold rounded border border-brand-500/30 uppercase tracking-wider">
-              Novo Módulo
+              Gov.br Nacional
             </span>
           </div>
+          <p className="text-dark-400 text-xs mt-0.5">
+            Emissão de Notas Fiscais de Serviços, assinatura A1 ICP-Brasil e gestão de DANFSE.
+          </p>
         </div>
         <div className="flex items-center gap-4">
           <SelectorEmpresa />
@@ -459,60 +470,74 @@ export default function VendasPage() {
         </div>
       </div>
 
-      {/* KPI Cards Superiores */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* 4 CARDS SUPERIORES: KPIS FISCAIS DE NFS-E                      */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Valor Total */}
-        <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/10 rounded-full blur-xl group-hover:bg-cyan-500/20 transition-all pointer-events-none" />
-          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">Valor Total dos Serviços</span>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-white tracking-tight">
-              {formatCurrency(vendasDatacar.reduce((acc, v) => acc + (Number(v.valor_total) || 0), 0))}
-            </span>
-            <span className="text-xs bg-cyan-500/20 text-cyan-400 font-bold px-2 py-0.5 rounded border border-cyan-500/30">
-              {vendasDatacar.length} OS
-            </span>
-          </div>
-        </div>
-
-        {/* Card 2: Selecionados */}
-        <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-xl group-hover:bg-purple-500/20 transition-all pointer-events-none" />
-          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">Serviços Selecionados</span>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-purple-300 tracking-tight">
-              {selecionadosDatacar.size} <span className="text-sm font-semibold text-dark-400">notas</span>
-            </span>
-            <span className="text-xs bg-purple-500/20 text-purple-300 font-bold px-2 py-0.5 rounded border border-purple-500/30">
-              Em Lote
-            </span>
-          </div>
-        </div>
-
-        {/* Card 3: Certificado A1 */}
+        {/* Card 1: Total Faturado em NFS-e */}
         <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition-all pointer-events-none" />
-          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">Certificado Digital A1</span>
-          <div className="mt-2 flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-lg border border-emerald-500/30">
-              <CheckCircle size={14} /> Válido (A1 ICP-Brasil)
+          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">Total Faturado em NFS-e</span>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-black text-white tracking-tight">
+              {formatCurrency(totalFaturadoNfse)}
+            </span>
+            <span className="text-xs bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded border border-emerald-500/30">
+              {notasAtivasEmitidas.length} notas
             </span>
           </div>
         </div>
 
-        {/* Card 4: Ambiente */}
+        {/* Card 2: NFS-e Emitidas com Sucesso */}
         <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-xl group-hover:bg-amber-500/20 transition-all pointer-events-none" />
-          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">Ambiente de Emissão</span>
-          <div className="mt-2 flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 text-amber-300 text-xs font-bold rounded-lg border border-amber-500/30">
-              🧪 Homologação (Testes Gov.br)
+          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-xl group-hover:bg-blue-500/20 transition-all pointer-events-none" />
+          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">NFS-e Autorizadas</span>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-black text-blue-300 tracking-tight">
+              {notasAtivasEmitidas.length} <span className="text-sm font-semibold text-dark-400">emitidas</span>
             </span>
+            <span className="text-xs bg-blue-500/20 text-blue-300 font-bold px-2 py-0.5 rounded border border-blue-500/30">
+              Gov.br OK
+            </span>
+          </div>
+        </div>
+
+        {/* Card 3: NFS-e Canceladas / Pendências */}
+        <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/10 rounded-full blur-xl group-hover:bg-rose-500/20 transition-all pointer-events-none" />
+          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">NFS-e Canceladas</span>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-black text-rose-400 tracking-tight">
+              {notasCanceladasCount} <span className="text-sm font-semibold text-dark-400">canceladas</span>
+            </span>
+            <span className="text-xs bg-rose-500/20 text-rose-400 font-bold px-2 py-0.5 rounded border border-rose-500/30">
+              Status Fisco
+            </span>
+          </div>
+        </div>
+
+        {/* Card 4: Certificado Digital A1 */}
+        <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-xl group-hover:bg-purple-500/20 transition-all pointer-events-none" />
+          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">Certificado Digital A1</span>
+          <div className="mt-2 flex items-center justify-between">
+            {temCertificado ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-lg border border-emerald-500/30">
+                <CheckCircle size={14} /> Válido (ICP-Brasil)
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 text-amber-400 text-xs font-bold rounded-lg border border-amber-500/30">
+                <AlertCircle size={14} /> Não Configurado
+              </span>
+            )}
+            <span className="text-[10px] text-dark-400 font-mono">Homologação</span>
           </div>
         </div>
       </div>
 
-      {/* Sub-abas: Datacar | Planilha */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* 3 SUB-ABAS INTEGRADAS                                          */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
       <div className="flex border-b border-dark-700 gap-0">
         <button
           onClick={() => setSubAba('datacar')}
@@ -523,13 +548,31 @@ export default function VendasPage() {
           }`}
         >
           <Database size={15} />
-          Importadas do Datacar
+          Importadas do Datacar (A Emitir)
           {pendenteCount > 0 && (
             <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full font-bold">
               {pendenteCount}
             </span>
           )}
         </button>
+
+        <button
+          onClick={() => setSubAba('emitidas')}
+          className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all border-b-2 ${
+            subAba === 'emitidas'
+              ? 'border-emerald-400 text-emerald-400 bg-dark-800/40'
+              : 'border-transparent text-dark-400 hover:text-white hover:bg-dark-800/20'
+          }`}
+        >
+          <FileText size={15} />
+          NFS-e Emitidas (Histórico Gov.br)
+          {notasAtivasEmitidas.length > 0 && (
+            <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">
+              {notasAtivasEmitidas.length}
+            </span>
+          )}
+        </button>
+
         <button
           onClick={() => setSubAba('planilha')}
           className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all border-b-2 ${
@@ -544,7 +587,7 @@ export default function VendasPage() {
       </div>
 
       {/* ══════════════════════════════════════════════════════
-          SUB-ABA: IMPORTADAS DO DATACAR
+          SUB-ABA 1: IMPORTADAS DO DATACAR (A EMITIR)
       ══════════════════════════════════════════════════════ */}
       {subAba === 'datacar' && (
         <div className="space-y-4">
@@ -552,42 +595,49 @@ export default function VendasPage() {
             <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-center gap-3">
               <AlertCircle size={18} className="text-yellow-400 flex-shrink-0" />
               <p className="text-yellow-300 text-sm">
-                Selecione uma empresa no menu superior para ver as vendas importadas.
+                Selecione uma empresa no menu superior para ver as ordens de serviços importadas.
               </p>
             </div>
           ) : (
             <>
               {/* Painel de Agendamento Automático */}
               {empresaAtiva.datacar_token && (
-                <PainelAgendamento 
-                  tipo="vendas" 
-                />
-              )}
-
-              {/* Aviso caso Conta Azul Vendas não esteja conectado */}
-              {!empresaAtiva.access_token_conta_azul_vendas && (
-                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in">
-                  <div className="flex items-center gap-2.5">
-                    <AlertCircle size={18} className="text-amber-400 flex-shrink-0" />
-                    <p className="text-amber-200 text-xs">
-                      A loja <strong className="text-white">{empresaAtiva.nome}</strong> não possui integração com o <strong>Conta Azul Vendas</strong> conectada. Conecte para poder enviar vendas e emitir NFS-e.
-                    </p>
-                  </div>
-                  <a
-                    href={`/conectar?empresa_id=${empresaAtiva.id}&modulo=vendas`}
-                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 flex-shrink-0 transition-all shadow-sm"
-                  >
-                    <ExternalLink size={12} />
-                    Conectar CA Vendas
-                  </a>
-                </div>
+                <PainelAgendamento tipo="vendas" />
               )}
 
               {/* Formulário de Busca do Datacar */}
               <div className="bg-dark-800 border border-dark-700 rounded-xl p-5 animate-fade-in">
-                <div className="flex items-center gap-2 mb-4 text-white font-semibold">
-                  <Database size={18} className="text-blue-400" />
-                  <h3>Buscar Vendas do Datacar {empresaAtiva ? `— ${empresaAtiva.nome}` : ''}</h3>
+                <div className="flex items-center justify-between flex-wrap gap-3 mb-4 pb-3 border-b border-dark-700/50">
+                  <div className="flex items-center gap-2 text-white font-semibold">
+                    <Database size={18} className="text-blue-400" />
+                    <h3>Buscar Serviços do Datacar {empresaAtiva ? `— ${empresaAtiva.nome}` : ''}</h3>
+                  </div>
+
+                  {/* Seletor rápido de tipo de itens */}
+                  <div className="flex items-center gap-1 bg-dark-900/80 p-1 rounded-xl border border-dark-700/60">
+                    <button
+                      type="button"
+                      onClick={() => setFiltroTipoItens('tudo')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        filtroTipoItens === 'tudo'
+                          ? 'bg-brand-600 text-white shadow-md'
+                          : 'text-dark-400 hover:text-white'
+                      }`}
+                    >
+                      🛍️ Todos os Itens
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFiltroTipoItens('servicos')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        filtroTipoItens === 'servicos'
+                          ? 'bg-emerald-600 text-white shadow-md'
+                          : 'text-dark-400 hover:text-white'
+                      }`}
+                    >
+                      🔧 Apenas Serviços
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="flex items-end gap-4 flex-wrap">
@@ -650,20 +700,6 @@ export default function VendasPage() {
                     </select>
                   </div>
                   
-                  {/* Filtro Itens a Enviar */}
-                  <div>
-                    <label className="text-xs font-medium mb-1 block text-dark-400">Itens a Enviar:</label>
-                    <select
-                      value={filtroTipoItens}
-                      onChange={(e) => setFiltroTipoItens(e.target.value as any)}
-                      className="bg-dark-900 border border-brand-500/50 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-brand-500/50 outline-none"
-                    >
-                      <option value="tudo">Produtos e Serviços</option>
-                      <option value="produtos">Apenas Produtos</option>
-                      <option value="servicos">Apenas Serviços</option>
-                    </select>
-                  </div>
-                  
                   <div>
                     <label className="text-xs font-medium mb-1 block text-dark-400">Buscar por OS/Pedido:</label>
                     <input
@@ -671,96 +707,20 @@ export default function VendasPage() {
                       placeholder="Ex: 12345"
                       value={numeroOS}
                       onChange={(e) => setNumeroOS(e.target.value)}
-                      className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-32 placeholder:text-dark-600"
+                      className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-32"
                     />
                   </div>
 
+                  {/* Botão Buscar */}
                   <button
-                    onClick={handleBuscarVendasDatacar}
-                    disabled={buscando || !empresaAtiva.datacar_token}
-                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all ml-auto sm:ml-0"
+                    onClick={buscarDatacar}
+                    disabled={buscando}
+                    className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-colors shadow-lg"
                   >
                     {buscando ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
                     {buscando ? 'Buscando...' : 'Buscar'}
                   </button>
                 </div>
-                {!empresaAtiva.datacar_token && (
-                   <p className="text-amber-400 text-xs mt-3">
-                     ⚠️ Credenciais do Datacar não configuradas para esta empresa. Configure em "Empresas".
-                   </p>
-                )}
-              </div>
-
-              {/* ── Seção: Planilha Fiscal (NCM/CEST) ── */}
-              <div className="bg-dark-800/50 border border-dark-700 rounded-xl overflow-hidden">
-                <button
-                  onClick={() => setShowPlanilhaFiscal(!showPlanilhaFiscal)}
-                  className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-dark-300 hover:text-white hover:bg-dark-800/80 transition-all"
-                >
-                  <div className="flex items-center gap-2">
-                    <BookOpen size={15} className="text-amber-400" />
-                    <span>Base Fiscal (NCM / CEST) — Importar Planilha do Fiscal</span>
-                  </div>
-                  {showPlanilhaFiscal
-                    ? <ChevronUp size={14} className="text-dark-500" />
-                    : <ChevronDown size={14} className="text-dark-500" />
-                  }
-                </button>
-
-                {showPlanilhaFiscal && (
-                  <div className="px-4 pb-4 pt-1 border-t border-dark-700/50 animate-fade-in space-y-3">
-                    <p className="text-xs text-dark-400">
-                      Importe a planilha do seu fiscal contendo as colunas <strong className="text-amber-400">DESCRIÇÃO</strong>, <strong className="text-emerald-400">NCM</strong> e <strong className="text-cyan-400">CEST</strong>.
-                      O sistema vai aprender os dados e aplicar automaticamente nas próximas importações do Datacar.
-                    </p>
-
-                    <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-2 px-4 py-2 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 rounded-lg text-amber-300 text-sm font-medium cursor-pointer transition-all">
-                        <FileSpreadsheet size={16} />
-                        {uploadingPlanilha ? 'Importando...' : 'Selecionar Planilha (.xlsx)'}
-                        <input
-                          type="file"
-                          accept=".xlsx,.xls"
-                          className="hidden"
-                          onChange={handleUploadPlanilhaFiscal}
-                          disabled={uploadingPlanilha}
-                        />
-                      </label>
-                      {uploadingPlanilha && <Loader2 size={16} className="animate-spin text-amber-400" />}
-                    </div>
-
-                    {resultadoPlanilha && (
-                      <div className="bg-dark-900/60 rounded-lg p-3 space-y-2 animate-fade-in">
-                        <div className="flex items-center gap-3 text-xs">
-                          <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-medium">
-                            ✓ {resultadoPlanilha.salvos} famílias aprendidas
-                          </span>
-                          {resultadoPlanilha.erros > 0 && (
-                            <span className="px-2 py-0.5 rounded bg-red-500/15 text-red-400 font-medium">
-                              ✗ {resultadoPlanilha.erros} erros
-                            </span>
-                          )}
-                          {resultadoPlanilha.ignorados > 0 && (
-                            <span className="px-2 py-0.5 rounded bg-dark-700 text-dark-400 font-medium">
-                              {resultadoPlanilha.ignorados} linhas ignoradas
-                            </span>
-                          )}
-                          <span className="text-dark-500">
-                            {resultadoPlanilha.totalLinhas} linhas na planilha
-                          </span>
-                        </div>
-                        {resultadoPlanilha.exemplos.length > 0 && (
-                          <div className="text-[10px] text-dark-400 space-y-0.5">
-                            <p className="text-dark-300 font-semibold">Exemplos aprendidos:</p>
-                            {resultadoPlanilha.exemplos.map((ex, i) => (
-                              <p key={i} className="font-mono">• {ex}</p>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* Loading */}
@@ -775,7 +735,7 @@ export default function VendasPage() {
                 <div className="bg-dark-800 border border-dark-700 rounded-xl p-12 text-center">
                   <Database size={40} className="text-dark-600 mx-auto mb-3" />
                   <p className="text-dark-400 text-sm font-medium">
-                    Faça uma busca para ver as vendas do Datacar.
+                    Faça uma busca para ver as ordens de serviços do Datacar.
                   </p>
                 </div>
               )}
@@ -788,7 +748,7 @@ export default function VendasPage() {
                     <button
                       onClick={() => setShowPreviewEmissao(true)}
                       disabled={enviandoDatacar}
-                      className="flex items-center gap-2 px-5 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white rounded-lg text-sm font-bold transition-all shadow-lg"
+                      className="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-sm font-bold transition-all shadow-lg"
                     >
                       {enviandoDatacar ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                       {enviandoDatacar ? 'Aguarde...' : `⚡ Pré-visualizar & Emitir NFS-e (${selecionadosDatacar.size})`}
@@ -814,8 +774,8 @@ export default function VendasPage() {
                     <span className="flex-1">CLIENTE / OS</span>
                     <span className="w-28 text-right">VALOR</span>
                     <span className="w-24 text-right">DATA</span>
-                    <span className="w-20 text-center">STATUS</span>
-                    <span className="w-16"></span>
+                    <span className="w-24 text-center">STATUS</span>
+                    <span className="w-24 text-right">AÇÕES</span>
                   </div>
 
                   <div className="max-h-[520px] overflow-y-auto divide-y divide-dark-700/50">
@@ -833,10 +793,6 @@ export default function VendasPage() {
                               onClick={e => e.stopPropagation()}
                               className="accent-blue-500"
                             />
-                          ) : venda.status === 'duplicidade' ? (
-                            <div className="text-amber-500 flex-shrink-0 ml-0.5" title="Venda já consta no Conta Azul">
-                              <AlertCircle size={14} />
-                            </div>
                           ) : (
                             <CheckCircle size={14} className="text-emerald-400 flex-shrink-0 ml-0.5" />
                           )}
@@ -850,27 +806,25 @@ export default function VendasPage() {
                           <span className="text-dark-400 text-xs w-24 text-right tabular-nums">
                             {formatDate(venda.data_venda)}
                           </span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-20 text-center ${
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-24 text-center ${
                             venda.status === 'enviado'
-                              ? 'bg-emerald-500/15 text-emerald-400'
-                              : venda.status === 'duplicidade'
-                                ? 'bg-amber-500/15 text-amber-400'
-                                : 'bg-yellow-500/15 text-yellow-400'
+                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                              : 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30'
                           }`}>
-                            {venda.status === 'enviado' ? 'Enviado Gov.br' : venda.status === 'duplicidade' ? 'Duplicada' : venda.status === 'alerta_cliente' ? 'Cliente no CA' : 'Pendente'}
+                            {venda.status === 'enviado' ? '✓ Emitida Gov.br' : 'Pendente'}
                           </span>
-                          <div className="flex items-center justify-end gap-1">
+                          <div className="flex items-center justify-end gap-1 w-24">
                             <button
                               onClick={(e) => { e.stopPropagation(); setEditandoDatacarId(venda.id) }}
-                              className="text-[10px] font-bold text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 px-2 py-1 rounded transition-colors mr-1"
-                              title="Analisar e Editar Venda"
+                              className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-1 rounded transition-colors mr-1"
+                              title="Analisar e Editar NFS-e"
                             >
                               ANALISAR
                             </button>
                             <button
                               onClick={e => { e.stopPropagation(); removerVendaDatacar(venda.id) }}
                               className="p-1 text-dark-600 hover:text-red-400 transition-colors"
-                              title="Remover do Card"
+                              title="Remover"
                             >
                               <Trash2 size={13} />
                             </button>
@@ -890,10 +844,10 @@ export default function VendasPage() {
                       <button
                         onClick={() => setShowPreviewEmissao(true)}
                         disabled={enviandoDatacar}
-                        className="flex items-center gap-2 px-5 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white rounded-lg text-sm font-bold transition-all"
+                        className="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-sm font-bold transition-all shadow-lg"
                       >
-                        {enviandoDatacar ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                        {enviandoDatacar ? 'Aguarde...' : 'Analisar e Editar Vendas'}
+                        {enviandoDatacar ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                        {enviandoDatacar ? 'Aguarde...' : `⚡ Pré-visualizar & Emitir NFS-e (${selecionadosDatacar.size})`}
                       </button>
                     )}
                   </div>
@@ -905,72 +859,183 @@ export default function VendasPage() {
       )}
 
       {/* ══════════════════════════════════════════════════════
-          SUB-ABA: UPLOAD DE PLANILHA
+          SUB-ABA 2: NFS-E EMITIDAS (HISTÓRICO GOV.BR)
       ══════════════════════════════════════════════════════ */}
-      {subAba === 'planilha' && (
-        <div className="space-y-4">
-          {/* Stepper */}
-          <div className="flex items-center gap-2">
-            {(['upload', 'preview'] as Etapa[]).map((e, i) => {
-              const labels = ['1. Upload da Planilha', '2. Revisão e Envio']
-              const isActive = etapa === e
-              const isDone = ['upload', 'preview'].indexOf(etapa) > i
-              return (
-                <div key={e} className="flex items-center gap-2">
-                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                    isActive ? 'bg-brand-600 text-white' :
-                    isDone ? 'bg-green-600/20 text-green-400' :
-                    'bg-dark-800 text-dark-500'
-                  }`}>
-                    {isDone && <CheckCircle size={12} />}
-                    {labels[i]}
-                  </div>
-                  {i < 1 && <div className="w-8 h-px bg-dark-700" />}
-                </div>
-              )
-            })}
+      {subAba === 'emitidas' && (
+        <div className="space-y-4 animate-fade-in">
+          {/* Barra de Filtros do Histórico */}
+          <div className="bg-dark-800 border border-dark-700 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3 flex-1 min-w-[280px]">
+              <div className="relative flex-1">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+                <input
+                  type="text"
+                  placeholder="Pesquisar por cliente, OS, CPF/CNPJ ou número de nota..."
+                  value={buscaEmitidas}
+                  onChange={e => setBuscaEmitidas(e.target.value)}
+                  className="w-full bg-dark-900 border border-dark-600 rounded-lg pl-9 pr-3 py-2 text-white text-xs outline-none focus:border-emerald-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 text-xs text-dark-400">
+                <span>Período:</span>
+                <input
+                  type="date"
+                  value={dtIniEmitidas}
+                  onChange={e => setDtIniEmitidas(e.target.value)}
+                  className="bg-dark-900 border border-dark-600 rounded-lg px-2.5 py-1.5 text-white text-xs outline-none"
+                />
+                <span>até</span>
+                <input
+                  type="date"
+                  value={dtFimEmitidas}
+                  onChange={e => setDtFimEmitidas(e.target.value)}
+                  className="bg-dark-900 border border-dark-600 rounded-lg px-2.5 py-1.5 text-white text-xs outline-none"
+                />
+              </div>
+
+              <button
+                onClick={carregarNotasEmitidas}
+                disabled={carregandoNotas}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-white rounded-lg text-xs font-semibold transition-colors"
+              >
+                <RefreshCw size={13} className={carregandoNotas ? 'animate-spin' : ''} />
+                Atualizar
+              </button>
+            </div>
           </div>
 
-          {/* ETAPA 1: Upload */}
-          {etapa === 'upload' && (
-            <div className="space-y-4">
-              {!empresaAtiva ? (
-                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-center gap-3">
-                  <AlertCircle size={18} className="text-yellow-400 flex-shrink-0" />
-                  <p className="text-yellow-300 text-sm">
-                    Selecione uma empresa no menu superior antes de importar vendas.
-                  </p>
-                </div>
-              ) : null}
-              <DropZoneVendas onResultado={handleResultado} />
-              <div className="bg-dark-800/50 border border-dark-700 rounded-xl p-4">
-                <p className="text-sm text-dark-400 font-medium mb-2">💡 Formatos suportados e regras de extração:</p>
-                <ul className="text-xs text-dark-500 space-y-1">
-                  <li>• <strong className="text-dark-300">Excel (.xlsx)</strong> — Planilha com layout de Vendas (OS/PED, CLIENTE, ENCERR, Pagamentos, Itens)</li>
-                  <li>• Serão importados os itens classificados como produto <strong className="text-brand-400">("P")</strong> na coluna TIPO.</li>
-                  <li>• O <strong className="text-dark-300">Cliente</strong> será vinculado via Conta Azul ou criado se não existir.</li>
-                </ul>
+          {/* Tabela de Histórico de NFS-e */}
+          {carregandoNotas ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 size={32} className="animate-spin text-emerald-400" />
+            </div>
+          ) : notasEmitidas.length === 0 ? (
+            <div className="bg-dark-800 border border-dark-700 rounded-xl p-12 text-center">
+              <FileText size={40} className="text-dark-600 mx-auto mb-3" />
+              <h3 className="text-white font-bold text-sm">Nenhuma NFS-e encontrada</h3>
+              <p className="text-dark-400 text-xs mt-1">
+                As notas fiscais de serviços emitidas via Gov.br aparecerão aqui automaticamente.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden shadow-lg">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-dark-900/60 border-b border-dark-700 text-dark-400 font-bold uppercase tracking-wider">
+                      <th className="py-3 px-4">NFS-e / OS</th>
+                      <th className="py-3 px-4">Cliente / Tomador</th>
+                      <th className="py-3 px-4">Data Emissão</th>
+                      <th className="py-3 px-4 text-right">Valor Total</th>
+                      <th className="py-3 px-4 text-center">Situação</th>
+                      <th className="py-3 px-4 text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-dark-700/50">
+                    {notasEmitidas.map((nota) => {
+                      const isCancelada = nota.status === 'cancelado'
+                      return (
+                        <tr key={nota.id} className="hover:bg-dark-750/30 transition-colors">
+                          <td className="py-3 px-4 font-mono font-bold text-white">
+                            <span className="text-emerald-400">NFS-e #{nota.os_numero}</span>
+                          </td>
+                          <td className="py-3 px-4 font-medium text-white">
+                            {nota.cliente}
+                            {nota.metadata?.cliente_cpf_cnpj && (
+                              <span className="block text-[10px] text-dark-400 font-mono">
+                                {nota.metadata.cliente_cpf_cnpj}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-dark-300 font-mono">
+                            {formatDate(nota.data_venda)}
+                          </td>
+                          <td className="py-3 px-4 text-right font-bold text-white tabular-nums">
+                            {formatCurrency(nota.valor_total)}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                              isCancelada 
+                                ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
+                                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            }`}>
+                              {isCancelada ? '● CANCELADA' : '● AUTORIZADA'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => setNotaVisualizar(nota)}
+                                className="px-2.5 py-1 bg-dark-700 hover:bg-dark-600 text-white rounded text-xs font-semibold flex items-center gap-1 transition-colors"
+                                title="Visualizar Espelho Oficial DANFSE"
+                              >
+                                <Eye size={13} />
+                                Espelho
+                              </button>
+                              
+                              {!isCancelada && (
+                                <button
+                                  onClick={() => setConfirmandoCancelar(nota)}
+                                  className="p-1 text-dark-500 hover:text-rose-400 transition-colors"
+                                  title="Cancelar NFS-e"
+                                >
+                                  <XCircle size={15} />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
+        </div>
+      )}
 
-          {/* ETAPA 2: Preview */}
-          {etapa === 'preview' && resultado && (
-            <div className="space-y-4">
-              {/* Resumo */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-dark-800 border border-dark-700 rounded-xl p-4">
-                  <p className="text-dark-400 text-xs mb-1">Total de Vendas</p>
-                  <p className="text-white text-2xl font-bold">{dadosEditados.length}</p>
+      {/* ══════════════════════════════════════════════════════
+          SUB-ABA 3: UPLOAD DE PLANILHA
+      ══════════════════════════════════════════════════════ */}
+      {subAba === 'planilha' && (
+        <div className="space-y-6 animate-fade-in">
+          {etapa === 'upload' ? (
+            <div className="space-y-6">
+              <DropZoneVendas onResultado={handleResultado} />
+              
+              <div className="bg-dark-800/40 border border-dark-700/50 rounded-2xl p-5">
+                <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowPlanilhaFiscal(!showPlanilhaFiscal)}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                      <FileSpreadsheet size={18} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-white">Importar Base Fiscal de Serviços (NBS / cTribNac)</h4>
+                      <p className="text-xs text-dark-400">Vincule códigos tributários a partir de planilhas contábeis.</p>
+                    </div>
+                  </div>
+                  {showPlanilhaFiscal ? <ChevronUp size={16} className="text-dark-400" /> : <ChevronDown size={16} className="text-dark-400" />}
                 </div>
-                <div className="bg-dark-800 border border-green-500/20 rounded-xl p-4">
-                  <p className="text-dark-400 text-xs mb-1">Válidas</p>
-                  <p className="text-green-400 text-2xl font-bold">
-                    {dadosEditados.filter(d => d.valido).length}
-                  </p>
-                </div>
+
+                {showPlanilhaFiscal && (
+                  <div className="mt-4 pt-4 border-t border-dark-700 space-y-3">
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleUploadPlanilhaFiscal}
+                      disabled={uploadingPlanilha}
+                      className="block w-full text-xs text-dark-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-500 cursor-pointer"
+                    />
+                  </div>
+                )}
               </div>
-
+            </div>
+          ) : (
+            <div className="space-y-4">
               <TabelaVendasPreview
                 dados={dadosEditados}
                 selecionados={selecionados}
@@ -979,18 +1044,22 @@ export default function VendasPage() {
                 onRemover={removerItem}
                 onEditar={(idx) => setEditandoIdx(idx)}
               />
-
-              <div className="flex items-center justify-between p-4 bg-dark-800 border border-dark-700 rounded-xl mt-4">
-                <p className="text-dark-300 text-sm">
-                  <strong className="text-white">{selecionados.size}</strong> vendas selecionadas para envio.
-                </p>
+              <div className="flex items-center justify-between bg-dark-850 p-4 rounded-xl border border-dark-700">
                 <button
-                  onClick={handleEnviarContaAzul}
-                  disabled={enviandoCA || selecionados.size === 0 || !empresaAtiva}
-                  className="bg-brand-600 hover:bg-brand-500 disabled:opacity-40 text-white px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all shadow-lg"
+                  type="button"
+                  onClick={() => { setEtapa('upload'); setDadosEditados([]); setSelecionados(new Set()) }}
+                  className="px-4 py-2 text-sm text-dark-300 hover:text-white bg-dark-800 rounded-lg border border-dark-700 hover:border-dark-600 transition-colors"
                 >
-                  {enviandoCA ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                  {enviandoCA ? 'Enviando...' : 'Criar Vendas no Conta Azul'}
+                  Cancelar / Nova Planilha
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    toast.error('Para emitir NFS-e de serviços, utilize a aba de Importadas do Datacar.')
+                  }}
+                  className="px-6 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-medium rounded-xl transition-colors shadow-lg shadow-brand-600/20"
+                >
+                  Importar {selecionados.size} Vendas
                 </button>
               </div>
             </div>
@@ -998,71 +1067,204 @@ export default function VendasPage() {
         </div>
       )}
 
-      {/* Modal Edição (planilha) */}
-      {editandoIdx !== null && (
-        <ModalEditarVenda
-          venda={dadosEditados[editandoIdx]}
-          onSave={handleSaveEdicao}
-          onClose={() => setEditandoIdx(null)}
-          empresaId={empresaAtiva?.id}
-        />
-      )}
-
-      {/* Modal Edição (Datacar) */}
-      {editandoDatacarId !== null && (
-        <ModalEditarDatacar
-          vendaId={editandoDatacarId}
-          venda={vendasDatacar.find(v => v.id === editandoDatacarId)}
-          onClose={() => setEditandoDatacarId(null)}
-          onSaveSuccess={(vendaAtualizada) => {
-            setVendasDatacar(prev => prev.map(v => v.id === vendaAtualizada.id ? { ...vendaAtualizada, analisado: true } : v))
-            // Auto-seleciona a venda para envio após analisar
-            setSelecionadosDatacar(prev => new Set(prev).add(vendaAtualizada.id))
-          }}
-        />
-      )}
-
-      {expandidoDatacar !== null && (
-        <ModalDetalheVendaDatacar
-          venda={vendasDatacar.find(v => v.id === expandidoDatacar)}
-          onClose={() => setExpandidoDatacar(null)}
-          onEdit={() => {
-            setEditandoDatacarId(expandidoDatacar)
-            setExpandidoDatacar(null)
-          }}
-          onForcarEnvio={() => {
-            setVendasDatacar(prev => prev.map(v => v.id === expandidoDatacar ? { ...v, status: 'pendente' } : v))
-            setSelecionadosDatacar(prev => new Set(prev).add(expandidoDatacar))
-            setExpandidoDatacar(null)
-          }}
-        />
-      )}
-
-      {/* Modal Preview Emissão */}
-      {showPreviewEmissao && empresaAtiva && (
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* MODAL: PRÉ-VISUALIZAÇÃO & EMISSÃO EM 4 ETAPAS                  */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {showPreviewEmissao && (
         <ModalPreviewEmissao
           vendas={vendasDatacar.filter(v => selecionadosDatacar.has(v.id))}
-          empresaId={empresaAtiva.id}
+          empresaId={empresaAtiva?.id || ''}
           aliquotaSimplesDefault={aliquotaSimples}
           aliquotaIssqnDefault={aliquotaIssqn}
           onClose={() => setShowPreviewEmissao(false)}
-          onConfirm={async (vendasEditadas) => {
-            setShowPreviewEmissao(false)
-            // Aqui substituímos as vendas locais pelas editadas no modal
-            setVendasDatacar(prev => {
-              const prevCopy = [...prev]
-              vendasEditadas.forEach(ve => {
-                const idx = prevCopy.findIndex(p => p.id === ve.id)
-                if (idx !== -1) prevCopy[idx] = ve
-              })
-              return prevCopy
-            })
-            setTimeout(() => {
-              handleEnviarDatacarParaCA(vendasEditadas)
-            }, 100)
-          }}
+          onConfirm={handleConfirmarEmissaoLote}
           enviando={enviandoDatacar}
         />
+      )}
+
+      {/* MODAL: EDITAR OS INDIVIDUAL DO DATACAR */}
+      {editandoDatacarId && (
+        <ModalEditarDatacar
+          vendaId={editandoDatacarId}
+          venda={vendasDatacar.find(v => v.id === editandoDatacarId)!}
+          onClose={() => setEditandoDatacarId(null)}
+          onSaveSuccess={(vendaAtualizada: any) => {
+            setVendasDatacar(prev => prev.map(v => v.id === vendaAtualizada.id ? vendaAtualizada : v))
+            setEditandoDatacarId(null)
+            toast.success('Venda atualizada com sucesso!')
+          }}
+        />
+      )}
+
+      {/* MODAL: DETALHES DE ITENS DA OS */}
+      {detalheVendaDatacar && (
+        <ModalDetalheVendaDatacar
+          venda={detalheVendaDatacar}
+          onClose={() => setDetalheVendaDatacar(null)}
+          onEdit={() => {
+            setEditandoDatacarId(detalheVendaDatacar.id)
+            setDetalheVendaDatacar(null)
+          }}
+        />
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* MODAL: ESPELHO OFICIAL DANFSE (GOV.BR NACIONAL)                */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {notaVisualizar && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
+          <div className="bg-dark-900 border border-dark-700 rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto">
+            {/* Header do Modal */}
+            <div className="px-6 py-4 border-b border-dark-700 flex items-center justify-between bg-dark-850">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    DANFSE — Documento Auxiliar da NFS-e
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                      Gov.br Nacional
+                    </span>
+                  </h3>
+                  <p className="text-xs text-dark-400 font-mono">
+                    NFS-e #{notaVisualizar.os_numero} · {notaVisualizar.cliente}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
+                >
+                  <Printer size={14} /> Imprimir
+                </button>
+                <button
+                  onClick={() => setNotaVisualizar(null)}
+                  className="w-8 h-8 rounded-lg bg-dark-800 text-dark-400 hover:text-white flex items-center justify-center hover:bg-dark-700 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Espelho Estilizado da NFS-e */}
+            <div className="p-6 overflow-y-auto bg-gray-100 text-gray-900 font-sans text-xs">
+              <div className="border border-gray-300 bg-white p-6 rounded-lg shadow-sm space-y-4">
+                {/* Cabeçalho da Nota */}
+                <div className="flex items-center justify-between border-b pb-4 border-gray-300">
+                  <div>
+                    <h2 className="text-lg font-black tracking-tight text-gray-900">
+                      NFS-e — NOTA FISCAL DE SERVIÇOS ELETRÔNICA
+                    </h2>
+                    <p className="text-[11px] text-gray-600 font-medium">
+                      Padrão Nacional de Emissão de Serviços · Receita Federal do Brasil
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gray-500">Número da Nota</p>
+                    <p className="text-base font-black font-mono text-emerald-700">#{notaVisualizar.os_numero}</p>
+                  </div>
+                </div>
+
+                {/* Prestador e Tomador */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-b pb-4 border-gray-300">
+                  <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                    <p className="font-bold text-[11px] text-gray-700 uppercase mb-1">PRESTADOR DE SERVIÇOS (EMITENTE)</p>
+                    <p className="font-bold text-sm text-gray-900">{empresaAtiva?.nome}</p>
+                    <p className="text-gray-600 font-mono">CNPJ: {empresaAtiva?.cnpj || 'Não informado'}</p>
+                    <p className="text-gray-600">Belo Horizonte / MG</p>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                    <p className="font-bold text-[11px] text-gray-700 uppercase mb-1">TOMADOR DE SERVIÇOS (CLIENTE)</p>
+                    <p className="font-bold text-sm text-gray-900">{notaVisualizar.cliente}</p>
+                    <p className="text-gray-600 font-mono">
+                      CPF/CNPJ: {notaVisualizar.metadata?.cliente_cpf_cnpj || '000.000.000-00'}
+                    </p>
+                    <p className="text-gray-600">Consumidor Final</p>
+                  </div>
+                </div>
+
+                {/* Descrição dos Serviços */}
+                <div className="border-b pb-4 border-gray-300">
+                  <p className="font-bold text-[11px] text-gray-700 uppercase mb-2">DISCRIMINAÇÃO DOS SERVIÇOS PRESTADOS</p>
+                  <div className="bg-gray-50 p-3 rounded border border-gray-200 font-mono text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">
+                    {Array.isArray(notaVisualizar.metadata?.itens) && notaVisualizar.metadata.itens.length > 0 ? (
+                      notaVisualizar.metadata.itens.map((it: any, i: number) => (
+                        <div key={i} className="flex justify-between py-0.5">
+                          <span>{it.quantidade || 1}x {it.descricao}</span>
+                          <span className="font-bold">{formatCurrency(Number(it.valor_unitario || it.valor_total || 0))}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p>Serviços automotivos e manutenção preventiva (OS #{notaVisualizar.os_numero}).</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Dados Tributários & Totais */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50 p-3 rounded border border-gray-200">
+                  <div>
+                    <p className="text-[10px] text-gray-500 uppercase font-bold">Cód. Tributação (cTribNac)</p>
+                    <p className="font-mono font-bold text-gray-800">14.01.01</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-500 uppercase font-bold">Alíquota Simples / ISS</p>
+                    <p className="font-mono font-bold text-gray-800">{aliquotaSimples}%</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-500 uppercase font-bold">Situação</p>
+                    <p className="font-bold text-emerald-700">
+                      {notaVisualizar.status === 'cancelado' ? 'Cancelada' : 'Autorizada'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] text-gray-500 uppercase font-bold">Valor Total</p>
+                    <p className="text-base font-black text-emerald-700">
+                      {formatCurrency(notaVisualizar.valor_total)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* MODAL: CONFIRMAÇÃO DE CANCELAMENTO                             */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {confirmandoCancelar && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-dark-800 border border-dark-700 rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4">
+            <div className="w-14 h-14 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center justify-center text-rose-400 mx-auto">
+              <AlertTriangle size={28} />
+            </div>
+            <div className="text-center">
+              <h3 className="text-base font-bold text-white">Cancelar NFS-e #{confirmandoCancelar.os_numero}?</h3>
+              <p className="text-xs text-dark-400 mt-1">
+                A nota do cliente <strong className="text-white">{confirmandoCancelar.cliente}</strong> no valor de <strong className="text-white">{formatCurrency(confirmandoCancelar.valor_total)}</strong> será marcada como cancelada.
+              </p>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setConfirmandoCancelar(null)}
+                className="flex-1 bg-dark-700 hover:bg-dark-600 text-white font-bold py-2.5 rounded-xl text-xs transition-colors"
+              >
+                Voltar
+              </button>
+              <button
+                onClick={() => handleCancelarNota(confirmandoCancelar)}
+                disabled={cancelando}
+                className="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors shadow-lg"
+              >
+                {cancelando ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

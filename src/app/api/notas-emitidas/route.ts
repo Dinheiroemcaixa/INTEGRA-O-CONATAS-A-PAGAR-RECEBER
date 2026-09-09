@@ -10,7 +10,7 @@ function getSupabaseAdmin() {
   )
 }
 
-// ─── GET: Buscar notas emitidas ─────────────────────────────────────────────
+// ─── GET: Buscar notas emitidas (Produtos via Conta Azul ou Serviços via Gov.br) ───
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
@@ -24,79 +24,125 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'empresa_id obrigatorio' }, { status: 400 })
     }
 
-    const { getValidToken } = await import('@/lib/conta-azul/token-manager')
-
-    // 1. Obter Token Válido (priorizando o módulo correto e com fallback seguro)
-    let accessToken: string | null = null
-    let moduloUsado = tipo === 'produtos' ? 'vendas' : 'financeiro'
-
-    try {
-      const tokenRes = await getValidToken(empresa_id, tipo === 'produtos' ? 'vendas' : 'financeiro')
-      accessToken = tokenRes.accessToken
-    } catch (ePrimeiro) {
-      try {
-        // Fallback para o outro módulo (caso a empresa use uma única conta para tudo)
-        const fallbackModulo = tipo === 'produtos' ? 'financeiro' : 'vendas'
-        const tokenRes = await getValidToken(empresa_id, fallbackModulo)
-        accessToken = tokenRes.accessToken
-        moduloUsado = fallbackModulo
-      } catch (eSegundo: any) {
-        return NextResponse.json({ 
-          error: eSegundo.message || 'Empresa nao conectada ao Conta Azul. Conecte a conta nas configuracoes de Empresas.' 
-        }, { status: 401 })
-      }
-    }
-
-    const CA_BASE = 'https://api-v2.contaazul.com/v1'
+    const supabase = getSupabaseAdmin()
     let vendasFormatadas: any[] = []
 
-    // Formatar datas obrigatorias YYYY-MM-DD
-    const hojeStr = new Date().toISOString().slice(0, 10)
-    const trintaDiasAtras = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
-    const dtInicial = data_inicio ? data_inicio.slice(0, 10) : trintaDiasAtras
-    const dtFinal = data_fim ? data_fim.slice(0, 10) : hojeStr
+    // ────────────────────────────────────────────────────────
+    // ABA SERVIÇOS: Consulta DIRETA no Supabase (Gov.br / Emissor Nacional)
+    // ────────────────────────────────────────────────────────
+    if (tipo === 'servicos') {
+      let query = supabase
+        .from('vendas_importadas')
+        .select('*')
+        .eq('empresa_id', empresa_id)
+        .in('status', ['enviado', 'cancelado'])
+        .order('updated_at', { ascending: false })
+
+      if (data_inicio) query = query.gte('data_venda', data_inicio)
+      if (data_fim) query = query.lte('data_venda', data_fim)
+
+      const { data: vendasServico, error: errServ } = await query
+
+      if (errServ) {
+        console.error('[notas-emitidas] Erro ao buscar vendas_importadas:', errServ)
+        throw errServ
+      }
+
+      let vendas = vendasServico || []
+      if (busca) {
+        const b = busca.toLowerCase()
+        vendas = vendas.filter((v: any) => {
+          const nomeCliente = (v.cliente || '').toLowerCase()
+          const numOS = String(v.os_numero || '')
+          const doc = String(v.dados_datacar?.cliente_cpf_cnpj || '')
+          const numNfse = String(v.dados_datacar?.numero_nfse || v.conta_azul_id || '')
+          return nomeCliente.includes(b) || numOS.includes(b) || doc.includes(b) || numNfse.includes(b)
+        })
+      }
+
+      vendasFormatadas = vendas.map((v: any) => ({
+        id: v.id,
+        cliente: v.cliente,
+        os_numero: v.os_numero || 'S/N',
+        data_venda: v.data_venda,
+        valor_total: Number(v.valor_total) || 0,
+        status: v.status,
+        erro_mensagem: v.erro_mensagem || (v.status === 'cancelado' ? 'NFS-e Cancelada' : 'NFS-e Emitida via Gov.br'),
+        conta_azul_id: v.conta_azul_id || v.dados_datacar?.numero_nfse || v.os_numero,
+        updated_at: v.updated_at || new Date().toISOString(),
+        created_at: v.created_at || new Date().toISOString(),
+        dados_datacar: v.dados_datacar || {},
+        itens: v.itens || [],
+        metadata: {
+          numero_nfse: v.dados_datacar?.numero_nfse || v.conta_azul_id || v.os_numero,
+          chave_acesso: v.dados_datacar?.chave_acesso || null,
+          cliente_cpf_cnpj: v.dados_datacar?.cliente_cpf_cnpj || null,
+          dados_dps: v.dados_datacar?.dados_dps || null,
+          fiscal: v.dados_datacar?.fiscal || null,
+          itens: v.itens || []
+        }
+      }))
+
+      return NextResponse.json({ notas: vendasFormatadas })
+    }
 
     // ────────────────────────────────────────────────────────
-    // ABA PRODUTOS: /v1/notas-fiscais (Conforme documentacao oficial)
+    // ABA PRODUTOS: Consulta via API Conta Azul
     // ────────────────────────────────────────────────────────
     if (tipo === 'produtos') {
+      const { getValidToken } = await import('@/lib/conta-azul/token-manager')
+
+      let accessToken: string
+      try {
+        const tokenRes = await getValidToken(empresa_id, 'vendas')
+        accessToken = tokenRes.accessToken
+      } catch {
+        try {
+          const tokenResFin = await getValidToken(empresa_id, 'financeiro')
+          accessToken = tokenResFin.accessToken
+        } catch {
+          return NextResponse.json({ 
+            notas: [], 
+            aviso: 'Empresa nao conectada ao Conta Azul.' 
+          })
+        }
+      }
+
+      const CA_BASE = 'https://api-v2.contaazul.com/v1'
+
+      const hoje = new Date()
+      const trintaDiasAtras = new Date()
+      trintaDiasAtras.setDate(hoje.getDate() - 30)
+
+      const dtInicial = data_inicio || trintaDiasAtras.toISOString().split('T')[0]
+      const dtFinal = data_fim || hoje.toISOString().split('T')[0]
+
       let todasNotas: any[] = []
       let pagina = 1
-      let totalPaginas = 1
-      let erroCA: string | null = null
+      const tamanhoPagina = 50
+      let erroCA = null
 
-      while (pagina <= totalPaginas && pagina <= 10) {
-        const url = CA_BASE + '/notas-fiscais?data_inicial=' + dtInicial + '&data_final=' + dtFinal + '&pagina=' + pagina + '&tamanho_pagina=100'
-        console.log('[notas-emitidas] Buscando NF-e de Produtos pag ' + pagina + ' (' + moduloUsado + '): ' + url)
-
-        const resCa = await fetch(url, { 
-          headers: { 'Authorization': 'Bearer ' + accessToken } 
+      while (pagina <= 5) {
+        const urlVendas = `${CA_BASE}/vendas?tamanho_pagina=${tamanhoPagina}&pagina=${pagina}&data_emissao_de=${dtInicial}&data_emissao_ate=${dtFinal}`
+        const resCa = await fetch(urlVendas, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
         })
 
         if (!resCa.ok) {
-          const errTxt = await resCa.text().catch(() => '')
-          console.error('[notas-emitidas] Erro CA Produtos pag ' + pagina + ':', resCa.status, errTxt)
-          if (pagina === 1) {
-            erroCA = 'Conta Azul (' + resCa.status + '): ' + errTxt.substring(0, 200)
-          }
+          const txt = await resCa.text()
+          console.error(`[notas-emitidas] Erro CA Produtos pagina ${pagina}:`, resCa.status, txt)
+          erroCA = `Erro ${resCa.status}: ${txt}`
           break
         }
 
         const dataCa = await resCa.json()
-        const itens = dataCa.itens || dataCa.items || (Array.isArray(dataCa) ? dataCa : [])
-        todasNotas.push(...itens)
+        const itensDaPagina = dataCa.itens || dataCa.items || (Array.isArray(dataCa) ? dataCa : [])
 
-        if (dataCa.paginacao && typeof dataCa.paginacao.total_paginas === 'number') {
-          totalPaginas = dataCa.paginacao.total_paginas
-        } else if (itens.length < 100) {
-          break
-        }
+        if (itensDaPagina.length === 0) break
+        todasNotas.push(...itensDaPagina)
 
+        if (itensDaPagina.length < tamanhoPagina) break
         pagina++
-      }
-
-      if (erroCA && todasNotas.length === 0) {
-        console.warn('[notas-emitidas] Retornando lista vazia devido a erro da API Conta Azul:', erroCA)
       }
 
       let notasFiltradas = todasNotas
@@ -127,7 +173,7 @@ export async function GET(req: NextRequest) {
           data_venda: dataEmissao,
           valor_total: valorTotal,
           status: isCancelado ? 'cancelado' : 'enviado',
-          erro_mensagem: v.chave_acesso ? 'Chave: ' + v.chave_acesso : 'Sincronizado do Conta Azul (NF-e)',
+          erro_mensagem: v.chave_acesso ? `Chave: ${v.chave_acesso}` : 'Sincronizado do Conta Azul (NF-e)',
           conta_azul_id: v.id || numNota,
           updated_at: dataEmissao || new Date().toISOString(),
           created_at: dataEmissao || new Date().toISOString(),
@@ -144,79 +190,11 @@ export async function GET(req: NextRequest) {
           }
         }
       })
+
+      return NextResponse.json({ notas: vendasFormatadas })
     }
 
-    // ────────────────────────────────────────────────────────
-    // ABA SERVIÇOS: /v1/notas-fiscais-servico
-    // ────────────────────────────────────────────────────────
-    if (tipo === 'servicos') {
-      const dIni = new Date(dtInicial + 'T00:00:00Z')
-      const dFim = new Date(dtFinal + 'T23:59:59Z')
-      
-      const chunks: { inicio: string, fim: string }[] = []
-      let atual = new Date(dIni)
-      
-      while (atual <= dFim) {
-        let chunkFim = new Date(atual)
-        chunkFim.setDate(chunkFim.getDate() + 14)
-        if (chunkFim > dFim) chunkFim = new Date(dFim)
-        
-        chunks.push({
-          inicio: atual.toISOString().split('T')[0],
-          fim: chunkFim.toISOString().split('T')[0]
-        })
-        
-        atual.setDate(atual.getDate() + 15)
-      }
-
-      let todasVendasServico: any[] = []
-      let erroCA = null
-
-      const fetchPromises = chunks.map(async chunk => {
-        const url = CA_BASE + '/notas-fiscais-servico?tamanho_pagina=100&data_competencia_de=' + chunk.inicio + '&data_competencia_ate=' + chunk.fim
-        console.log('[notas-emitidas] Buscando notas fiscais de SERVICO:', url)
-        const resCa = await fetch(url, { headers: { 'Authorization': 'Bearer ' + accessToken } })
-        
-        if (resCa.ok) {
-          const dataCa = await resCa.json()
-          return dataCa.itens || dataCa.items || []
-        } else {
-          const txt = await resCa.text()
-          console.error('[notas-emitidas] Erro CA Servicos chunk ' + chunk.inicio + '-' + chunk.fim + ':', resCa.status, txt)
-          erroCA = 'Erro ' + resCa.status + ': ' + txt
-          return []
-        }
-      })
-
-      const arraysDeVendas = await Promise.all(fetchPromises)
-      arraysDeVendas.forEach(arr => { todasVendasServico.push(...arr) })
-
-      const vendasUnicas = Array.from(new Map(todasVendasServico.map(item => [item.id || item.numero, item])).values())
-
-      let vendas = vendasUnicas
-      if (busca) {
-        const b = busca.toLowerCase()
-        vendas = vendas.filter((v: any) => {
-          const nomeCliente = v.nome_cliente || v.cliente?.nome || v.customer?.name || ''
-          return nomeCliente.toLowerCase().includes(b)
-        })
-      }
-
-      vendasFormatadas = vendas.map((v: any) => ({
-        id: v.id || v.numero?.toString() || Math.random().toString(),
-        cliente: v.nome_cliente || v.cliente?.nome || v.customer?.name || 'Cliente CA',
-        os_numero: (v.numero || v.serie_numero || v.numero_nfse || v.number || 'S/N').toString(),
-        data_venda: v.data_emissao || v.data_competencia || v.data_venda || null,
-        valor_total: v.valor_total || v.valor_servico || v.valor_composicao?.valor_liquido || 0,
-        status: (v.status || v.situacao?.nome || v.situacao || '').toString().toUpperCase().includes('CANCEL') ? 'cancelado' : 'enviado',
-        erro_mensagem: 'Sincronizado do Conta Azul (NFS-e)',
-        conta_azul_id: v.id || v.numero?.toString() || null,
-        updated_at: v.data_emissao || new Date().toISOString(),
-        created_at: v.data_emissao || new Date().toISOString()
-      }))
-    }
-
-    return NextResponse.json({ notas: vendasFormatadas })
+    return NextResponse.json({ notas: [] })
 
   } catch (err: any) {
     console.error('[notas-emitidas] Erro fatal:', err)
@@ -227,7 +205,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ─── POST: Cancelar uma nota emitida ─────────────────────────────────────────
+// ─── POST: Cancelar uma nota emitida de serviço ──────────────────────────────
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -259,7 +237,7 @@ export async function POST(req: NextRequest) {
         .from('vendas_importadas')
         .update({
           status: 'cancelado',
-          erro_mensagem: 'NFS-e Cancelada em ' + new Date().toLocaleDateString('pt-BR') + ' - Cancelamento interno'
+          erro_mensagem: 'NFS-e Cancelada em ' + new Date().toLocaleDateString('pt-BR') + ' - Cancelamento Gov.br'
         })
         .eq('id', nota_id)
 
@@ -269,7 +247,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        mensagem: 'Nota da OS #' + nota.os_numero + ' cancelada com sucesso.'
+        mensagem: 'NFS-e da OS #' + nota.os_numero + ' cancelada com sucesso.'
       })
     }
 

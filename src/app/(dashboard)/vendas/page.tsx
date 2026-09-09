@@ -17,12 +17,13 @@ import {
   CheckCircle, AlertCircle, Send, ShoppingCart,
   Database, RefreshCw, ChevronDown, ChevronUp,
   Trash2, FileSpreadsheet, BookOpen,
-  Search, Calendar
-, ExternalLink } from 'lucide-react'
+  Search, Calendar, ExternalLink, FileText, Download,
+  Layers, PackageCheck
+} from 'lucide-react'
 import toast from 'react-hot-toast'
 
 type Etapa = 'upload' | 'preview'
-type SubAba = 'datacar' | 'planilha'
+type SubAba = 'datacar' | 'emitidas' | 'planilha'
 
 interface VendaImportada {
   id: string
@@ -50,11 +51,26 @@ interface VendaImportada {
   created_at: string
 }
 
+interface NotaProdutoEmitida {
+  id: string
+  cliente: string
+  os_numero: string
+  data_venda: string | null
+  valor_total: number
+  status: 'enviado' | 'cancelado'
+  erro_mensagem: string | null
+  metadata: any
+  dados_datacar: any
+  updated_at: string
+  created_at: string
+  conta_azul_id: string | null
+}
+
 export default function VendasPage() {
   const { empresaAtiva } = useEmpresa()
   const supabase = createClient()
 
-  // Sub-aba ativa
+  // Sub-aba ativa: Datacar | NF-e Emitidas (Histórico Conta Azul) | Planilha
   const [subAba, setSubAba] = useState<SubAba>('datacar')
 
   // ─── Estado da sub-aba Datacar ───────────────────────────────
@@ -68,12 +84,21 @@ export default function VendasPage() {
   const [situacaoVendas, setSituacaoVendas] = useState<'todas' | 'em_andamento' | 'concluida' | 'encerrada' | 'cancelada'>('todas')
   const [numeroOS, setNumeroOS] = useState('')
   const [filtroTipoItens, setFiltroTipoItens] = useState<'tudo' | 'produtos' | 'servicos'>('produtos')
-  const [vendasDatacar, setVendasDatacar] = useState<any[]>([])
+
+  const [vendasDatacar, setVendasDatacar] = useState<VendaImportada[]>([])
   const [selecionadosDatacar, setSelecionadosDatacar] = useState<Set<string>>(new Set())
   const [expandidoDatacar, setExpandidoDatacar] = useState<string | null>(null)
   const [enviandoDatacar, setEnviandoDatacar] = useState(false)
   const [editandoDatacarId, setEditandoDatacarId] = useState<string | null>(null)
-  const [modalClienteDoc, setModalClienteDoc] = useState<string | null>(null)
+  const [detalheVendaDatacar, setDetalheVendaDatacar] = useState<VendaImportada | null>(null)
+  const [modalVendasCliente, setModalVendasCliente] = useState<{ open: boolean, cpfCnpj: string }>({ open: false, cpfCnpj: '' })
+
+  // ─── Estado da sub-aba NF-e Emitidas (Conta Azul) ───────────
+  const [notasEmitidas, setNotasEmitidas] = useState<NotaProdutoEmitida[]>([])
+  const [carregandoNotas, setCarregandoNotas] = useState(false)
+  const [buscaEmitidas, setBuscaEmitidas] = useState('')
+  const [dtIniEmitidas, setDtIniEmitidas] = useState(primeiroDia)
+  const [dtFimEmitidas, setDtFimEmitidas] = useState(hoje)
 
   // ─── Estado do Upload de Planilha Fiscal ───────────────────
   const [showPlanilhaFiscal, setShowPlanilhaFiscal] = useState(false)
@@ -84,6 +109,215 @@ export default function VendasPage() {
     exemplos: string[];
   } | null>(null)
 
+  // ─── Estado da sub-aba Planilha (Upload normal) ──────────────
+  const [etapa, setEtapa] = useState<Etapa>('upload')
+  const [resultado, setResultado] = useState<ResultadoImportacaoVendas | null>(null)
+  const [dadosEditados, setDadosEditados] = useState<VendaPreview[]>([])
+  const [selecionados, setSelecionados] = useState<Set<number>>(new Set())
+  const [editandoIdx, setEditandoIdx] = useState<number | null>(null)
+  const [enviandoCA, setEnviandoCA] = useState(false)
+
+  // Carrega histórico de notas emitidas no Conta Azul
+  const carregarNotasEmitidas = useCallback(async () => {
+    if (!empresaAtiva) return
+    setCarregandoNotas(true)
+    try {
+      const params = new URLSearchParams({
+        empresa_id: empresaAtiva.id,
+        tipo: 'produtos',
+        data_inicio: dtIniEmitidas,
+        data_fim: dtFimEmitidas,
+        busca: buscaEmitidas
+      })
+      const res = await fetch(`/api/notas-emitidas?${params.toString()}`)
+      if (!res.ok) throw new Error('Erro ao buscar histórico de NF-e')
+      const data = await res.json()
+      setNotasEmitidas(data.notas || [])
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setCarregandoNotas(false)
+    }
+  }, [empresaAtiva, dtIniEmitidas, dtFimEmitidas, buscaEmitidas])
+
+  useEffect(() => {
+    carregarNotasEmitidas()
+  }, [empresaAtiva, carregarNotasEmitidas])
+
+  useEffect(() => {
+    if (subAba === 'emitidas') {
+      carregarNotasEmitidas()
+    }
+  }, [subAba, carregarNotasEmitidas])
+
+  // ─── Handlers Datacar ────────────────────────────────────────
+  const buscarDatacar = async () => {
+    if (!empresaAtiva) {
+      toast.error('Selecione uma empresa primeiro')
+      return
+    }
+
+    if (!empresaAtiva.datacar_token) {
+      toast.error(`A empresa "${empresaAtiva.nome}" não possui o Token do Datacar configurado.`)
+      return
+    }
+
+    setBuscando(true)
+    try {
+      const res = await fetch('/api/datacar/buscar-vendas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresa_id: empresaAtiva.id,
+          tipo_periodo: tipoPeriodoVendas,
+          data_inicio: dtIni,
+          data_fim: dtFim,
+          situacao: situacaoVendas,
+          numero_os: numeroOS.trim() || undefined,
+          tipo_itens: 'produtos'
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao buscar dados no Datacar')
+
+      setVendasDatacar(data.vendas || [])
+      const pendentes = (data.vendas || []).filter((v: VendaImportada) => v.status === 'pendente')
+      setSelecionadosDatacar(new Set(pendentes.map((v: VendaImportada) => v.id)))
+
+      if (data.vendas?.length === 0) {
+        toast('Nenhuma venda de produtos encontrada para o período informado.', { icon: '🔍' })
+      } else {
+        toast.success(`${data.vendas.length} OS de produtos encontradas!`)
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro ao buscar dados no Datacar'
+      toast.error(msg)
+    } finally {
+      setBuscando(false)
+    }
+  }
+
+  const toggleSelecionadoDatacar = (id: string) => {
+    setSelecionadosDatacar(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  const toggleTodosDatacar = () => {
+    const pendentes = vendasDatacar.filter(v => v.status === 'pendente')
+    if (selecionadosDatacar.size === pendentes.length) {
+      setSelecionadosDatacar(new Set())
+    } else {
+      setSelecionadosDatacar(new Set(pendentes.map(v => v.id)))
+    }
+  }
+
+  const removerVendaDatacar = async (id: string) => {
+    const { error } = await supabase.from('vendas_importadas').delete().eq('id', id)
+    if (error) {
+      toast.error('Erro ao remover venda: ' + error.message)
+      return
+    }
+    setVendasDatacar(prev => prev.filter(v => v.id !== id))
+    setSelecionadosDatacar(prev => { const next = new Set(prev); next.delete(id); return next })
+    toast.success('Venda removida')
+  }
+
+  // Envio ao Conta Azul
+  const handleEnviarDatacarParaCA = async () => {
+    if (!empresaAtiva) { toast.error('Selecione uma empresa primeiro'); return }
+    if (!empresaAtiva.access_token_conta_azul_vendas) {
+      toast.error(`O Conta Azul Vendas não está conectado para ${empresaAtiva.nome}. Conecte antes de enviar.`)
+      return
+    }
+    if (selecionadosDatacar.size === 0) { toast.error('Selecione ao menos uma venda'); return }
+
+    setEnviandoDatacar(true)
+    try {
+      const vendasParaEnviar = vendasDatacar
+        .filter(v => selecionadosDatacar.has(v.id))
+        .map(v => {
+          let itensFiltrados = v.itens || []
+          if (filtroTipoItens === 'produtos') {
+            itensFiltrados = itensFiltrados.filter(i => i.tipo === 'produto' || !i.tipo)
+          } else if (filtroTipoItens === 'servicos') {
+            itensFiltrados = itensFiltrados.filter(i => i.tipo === 'servico')
+          }
+          const valorTotalRecalculado = itensFiltrados.reduce((acc, i) => acc + (i.valor_unitario * i.quantidade), 0)
+          return {
+            ...v,
+            itens: itensFiltrados,
+            valor_total: valorTotalRecalculado
+          }
+        })
+        .filter(v => v.itens.length > 0)
+
+      if (vendasParaEnviar.length === 0) {
+        setEnviandoDatacar(false)
+        toast.error('Não há itens válidos para enviar com o filtro atual.')
+        return
+      }
+
+      let sucessosTotais = 0
+      let errosTotais = 0
+      const detalhesErros: string[] = []
+      const idsSucesso = new Set<string>()
+
+      for (const venda of vendasParaEnviar) {
+        try {
+          const res = await fetch('/api/conta-azul/enviar-vendas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              empresa_id: empresaAtiva.id,
+              vendas: [venda]
+            }),
+          })
+          const data = await res.json()
+          if (res.ok && data.sucessos > 0) {
+            sucessosTotais++
+            idsSucesso.add(venda.id)
+          } else {
+            errosTotais++
+            detalhesErros.push(`OS ${venda.os_numero}: ${data.error || 'Erro na API do Conta Azul'}`)
+          }
+        } catch (err: any) {
+          errosTotais++
+          detalhesErros.push(`OS ${venda.os_numero}: ${err.message || 'Erro de comunicação'}`)
+        }
+      }
+
+      if (sucessosTotais > 0) {
+        toast.success(`${sucessosTotais} vendas de produtos sincronizadas com sucesso no Conta Azul!`)
+        setVendasDatacar(prev => prev.map(v => {
+          if (idsSucesso.has(v.id)) return { ...v, status: 'enviado' }
+          return v
+        }))
+        setSelecionadosDatacar(prev => {
+          const next = new Set(prev)
+          idsSucesso.forEach(id => next.delete(id))
+          return next
+        })
+        carregarNotasEmitidas()
+      }
+
+      if (errosTotais > 0) {
+        toast.error(`${errosTotais} vendas com erro.`)
+        detalhesErros.slice(0, 3).forEach(m => toast.error(m, { duration: 6000 }))
+      }
+
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro ao enviar para o Conta Azul'
+      toast.error(msg)
+    } finally {
+      setEnviandoDatacar(false)
+    }
+  }
+
+  // ─── Handlers Planilha ───────────────────────────────────────
   const handleUploadPlanilhaFiscal = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !empresaAtiva) return
@@ -97,263 +331,19 @@ export default function VendasPage() {
 
       const res = await fetch('/api/memoria-fiscal/importar-planilha', {
         method: 'POST',
-        body: formData
+        body: formData,
       })
+
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erro ao importar')
+      if (!res.ok) throw new Error(data.error || 'Erro ao importar planilha fiscal')
 
       setResultadoPlanilha(data)
-      toast.success(`${data.salvos} famílias de produtos aprendidas com sucesso!`)
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao importar planilha'
-      toast.error(msg)
+      toast.success(`Planilha processada! ${data.salvos} famílias cadastradas.`)
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao importar planilha')
     } finally {
       setUploadingPlanilha(false)
-      // Reset o input para permitir reimportar
       e.target.value = ''
-    }
-  }
-
-  // ─── Estado da sub-aba Planilha ──────────────────────────────
-  const [etapa, setEtapa] = useState<Etapa>('upload')
-  const [resultado, setResultado] = useState<ResultadoImportacaoVendas | null>(null)
-  const [dadosEditados, setDadosEditados] = useState<VendaPreview[]>([])
-  const [selecionados, setSelecionados] = useState<Set<number>>(new Set())
-  const [enviandoCA, setEnviandoCA] = useState(false)
-  const [editandoIdx, setEditandoIdx] = useState<number | null>(null)
-
-  // ─── Buscar vendas do Datacar ──────────────────────────────
-  const handleBuscarVendasDatacar = async () => {
-    if (!empresaAtiva) { toast.error('Selecione uma empresa primeiro'); return }
-    if (!empresaAtiva.datacar_token) {
-      toast.error('Configure as credenciais do Datacar para esta empresa na tela de Empresas.')
-      return
-    }
-    if (!numeroOS && (!dtIni || !dtFim)) {
-      toast.error('Preencha a data de início e fim, ou informe um Número de OS.')
-      return
-    }
-
-    setBuscando(true)
-    setVendasDatacar([])
-    try {
-      const mappedTipoPeriodo = tipoPeriodoVendas as string
-
-      const res = await fetch('/api/datacar/buscar-vendas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          empresa_id: empresaAtiva.id, 
-          dtIni, 
-          dtFim, 
-          tipoPeriodo: mappedTipoPeriodo,
-          situacao: situacaoVendas,
-          numeroOS: numeroOS.trim() || undefined
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erro ao buscar vendas no Datacar')
-
-      // Mapear resultado para manter compatibilidade visual com VendaImportada
-      const validas: any[] = data.dados.map((d: any) => ({
-        id: crypto.randomUUID(), // ID temporário apenas para manipulação na tela
-        cliente: d.cliente,
-        cliente_cpf_cnpj: d.cliente_cpf_cnpj || d._datacar?.cliente_cpf_cnpj || null,
-        cliente_endereco: d.cliente_endereco || null,
-        os_numero: d.os_numero,
-        data_venda: d.data_venda,
-        valor_total: d.valor_total,
-        desconto_total: d.desconto_total || 0,
-        forma_pagamento: d.forma_pagamento,
-        itens: d.itens,
-        status: d.ca_status === 'cliente_existente' ? 'alerta_cliente' : (d.ca_status ? 'duplicidade' : 'pendente'),
-        dados_datacar: d._datacar || d,
-        valido: d.valido,
-        erros: d.erros,
-      }))
-
-      setVendasDatacar(validas)
-      
-      // Auto-selecionar as pendentes e válidas
-      const validasIds = validas
-        .filter(v => v.status === 'pendente' && v.valido)
-        .map(v => v.id)
-      setSelecionadosDatacar(new Set(validasIds))
-
-      toast.success(`${data.total} OS/Pedidos encontrados!`)
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Erro ao buscar vendas')
-    } finally {
-      setBuscando(false)
-    }
-  }
-
-  // ─── Toggles Datacar ─────────────────────────────────────────
-  const toggleSelecionadoDatacar = (id: string) => {
-    setSelecionadosDatacar(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else next.add(id)
-      return next
-    })
-  }
-
-  const toggleTodosDatacar = () => {
-    const pendentes = vendasDatacar.filter(v => v.status === 'pendente').map(v => v.id)
-    if (selecionadosDatacar.size === pendentes.length) {
-      setSelecionadosDatacar(new Set())
-    } else {
-      setSelecionadosDatacar(new Set(pendentes))
-    }
-  }
-
-  const removerVendaDatacar = async (id: string) => {
-    if (!confirm('Remover esta venda da lista? Ela sairá do seu painel e não será enviada.')) return
-    setVendasDatacar(prev => prev.filter(v => v.id !== id))
-    toast.success('Venda ignorada da lista de importação.')
-  }
-
-  // ─── Enviar para Conta Azul (vindas do Datacar) ──────────────
-  const handleEnviarDatacarParaCA = async () => {
-    if (!empresaAtiva) { toast.error('Selecione uma empresa'); return }
-    if (selecionadosDatacar.size === 0) { toast.error('Selecione ao menos uma venda'); return }
-
-    setEnviandoDatacar(true)
-    try {
-      const vendasFiltradas = vendasDatacar
-        .filter(v => selecionadosDatacar.has(v.id))
-        .map(v => {
-          let itensFiltrados = v.itens
-          if (filtroTipoItens === 'produtos') itensFiltrados = v.itens.filter((i: any) => i.tipo === 'produto')
-          if (filtroTipoItens === 'servicos') itensFiltrados = v.itens.filter((i: any) => i.tipo === 'servico')
-          
-          const valorTotalRecalculado = itensFiltrados.reduce((acc: number, i: any) => acc + (i.quantidade * i.valor_unitario), 0)
-          
-          return {
-            ...v,
-            itens: itensFiltrados,
-            valor_total: valorTotalRecalculado
-          }
-        })
-        .filter(v => v.itens.length > 0)
-
-      if (vendasFiltradas.length === 0) {
-        setEnviandoDatacar(false)
-        toast.error('O filtro de itens excluiu todas as vendas selecionadas. Não há nada para enviar.')
-        return
-      }
-      
-      // Converte para o formato esperado pelo endpoint de envio do CA
-      const vendasFormatadas = vendasFiltradas.map(v => ({
-        id_original: v.id,
-        cliente: v.cliente,
-        cliente_cpf_cnpj: v.dados_datacar?.cliente_cpf_cnpj || v.cliente_cpf_cnpj || undefined,
-        cliente_endereco: v.dados_datacar?.cliente_endereco || v.cliente_endereco || undefined,
-        os_numero: v.os_numero,
-        data_venda: v.data_venda,
-        valor_total: v.valor_total,
-        // Usar a forma de pagamento original do Datacar (raw.venda_Parcelamento) para o envio ao CA, 
-        // mantendo o enriquecimento (com PIX, Boleto, etc) apenas para visualização no painel
-        forma_pagamento: v.dados_datacar?.raw?.venda_Parcelamento || v.forma_pagamento || undefined,
-        itens: v.itens,
-        valido: true,
-      }))
-
-      let sucessosTotais = 0;
-      let errosTotais = 0;
-      const detalhesErros: string[] = [];
-      const idsSucesso = new Set<string>();
-      const idsErro = new Map<string, string>();
-
-      // Envia as vendas uma a uma para evitar timeout na Vercel (limite de 10s-60s)
-      for (const venda of vendasFormatadas) {
-        try {
-          const res = await fetch('/api/conta-azul/enviar-vendas', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              empresa_id: empresaAtiva.id,
-              vendas: [venda]
-            }),
-          })
-          
-          const data = await res.json()
-          if (!res.ok) throw new Error(data.error || 'Erro ao enviar venda')
-          
-          if (data.sucessos > 0) {
-            sucessosTotais += data.sucessos;
-            if (venda.id_original) idsSucesso.add(venda.id_original);
-          }
-          if (data.erros > 0) {
-            errosTotais += data.erros;
-            if (data.detalhesErros?.length > 0) {
-              detalhesErros.push(...data.detalhesErros);
-              if (venda.id_original) idsErro.set(venda.id_original, data.detalhesErros[0]);
-            } else {
-              if (venda.id_original) idsErro.set(venda.id_original, 'Erro desconhecido no Conta Azul');
-            }
-          }
-        } catch (err: any) {
-          errosTotais++;
-          const errMsg = err.message || 'Erro de comunicação';
-          detalhesErros.push(`OS ${venda.os_numero || 'S/N'}: ${errMsg}`);
-          if (venda.id_original) idsErro.set(venda.id_original, errMsg);
-        }
-      }
-
-      // Atualiza status localmente e limpa a seleção
-      if (sucessosTotais > 0 || errosTotais > 0) {
-        if (sucessosTotais > 0) {
-          toast.success(`${sucessosTotais} vendas criadas no Conta Azul com sucesso!`)
-        }
-        
-        setVendasDatacar(prev => prev.map(v => {
-          if (idsSucesso.has(v.id)) {
-             return { ...v, status: 'enviado', erro_mensagem: undefined }
-          }
-          if (idsErro.has(v.id)) {
-             return { ...v, status: 'erro', erro_mensagem: idsErro.get(v.id) }
-          }
-          return v
-        }))
-        
-        // Remove os sucessos dos selecionados
-        setSelecionadosDatacar(prev => {
-          const next = new Set(prev);
-          idsSucesso.forEach(id => next.delete(id));
-          return next;
-        });
-      }
-
-      if (errosTotais > 0) {
-        toast.error(`${errosTotais} vendas com erro. Verifique os avisos nos itens.`)
-        if (detalhesErros.length > 0) {
-          detalhesErros.slice(0, 3).forEach((errMsg: string) => {
-            toast.error(errMsg, { duration: 6000 })
-          })
-          if (detalhesErros.length > 3) {
-            toast.error(`E mais ${detalhesErros.length - 3} erro(s)...`, { duration: 6000 })
-          }
-        }
-      }
-
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao enviar para o Conta Azul'
-      toast.error(msg)
-    } finally {
-      setEnviandoDatacar(false)
-    }
-  }
-
-  // ─── Handlers sub-aba Planilha ───────────────────────────────
-  const handleSaveEdicao = (vendaAtualizada: VendaPreview) => {
-    if (editandoIdx !== null) {
-      setDadosEditados(prev => {
-        const novos = [...prev]
-        novos[editandoIdx] = vendaAtualizada
-        return novos
-      })
-      setEditandoIdx(null)
-      toast.success('Venda atualizada com sucesso!')
     }
   }
 
@@ -366,6 +356,18 @@ export default function VendasPage() {
     setSelecionados(validos)
     setEtapa('preview')
   }, [])
+
+  const handleSaveEdicao = (vendaAtualizada: VendaPreview) => {
+    if (editandoIdx !== null) {
+      setDadosEditados(prev => {
+        const novos = [...prev]
+        novos[editandoIdx] = vendaAtualizada
+        return novos
+      })
+      setEditandoIdx(null)
+      toast.success('Venda atualizada com sucesso!')
+    }
+  }
 
   const toggleItem = (idx: number) => {
     setSelecionados((prev) => {
@@ -402,55 +404,25 @@ export default function VendasPage() {
     setEnviandoCA(true)
     try {
       const itensParaEnviar = dadosEditados.filter((_, i) => selecionados.has(i))
-      
-      let sucessosTotais = 0;
-      let errosTotais = 0;
-      const detalhesErros: string[] = [];
+      const res = await fetch('/api/conta-azul/enviar-vendas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresa_id: empresaAtiva.id,
+          vendas: itensParaEnviar
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao enviar vendas')
 
-      for (const venda of itensParaEnviar) {
-        try {
-          const res = await fetch('/api/conta-azul/enviar-vendas', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              empresa_id: empresaAtiva.id,
-              vendas: [venda]
-            }),
-          })
-          
-          const data = await res.json()
-          if (!res.ok) throw new Error(data.error || 'Erro ao enviar venda')
-          
-          if (data.sucessos > 0) sucessosTotais += data.sucessos;
-          if (data.erros > 0) {
-            errosTotais += data.erros;
-            if (data.detalhesErros?.length > 0) {
-              detalhesErros.push(...data.detalhesErros);
-            }
-          }
-        } catch (err: any) {
-          errosTotais++;
-          detalhesErros.push(`OS ${venda.os_numero || 'S/N'}: ${err.message || 'Erro de comunicação'}`);
-        }
+      if (data.sucessos > 0) {
+        toast.success(`${data.sucessos} vendas enviadas ao Conta Azul com sucesso!`)
+        setEtapa('upload')
+        setResultado(null)
+        setDadosEditados([])
+        setSelecionados(new Set())
+        carregarNotasEmitidas()
       }
-      
-      if (sucessosTotais > 0) toast.success(`${sucessosTotais} vendas enviadas com sucesso!`)
-      if (errosTotais > 0) {
-        toast.error(`${errosTotais} vendas com erro. Verifique os logs.`)
-        if (detalhesErros && detalhesErros.length > 0) {
-          detalhesErros.slice(0, 3).forEach((errMsg: string) => {
-            toast.error(errMsg, { duration: 6000 })
-          })
-          if (detalhesErros.length > 3) {
-            toast.error(`E mais ${detalhesErros.length - 3} erro(s)...`, { duration: 6000 })
-          }
-        }
-      }
-      
-      setEtapa('upload')
-      setResultado(null)
-      setDadosEditados([])
-      setSelecionados(new Set())
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro ao enviar para o Conta Azul'
       toast.error(msg)
@@ -459,7 +431,7 @@ export default function VendasPage() {
     }
   }
 
-  // ─── Helpers ─────────────────────────────────────────────────
+  // ─── Métricas e KPIs de NF-e ─────────────────────────────────
   const formatCurrency = (val: number) =>
     val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -472,23 +444,28 @@ export default function VendasPage() {
     } catch { return dt }
   }
 
+  const totalFaturadoNfe = notasEmitidas.reduce((acc, n) => acc + (Number(n.valor_total) || 0), 0)
   const pendenteCount = vendasDatacar.filter(v => v.status === 'pendente').length
+  const caVendasConectado = Boolean(empresaAtiva?.access_token_conta_azul_vendas)
 
   // ─── Render ──────────────────────────────────────────────────
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-              <ShoppingCart className="text-brand-500" />
-              Vendas Produtos
+              <ShoppingCart className="text-blue-500" />
+              Vendas Produtos (NF-e Conta Azul)
             </h1>
-            <span className="px-2 py-0.5 bg-brand-500/20 text-brand-400 text-[10px] font-bold rounded border border-brand-500/30 uppercase tracking-wider">
-              Novo Módulo
+            <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-bold rounded border border-blue-500/30 uppercase tracking-wider">
+              Módulo de Peças & Produtos
             </span>
           </div>
+          <p className="text-dark-400 text-xs mt-0.5">
+            Sincronização de vendas de produtos e emissão de NF-e via Conta Azul.
+          </p>
         </div>
         <div className="flex items-center gap-4">
           <SelectorEmpresa />
@@ -503,7 +480,74 @@ export default function VendasPage() {
         </div>
       </div>
 
-      {/* Sub-abas: Datacar | Planilha */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* 4 CARDS SUPERIORES: KPIS FISCAIS DE PRODUTOS / NF-E            */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Total Faturado em NF-e */}
+        <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-xl group-hover:bg-blue-500/20 transition-all pointer-events-none" />
+          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">Total Faturado em Produtos</span>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-black text-white tracking-tight">
+              {formatCurrency(totalFaturadoNfe)}
+            </span>
+            <span className="text-xs bg-blue-500/20 text-blue-400 font-bold px-2 py-0.5 rounded border border-blue-500/30">
+              {notasEmitidas.length} notas
+            </span>
+          </div>
+        </div>
+
+        {/* Card 2: NF-e Sincronizadas / Emitidas */}
+        <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition-all pointer-events-none" />
+          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">NF-e Sincronizadas</span>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-black text-emerald-300 tracking-tight">
+              {notasEmitidas.length} <span className="text-sm font-semibold text-dark-400">faturadas</span>
+            </span>
+            <span className="text-xs bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded border border-emerald-500/30">
+              Conta Azul OK
+            </span>
+          </div>
+        </div>
+
+        {/* Card 3: Vendas Pendentes de Envio */}
+        <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-xl group-hover:bg-amber-500/20 transition-all pointer-events-none" />
+          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">Vendas Pendentes</span>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-black text-amber-300 tracking-tight">
+              {pendenteCount} <span className="text-sm font-semibold text-dark-400">OS</span>
+            </span>
+            <span className="text-xs bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded border border-amber-500/30">
+              A Enviar
+            </span>
+          </div>
+        </div>
+
+        {/* Card 4: Conexão Conta Azul Vendas */}
+        <div className="bg-dark-800/80 border border-dark-700/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-xl group-hover:bg-purple-500/20 transition-all pointer-events-none" />
+          <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider">Conta Azul Vendas</span>
+          <div className="mt-2 flex items-center justify-between">
+            {caVendasConectado ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-lg border border-emerald-500/30">
+                <CheckCircle size={14} /> Conectado
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-500/20 text-red-400 text-xs font-bold rounded-lg border border-red-500/30">
+                <AlertCircle size={14} /> Desconectado
+              </span>
+            )}
+            <span className="text-[10px] text-dark-400 font-mono">OAuth 2.0</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* 3 SUB-ABAS INTEGRADAS                                          */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
       <div className="flex border-b border-dark-700 gap-0">
         <button
           onClick={() => setSubAba('datacar')}
@@ -514,13 +558,31 @@ export default function VendasPage() {
           }`}
         >
           <Database size={15} />
-          Importadas do Datacar
+          Importadas do Datacar (A Enviar)
           {pendenteCount > 0 && (
             <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full font-bold">
               {pendenteCount}
             </span>
           )}
         </button>
+
+        <button
+          onClick={() => setSubAba('emitidas')}
+          className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all border-b-2 ${
+            subAba === 'emitidas'
+              ? 'border-emerald-400 text-emerald-400 bg-dark-800/40'
+              : 'border-transparent text-dark-400 hover:text-white hover:bg-dark-800/20'
+          }`}
+        >
+          <PackageCheck size={15} />
+          NF-e Emitidas (Histórico Conta Azul)
+          {notasEmitidas.length > 0 && (
+            <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">
+              {notasEmitidas.length}
+            </span>
+          )}
+        </button>
+
         <button
           onClick={() => setSubAba('planilha')}
           className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all border-b-2 ${
@@ -535,7 +597,7 @@ export default function VendasPage() {
       </div>
 
       {/* ══════════════════════════════════════════════════════
-          SUB-ABA: IMPORTADAS DO DATACAR
+          SUB-ABA 1: IMPORTADAS DO DATACAR (A ENVIAR)
       ══════════════════════════════════════════════════════ */}
       {subAba === 'datacar' && (
         <div className="space-y-4">
@@ -550,18 +612,16 @@ export default function VendasPage() {
             <>
               {/* Painel de Agendamento Automático */}
               {empresaAtiva.datacar_token && (
-                <PainelAgendamento 
-                  tipo="vendas" 
-                />
+                <PainelAgendamento tipo="vendas" />
               )}
 
-              {/* Aviso caso Conta Azul Vendas não esteja conectado */}
-              {!empresaAtiva.access_token_conta_azul_vendas && (
+              {/* Aviso caso CA Vendas não esteja conectado */}
+              {!caVendasConectado && (
                 <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in">
                   <div className="flex items-center gap-2.5">
                     <AlertCircle size={18} className="text-amber-400 flex-shrink-0" />
                     <p className="text-amber-200 text-xs">
-                      A loja <strong className="text-white">{empresaAtiva.nome}</strong> não possui integração com o <strong>Conta Azul Vendas</strong> conectada. Conecte para poder enviar vendas e emitir notas fiscais.
+                      A loja <strong className="text-white">{empresaAtiva.nome}</strong> não possui integração com o <strong>Conta Azul Vendas</strong> conectada. Conecte para poder sincronizar vendas e emitir NF-e.
                     </p>
                   </div>
                   <a
@@ -582,7 +642,6 @@ export default function VendasPage() {
                     <h3>Buscar Vendas do Datacar {empresaAtiva ? `— ${empresaAtiva.nome}` : ''}</h3>
                   </div>
 
-                  {/* Seletor rápido de tipo de itens */}
                   <div className="flex items-center gap-1 bg-dark-900/80 p-1 rounded-xl border border-dark-700/60">
                     <button
                       type="button"
@@ -605,17 +664,6 @@ export default function VendasPage() {
                       }`}
                     >
                       📦 Apenas Produtos
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFiltroTipoItens('servicos')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                        filtroTipoItens === 'servicos'
-                          ? 'bg-emerald-600 text-white shadow-md'
-                          : 'text-dark-400 hover:text-white'
-                      }`}
-                    >
-                      🔧 Apenas Serviços
                     </button>
                   </div>
                 </div>
@@ -680,20 +728,6 @@ export default function VendasPage() {
                     </select>
                   </div>
                   
-                  {/* Filtro Itens a Enviar */}
-                  <div>
-                    <label className="text-xs font-medium mb-1 block text-dark-400">Itens a Enviar:</label>
-                    <select
-                      value={filtroTipoItens}
-                      onChange={(e) => setFiltroTipoItens(e.target.value as any)}
-                      className="bg-dark-900 border border-brand-500/50 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-brand-500/50 outline-none"
-                    >
-                      <option value="tudo">Produtos e Serviços</option>
-                      <option value="produtos">Apenas Produtos</option>
-                      <option value="servicos">Apenas Serviços</option>
-                    </select>
-                  </div>
-                  
                   <div>
                     <label className="text-xs font-medium mb-1 block text-dark-400">Buscar por OS/Pedido:</label>
                     <input
@@ -701,96 +735,20 @@ export default function VendasPage() {
                       placeholder="Ex: 12345"
                       value={numeroOS}
                       onChange={(e) => setNumeroOS(e.target.value)}
-                      className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-32 placeholder:text-dark-600"
+                      className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-32"
                     />
                   </div>
 
+                  {/* Botão Buscar */}
                   <button
-                    onClick={handleBuscarVendasDatacar}
-                    disabled={buscando || !empresaAtiva.datacar_token}
-                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all ml-auto sm:ml-0"
+                    onClick={buscarDatacar}
+                    disabled={buscando}
+                    className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-colors shadow-lg"
                   >
                     {buscando ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
                     {buscando ? 'Buscando...' : 'Buscar'}
                   </button>
                 </div>
-                {!empresaAtiva.datacar_token && (
-                   <p className="text-amber-400 text-xs mt-3">
-                     ⚠️ Credenciais do Datacar não configuradas para esta empresa. Configure em "Empresas".
-                   </p>
-                )}
-              </div>
-
-              {/* ── Seção: Planilha Fiscal (NCM/CEST) ── */}
-              <div className="bg-dark-800/50 border border-dark-700 rounded-xl overflow-hidden">
-                <button
-                  onClick={() => setShowPlanilhaFiscal(!showPlanilhaFiscal)}
-                  className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-dark-300 hover:text-white hover:bg-dark-800/80 transition-all"
-                >
-                  <div className="flex items-center gap-2">
-                    <BookOpen size={15} className="text-amber-400" />
-                    <span>Base Fiscal (NCM / CEST) — Importar Planilha do Fiscal</span>
-                  </div>
-                  {showPlanilhaFiscal
-                    ? <ChevronUp size={14} className="text-dark-500" />
-                    : <ChevronDown size={14} className="text-dark-500" />
-                  }
-                </button>
-
-                {showPlanilhaFiscal && (
-                  <div className="px-4 pb-4 pt-1 border-t border-dark-700/50 animate-fade-in space-y-3">
-                    <p className="text-xs text-dark-400">
-                      Importe a planilha do seu fiscal contendo as colunas <strong className="text-amber-400">DESCRIÇÃO</strong>, <strong className="text-emerald-400">NCM</strong> e <strong className="text-cyan-400">CEST</strong>.
-                      O sistema vai aprender os dados e aplicar automaticamente nas próximas importações do Datacar.
-                    </p>
-
-                    <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-2 px-4 py-2 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 rounded-lg text-amber-300 text-sm font-medium cursor-pointer transition-all">
-                        <FileSpreadsheet size={16} />
-                        {uploadingPlanilha ? 'Importando...' : 'Selecionar Planilha (.xlsx)'}
-                        <input
-                          type="file"
-                          accept=".xlsx,.xls"
-                          className="hidden"
-                          onChange={handleUploadPlanilhaFiscal}
-                          disabled={uploadingPlanilha}
-                        />
-                      </label>
-                      {uploadingPlanilha && <Loader2 size={16} className="animate-spin text-amber-400" />}
-                    </div>
-
-                    {resultadoPlanilha && (
-                      <div className="bg-dark-900/60 rounded-lg p-3 space-y-2 animate-fade-in">
-                        <div className="flex items-center gap-3 text-xs">
-                          <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-medium">
-                            ✓ {resultadoPlanilha.salvos} famílias aprendidas
-                          </span>
-                          {resultadoPlanilha.erros > 0 && (
-                            <span className="px-2 py-0.5 rounded bg-red-500/15 text-red-400 font-medium">
-                              ✗ {resultadoPlanilha.erros} erros
-                            </span>
-                          )}
-                          {resultadoPlanilha.ignorados > 0 && (
-                            <span className="px-2 py-0.5 rounded bg-dark-700 text-dark-400 font-medium">
-                              {resultadoPlanilha.ignorados} linhas ignoradas
-                            </span>
-                          )}
-                          <span className="text-dark-500">
-                            {resultadoPlanilha.totalLinhas} lines na planilha
-                          </span>
-                        </div>
-                        {resultadoPlanilha.exemplos.length > 0 && (
-                          <div className="text-[10px] text-dark-400 space-y-0.5">
-                            <p className="text-dark-300 font-semibold">Exemplos aprendidos:</p>
-                            {resultadoPlanilha.exemplos.map((ex, i) => (
-                              <p key={i} className="font-mono">• {ex}</p>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* Loading */}
@@ -805,7 +763,7 @@ export default function VendasPage() {
                 <div className="bg-dark-800 border border-dark-700 rounded-xl p-12 text-center">
                   <Database size={40} className="text-dark-600 mx-auto mb-3" />
                   <p className="text-dark-400 text-sm font-medium">
-                    Faça uma busca para ver as vendas do Datacar.
+                    Faça uma busca para ver as vendas de produtos do Datacar.
                   </p>
                 </div>
               )}
@@ -818,10 +776,10 @@ export default function VendasPage() {
                     <button
                       onClick={handleEnviarDatacarParaCA}
                       disabled={enviandoDatacar}
-                      className="flex items-center gap-2 px-5 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white rounded-lg text-sm font-bold transition-all shadow-lg"
+                      className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-sm font-bold transition-all shadow-lg"
                     >
                       {enviandoDatacar ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                      {enviandoDatacar ? 'Enviando...' : `Criar ${selecionadosDatacar.size} Venda(s) no Conta Azul`}
+                      {enviandoDatacar ? 'Aguarde...' : `Enviar ${selecionadosDatacar.size} Vendas para o Conta Azul`}
                     </button>
                   )}
                 </div>
@@ -844,8 +802,8 @@ export default function VendasPage() {
                     <span className="flex-1">CLIENTE / OS</span>
                     <span className="w-28 text-right">VALOR</span>
                     <span className="w-24 text-right">DATA</span>
-                    <span className="w-20 text-center">STATUS</span>
-                    <span className="w-16"></span>
+                    <span className="w-24 text-center">STATUS</span>
+                    <span className="w-24 text-right">AÇÕES</span>
                   </div>
 
                   <div className="max-h-[520px] overflow-y-auto divide-y divide-dark-700/50">
@@ -855,43 +813,20 @@ export default function VendasPage() {
                           className="flex items-center gap-3 px-4 py-3 cursor-pointer"
                           onClick={() => setExpandidoDatacar(expandidoDatacar === venda.id ? null : venda.id)}
                         >
-                          {venda.status === 'pendente' || venda.status === 'erro' || venda.status === 'alerta_cliente' ? (
+                          {venda.status === 'pendente' ? (
                             <input
                               type="checkbox"
                               checked={selecionadosDatacar.has(venda.id)}
                               onChange={e => { e.stopPropagation(); toggleSelecionadoDatacar(venda.id) }}
                               onClick={e => e.stopPropagation()}
                               className="accent-blue-500"
-                              title={venda.status === 'alerta_cliente' ? 'Cliente já no CA. Marque para enviar assim mesmo.' : undefined}
                             />
-                          ) : venda.status === 'duplicidade' ? (
-                            <div className="text-amber-500 flex-shrink-0 ml-0.5" title="Venda já consta no Conta Azul">
-                              <AlertCircle size={14} />
-                            </div>
                           ) : (
                             <CheckCircle size={14} className="text-emerald-400 flex-shrink-0 ml-0.5" />
                           )}
                           <div className="flex-1 min-w-0">
                             <p className="text-white text-sm font-medium truncate">{venda.cliente}</p>
-                            <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                              <p className="text-dark-500 text-xs font-mono">OS #{venda.os_numero}</p>
-                              {venda.forma_pagamento && (
-                                <>
-                                  <span className="text-dark-600 text-[10px]">•</span>
-                                  <p className="text-dark-400 text-xs truncate max-w-[200px]" title={venda.forma_pagamento}>
-                                    {venda.forma_pagamento}
-                                  </p>
-                                </>
-                              )}
-                              {(venda.desconto_total || 0) > 0 && (
-                                <>
-                                  <span className="text-dark-600 text-[10px]">•</span>
-                                  <p className="text-red-400/80 text-[11px] font-semibold">
-                                    Desc: -{formatCurrency(venda.desconto_total)}
-                                  </p>
-                                </>
-                              )}
-                            </div>
+                            <p className="text-dark-500 text-xs font-mono">OS #{venda.os_numero}</p>
                           </div>
                           <span className="text-white text-sm font-bold tabular-nums w-28 text-right">
                             {formatCurrency(venda.valor_total)}
@@ -899,24 +834,25 @@ export default function VendasPage() {
                           <span className="text-dark-400 text-xs w-24 text-right tabular-nums">
                             {formatDate(venda.data_venda)}
                           </span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-20 text-center ${
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-24 text-center ${
                             venda.status === 'enviado'
-                              ? 'bg-emerald-500/15 text-emerald-400'
-                              : venda.status === 'erro'
-                                ? 'bg-red-500/15 text-red-400'
-                                : venda.status === 'duplicidade'
-                                  ? 'bg-amber-500/15 text-amber-400'
-                                  : venda.status === 'alerta_cliente'
-                                    ? 'bg-yellow-500/15 text-yellow-500'
-                                    : 'bg-yellow-500/15 text-yellow-400'
+                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                              : 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30'
                           }`}>
-                            {venda.status === 'enviado' ? 'Enviado CA' : venda.status === 'erro' ? 'Erro CA' : venda.status === 'duplicidade' ? 'Duplicada' : venda.status === 'alerta_cliente' ? 'Cliente no CA' : 'Pendente'}
+                            {venda.status === 'enviado' ? '✓ Enviado CA' : 'Pendente'}
                           </span>
-                          <div className="w-16 flex items-center justify-end gap-1">
+                          <div className="flex items-center justify-end gap-1 w-24">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setEditandoDatacarId(venda.id) }}
+                              className="text-[10px] font-bold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 px-2 py-1 rounded transition-colors mr-1"
+                              title="Editar Venda"
+                            >
+                              EDITAR
+                            </button>
                             <button
                               onClick={e => { e.stopPropagation(); removerVendaDatacar(venda.id) }}
                               className="p-1 text-dark-600 hover:text-red-400 transition-colors"
-                              title="Remover do Card"
+                              title="Remover"
                             >
                               <Trash2 size={13} />
                             </button>
@@ -936,10 +872,10 @@ export default function VendasPage() {
                       <button
                         onClick={handleEnviarDatacarParaCA}
                         disabled={enviandoDatacar}
-                        className="flex items-center gap-2 px-5 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white rounded-lg text-sm font-bold transition-all"
+                        className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-sm font-bold transition-all shadow-lg"
                       >
-                        {enviandoDatacar ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                        {enviandoDatacar ? 'Enviando...' : 'Criar Vendas no Conta Azul'}
+                        {enviandoDatacar ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                        {enviandoDatacar ? 'Aguarde...' : `Enviar ${selecionadosDatacar.size} Vendas para o Conta Azul`}
                       </button>
                     )}
                   </div>
@@ -951,72 +887,180 @@ export default function VendasPage() {
       )}
 
       {/* ══════════════════════════════════════════════════════
-          SUB-ABA: UPLOAD DE PLANILHA
+          SUB-ABA 2: NF-E EMITIDAS (HISTÓRICO CONTA AZUL)
       ══════════════════════════════════════════════════════ */}
-      {subAba === 'planilha' && (
-        <div className="space-y-4">
-          {/* Stepper */}
-          <div className="flex items-center gap-2">
-            {(['upload', 'preview'] as Etapa[]).map((e, i) => {
-              const labels = ['1. Upload da Planilha', '2. Revisão e Envio']
-              const isActive = etapa === e
-              const isDone = ['upload', 'preview'].indexOf(etapa) > i
-              return (
-                <div key={e} className="flex items-center gap-2">
-                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                    isActive ? 'bg-brand-600 text-white' :
-                    isDone ? 'bg-green-600/20 text-green-400' :
-                    'bg-dark-800 text-dark-500'
-                  }`}>
-                    {isDone && <CheckCircle size={12} />}
-                    {labels[i]}
-                  </div>
-                  {i < 1 && <div className="w-8 h-px bg-dark-700" />}
-                </div>
-              )
-            })}
+      {subAba === 'emitidas' && (
+        <div className="space-y-4 animate-fade-in">
+          {/* Barra de Filtros */}
+          <div className="bg-dark-800 border border-dark-700 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3 flex-1 min-w-[280px]">
+              <div className="relative flex-1">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+                <input
+                  type="text"
+                  placeholder="Pesquisar por cliente, número ou chave de acesso da NF-e..."
+                  value={buscaEmitidas}
+                  onChange={e => setBuscaEmitidas(e.target.value)}
+                  className="w-full bg-dark-900 border border-dark-600 rounded-lg pl-9 pr-3 py-2 text-white text-xs outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 text-xs text-dark-400">
+                <span>Período:</span>
+                <input
+                  type="date"
+                  value={dtIniEmitidas}
+                  onChange={e => setDtIniEmitidas(e.target.value)}
+                  className="bg-dark-900 border border-dark-600 rounded-lg px-2.5 py-1.5 text-white text-xs outline-none"
+                />
+                <span>até</span>
+                <input
+                  type="date"
+                  value={dtFimEmitidas}
+                  onChange={e => setDtFimEmitidas(e.target.value)}
+                  className="bg-dark-900 border border-dark-600 rounded-lg px-2.5 py-1.5 text-white text-xs outline-none"
+                />
+              </div>
+
+              <button
+                onClick={carregarNotasEmitidas}
+                disabled={carregandoNotas}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-white rounded-lg text-xs font-semibold transition-colors"
+              >
+                <RefreshCw size={13} className={carregandoNotas ? 'animate-spin' : ''} />
+                Atualizar
+              </button>
+            </div>
           </div>
 
-          {/* ETAPA 1: Upload */}
-          {etapa === 'upload' && (
-            <div className="space-y-4">
-              {!empresaAtiva ? (
-                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-center gap-3">
-                  <AlertCircle size={18} className="text-yellow-400 flex-shrink-0" />
-                  <p className="text-yellow-300 text-sm">
-                    Selecione uma empresa no menu superior antes de importar vendas.
-                  </p>
-                </div>
-              ) : null}
-              <DropZoneVendas onResultado={handleResultado} />
-              <div className="bg-dark-800/50 border border-dark-700 rounded-xl p-4">
-                <p className="text-sm text-dark-400 font-medium mb-2">💡 Formatos suportados e regras de extração:</p>
-                <ul className="text-xs text-dark-500 space-y-1">
-                  <li>• <strong className="text-dark-300">Excel (.xlsx)</strong> — Planilha com layout de Vendas (OS/PED, CLIENTE, ENCERR, Pagamentos, Itens)</li>
-                  <li>• Serão importados os itens classificados como produto <strong className="text-brand-400">("P")</strong> na coluna TIPO.</li>
-                  <li>• O <strong className="text-dark-300">Cliente</strong> será vinculado via Conta Azul ou criado se não existir.</li>
-                </ul>
+          {/* Tabela de NF-e Emitidas */}
+          {carregandoNotas ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 size={32} className="animate-spin text-blue-400" />
+            </div>
+          ) : notasEmitidas.length === 0 ? (
+            <div className="bg-dark-800 border border-dark-700 rounded-xl p-12 text-center">
+              <FileText size={40} className="text-dark-600 mx-auto mb-3" />
+              <h3 className="text-white font-bold text-sm">Nenhuma NF-e encontrada</h3>
+              <p className="text-dark-400 text-xs mt-1">
+                As vendas de produtos sincronizadas e emitidas no Conta Azul aparecerão aqui.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden shadow-lg">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-dark-900/60 border-b border-dark-700 text-dark-400 font-bold uppercase tracking-wider">
+                      <th className="py-3 px-4">NF-e / Venda CA</th>
+                      <th className="py-3 px-4">Cliente / Destinatário</th>
+                      <th className="py-3 px-4">Data Emissão</th>
+                      <th className="py-3 px-4 text-right">Valor Total</th>
+                      <th className="py-3 px-4 text-center">Situação</th>
+                      <th className="py-3 px-4 text-right">Chave / Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-dark-700/50">
+                    {notasEmitidas.map((nota) => {
+                      const isCancelada = nota.status === 'cancelado'
+                      const chave = nota.metadata?.chave_acesso || nota.dados_datacar?.chave_acesso
+                      return (
+                        <tr key={nota.id} className="hover:bg-dark-750/30 transition-colors">
+                          <td className="py-3 px-4 font-mono font-bold text-white">
+                            <span className="text-blue-400">NF-e #{nota.os_numero}</span>
+                          </td>
+                          <td className="py-3 px-4 font-medium text-white">
+                            {nota.cliente}
+                            {nota.metadata?.cliente_cpf_cnpj && (
+                              <span className="block text-[10px] text-dark-400 font-mono">
+                                {nota.metadata.cliente_cpf_cnpj}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-dark-300 font-mono">
+                            {formatDate(nota.data_venda)}
+                          </td>
+                          <td className="py-3 px-4 text-right font-bold text-white tabular-nums">
+                            {formatCurrency(nota.valor_total)}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                              isCancelada 
+                                ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
+                                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            }`}>
+                              {isCancelada ? '● CANCELADA' : '● FATURADA'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            {chave ? (
+                              <a
+                                href={`/api/notas-emitidas/xml?empresa_id=${empresaAtiva?.id}&chave=${chave}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-dark-700 hover:bg-dark-600 text-blue-400 hover:text-white rounded text-xs font-semibold transition-colors"
+                                title="Baixar XML oficial da NF-e"
+                              >
+                                <Download size={13} />
+                                XML
+                              </a>
+                            ) : (
+                              <span className="text-[10px] text-dark-500 font-mono">
+                                ID CA: {nota.conta_azul_id ? String(nota.conta_azul_id).slice(0, 8) : '—'}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
+        </div>
+      )}
 
-          {/* ETAPA 2: Preview */}
-          {etapa === 'preview' && resultado && (
-            <div className="space-y-4">
-              {/* Resumo */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-dark-800 border border-dark-700 rounded-xl p-4">
-                  <p className="text-dark-400 text-xs mb-1">Total de Vendas</p>
-                  <p className="text-white text-2xl font-bold">{dadosEditados.length}</p>
+      {/* ══════════════════════════════════════════════════════
+          SUB-ABA 3: UPLOAD DE PLANILHA
+      ══════════════════════════════════════════════════════ */}
+      {subAba === 'planilha' && (
+        <div className="space-y-6 animate-fade-in">
+          {etapa === 'upload' ? (
+            <div className="space-y-6">
+              <DropZoneVendas onResultado={handleResultado} />
+              
+              <div className="bg-dark-800/40 border border-dark-700/50 rounded-2xl p-5">
+                <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowPlanilhaFiscal(!showPlanilhaFiscal)}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                      <FileSpreadsheet size={18} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-white">Importar Base Fiscal (NCM / CEST)</h4>
+                      <p className="text-xs text-dark-400">Vincule regras fiscais de produtos a partir de planilhas.</p>
+                    </div>
+                  </div>
+                  {showPlanilhaFiscal ? <ChevronUp size={16} className="text-dark-400" /> : <ChevronDown size={16} className="text-dark-400" />}
                 </div>
-                <div className="bg-dark-800 border border-green-500/20 rounded-xl p-4">
-                  <p className="text-dark-400 text-xs mb-1">Válidas</p>
-                  <p className="text-green-400 text-2xl font-bold">
-                    {dadosEditados.filter(d => d.valido).length}
-                  </p>
-                </div>
+
+                {showPlanilhaFiscal && (
+                  <div className="mt-4 pt-4 border-t border-dark-700 space-y-3">
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleUploadPlanilhaFiscal}
+                      disabled={uploadingPlanilha}
+                      className="block w-full text-xs text-dark-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-500 cursor-pointer"
+                    />
+                  </div>
+                )}
               </div>
-
+            </div>
+          ) : (
+            <div className="space-y-4">
               <TabelaVendasPreview
                 dados={dadosEditados}
                 selecionados={selecionados}
@@ -1025,18 +1069,22 @@ export default function VendasPage() {
                 onRemover={removerItem}
                 onEditar={(idx) => setEditandoIdx(idx)}
               />
-
-              <div className="flex items-center justify-between p-4 bg-dark-800 border border-dark-700 rounded-xl mt-4">
-                <p className="text-dark-300 text-sm">
-                  <strong className="text-white">{selecionados.size}</strong> vendas selecionadas para envio.
-                </p>
+              <div className="flex items-center justify-between bg-dark-850 p-4 rounded-xl border border-dark-700">
                 <button
-                  onClick={handleEnviarContaAzul}
-                  disabled={enviandoCA || selecionados.size === 0 || !empresaAtiva}
-                  className="bg-brand-600 hover:bg-brand-500 disabled:opacity-40 text-white px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all shadow-lg"
+                  type="button"
+                  onClick={() => { setEtapa('upload'); setDadosEditados([]); setSelecionados(new Set()) }}
+                  className="px-4 py-2 text-sm text-dark-300 hover:text-white bg-dark-800 rounded-lg border border-dark-700 hover:border-dark-600 transition-colors"
                 >
-                  {enviandoCA ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                  {enviandoCA ? 'Enviando...' : 'Criar Vendas no Conta Azul'}
+                  Cancelar / Nova Planilha
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEnviarContaAzul}
+                  disabled={enviandoCA || selecionados.size === 0}
+                  className="px-6 py-2.5 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white font-medium rounded-xl transition-colors shadow-lg shadow-brand-600/20 flex items-center gap-2"
+                >
+                  {enviandoCA ? <Loader2 size={16} className="animate-spin" /> : null}
+                  Enviar {selecionados.size} Vendas para Conta Azul
                 </button>
               </div>
             </div>
@@ -1044,53 +1092,41 @@ export default function VendasPage() {
         </div>
       )}
 
-      {/* Modal Edição (planilha) */}
-      {editandoIdx !== null && (
-        <ModalEditarVenda
-          venda={dadosEditados[editandoIdx]}
-          onSave={handleSaveEdicao}
-          onClose={() => setEditandoIdx(null)}
-          empresaId={empresaAtiva?.id}
-        />
-      )}
-
-      {/* Modal Edição (Datacar) */}
-      {editandoDatacarId !== null && (
+      {/* MODAL: EDITAR VENDA DATACAR */}
+      {editandoDatacarId && (
         <ModalEditarDatacar
           vendaId={editandoDatacarId}
-          venda={vendasDatacar.find(v => v.id === editandoDatacarId)}
-          onSaveSuccess={(vendaAtualizada) => {
-            setVendasDatacar(prev => prev.map(v => v.id === vendaAtualizada.id ? vendaAtualizada : v))
-          }}
+          venda={vendasDatacar.find(v => v.id === editandoDatacarId)!}
           onClose={() => setEditandoDatacarId(null)}
+          onSaveSuccess={(vendaAtualizada: any) => {
+            setVendasDatacar(prev => prev.map(v => v.id === vendaAtualizada.id ? vendaAtualizada : v))
+            setEditandoDatacarId(null)
+            toast.success('Venda atualizada com sucesso!')
+          }}
         />
       )}
 
-      {expandidoDatacar !== null && (
+      {/* MODAL: DETALHES DE ITENS */}
+      {detalheVendaDatacar && (
         <ModalDetalheVendaDatacar
-          venda={vendasDatacar.find(v => v.id === expandidoDatacar)}
-          onClose={() => setExpandidoDatacar(null)}
+          venda={detalheVendaDatacar}
+          onClose={() => setDetalheVendaDatacar(null)}
           onEdit={() => {
-            setEditandoDatacarId(expandidoDatacar)
-            setExpandidoDatacar(null)
+            setEditandoDatacarId(detalheVendaDatacar.id)
+            setDetalheVendaDatacar(null)
           }}
-          onVerVendasAnteriores={(doc) => {
-            setModalClienteDoc(doc)
-            setExpandidoDatacar(null)
-          }}
-          onForcarEnvio={() => {
-            setVendasDatacar(prev => prev.map(v => v.id === expandidoDatacar ? { ...v, status: 'pendente' } : v))
-            setSelecionadosDatacar(prev => new Set(prev).add(expandidoDatacar))
-            setExpandidoDatacar(null)
+          onVerVendasAnteriores={(cpfCnpj: string) => {
+            setModalVendasCliente({ open: true, cpfCnpj })
           }}
         />
       )}
 
-      {modalClienteDoc !== null && empresaAtiva && (
+      {/* MODAL: VENDAS CLIENTE */}
+      {modalVendasCliente.open && (
         <ModalVendasCliente
-          empresaId={empresaAtiva.id}
-          cpfCnpj={modalClienteDoc}
-          onClose={() => setModalClienteDoc(null)}
+          cpfCnpj={modalVendasCliente.cpfCnpj}
+          empresaId={empresaAtiva?.id || ''}
+          onClose={() => setModalVendasCliente({ open: false, cpfCnpj: '' })}
         />
       )}
     </div>

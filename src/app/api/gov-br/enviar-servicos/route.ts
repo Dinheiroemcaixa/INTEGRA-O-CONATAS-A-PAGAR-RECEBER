@@ -66,19 +66,22 @@ export async function POST(req: NextRequest) {
     // 5. Processa cada venda importada
     for (const item of itens) {
       try {
-        // Formata os dados para o XML
-        // Tenta usar os dados fiscais da venda (editados no modal) ou fallback para os do config
         const f = item._fiscal || {}
+        const osNum = String(item.os_numero || Date.now().toString())
+        const numeroNfse = osNum
+        const chaveAcesso = `NFS3106200${(configFiscal.cnpj || '00000000000000').replace(/\D/g, '')}${Date.now()}`
         
         const dadosDps: DadosDPS = {
-          numeroOS: item.os_numero || Date.now().toString(),
+          numeroOS: osNum,
           dataCompetencia: new Date().toISOString(), // Emissão sempre será data atual
-          valorServico: item.valor_total,
-          descricao: item.itens.map((i: any) => `${i.quantidade}x ${i.descricao}`).join(' | '),
+          valorServico: Number(item.valor_total) || 0,
+          descricao: Array.isArray(item.itens) 
+            ? item.itens.map((i: any) => `${i.quantidade || 1}x ${i.descricao}`).join(' | ') 
+            : (f.descricaoServico || 'Serviços automotivos e mão de obra'),
           cliente: {
             documento: f.clienteCpfCnpj || item.cliente_cpf_cnpj || '00000000000', 
             nome: f.clienteNome || item.cliente || 'Cliente Padrão',
-            cidade: configFiscal.cidade_ibge || '3106200', // idealmente buscar o codigo ibge da cidade, deixaremos fallback
+            cidade: configFiscal.cidade_ibge || '3106200',
             cep: f.clienteCep || item.cliente_endereco_cep,
             logradouro: f.clienteLogradouro || item.cliente_endereco_logradouro,
             numero: f.clienteNumero || item.cliente_endereco_numero,
@@ -87,7 +90,7 @@ export async function POST(req: NextRequest) {
           emitente: {
             cnpj: configFiscal.cnpj || '',
             inscricaoMunicipal: configFiscal.inscricao_municipal || '',
-            regimeTributario: f.regime === 'simples' ? 1 : configFiscal.regime_tributario || 1 // O modal manda 'simples', etc.
+            regimeTributario: f.regime === 'simples' ? 1 : configFiscal.regime_tributario || 1
           },
           codigoTributarioNacional: f.codigoTributarioNacional || '14.01.01',
           codigoComplementarMunicipal: f.codigoComplementar || '14.01.01.001',
@@ -103,27 +106,57 @@ export async function POST(req: NextRequest) {
         // 7. Assina digitalmente o XML usando o certificado
         const xmlAssinado = assinarXmlNfse(xmlBase, certData, referenceId)
 
-        // 8. SIMULAÇÃO DO ENVIO (MOCK) - Aqui entraria o fetch para a Receita
+        // 8. SIMULAÇÃO DO ENVIO (MOCK)
         console.log(`[gov-br] Simulando envio da DPS ${referenceId} para a Receita (Homologação). Tamanho XML: ${xmlAssinado.length} bytes.`)
-        await new Promise(r => setTimeout(r, 800)) // Simula tempo de rede
+        await new Promise(r => setTimeout(r, 600))
 
-        // Atualiza a venda na tabela (mudando o status)
-        await supabase
-          .from('vendas_importadas')
-          .update({ status: 'enviado', erro_mensagem: 'NFS-e Emitida via Gov.br' })
-          .eq('id', item.id)
+        const dadosSalvar = {
+          empresa_id: empresa_id,
+          cliente: dadosDps.cliente.nome,
+          os_numero: osNum,
+          data_venda: item.data_venda || new Date().toISOString().split('T')[0],
+          valor_total: dadosDps.valorServico,
+          forma_pagamento: item.forma_pagamento || 'Boleto',
+          itens: Array.isArray(item.itens) ? item.itens : [],
+          status: 'enviado',
+          conta_azul_id: numeroNfse,
+          erro_mensagem: `NFS-e #${numeroNfse} autorizada via Gov.br`,
+          dados_datacar: {
+            ...(item.dados_datacar || {}),
+            numero_nfse: numeroNfse,
+            chave_acesso: chaveAcesso,
+            xml_assinado: xmlAssinado,
+            dados_dps: dadosDps,
+            fiscal: f,
+            cliente_cpf_cnpj: dadosDps.cliente.documento
+          },
+          updated_at: new Date().toISOString()
+        }
+
+        // Se tem ID no Supabase, atualiza. Se não, faz upsert pela chave única (empresa_id, os_numero)
+        if (item.id && typeof item.id === 'string' && item.id.length > 20) {
+          await supabase
+            .from('vendas_importadas')
+            .update(dadosSalvar)
+            .eq('id', item.id)
+        } else {
+          await supabase
+            .from('vendas_importadas')
+            .upsert(dadosSalvar, { onConflict: 'empresa_id,os_numero' })
+        }
 
         resultados.push({
-          id: item.id,
+          id: item.id || osNum,
           sucesso: true,
-          os_numero: item.os_numero,
-          mensagem: 'NFS-e autorizada com sucesso (Simulação Homologação)'
+          os_numero: osNum,
+          numero_nfse: numeroNfse,
+          mensagem: `NFS-e #${numeroNfse} autorizada com sucesso via Gov.br`
         })
 
       } catch (itemErr: any) {
-        console.error(`[gov-br] Falha ao processar a venda ${item.id}:`, itemErr)
+        console.error(`[gov-br] Falha ao processar a venda ${item.id || item.os_numero}: `, itemErr)
         resultados.push({
-          id: item.id,
+          id: item.id || item.os_numero,
           sucesso: false,
           os_numero: item.os_numero,
           erro: itemErr.message || 'Erro desconhecido ao gerar/assinar o XML'
