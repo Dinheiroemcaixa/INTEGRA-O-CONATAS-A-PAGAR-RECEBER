@@ -141,6 +141,40 @@ export default function VendasServicosPage() {
     }
   }, [empresaAtiva])
 
+  const [sincronizandoGovBr, setSincronizandoGovBr] = useState(false)
+
+  const handleSincronizarGovBr = async () => {
+    if (!empresaAtiva) return
+    if (!temCertificado) {
+      toast.error('Certificado Digital A1 não configurado para esta empresa. Faça o upload do certificado nas configurações fiscais.')
+      return
+    }
+
+    setSincronizandoGovBr(true)
+    const tId = toast.loading('Consultando e sincronizando notas no Gov.br com Certificado A1...')
+    try {
+      const res = await fetch('/api/gov-br/sincronizar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresa_id: empresaAtiva.id,
+          data_inicio: dtIniEmitidas,
+          data_fim: dtFimEmitidas,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao sincronizar com Gov.br')
+
+      toast.success(data.mensagem || 'Sincronização concluída com sucesso!', { id: tId })
+      await carregarNotasEmitidas()
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao sincronizar com Gov.br', { id: tId })
+    } finally {
+      setSincronizandoGovBr(false)
+    }
+  }
+
   // Carrega histórico de notas emitidas
   const carregarNotasEmitidas = useCallback(async () => {
     if (!empresaAtiva) return
@@ -898,11 +932,26 @@ export default function VendasServicosPage() {
 
               <button
                 onClick={carregarNotasEmitidas}
-                disabled={carregandoNotas}
+                disabled={carregandoNotas || sincronizandoGovBr}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-white rounded-lg text-xs font-semibold transition-colors"
+                title="Recarregar listagem"
               >
                 <RefreshCw size={13} className={carregandoNotas ? 'animate-spin' : ''} />
                 Atualizar
+              </button>
+
+              <button
+                onClick={handleSincronizarGovBr}
+                disabled={carregandoNotas || sincronizandoGovBr}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-emerald-900/30"
+                title="Consultar e sincronizar notas emitidas diretamente no portal da NFS-e Nacional / Gov.br usando o Certificado Digital A1"
+              >
+                {sincronizandoGovBr ? (
+                  <Loader2 size={13} className="animate-spin text-white" />
+                ) : (
+                  <RefreshCw size={13} className="text-emerald-100" />
+                )}
+                {sincronizandoGovBr ? 'Sincronizando Gov.br...' : 'Sincronizar Gov.br'}
               </button>
             </div>
           </div>
