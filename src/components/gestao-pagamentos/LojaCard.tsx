@@ -675,22 +675,16 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       return
     }
 
-    const semCategoria = itensValidos.filter(i => !i.categoria)
-    if (semCategoria.length > 0) {
-      toast.error(`Preencha a Categoria de ${semCategoria.length} lançamento(s) antes de enviar (clique em editar).`)
-      return
-    }
-
     try {
       const linhas = itensValidos.map(item => ({
         empresa_id: empresa.id,
-        fornecedor: String(item.fornecedor || item.beneficiario || '').trim(),
+        fornecedor: String(item.fornecedor || item.beneficiario || 'Não Informado').trim(),
         valor: Number(item.valor),
-        vencimento: item.data_vencimento,
-        categoria: item.categoria || 'Materiais para Revenda',
+        vencimento: item.data_vencimento || item.data_pagamento || hoje,
+        categoria: (item.categoria && item.categoria !== '—') ? item.categoria : 'Materiais para Revenda',
         descricao: item.descricao ? String(item.descricao).toUpperCase() : (item.documento ? `DOC: ${item.documento}` : null),
         doc: item.documento || `GP-${String(item.id).slice(0, 8)}`,
-        emissao: item.competencia || item.data_vencimento,
+        emissao: item.competencia || item.data_vencimento || item.data_pagamento || hoje,
         conta_financeira: item.conta_pagamento || null,
         status: 'pendente',
       }))
@@ -707,13 +701,13 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
       // 2. Guardar em sessionStorage para exibição na tela de revisão
       const itensRevisao = itensValidos.map(item => ({
-        fornecedor: String(item.fornecedor || item.beneficiario || '').trim(),
+        fornecedor: String(item.fornecedor || item.beneficiario || 'Não Informado').trim(),
         valor: Number(item.valor),
-        vencimento: item.data_vencimento,
-        categoria: item.categoria || 'Materiais para Revenda',
+        vencimento: item.data_vencimento || item.data_pagamento || hoje,
+        categoria: (item.categoria && item.categoria !== '—') ? item.categoria : 'Materiais para Revenda',
         descricao: item.descricao ? String(item.descricao).toUpperCase() : (item.documento ? `DOC: ${item.documento}` : ''),
         doc: item.documento || `GP-${String(item.id).slice(0, 8)}`,
-        emissao: item.competencia || item.data_vencimento,
+        emissao: item.competencia || item.data_vencimento || item.data_pagamento || hoje,
         conta_financeira: item.conta_pagamento || null,
         status: 'pendente',
       }))
@@ -723,7 +717,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         localStorage.setItem('empresa_ativa_id', empresa.id)
       }
 
-      toast.success(`${linhas.length} lançamento(s) registrado(s) e enviado(s) para o Contas a Pagar!`)
+      toast.success(`${linhas.length} lançamento(s) enviado(s) para o Contas a Pagar!`)
       setEmpresaAtiva(empresa)
       router.push(`/contas-pagar?empresa_id=${empresa.id}&revisao=true`)
     } catch (err: any) {
@@ -1061,10 +1055,108 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         </div>
       </div>
 
+      {selecionadosIndividuais.length > 0 && (
+        <div className="p-3 bg-blue-950/40 border-b border-blue-500/30 flex flex-wrap items-center justify-between gap-3 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <span className="bg-blue-600 text-white text-xs font-black px-2.5 py-1 rounded-full shadow">
+              {selecionadosIndividuais.length} selecionado{selecionadosIndividuais.length > 1 ? 's' : ''}
+            </span>
+            <span className="text-sm font-bold text-blue-200">
+              Total: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                pagamentosIndividuais
+                  .filter(p => selecionadosIndividuais.includes(p.id))
+                  .reduce((acc, curr) => acc + Number(curr.valor), 0)
+              )}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => {
+                const itens = pagamentosIndividuais.filter(p => selecionadosIndividuais.includes(p.id))
+                handleEnviarParaContasAPagar(itens)
+              }}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-black transition-all shadow-lg shadow-blue-900/30"
+            >
+              <Send size={14} /> Enviar p/ Contas a Pagar (Conta Azul)
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                handleAgendarEmLote(selecionadosIndividuais)
+                setSelecionadosIndividuais([])
+              }}
+              className="flex items-center gap-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-400 px-3 py-2 rounded-lg text-xs font-bold transition-all"
+            >
+              <CheckCircle2 size={14} /> Agendar
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                const itens = pagamentosIndividuais.filter(p => selecionadosIndividuais.includes(p.id))
+                abrirEdicaoEmMassa(itens)
+              }}
+              className="flex items-center gap-1.5 bg-dark-700 hover:bg-dark-600 text-white px-3 py-2 rounded-lg text-xs font-semibold transition-all border border-dark-600"
+            >
+              <Edit2 size={14} /> Editar em Massa
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                const itens = pagamentosIndividuais.filter(p => selecionadosIndividuais.includes(p.id))
+                abrirModalTransferir(itens)
+              }}
+              className="flex items-center gap-1.5 bg-dark-700 hover:bg-dark-600 text-emerald-400 px-3 py-2 rounded-lg text-xs font-semibold transition-all border border-dark-600"
+            >
+              <ArrowRightLeft size={14} /> Transferir Loja
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                handleExcluirEmLote(selecionadosIndividuais)
+                setSelecionadosIndividuais([])
+              }}
+              className="flex items-center gap-1.5 bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-400 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
+            >
+              <Trash2 size={14} /> Excluir
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelecionadosIndividuais([])}
+              className="text-dark-400 hover:text-white px-2 py-1 text-xs transition-colors"
+            >
+              Desmarcar
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="overflow-x-auto min-h-[150px]">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-[#0b0e14] border-b border-dark-700 text-[10px] uppercase font-bold tracking-widest text-dark-400">
+              <th className="w-10 px-3 py-2.5 text-center">
+                {pagamentosIndividuais.filter(p => p.origem !== 'Transferência' && p.origem !== 'Transferência Recebida').length > 0 && (
+                  <input
+                    type="checkbox"
+                    checked={
+                      pagamentosIndividuais.filter(p => p.origem !== 'Transferência' && p.origem !== 'Transferência Recebida').length > 0 &&
+                      pagamentosIndividuais
+                        .filter(p => p.origem !== 'Transferência' && p.origem !== 'Transferência Recebida')
+                        .every(p => selecionadosIndividuais.includes(p.id))
+                    }
+                    onChange={toggleSelecionarTodosIndividuais}
+                    className="rounded bg-dark-800 border-dark-600 text-blue-600 focus:ring-0 cursor-pointer w-3.5 h-3.5"
+                    title="Selecionar / Desmarcar todos os agendamentos"
+                  />
+                )}
+              </th>
               <th className="px-4 py-2.5">TIPO</th>
               <th className="px-4 py-2.5">BENEFICIÁRIO</th>
               <th className="px-4 py-2.5">CATEGORIA</th>
