@@ -501,10 +501,8 @@ export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSucc
                     <th className="py-2.5 px-3 w-28 text-right text-rose-400">Desc Item (R$)</th>
                     <th className="py-2.5 px-3 w-28 text-right text-emerald-400">Vl Líq (R$)</th>
                     <th className="py-2.5 px-3 w-14 text-center">Un</th>
-                    <th className="py-2.5 px-3 w-24">NCM</th>
-                    <th className="py-2.5 px-3 w-20">CEST</th>
-                    <th className="py-2.5 px-3 w-28">Origem</th>
-                    <th className="py-2.5 px-3 w-32">Tipo Produto</th>
+                    <th className="py-2.5 px-3 w-28">NCM</th>
+                    <th className="py-2.5 px-3 w-24">CEST</th>
                     <th className="py-2.5 px-3 w-8 text-center"></th>
                   </tr>
                 </thead>
@@ -636,29 +634,6 @@ export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSucc
                             placeholder="CEST"
                             className="w-full bg-dark-900 border border-dark-700 rounded-lg px-2 py-1 text-white font-mono text-[11px] outline-none"
                           />
-                        </td>
-                        <td className="p-2">
-                          <select
-                            value={item.origem || '0'}
-                            onChange={(e) => handleItemChange(i, 'origem', e.target.value)}
-                            className="w-full bg-dark-900 border border-dark-700 rounded-lg px-1 py-1 text-white text-[10px] outline-none truncate"
-                          >
-                            <option value="0">0 - Nacional</option>
-                            <option value="1">1 - Importação Direta</option>
-                            <option value="2">2 - Estrangeira Adq Interna</option>
-                          </select>
-                        </td>
-                        <td className="p-2">
-                          <select
-                            value={item.tipo_produto || '00'}
-                            onChange={(e) => handleItemChange(i, 'tipo_produto', e.target.value)}
-                            className="w-full bg-dark-900 border border-dark-700 rounded-lg px-1 py-1 text-white text-[10px] outline-none truncate"
-                          >
-                            <option value="00">00 - Mercadoria Revenda</option>
-                            <option value="09">09 - Serviços</option>
-                            <option value="07">07 - Material Uso/Consumo</option>
-                            <option value="99">99 - Outras</option>
-                          </select>
                         </td>
                         <td className="p-2 text-center">
                           <button
