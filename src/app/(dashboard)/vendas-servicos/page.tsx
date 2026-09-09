@@ -18,7 +18,7 @@ import {
   Database, RefreshCw, ChevronDown, ChevronUp,
   Trash2, FileSpreadsheet, BookOpen,
   Search, Calendar
-} from 'lucide-react'
+, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 type Etapa = 'upload' | 'preview'
@@ -561,6 +561,25 @@ export default function VendasPage() {
                 <PainelAgendamento 
                   tipo="vendas" 
                 />
+              )}
+
+              {/* Aviso caso Conta Azul Vendas não esteja conectado */}
+              {!empresaAtiva.access_token_conta_azul_vendas && (
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in">
+                  <div className="flex items-center gap-2.5">
+                    <AlertCircle size={18} className="text-amber-400 flex-shrink-0" />
+                    <p className="text-amber-200 text-xs">
+                      A loja <strong className="text-white">{empresaAtiva.nome}</strong> não possui integração com o <strong>Conta Azul Vendas</strong> conectada. Conecte para poder enviar vendas e emitir NFS-e.
+                    </p>
+                  </div>
+                  <a
+                    href={`/conectar?empresa_id=${empresaAtiva.id}&modulo=vendas`}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 flex-shrink-0 transition-all shadow-sm"
+                  >
+                    <ExternalLink size={12} />
+                    Conectar CA Vendas
+                  </a>
+                </div>
               )}
 
               {/* Formulário de Busca do Datacar */}

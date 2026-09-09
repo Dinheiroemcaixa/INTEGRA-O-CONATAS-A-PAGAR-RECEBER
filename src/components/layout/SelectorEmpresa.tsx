@@ -123,8 +123,8 @@ export default function SelectorEmpresa() {
   const isVendasModulo = pathname.startsWith('/vendas') || pathname.startsWith('/notas-emitidas')
   const isFinanceiroModulo = pathname.startsWith('/contas-pagar') || pathname.startsWith('/gestao-pagamentos') || pathname.startsWith('/contas-receber') || pathname.startsWith('/boletos') || pathname.startsWith('/pagamentos') || pathname.startsWith('/receber')
 
-  const caFinanceiroConectado = !!(empresaAtiva?.access_token_conta_azul || empresaAtiva?.email_login)
-  const caVendasConectado = !!(empresaAtiva?.access_token_conta_azul_vendas || empresaAtiva?.email_login_vendas)
+  const caFinanceiroConectado = Boolean(empresaAtiva?.access_token_conta_azul)
+  const caVendasConectado = Boolean(empresaAtiva?.access_token_conta_azul_vendas)
   const datacarConectado = !!empresaAtiva?.datacar_token
 
   const caModuloConectado = isVendasModulo ? caVendasConectado : caFinanceiroConectado
@@ -200,8 +200,8 @@ export default function SelectorEmpresa() {
                 const isSelected = empresaAtiva?.id === emp.id
                 const ehSomenteBanco = emp.datacar_cod_emp === 'SOMENTE_BANCO' || (emp as any).tipo_empresa === 'somente_banco' || (emp as any).somente_banco === true
                 const temDatacar = Boolean(emp.datacar_token)
-                const temCaFin = Boolean(emp.access_token_conta_azul || emp.email_login)
-                const temCaVen = Boolean(emp.access_token_conta_azul_vendas || emp.email_login_vendas)
+                const temCaFin = Boolean(emp.access_token_conta_azul)
+                const temCaVen = Boolean(emp.access_token_conta_azul_vendas)
 
                 const empCaModuloConectado = isVendasModulo ? temCaVen : (isFinanceiroModulo ? temCaFin : (temCaFin || temCaVen))
 
