@@ -186,14 +186,20 @@ export default function VendasPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erro ao buscar dados no Datacar')
 
-      setVendasDatacar(data.vendas || [])
-      const pendentes = (data.vendas || []).filter((v: VendaImportada) => v.status === 'pendente')
-      setSelecionadosDatacar(new Set(pendentes.map((v: VendaImportada) => v.id)))
+      const lista = (data.dados || data.vendas || []).map((item: any, idx: number) => ({
+        ...item,
+        id: String(item.id || item._datacar?.venda_Id || item.os_numero || `venda_${idx}_${Date.now()}`),
+        status: item.status || 'pendente'
+      }))
 
-      if (data.vendas?.length === 0) {
+      setVendasDatacar(lista)
+      const pendentes = lista.filter((item: any) => item.status === 'pendente')
+      setSelecionadosDatacar(new Set(pendentes.map((item: any) => item.id)))
+
+      if (lista.length === 0) {
         toast('Nenhuma venda de produtos encontrada para o período informado.', { icon: '🔍' })
       } else {
-        toast.success(`${data.vendas.length} OS de produtos encontradas!`)
+        toast.success(`${lista.length} OS de produtos encontradas!`)
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro ao buscar dados no Datacar'
