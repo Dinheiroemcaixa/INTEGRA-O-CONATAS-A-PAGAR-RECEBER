@@ -687,6 +687,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         emissao: item.competencia || item.data_vencimento || item.data_pagamento || hoje,
         conta_financeira: item.conta_pagamento || null,
         status: 'pendente',
+        metadata: { anexo_url: item.anexo_url || null },
       }))
 
       // 1. Salvar no banco Supabase na tabela contas_pagar_importadas
@@ -710,6 +711,8 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         emissao: item.competencia || item.data_vencimento || item.data_pagamento || hoje,
         conta_financeira: item.conta_pagamento || null,
         status: 'pendente',
+        anexo_url: item.anexo_url || null,
+        metadata: { anexo_url: item.anexo_url || null },
       }))
 
       if (typeof window !== 'undefined') {

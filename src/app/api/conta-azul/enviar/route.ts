@@ -212,12 +212,19 @@ export async function POST(req: NextRequest) {
         const valorNum = Number(conta.valor)
         const dataCompetencia = conta.emissao || conta.vencimento
 
+        // Obter link de anexo (se houver)
+        const urlAnexo = conta.metadata?.anexo_url || (conta as any).anexo_url || null
+        let textoObs = conta.descricao || `Pagamento - ${conta.fornecedor}`
+        if (urlAnexo) {
+          textoObs = `${textoObs}\n📎 Anexo/Comprovante: ${urlAnexo}`
+        }
+
         // Payload EVENTOS (v2 oficial)
         payloadFinal = {
           data_competencia: dataCompetencia,
           valor: valorNum,
           descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
-          observacao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
+          observacao: textoObs,
           contato: contatoId || undefined,
           conta_financeira: bancoId || undefined,
           rateio: [{

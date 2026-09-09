@@ -407,6 +407,7 @@ export default function ContasPagarPage() {
           doc: d.doc || null,
           emissao: d.emissao || null,
           status: 'pendente',
+          metadata: { ...(d.metadata || {}), anexo_url: d.anexo_url || d.metadata?.anexo_url || null },
       }))
 
       const { error } = await supabase

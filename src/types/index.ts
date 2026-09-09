@@ -72,6 +72,8 @@ export interface ContaPagarImportada {
   erro_mensagem: string | null
   tentativas: number
   importacao_id: string | null
+  metadata?: Record<string, any> | null
+  anexo_url?: string | null
   created_at: string
   updated_at: string
 }
@@ -108,6 +110,8 @@ export interface ContaPagarPreview {
   /** Data de emissão do documento */
   emissao?: string
   linha_original?: string
+  anexo_url?: string | null
+  metadata?: Record<string, any> | null
   valido: boolean
   erros?: string[]
   /** Resultado do match automático com fornecedores do ContaAzul */

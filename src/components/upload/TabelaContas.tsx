@@ -2,8 +2,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import type { ContaPagarImportada } from '@/types'
-import { formatCurrency, formatDate } from '@/lib/utils'
-import { CheckCircle, Clock, AlertCircle, RefreshCw, Loader2, Trash2, Landmark, Tags, Edit2, ArrowRightLeft, Building2 } from 'lucide-react'
+import { formatCurrency, formatDate, visualizarAnexo } from '@/lib/utils'
+import { CheckCircle, Clock, AlertCircle, RefreshCw, Loader2, Trash2, Landmark, Paperclip, Tags, Edit2, ArrowRightLeft, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import SelectorContaFinanceira, { type ContaFinanceiraOpcao } from '@/components/upload/SelectorContaFinanceira'
@@ -548,13 +548,25 @@ export default function TabelaContas({ empresaId }: Props) {
                         )}
                       </td>
                       <td>
-                        <button
-                          onClick={() => removerConta(conta.id)}
-                          className="text-dark-500 hover:text-red-400 transition-colors p-1"
-                          title="Excluir"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          {(conta.metadata?.anexo_url || conta.anexo_url) && (
+                            <button
+                              type="button"
+                              onClick={() => visualizarAnexo(conta.metadata?.anexo_url || conta.anexo_url)}
+                              className="text-emerald-400 hover:text-emerald-300 transition-colors p-1 bg-emerald-500/10 rounded"
+                              title="Visualizar Anexo/Comprovante"
+                            >
+                              <Paperclip size={14} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => removerConta(conta.id)}
+                            className="text-dark-500 hover:text-red-400 transition-colors p-1"
+                            title="Excluir"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )

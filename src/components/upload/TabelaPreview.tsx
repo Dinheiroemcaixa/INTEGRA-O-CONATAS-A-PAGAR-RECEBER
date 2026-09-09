@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, visualizarAnexo } from '@/lib/utils'
 import type { ContaPagarPreview } from '@/types'
-import { CheckCircle, AlertCircle, Trash2, Edit2, ChevronDown } from 'lucide-react'
+import { CheckCircle, AlertCircle, Trash2, Edit2, ChevronDown, Paperclip } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import SelectorFornecedor from './SelectorFornecedor'
 import SelectorCategoria from './SelectorCategoria'
@@ -581,12 +581,25 @@ export default function TabelaPreview({
                     )}
                   </td>
                   <td>
-                    <button
-                      onClick={() => onRemover(idx)}
-                      className="text-dark-500 hover:text-red-400 transition-colors p-1"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {(item.anexo_url || item.metadata?.anexo_url) && (
+                        <button
+                          type="button"
+                          onClick={() => visualizarAnexo(item.anexo_url || item.metadata?.anexo_url)}
+                          className="text-emerald-400 hover:text-emerald-300 transition-colors p-1 bg-emerald-500/10 rounded"
+                          title="Visualizar Anexo/Comprovante"
+                        >
+                          <Paperclip size={14} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => onRemover(idx)}
+                        className="text-dark-500 hover:text-red-400 transition-colors p-1"
+                        title="Excluir"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               )
