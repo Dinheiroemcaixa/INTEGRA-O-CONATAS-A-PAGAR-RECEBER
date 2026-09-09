@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react'
-import { X, Save, Plus, Trash2 } from 'lucide-react'
+import { 
+  X, Save, Plus, Trash2, Search, MapPin, User, FileText, 
+  Car, DollarSign, CheckCircle, AlertCircle, Loader2 
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { buscarCep, buscarCnpj } from '@/services/brasil-api/client'
 import toast from 'react-hot-toast'
 
 interface ModalEditarDatacarProps {
   vendaId: string
-  venda: any // VendaImportada
+  venda: any
   onClose: () => void
   onSaveSuccess: (vendaAtualizada: any) => void
 }
@@ -13,44 +17,150 @@ interface ModalEditarDatacarProps {
 export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSuccess }: ModalEditarDatacarProps) {
   const [formData, setFormData] = useState<any>(null)
   const [salvando, setSalvando] = useState(false)
+  const [buscandoCep, setBuscandoCep] = useState(false)
+  const [buscandoCnpj, setBuscandoCnpj] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
     if (venda) {
+      const end = venda.cliente_endereco || {}
+      const dDatacar = venda._datacar || venda.dados_datacar || {}
+
       setFormData({
-        cliente: venda.cliente || '',
-        cpf_cnpj: venda.dados_datacar?.cliente_cpf_cnpj || '',
-        cep: venda.dados_datacar?.cliente_cep || '',
-        logradouro: venda.dados_datacar?.cliente_logradouro || '',
-        numero: venda.dados_datacar?.cliente_numero || '',
-        complemento: venda.dados_datacar?.cliente_complemento || '',
-        bairro: venda.dados_datacar?.cliente_bairro || '',
-        cidade: venda.dados_datacar?.cliente_cidade || '',
-        uf: venda.dados_datacar?.cliente_uf || '',
+        id: venda.id || vendaId,
+        cliente: venda.cliente || dDatacar.cliente_nome || '',
+        cpf_cnpj: venda.cliente_cpf_cnpj || dDatacar.cliente_cpf_cnpj || '',
+        cep: end.cep || dDatacar.cliente_cep || '',
+        logradouro: end.logradouro || dDatacar.cliente_logradouro || '',
+        numero: end.numero || dDatacar.cliente_numero || '',
+        complemento: end.complemento || dDatacar.cliente_complemento || '',
+        bairro: end.bairro || dDatacar.cliente_bairro || '',
+        cidade: end.cidade || dDatacar.cliente_cidade || '',
+        estado: end.estado || dDatacar.cliente_uf || '',
         os_numero: venda.os_numero || '',
-        itens: venda.itens ? JSON.parse(JSON.stringify(venda.itens)) : [],
+        data_venda: venda.data_venda || '',
+        forma_pagamento: venda.forma_pagamento || '',
+        vendedor: dDatacar.vendedor || '',
+        veiculo: dDatacar.veiculo || '',
+        itens: (venda.itens || []).map((item: any) => ({
+          codigo: item.codigo || '',
+          descricao: item.descricao || '',
+          quantidade: Number(item.quantidade) || 1,
+          valor_unitario: Number(item.valor_unitario) || 0,
+          valor_unitario_original: item.valor_unitario_original !== undefined ? Number(item.valor_unitario_original) : Number(item.valor_unitario) || 0,
+          desconto: Number(item.desconto) || 0,
+          valor_total: Number(item.valor_total) || ((Number(item.quantidade) || 1) * (Number(item.valor_unitario) || 0)),
+          tipo: item.tipo || 'produto',
+          unidade_medida: item.unidade_medida || 'UN',
+          ncm: item.ncm || '',
+          cest: item.cest || '',
+          origem: item.origem || '0 - Nacional',
+          tipo_produto: item.tipo_produto || (item.tipo === 'servico' ? '09 - Serviços' : '00 - Mercadoria para Revenda')
+        }))
       })
     }
-  }, [venda])
+  }, [venda, vendaId])
 
   if (!formData) return null
 
   const recalcularTotal = (itens: any[]) => {
-    return itens.reduce((acc, item) => acc + ((item.quantidade || 0) * (item.valor_unitario || 0)), 0)
+    return itens.reduce((acc, item) => acc + (Number(item.valor_total) || (Number(item.quantidade) * Number(item.valor_unitario))), 0)
   }
 
-  const handleItemChange = (index: number, field: string, value: string | number) => {
+  const handleBuscarCep = async () => {
+    const cepLimpo = formData.cep?.replace(/\D/g, '')
+    if (!cepLimpo || cepLimpo.length !== 8) {
+      toast.error('Informe um CEP válido com 8 dígitos.')
+      return
+    }
+    setBuscandoCep(true)
+    try {
+      const res = await buscarCep(cepLimpo)
+      if (res) {
+        setFormData((prev: any) => ({
+          ...prev,
+          logradouro: res.street || prev.logradouro,
+          bairro: res.neighborhood || prev.bairro,
+          cidade: res.city || prev.cidade,
+          estado: res.state || prev.estado
+        }))
+        toast.success('Endereço preenchido via CEP!')
+      } else {
+        toast.error('CEP não localizado.')
+      }
+    } catch {
+      toast.error('Erro ao consultar CEP.')
+    } finally {
+      setBuscandoCep(false)
+    }
+  }
+
+  const handleBuscarCnpj = async () => {
+    const docLimpo = formData.cpf_cnpj?.replace(/\D/g, '')
+    if (!docLimpo || docLimpo.length !== 14) {
+      toast.error('Informe um CNPJ válido com 14 dígitos.')
+      return
+    }
+    setBuscandoCnpj(true)
+    try {
+      const res = await buscarCnpj(docLimpo)
+      if (res) {
+        setFormData((prev: any) => ({
+          ...prev,
+          cliente: res.razao_social || res.nome_fantasia || prev.cliente,
+          logradouro: res.logradouro || prev.logradouro,
+          numero: res.numero || prev.numero,
+          complemento: res.complemento || prev.complemento,
+          bairro: res.bairro || prev.bairro,
+          cidade: res.municipio || prev.cidade,
+          estado: res.uf || prev.estado,
+          cep: res.cep || prev.cep
+        }))
+        toast.success('Dados da empresa preenchidos via Receita Federal!')
+      } else {
+        toast.error('CNPJ não localizado na Receita.')
+      }
+    } catch {
+      toast.error('Erro ao consultar CNPJ.')
+    } finally {
+      setBuscandoCnpj(false)
+    }
+  }
+
+  const handleItemChange = (index: number, field: string, value: any) => {
     const novosItens = [...formData.itens]
     novosItens[index] = { ...novosItens[index], [field]: value }
+    
+    // Atualiza valor_total caso quantidade ou valor unitario mudem
+    if (field === 'quantidade' || field === 'valor_unitario') {
+      const qtd = field === 'quantidade' ? Number(value) : Number(novosItens[index].quantidade)
+      const vUnit = field === 'valor_unitario' ? Number(value) : Number(novosItens[index].valor_unitario)
+      novosItens[index].valor_total = parseFloat((qtd * vUnit).toFixed(2))
+    }
+
     setFormData({ ...formData, itens: novosItens })
   }
 
   const handleAdicionarItem = () => {
-    const novosItens = [
-      ...formData.itens, 
-      { codigo: 'NOVO', descricao: 'Novo Item', quantidade: 1, valor_unitario: 0 }
-    ]
-    setFormData({ ...formData, itens: novosItens })
+    setFormData({
+      ...formData,
+      itens: [
+        ...formData.itens,
+        {
+          codigo: '',
+          descricao: 'Novo Item / Peça',
+          quantidade: 1,
+          valor_unitario: 0,
+          valor_total: 0,
+          tipo: 'produto',
+          unidade_medida: 'UN',
+          ncm: '',
+          cest: '',
+          origem: '0 - Nacional',
+          tipo_produto: '00 - Mercadoria para Revenda'
+        }
+      ]
+    })
   }
 
   const handleRemoverItem = (index: number) => {
@@ -61,352 +171,437 @@ export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSucc
   const handleSave = async () => {
     setSalvando(true)
     try {
-      const novosDadosDatacar = {
-        ...venda.dados_datacar,
-        cliente_cpf_cnpj: formData.cpf_cnpj,
-        cliente_cep: formData.cep,
-        cliente_logradouro: formData.logradouro,
-        cliente_numero: formData.numero,
-        cliente_complemento: formData.complemento,
-        cliente_bairro: formData.bairro,
-        cliente_cidade: formData.cidade,
-        cliente_uf: formData.uf,
-      }
-
-      const recalcularDescontoTotal = (itens: any[]) => {
-        return itens.reduce((acc, item) => acc + ((item.quantidade || 0) * (item.desconto || 0)), 0)
-      }
-
+      const valorTotal = recalcularTotal(formData.itens)
       const vendaAtualizada = {
         ...venda,
         cliente: formData.cliente,
-        cliente_cpf_cnpj: formData.cpf_cnpj || venda.cliente_cpf_cnpj,
+        cliente_cpf_cnpj: formData.cpf_cnpj,
         cliente_endereco: {
-          logradouro: formData.logradouro || null,
-          numero: formData.numero || null,
-          complemento: formData.complemento || null,
-          bairro: formData.bairro || null,
-          cidade: formData.cidade || null,
-          estado: formData.uf || null,
-          cep: formData.cep || null,
+          logradouro: formData.logradouro,
+          numero: formData.numero,
+          complemento: formData.complemento,
+          bairro: formData.bairro,
+          cidade: formData.cidade,
+          estado: formData.estado,
+          cep: formData.cep
         },
         os_numero: formData.os_numero,
-        dados_datacar: novosDadosDatacar,
+        valor_total: valorTotal,
+        forma_pagamento: formData.forma_pagamento,
         itens: formData.itens,
-        valor_total: recalcularTotal(formData.itens),
-        desconto_total: recalcularDescontoTotal(formData.itens)
-      }
-
-      // Salvar na Memória Fiscal (aprende com as edições do usuário)
-      try {
-        const empresa_id = venda.empresa_id
-        if (empresa_id && formData.itens.length > 0) {
-          
-          // Verifica se há dados fiscais preenchidos para justificar a pergunta
-          const temFiscal = formData.itens.some((i: any) => i.ncm || i.cest)
-          
-          let salvarParaFamilia = false
-          if (temFiscal) {
-            salvarParaFamilia = window.confirm(
-              "Deseja que o sistema aprenda esses dados fiscais (NCM/CEST) para aplicar em todos os produtos similares (mesma família/palavra-chave) nas próximas importações?\n\n" +
-              "OK = Aplicar para todos similares\n" +
-              "Cancelar = Somente para este código exato"
-            )
-          }
-
-          // Adiciona a flag nos itens
-          const itensPayload = formData.itens.map((i: any) => ({
-            ...i,
-            salvarParaFamilia
-          }))
-
-          await fetch('/api/memoria-fiscal', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ empresa_id, itens: itensPayload })
-          })
+        _datacar: {
+          ...(venda._datacar || {}),
+          vendedor: formData.vendedor,
+          veiculo: formData.veiculo,
+          cliente_cpf_cnpj: formData.cpf_cnpj,
+          cliente_logradouro: formData.logradouro,
+          cliente_numero: formData.numero,
+          cliente_complemento: formData.complemento,
+          cliente_bairro: formData.bairro,
+          cliente_cidade: formData.cidade,
+          cliente_uf: formData.estado,
+          cliente_cep: formData.cep
         }
-      } catch (e) {
-        console.warn('[ModalEditarDatacar] Erro ao salvar memória fiscal (não crítico):', e)
       }
 
-      toast.success('Venda atualizada na lista de importação!')
       onSaveSuccess(vendaAtualizada)
       onClose()
-    } catch (error) {
-      console.error(error)
-      toast.error('Erro ao salvar as alterações')
+    } catch (err: any) {
+      toast.error('Erro ao salvar edições da venda.')
     } finally {
       setSalvando(false)
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-dark-900 border border-dark-700 rounded-2xl w-full max-w-6xl flex flex-col max-h-[90vh] shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
+      <div className="bg-dark-900 border border-dark-700/80 rounded-2xl w-full max-w-5xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto">
         
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-dark-700/50">
-          <h3 className="text-lg font-bold text-white">Editar Informações da Venda</h3>
-          <button onClick={onClose} className="p-2 text-dark-400 hover:text-white rounded-lg hover:bg-dark-800 transition-colors">
-            <X size={20} />
+        {/* Header Ultra-Moderno */}
+        <div className="px-6 py-4 border-b border-dark-700/80 flex items-center justify-between bg-dark-950/80">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 font-bold">
+              <FileText size={20} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-white">Editar Informações da Venda</h3>
+                <span className="px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                  OS #{formData.os_numero}
+                </span>
+              </div>
+              <p className="text-xs text-dark-400">
+                Ajuste os dados cadastrais, endereço, veículo e parâmetros tributários antes da emissão.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-dark-400 hover:text-white p-2 rounded-lg hover:bg-dark-800 transition-colors"
+          >
+            <X size={18} />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="p-5 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
+        {/* Corpo do Modal */}
+        <div className="p-6 overflow-y-auto space-y-6 custom-scrollbar">
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1.5 md:col-span-2">
-              <label className="text-xs font-semibold text-dark-300">Cliente (Nome/Razão Social)</label>
-              <input
-                type="text"
-                value={formData.cliente}
-                onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
-                className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-sm text-white focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all"
-              />
-            </div>
-            
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-dark-300">CPF / CNPJ</label>
-              <input
-                type="text"
-                value={formData.cpf_cnpj}
-                onChange={(e) => setFormData({ ...formData, cpf_cnpj: e.target.value })}
-                className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-sm text-white focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all"
-              />
+          {/* Card 1: Dados do Cliente & Identificação */}
+          <div className="bg-dark-850/80 border border-dark-700/80 rounded-2xl p-5 space-y-4 shadow-sm">
+            <div className="flex items-center justify-between border-b border-dark-700/50 pb-2.5">
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <User size={15} className="text-blue-400" />
+                Dados do Cliente & Identificação
+              </h4>
+              {formData.cpf_cnpj?.replace(/\D/g, '').length === 14 && (
+                <button
+                  type="button"
+                  onClick={handleBuscarCnpj}
+                  disabled={buscandoCnpj}
+                  className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 font-semibold transition-colors"
+                >
+                  {buscandoCnpj ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
+                  Buscar CNPJ na Receita
+                </button>
+              )}
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-dark-300">OS / Pedido</label>
-              <input
-                type="text"
-                value={formData.os_numero}
-                onChange={(e) => setFormData({ ...formData, os_numero: e.target.value })}
-                className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-sm text-white focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+              <div className="sm:col-span-6">
+                <label className="text-xs font-medium text-dark-300 mb-1 block">Cliente (Nome / Razão Social)</label>
+                <input
+                  type="text"
+                  value={formData.cliente}
+                  onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
+                  className="w-full bg-dark-900 border border-dark-700 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-blue-500 transition-all font-medium"
+                />
+              </div>
+
+              <div className="sm:col-span-3">
+                <label className="text-xs font-medium text-dark-300 mb-1 block">CPF / CNPJ</label>
+                <input
+                  type="text"
+                  value={formData.cpf_cnpj}
+                  onChange={(e) => setFormData({ ...formData, cpf_cnpj: e.target.value })}
+                  placeholder="000.000.000-00"
+                  className="w-full bg-dark-900 border border-dark-700 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-blue-500 font-mono transition-all"
+                />
+              </div>
+
+              <div className="sm:col-span-3">
+                <label className="text-xs font-medium text-dark-300 mb-1 block">Número da OS / Pedido</label>
+                <input
+                  type="text"
+                  value={formData.os_numero}
+                  onChange={(e) => setFormData({ ...formData, os_numero: e.target.value })}
+                  className="w-full bg-dark-900 border border-dark-700 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-blue-500 font-mono font-bold transition-all"
+                />
+              </div>
             </div>
           </div>
 
-          <hr className="border-dark-700/50" />
-          <h4 className="text-sm font-semibold text-white">Endereço do Cliente</h4>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-dark-300">CEP</label>
-              <input
-                type="text"
-                value={formData.cep}
-                onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
-                className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-sm text-white focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all"
-              />
-            </div>
-
-            <div className="space-y-1.5 md:col-span-2">
-              <label className="text-xs font-semibold text-dark-300">Logradouro (Rua, Av.)</label>
-              <input
-                type="text"
-                value={formData.logradouro}
-                onChange={(e) => setFormData({ ...formData, logradouro: e.target.value })}
-                className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-sm text-white focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-dark-300">Número</label>
-              <input
-                type="text"
-                value={formData.numero}
-                onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
-                className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-sm text-white focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all"
-              />
-            </div>
-
-            <div className="space-y-1.5 md:col-span-2">
-              <label className="text-xs font-semibold text-dark-300">Complemento</label>
-              <input
-                type="text"
-                value={formData.complemento}
-                onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
-                className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-sm text-white focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-dark-300">Bairro</label>
-              <input
-                type="text"
-                value={formData.bairro}
-                onChange={(e) => setFormData({ ...formData, bairro: e.target.value })}
-                className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-sm text-white focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-dark-300">Cidade</label>
-              <input
-                type="text"
-                value={formData.cidade}
-                onChange={(e) => setFormData({ ...formData, cidade: e.target.value })}
-                className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-sm text-white focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-dark-300">Estado (UF)</label>
-              <input
-                type="text"
-                value={formData.uf}
-                maxLength={2}
-                onChange={(e) => setFormData({ ...formData, uf: e.target.value.toUpperCase() })}
-                className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-sm text-white focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all"
-              />
-            </div>
-          </div>
-
-          <hr className="border-dark-700/50" />
-          
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-white">Itens da Venda e Dados Fiscais</h4>
+          {/* Card 2: Endereço do Cliente com Busca de CEP */}
+          <div className="bg-dark-850/80 border border-dark-700/80 rounded-2xl p-5 space-y-4 shadow-sm">
+            <div className="flex items-center justify-between border-b border-dark-700/50 pb-2.5">
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <MapPin size={15} className="text-emerald-400" />
+                Endereço de Faturamento & Entrega
+              </h4>
               <button
-                onClick={handleAdicionarItem}
-                className="flex items-center gap-1.5 text-xs text-brand-400 hover:text-brand-300 px-2 py-1.5 rounded-lg hover:bg-brand-500/10 transition-colors"
+                type="button"
+                onClick={handleBuscarCep}
+                disabled={buscandoCep}
+                className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-semibold transition-colors"
               >
-                <Plus size={14} /> Adicionar Item
+                {buscandoCep ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
+                Consultar CEP
               </button>
             </div>
-            
-            <div className="bg-dark-800/50 border border-dark-700 rounded-xl overflow-x-auto">
-              <table className="w-full text-left text-sm min-w-[1000px]">
-                <thead className="text-[11px] text-dark-400 border-b border-dark-700 uppercase">
-                  <tr>
-                    <th className="p-2 font-medium w-32">Código</th>
-                    <th className="p-2 font-medium">Descrição</th>
-                    <th className="p-2 font-medium w-20">Qtd</th>
-                    <th className="p-2 font-medium w-28">Vl Unit</th>
-                    <th className="p-2 font-medium w-20">UN</th>
-                    <th className="p-2 font-medium w-28">NCM</th>
-                    <th className="p-2 font-medium w-28">CEST</th>
-                    <th className="p-2 font-medium w-48">Origem</th>
-                    <th className="p-2 font-medium w-48">Tipo Produto</th>
-                    <th className="p-2 font-medium w-10"></th>
+
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+              <div className="sm:col-span-3">
+                <label className="text-xs font-medium text-dark-300 mb-1 block">CEP</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={formData.cep}
+                    onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
+                    onBlur={handleBuscarCep}
+                    placeholder="00000-000"
+                    className="w-full bg-dark-900 border border-dark-700 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-emerald-500 font-mono transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="sm:col-span-6">
+                <label className="text-xs font-medium text-dark-300 mb-1 block">Logradouro (Rua, Av.)</label>
+                <input
+                  type="text"
+                  value={formData.logradouro}
+                  onChange={(e) => setFormData({ ...formData, logradouro: e.target.value })}
+                  placeholder="Nome da rua..."
+                  className="w-full bg-dark-900 border border-dark-700 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-emerald-500 transition-all"
+                />
+              </div>
+
+              <div className="sm:col-span-3">
+                <label className="text-xs font-medium text-dark-300 mb-1 block">Número</label>
+                <input
+                  type="text"
+                  value={formData.numero}
+                  onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
+                  placeholder="123"
+                  className="w-full bg-dark-900 border border-dark-700 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-emerald-500 transition-all"
+                />
+              </div>
+
+              <div className="sm:col-span-3">
+                <label className="text-xs font-medium text-dark-300 mb-1 block">Complemento</label>
+                <input
+                  type="text"
+                  value={formData.complemento}
+                  onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
+                  placeholder="Apto, Sala..."
+                  className="w-full bg-dark-900 border border-dark-700 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-emerald-500 transition-all"
+                />
+              </div>
+
+              <div className="sm:col-span-3">
+                <label className="text-xs font-medium text-dark-300 mb-1 block">Bairro</label>
+                <input
+                  type="text"
+                  value={formData.bairro}
+                  onChange={(e) => setFormData({ ...formData, bairro: e.target.value })}
+                  placeholder="Bairro..."
+                  className="w-full bg-dark-900 border border-dark-700 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-emerald-500 transition-all"
+                />
+              </div>
+
+              <div className="sm:col-span-4">
+                <label className="text-xs font-medium text-dark-300 mb-1 block">Cidade</label>
+                <input
+                  type="text"
+                  value={formData.cidade}
+                  onChange={(e) => setFormData({ ...formData, cidade: e.target.value })}
+                  placeholder="Cidade..."
+                  className="w-full bg-dark-900 border border-dark-700 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-emerald-500 transition-all"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="text-xs font-medium text-dark-300 mb-1 block">Estado (UF)</label>
+                <input
+                  type="text"
+                  maxLength={2}
+                  value={formData.estado}
+                  onChange={(e) => setFormData({ ...formData, estado: e.target.value.toUpperCase() })}
+                  placeholder="UF"
+                  className="w-full bg-dark-900 border border-dark-700 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-emerald-500 uppercase font-mono font-bold text-center transition-all"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Informações Operacionais & Veículo */}
+          <div className="bg-dark-850/80 border border-dark-700/80 rounded-2xl p-5 space-y-4 shadow-sm">
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2 border-b border-dark-700/50 pb-2.5">
+              <Car size={15} className="text-purple-400" />
+              Operação, Veículo & Pagamento
+            </h4>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="text-xs font-medium text-dark-300 mb-1 block">Veículo / Placa</label>
+                <input
+                  type="text"
+                  value={formData.veiculo}
+                  onChange={(e) => setFormData({ ...formData, veiculo: e.target.value })}
+                  placeholder="Marca Modelo - ABC1234"
+                  className="w-full bg-dark-900 border border-dark-700 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-purple-500 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-dark-300 mb-1 block">Vendedor Responsável</label>
+                <input
+                  type="text"
+                  value={formData.vendedor}
+                  onChange={(e) => setFormData({ ...formData, vendedor: e.target.value })}
+                  placeholder="Nome do consultor..."
+                  className="w-full bg-dark-900 border border-dark-700 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-purple-500 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-dark-300 mb-1 block">Forma de Pagamento</label>
+                <input
+                  type="text"
+                  value={formData.forma_pagamento}
+                  onChange={(e) => setFormData({ ...formData, forma_pagamento: e.target.value })}
+                  placeholder="Ex: Cartão de Crédito (3x)"
+                  className="w-full bg-dark-900 border border-dark-700 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-purple-500 transition-all font-semibold"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Card 4: Tabela de Itens e Dados Fiscais */}
+          <div className="bg-dark-850/80 border border-dark-700/80 rounded-2xl p-5 space-y-4 shadow-sm">
+            <div className="flex items-center justify-between border-b border-dark-700/50 pb-2.5">
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <DollarSign size={15} className="text-cyan-400" />
+                Itens da Venda e Classificação Fiscal ({formData.itens.length})
+              </h4>
+              <button
+                type="button"
+                onClick={handleAdicionarItem}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 rounded-xl text-xs font-bold transition-all"
+              >
+                <Plus size={13} />
+                Adicionar Item
+              </button>
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-dark-700/60">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-dark-950/80 text-dark-400 font-bold uppercase tracking-wider text-[10px] border-b border-dark-700/80">
+                    <th className="py-2.5 px-3 w-16">Tipo</th>
+                    <th className="py-2.5 px-3 w-24">Código</th>
+                    <th className="py-2.5 px-3 min-w-[180px]">Descrição</th>
+                    <th className="py-2.5 px-3 w-14 text-center">Qtd</th>
+                    <th className="py-2.5 px-3 w-24 text-right">Vl Unit (R$)</th>
+                    <th className="py-2.5 px-3 w-14 text-center">Un</th>
+                    <th className="py-2.5 px-3 w-24">NCM</th>
+                    <th className="py-2.5 px-3 w-24">CEST</th>
+                    <th className="py-2.5 px-3 w-32">Origem</th>
+                    <th className="py-2.5 px-3 w-36">Tipo Produto</th>
+                    <th className="py-2.5 px-3 w-10 text-center"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-dark-700/50">
                   {formData.itens.map((item: any, i: number) => (
-                    <tr key={i} className="group hover:bg-dark-700/30 text-xs">
-                      <td className="p-1">
+                    <tr key={i} className="hover:bg-dark-800/40 transition-colors group">
+                      <td className="p-2">
+                        <select
+                          value={item.tipo || 'produto'}
+                          onChange={(e) => handleItemChange(i, 'tipo', e.target.value)}
+                          className="bg-dark-900 border border-dark-700 rounded-lg px-2 py-1 text-white text-[11px] outline-none"
+                        >
+                          <option value="produto">PROD</option>
+                          <option value="servico">SERV</option>
+                        </select>
+                      </td>
+                      <td className="p-2">
                         <input
                           type="text"
                           value={item.codigo || ''}
                           onChange={(e) => handleItemChange(i, 'codigo', e.target.value)}
-                          className="w-full bg-transparent border border-transparent rounded px-2 py-1.5 text-white hover:border-dark-600 focus:border-brand-500 focus:bg-dark-800 outline-none transition-all"
+                          placeholder="Código"
+                          className="w-full bg-dark-900 border border-dark-700 rounded-lg px-2 py-1 text-white font-mono text-[11px] outline-none focus:border-blue-500"
                         />
                       </td>
-                      <td className="p-1">
+                      <td className="p-2">
                         <input
                           type="text"
                           value={item.descricao || ''}
                           onChange={(e) => handleItemChange(i, 'descricao', e.target.value)}
-                          className="w-full bg-transparent border border-transparent rounded px-2 py-1.5 text-white hover:border-dark-600 focus:border-brand-500 focus:bg-dark-800 outline-none transition-all"
+                          className="w-full bg-dark-900 border border-dark-700 rounded-lg px-2.5 py-1 text-white text-xs outline-none focus:border-blue-500 font-medium"
                         />
                       </td>
-                      <td className="p-1">
+                      <td className="p-2 text-center">
                         <input
                           type="number"
                           step="0.01"
-                          value={item.quantidade || 0}
+                          value={item.quantidade || 1}
                           onChange={(e) => handleItemChange(i, 'quantidade', parseFloat(e.target.value) || 0)}
-                          className="w-full bg-transparent border border-transparent rounded px-2 py-1.5 text-white hover:border-dark-600 focus:border-brand-500 focus:bg-dark-800 outline-none transition-all"
+                          className="w-14 bg-dark-900 border border-dark-700 rounded-lg px-1.5 py-1 text-white text-center text-xs outline-none focus:border-blue-500 font-bold"
                         />
                       </td>
-                      <td className="p-1">
+                      <td className="p-2 text-right">
                         <input
                           type="number"
                           step="0.01"
-                          value={item.valor_unitario?.toFixed(2) || '0.00'}
+                          value={item.valor_unitario || 0}
                           onChange={(e) => handleItemChange(i, 'valor_unitario', parseFloat(e.target.value) || 0)}
-                          className="w-full bg-transparent border border-transparent rounded px-2 py-1.5 text-white hover:border-dark-600 focus:border-brand-500 focus:bg-dark-800 outline-none transition-all"
+                          className="w-20 bg-dark-900 border border-dark-700 rounded-lg px-2 py-1 text-white text-right text-xs outline-none focus:border-blue-500 font-bold tabular-nums"
                         />
                       </td>
-                      <td className="p-1">
+                      <td className="p-2 text-center">
                         <input
                           type="text"
-                          placeholder="UN"
-                          value={item.unidade_medida || ''}
+                          value={item.unidade_medida || 'UN'}
                           onChange={(e) => handleItemChange(i, 'unidade_medida', e.target.value.toUpperCase())}
-                          className="w-full bg-transparent border border-transparent rounded px-2 py-1.5 text-white hover:border-dark-600 focus:border-brand-500 focus:bg-dark-800 outline-none transition-all"
+                          className="w-12 bg-dark-900 border border-dark-700 rounded-lg px-1 py-1 text-white text-center text-[10px] uppercase font-mono outline-none"
                         />
                       </td>
-                      <td className="p-1">
+                      <td className="p-2">
                         <input
                           type="text"
                           value={item.ncm || ''}
+                          placeholder="84099990"
                           onChange={(e) => handleItemChange(i, 'ncm', e.target.value.replace(/\D/g, ''))}
-                          className="w-full bg-transparent border border-transparent rounded px-2 py-1.5 text-white hover:border-dark-600 focus:border-brand-500 focus:bg-dark-800 outline-none transition-all"
+                          className="w-full bg-dark-900 border border-dark-700 rounded-lg px-2 py-1 text-white font-mono text-[11px] outline-none focus:border-emerald-500"
                         />
                       </td>
-                      <td className="p-1">
+                      <td className="p-2">
                         <input
                           type="text"
                           value={item.cest || ''}
+                          placeholder="0100100"
                           onChange={(e) => handleItemChange(i, 'cest', e.target.value.replace(/\D/g, ''))}
-                          className="w-full bg-transparent border border-transparent rounded px-2 py-1.5 text-white hover:border-dark-600 focus:border-brand-500 focus:bg-dark-800 outline-none transition-all"
+                          className="w-full bg-dark-900 border border-dark-700 rounded-lg px-2 py-1 text-white font-mono text-[11px] outline-none focus:border-cyan-500"
                         />
                       </td>
-                      <td className="p-1">
+                      <td className="p-2">
                         <select
-                          value={item.origem || ''}
+                          value={item.origem || '0 - Nacional'}
                           onChange={(e) => handleItemChange(i, 'origem', e.target.value)}
-                          className="w-full bg-transparent border border-transparent rounded px-2 py-1.5 text-white hover:border-dark-600 focus:border-brand-500 focus:bg-dark-800 outline-none transition-all"
+                          className="w-full bg-dark-900 border border-dark-700 rounded-lg px-2 py-1 text-white text-[11px] outline-none"
                         >
-                          <option value="" className="bg-dark-900">Selecione...</option>
-                          <option value="0 - Nacional" className="bg-dark-900">0 - Nacional</option>
-                          <option value="1 - Estrangeira - Importação direta" className="bg-dark-900">1 - Estrangeira - Imp. Direta</option>
-                          <option value="2 - Estrangeira - Adquirida no mercado interno" className="bg-dark-900">2 - Estrangeira - Mercado Int.</option>
-                          <option value="3 - Nacional - Conteúdo de Importação > 40%" className="bg-dark-900">3 - Nac. (Imp. &gt; 40%)</option>
+                          <option value="0 - Nacional">0 - Nacional</option>
+                          <option value="1 - Estrangeira - Importação direta">1 - Estrang. Direta</option>
+                          <option value="2 - Estrangeira - Adquirida no mercado interno">2 - Estrang. Interno</option>
+                          <option value="3 - Nacional - Conteúdo de Importação > 40%">3 - Nac. &gt; 40%</option>
                         </select>
                       </td>
-                      <td className="p-1">
+                      <td className="p-2">
                         <select
-                          value={item.tipo_produto || ''}
+                          value={item.tipo_produto || '00 - Mercadoria para Revenda'}
                           onChange={(e) => handleItemChange(i, 'tipo_produto', e.target.value)}
-                          className="w-full bg-transparent border border-transparent rounded px-2 py-1.5 text-white hover:border-dark-600 focus:border-brand-500 focus:bg-dark-800 outline-none transition-all"
+                          className="w-full bg-dark-900 border border-dark-700 rounded-lg px-2 py-1 text-white text-[11px] outline-none"
                         >
-                          <option value="" className="bg-dark-900">Selecione...</option>
-                          <option value="00 - Mercadoria para Revenda" className="bg-dark-900">00 - Merc. para Revenda</option>
-                          <option value="01 - Matéria-Prima" className="bg-dark-900">01 - Matéria-Prima</option>
-                          <option value="04 - Produto Acabado" className="bg-dark-900">04 - Produto Acabado</option>
-                          <option value="07 - Material de Uso e Consumo" className="bg-dark-900">07 - Uso e Consumo</option>
-                          <option value="09 - Serviços" className="bg-dark-900">09 - Serviços</option>
+                          <option value="00 - Mercadoria para Revenda">00 - Merc. Revenda</option>
+                          <option value="01 - Matéria-Prima">01 - Matéria-Prima</option>
+                          <option value="04 - Produto Acabado">04 - Prod. Acabado</option>
+                          <option value="07 - Material de Uso e Consumo">07 - Uso/Consumo</option>
+                          <option value="09 - Serviços">09 - Serviços</option>
                         </select>
                       </td>
-                      <td className="p-1">
+                      <td className="p-2 text-center">
                         <button
+                          type="button"
                           onClick={() => handleRemoverItem(i)}
-                          className="text-dark-500 hover:text-rose-400 p-1.5 rounded hover:bg-rose-400/10 transition-colors opacity-0 group-hover:opacity-100"
+                          className="text-dark-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-500/10 transition-colors"
+                          title="Remover item"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={13} />
                         </button>
                       </td>
                     </tr>
                   ))}
-                  {formData.itens.length === 0 && (
-                    <tr>
-                      <td colSpan={10} className="p-6 text-center text-dark-400 text-sm">
-                        Nenhum item na venda. Adicione ao menos um.
-                      </td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
             </div>
-            
-            <div className="flex justify-end p-2">
-              <div className="text-right">
-                <span className="text-xs text-dark-400 mr-3">Valor Total:</span>
-                <span className="text-lg font-bold text-white">
+
+            {/* Totalizador */}
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-xs text-dark-400 font-semibold">
+                {formData.itens.length} itens cadastrados
+              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-dark-300 font-bold uppercase tracking-wider">Valor Total da OS:</span>
+                <span className="text-2xl font-black text-white tabular-nums drop-shadow-sm">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(recalcularTotal(formData.itens))}
                 </span>
               </div>
@@ -415,19 +610,21 @@ export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSucc
         </div>
 
         {/* Footer */}
-        <div className="p-5 border-t border-dark-700/50 flex justify-end gap-3 bg-dark-900/80">
+        <div className="p-5 border-t border-dark-700/80 flex items-center justify-between bg-dark-950/80">
           <button
+            type="button"
             onClick={onClose}
-            className="px-5 py-2 text-sm font-medium text-dark-300 hover:text-white rounded-xl hover:bg-dark-800 transition-colors"
+            className="px-5 py-2.5 text-xs font-bold text-dark-300 hover:text-white rounded-xl hover:bg-dark-800 transition-colors"
           >
             Cancelar
           </button>
           <button
+            type="button"
             onClick={handleSave}
             disabled={salvando}
-            className="flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-6 py-2 rounded-xl text-sm font-semibold transition-all shadow-lg disabled:opacity-50"
+            className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-7 py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-600/25 disabled:opacity-50"
           >
-            <Save size={16} />
+            {salvando ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
             {salvando ? 'Salvando...' : 'Salvar Alterações'}
           </button>
         </div>
