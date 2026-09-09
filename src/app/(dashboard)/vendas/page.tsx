@@ -629,15 +629,15 @@ export default function VendasPage() {
         </div>
 
         {/* Card 4: Conexão Conta Azul Vendas */}
-        <div className={`${caVendasConectado ? 'glass-card-purple' : 'glass-card-amber'} rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden group transition-all duration-300 hover:scale-[1.01]`}>
+        <div className={`${caVendasConectado ? 'glass-card-blue' : 'glass-card-amber'} rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden group transition-all duration-300 hover:scale-[1.01]`}>
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-dark-300 uppercase tracking-wider">Conta Azul Vendas</span>
             <div className="flex items-center gap-1.5">
               <span className={`relative flex h-2 w-2`}>
-                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${caVendasConectado ? 'bg-purple-400' : 'bg-amber-400'}`}></span>
-                <span className={`relative inline-flex rounded-full h-2 w-2 ${caVendasConectado ? 'bg-purple-500' : 'bg-amber-500'}`}></span>
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${caVendasConectado ? 'bg-blue-400' : 'bg-amber-400'}`}></span>
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${caVendasConectado ? 'bg-blue-500' : 'bg-amber-500'}`}></span>
               </span>
-              <span className={`text-[10px] font-bold ${caVendasConectado ? 'text-purple-300' : 'text-amber-400'}`}>
+              <span className={`text-[10px] font-bold ${caVendasConectado ? 'text-blue-300' : 'text-amber-400'}`}>
                 {caVendasConectado ? 'CONECTADO' : 'DESCONECTADO'}
               </span>
             </div>
@@ -647,7 +647,7 @@ export default function VendasPage() {
             {caVendasConectado ? (
               <div>
                 <span className="text-lg font-bold text-white block">OAuth 2.0 Ativo</span>
-                <span className="text-xs text-purple-300/80 font-mono">Venda de Produtos & Estoque</span>
+                <span className="text-xs text-blue-300/80 font-mono">Venda de Produtos & Estoque</span>
               </div>
             ) : (
               <div>
@@ -671,7 +671,7 @@ export default function VendasPage() {
           </div>
           <div className="flex justify-between text-[9px] text-dark-400 mt-1 uppercase font-semibold">
             <span>Status API</span>
-            <span className="text-purple-400 font-bold">Pronto</span>
+            <span className="text-emerald-400 font-bold">Pronto</span>
           </div>
         </div>
       </div>
@@ -718,11 +718,11 @@ export default function VendasPage() {
           onClick={() => setSubAba('planilha')}
           className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold transition-all duration-200 ${
             subAba === 'planilha'
-              ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30 shadow-[0_0_15px_rgba(168,85,247,0.2)]'
+              ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
               : 'text-dark-400 hover:text-white hover:bg-dark-800/50'
           }`}
         >
-          <UploadCloud size={15} className={subAba === 'planilha' ? 'text-purple-400' : ''} />
+          <UploadCloud size={15} className={subAba === 'planilha' ? 'text-blue-400' : ''} />
           <span>Upload Planilha</span>
         </button>
       </div>
@@ -996,15 +996,11 @@ export default function VendasPage() {
                                     OS #{venda.os_numero}
                                   </span>
                                   {veiculo && (
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
                                       🚗 {veiculo}
                                     </span>
                                   )}
-                                  {vendedor && (
-                                    <span className="text-[11px] text-dark-400 bg-dark-900 px-2 py-0.5 rounded-md border border-dark-700">
-                                      👤 {vendedor}
-                                    </span>
-                                  )}
+                                  
                                   {venda.forma_pagamento && (
                                     <span className="text-[11px] text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20 font-medium">
                                       💳 {venda.forma_pagamento}
@@ -1103,7 +1099,7 @@ export default function VendasPage() {
                                           <td className="p-2.5">
                                             <span className={`px-2 py-0.5 rounded text-[9px] font-black ${
                                               item.tipo === 'servico'
-                                                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                                ? 'bg-slate-800 text-slate-300 border border-slate-700'
                                                 : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
                                             }`}>
                                               {item.tipo === 'servico' ? 'SERVIÇO' : 'PEÇA'}
@@ -1307,7 +1303,7 @@ export default function VendasPage() {
               <div className="bg-dark-800/40 border border-dark-700/50 rounded-2xl p-5">
                 <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowPlanilhaFiscal(!showPlanilhaFiscal)}>
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                    <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
                       <FileSpreadsheet size={18} />
                     </div>
                     <div>
@@ -1325,7 +1321,7 @@ export default function VendasPage() {
                       accept=".xlsx,.xls,.csv"
                       onChange={handleUploadPlanilhaFiscal}
                       disabled={uploadingPlanilha}
-                      className="block w-full text-xs text-dark-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-500 cursor-pointer"
+                      className="block w-full text-xs text-dark-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer"
                     />
                   </div>
                 )}
