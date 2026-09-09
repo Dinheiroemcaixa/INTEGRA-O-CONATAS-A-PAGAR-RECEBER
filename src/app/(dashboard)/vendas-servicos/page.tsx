@@ -78,6 +78,7 @@ export default function VendasPage() {
   // ─── Estado das Alíquotas Padrão (Painel) ────────────────────
   const [aliquotaSimples, setAliquotaSimples] = useState('11.34')
   const [aliquotaIssqn, setAliquotaIssqn] = useState('')
+  const [temCertificado, setTemCertificado] = useState(false)
 
   useEffect(() => {
     if (empresaAtiva) {
