@@ -1105,7 +1105,7 @@ function EmpresaCard({
                 <button
                   onClick={() => onConectarContaAzul(empresa.id, 'vendas')}
                   disabled={conectando === `${empresa.id}:vendas`}
-                  className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded text-[10px] font-bold border border-emerald-500/20 flex items-center gap-1"
+                  className="px-2.5 py-1 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded text-[10px] font-bold border border-blue-500/20 flex items-center gap-1"
                 >
                   {conectando === `${empresa.id}:vendas` ? <Loader2 size={11} className="animate-spin" /> : <ExternalLink size={11} />}
                   Conectar
@@ -1287,7 +1287,7 @@ function EmpresaRowItem({
                   type="button"
                   onClick={(e) => { e.stopPropagation(); onConectarContaAzul(empresa.id, 'vendas') }}
                   disabled={conectando === `${empresa.id}:vendas`}
-                  className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[9px] font-bold flex items-center gap-1 transition-all"
+                  className="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-[9px] font-bold flex items-center gap-1 transition-all"
                   title="Conectar Conta Azul Vendas"
                 >
                   {conectando === `${empresa.id}:vendas` ? <Loader2 size={9} className="animate-spin" /> : <ExternalLink size={9} />}
@@ -1489,7 +1489,7 @@ function EmpresaRowItem({
                     <button
                       onClick={() => onConectarContaAzul(empresa.id, 'vendas')}
                       disabled={conectando === `${empresa.id}:vendas`}
-                      className="px-2 py-1 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded text-[10px] font-bold border border-emerald-500/20 flex items-center gap-1"
+                      className="px-2 py-1 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded text-[10px] font-bold border border-blue-500/20 flex items-center gap-1"
                     >
                       {conectando === `${empresa.id}:vendas` ? <Loader2 size={11} className="animate-spin" /> : <ExternalLink size={11} />}
                       Conectar
