@@ -31,6 +31,38 @@ const parseBRL = (val: string | number): number => {
   return isNaN(num) ? 0 : num
 }
 
+// Tabela de correspondência padrão NCM -> CEST
+const sugerirCestPorNcm = (ncmStr: string): string => {
+  const limpo = ncmStr.replace(/\D/g, '').trim()
+  if (!limpo) return ''
+  const cap4 = limpo.slice(0, 4)
+  const mapa: Record<string, string> = {
+    '4011': '1600100',
+    '4012': '1600100',
+    '4013': '1600200',
+    '8708': '0107500',
+    '8421': '0101700',
+    '8413': '0103200',
+    '6813': '0100700',
+    '8482': '0102500',
+    '8483': '0102600',
+    '8511': '0104300',
+    '8512': '0104700',
+    '7320': '0101100',
+    '7326': '1006200',
+    '4016': '0100900',
+    '4010': '0100600',
+    '8544': '0107300',
+    '3917': '0100200',
+    '3926': '1002000',
+    '3208': '2400100',
+    '2710': '0600100',
+    '3819': '0600400',
+    '3820': '0600500',
+  }
+  return mapa[cap4] || ''
+}
+
 export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSuccess }: ModalEditarDatacarProps) {
   const [formData, setFormData] = useState<any>(null)
   const [salvando, setSalvando] = useState(false)
@@ -147,6 +179,14 @@ export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSucc
   const handleItemChange = (index: number, field: string, value: any) => {
     const novosItens = [...formData.itens]
     const item = { ...novosItens[index], [field]: value }
+
+    // Auto-sugerir CEST se alterou o NCM e o CEST estiver vazio
+    if (field === 'ncm' && value) {
+      const cestSugerido = sugerirCestPorNcm(value)
+      if (cestSugerido && !item.cest) {
+        item.cest = cestSugerido
+      }
+    }
 
     // Se alterou quantidade, valor bruto ou desconto, recalcular valores unitário líquido e total
     if (field === 'quantidade' || field === 'valor_unitario_original' || field === 'desconto') {
