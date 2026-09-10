@@ -264,33 +264,48 @@ export default function TabelaContas({ empresaId }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Resumo rápido */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-dark-800 border border-yellow-500/20 rounded-xl p-4">
-          <p className="text-xs text-dark-400 mb-1">Total Pendente</p>
-          <p className="text-yellow-400 text-xl font-bold">{formatCurrency(totalPendente)}</p>
+      {/* Resumo Financeiro Rápido */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="bg-dark-850/80 border border-amber-500/20 rounded-2xl p-4.5 flex items-center justify-between shadow-sm">
+          <div>
+            <span className="text-xs font-bold text-amber-400/90 uppercase tracking-wider block">Total Pendente</span>
+            <span className="text-2xl font-black text-white font-mono tabular-nums tracking-tight mt-1 block">
+              {formatCurrency(totalPendente)}
+            </span>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+            <Clock size={20} />
+          </div>
         </div>
-        <div className="bg-dark-800 border border-green-500/20 rounded-xl p-4">
-          <p className="text-xs text-dark-400 mb-1">Total Enviado</p>
-          <p className="text-green-400 text-xl font-bold">{formatCurrency(totalEnviado)}</p>
+
+        <div className="bg-dark-850/80 border border-emerald-500/20 rounded-2xl p-4.5 flex items-center justify-between shadow-sm">
+          <div>
+            <span className="text-xs font-bold text-emerald-400/90 uppercase tracking-wider block">Total Enviado ao Conta Azul</span>
+            <span className="text-2xl font-black text-white font-mono tabular-nums tracking-tight mt-1 block">
+              {formatCurrency(totalEnviado)}
+            </span>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+            <CheckCircle size={20} />
+          </div>
         </div>
       </div>
 
       {/* Filtros e Ações em Lote */}
-      <div className="flex items-center justify-between gap-2 flex-wrap bg-dark-800/80 p-3 rounded-xl border border-dark-700">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-3 flex-wrap bg-dark-850/90 p-3.5 rounded-2xl border border-dark-700/80 shadow-sm">
+        <div className="flex items-center gap-1.5 bg-dark-900/80 p-1 rounded-xl border border-dark-700/60">
           {['pendente', 'enviado', 'erro'].map((f) => (
             <button
               key={f}
               onClick={() => setFiltro(f)}
               className={cn(
-                'px-3 py-1.5 rounded-lg text-sm font-medium transition-all capitalize',
+                'px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all capitalize',
                 filtro === f
-                  ? 'bg-brand-600 text-white'
-                  : 'bg-dark-800 text-dark-400 hover:text-white hover:bg-dark-700'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-dark-400 hover:text-white hover:bg-dark-800/60'
               )}
             >
-              {f.charAt(0).toUpperCase() + f.slice(1)}
+              {f === 'pendente' ? 'Pendentes' : f === 'enviado' ? 'Enviados' : 'Com Erro'}
             </button>
           ))}
         </div>
@@ -316,7 +331,7 @@ export default function TabelaContas({ empresaId }: Props) {
               ) : (
                 <button
                   onClick={() => setEditandoEmMassaConta(true)}
-                  className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-all shadow-sm"
+                  className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-2 rounded-xl transition-all shadow-md shadow-blue-600/20"
                   title="Aplicar o mesmo banco a todas as contas selecionadas (ou todas da lista)"
                 >
                   <Landmark size={13} /> {selecionados.length > 0 ? `Banco (${selecionados.length})` : 'Banco em Lote'}
@@ -335,7 +350,7 @@ export default function TabelaContas({ empresaId }: Props) {
               ) : (
                 <button
                   onClick={() => setEditandoEmMassaCat(true)}
-                  className="flex items-center gap-1.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-all shadow-sm"
+                  className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold px-3 py-2 rounded-xl transition-all shadow-sm"
                   title="Aplicar a mesma categoria a todas as contas selecionadas (ou todas da lista)"
                 >
                   <Tags size={13} /> {selecionados.length > 0 ? `Categoria (${selecionados.length})` : 'Categoria em Lote'}
@@ -371,7 +386,7 @@ export default function TabelaContas({ empresaId }: Props) {
                 <button
                   type="button"
                   onClick={() => setEditandoEmMassaLoja(true)}
-                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-all shadow-sm"
+                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-2 rounded-xl transition-all shadow-md shadow-emerald-600/20"
                   title="Transferir lançamentos selecionados (ou todos os pendentes) para outra empresa/loja"
                 >
                   <ArrowRightLeft size={13} /> {selecionados.length > 0 ? `Mover Loja (${selecionados.length})` : 'Mover Loja'}
@@ -382,7 +397,7 @@ export default function TabelaContas({ empresaId }: Props) {
             {selecionados.length > 0 && (
               <button
                 onClick={handleExcluirSelecionados}
-                className="flex items-center gap-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-bold px-3 py-2 rounded-xl transition-colors"
               >
                 <Trash2 size={13} /> Excluir ({selecionados.length})
               </button>

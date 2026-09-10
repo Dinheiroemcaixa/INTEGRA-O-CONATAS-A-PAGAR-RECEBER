@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Plus, Building2, Loader2, X, CheckCircle2, Edit2, Trash2 } from 'lucide-react'
+import { Plus, Building2, Loader2, X, CheckCircle2, Edit2, Trash2, Users2, Layers } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Grupo } from '@/types'
 
@@ -28,38 +28,60 @@ export default function MeusGrupos() {
 
   async function carregarGrupos() {
     setCarregando(true)
-    const { data: gruposData } = await supabase.from('grupos').select('*').order('created_at', { ascending: false })
+    try {
+      const { data: gruposData, error: gruposError } = await supabase
+        .from('grupos')
+        .select('*')
+        .order('nome', { ascending: true })
 
-    const gruposComContagem = await Promise.all(
-      (gruposData || []).map(async (g) => {
-        const { count } = await supabase.from('empresas').select('id', { count: 'exact', head: true }).eq('grupo_id', g.id)
-        return { ...g, totalLojas: count || 0 }
+      if (gruposError) throw gruposError
+
+      const { data: lojasData, error: lojasError } = await supabase
+        .from('empresas')
+        .select('grupo_id')
+
+      if (lojasError) throw lojasError
+
+      const contagem: Record<string, number> = {}
+      lojasData?.forEach(l => {
+        if (l.grupo_id) {
+          contagem[l.grupo_id] = (contagem[l.grupo_id] || 0) + 1
+        }
       })
-    )
 
-    setGrupos(gruposComContagem)
-    setCarregando(false)
+      const formatados = (gruposData || []).map(g => ({
+        ...g,
+        totalLojas: contagem[g.id] || 0
+      }))
+
+      setGrupos(formatados)
+    } catch (err: any) {
+      toast.error('Erro ao carregar grupos: ' + err.message)
+    } finally {
+      setCarregando(false)
+    }
   }
 
   async function handleCriarGrupo() {
     if (!nomeNovoGrupo.trim()) {
-      toast.error('Dê um nome para o grupo.')
+      toast.error('Digite um nome para o grupo')
       return
     }
+
     setCriando(true)
     try {
-      const { data, error } = await supabase.from('grupos').insert({ nome: nomeNovoGrupo.trim() }).select('id').single()
+      const { error } = await supabase
+        .from('grupos')
+        .insert({ nome: nomeNovoGrupo.trim() })
+
       if (error) throw error
+
       toast.success('Grupo criado com sucesso!')
-      setModalNovoGrupoAberto(false)
       setNomeNovoGrupo('')
-      if (data?.id) {
-        router.push(`/gestao-pagamentos/${data.id}`)
-      } else {
-        carregarGrupos()
-      }
+      setModalNovoGrupoAberto(false)
+      carregarGrupos()
     } catch (err: any) {
-      toast.error(err.message || 'Erro ao criar grupo')
+      toast.error('Erro ao criar grupo: ' + err.message)
     } finally {
       setCriando(false)
     }
@@ -73,84 +95,139 @@ export default function MeusGrupos() {
   async function handleSalvarEdicaoGrupo() {
     if (!grupoEditando) return
     if (!nomeEditado.trim()) {
-      toast.error('Dê um nome para o grupo.')
+      toast.error('O nome do grupo não pode ficar vazio')
       return
     }
+
     setSalvandoEdicao(true)
     try {
-      const { error } = await supabase.from('grupos').update({ nome: nomeEditado.trim() }).eq('id', grupoEditando.id)
+      const { error } = await supabase
+        .from('grupos')
+        .update({ nome: nomeEditado.trim() })
+        .eq('id', grupoEditando.id)
+
       if (error) throw error
+
       toast.success('Grupo atualizado!')
       setGrupoEditando(null)
       carregarGrupos()
     } catch (err: any) {
-      toast.error(err.message || 'Erro ao atualizar grupo')
+      toast.error('Erro ao atualizar grupo: ' + err.message)
     } finally {
       setSalvandoEdicao(false)
     }
   }
 
-  async function handleExcluirGrupo(grupo: Grupo) {
-    if (!confirm(`Excluir o grupo "${grupo.nome}"? As lojas dele continuam existindo no sistema, só ficam sem grupo.`)) return
+  async function handleExcluirGrupo(grupo: Grupo & { totalLojas: number }) {
+    if (grupo.totalLojas > 0) {
+      toast.error(`Este grupo possui ${grupo.totalLojas} loja(s) vinculada(s). Desvincule-as antes de excluir.`)
+      return
+    }
+
+    if (!confirm(`Tem certeza que deseja excluir o grupo "${grupo.nome}"?`)) return
+
     try {
-      await supabase.from('empresas').update({ grupo_id: null, grupo_adicionado_em: null }).eq('grupo_id', grupo.id)
-      const { error } = await supabase.from('grupos').delete().eq('id', grupo.id)
+      const { error } = await supabase
+        .from('grupos')
+        .delete()
+        .eq('id', grupo.id)
+
       if (error) throw error
+
       toast.success('Grupo excluído!')
       carregarGrupos()
     } catch (err: any) {
-      toast.error(err.message || 'Erro ao excluir grupo')
+      toast.error('Erro ao excluir grupo: ' + err.message)
     }
   }
 
+  const totalLojasGeral = grupos.reduce((acc, g) => acc + g.totalLojas, 0)
+
   return (
     <>
-      <div className="bg-[#0b0e14] border-b border-dark-700 flex items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-6">
-          <button onClick={() => router.push('/dashboard')} className="flex items-center gap-2 text-dark-300 hover:text-white transition-colors bg-dark-800 px-3 py-1.5 rounded-lg text-sm font-semibold">
-            <ArrowLeft size={16} /> Voltar
-          </button>
-          <div>
-            <h1 className="text-xl font-bold text-white leading-tight">Meus Grupos</h1>
-            <p className="text-dark-400 text-xs uppercase tracking-wider">Gestão BPO Financeiro</p>
+      <div className="space-y-6 max-w-7xl mx-auto animate-fade-in">
+        {/* Top Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-dark-700/60">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-600/20 via-indigo-600/20 to-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 shadow-[0_0_20px_rgba(37,99,235,0.15)]">
+              <Users2 size={22} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-2xl font-black text-white tracking-tight">Gestão de Pagamentos</h1>
+                <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">
+                  <Layers size={10} /> Multi-Lojas
+                </span>
+              </div>
+              <p className="text-dark-400 text-xs mt-0.5">
+                Organize suas lojas em grupos operacionais para gerenciar e pagar contas centralizadas.
+              </p>
+            </div>
           </div>
+
+          <button
+            onClick={() => setModalNovoGrupoAberto(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-900/30 hover:shadow-blue-600/30 transition-all active:scale-[0.98] cursor-pointer"
+          >
+            <Plus size={16} />
+            Novo Grupo
+          </button>
         </div>
 
-        <button
-          onClick={() => setModalNovoGrupoAberto(true)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-blue-900/20"
-        >
-          <Plus size={16} /> Novo Grupo
-        </button>
-      </div>
-
-      <div className="p-6 max-w-[1400px] mx-auto animate-fade-in">
+        {/* Conteúdo Principal */}
         {carregando ? (
-          <div className="flex items-center justify-center h-72">
-            <Loader2 className="animate-spin text-dark-400" size={32} />
+          <div className="flex flex-col items-center justify-center py-20 bg-dark-900/40 rounded-2xl border border-dark-700/60">
+            <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-3" />
+            <p className="text-dark-300 text-sm font-medium">Carregando grupos e unidades...</p>
           </div>
         ) : grupos.length === 0 ? (
-          <div className="bg-[#11141c] border border-dark-700 rounded-2xl p-16 flex flex-col items-center justify-center gap-4 text-center">
-            <Building2 className="text-dark-600" size={40} />
-            <p className="text-dark-400 font-semibold">Você ainda não criou nenhum grupo.</p>
-            <p className="text-dark-500 text-sm max-w-sm">Um grupo reúne as lojas de um mesmo cliente (ex: "Grupo do Seu Zé"). Crie um grupo e depois adicione as lojas dele.</p>
-            <button onClick={() => setModalNovoGrupoAberto(true)} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors">
+          <div className="bg-dark-900/40 border border-dark-700/60 rounded-3xl p-12 text-center max-w-lg mx-auto backdrop-blur-sm shadow-xl">
+            <div className="w-16 h-16 bg-blue-500/10 border border-blue-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 text-blue-400 shadow-[0_0_30px_rgba(59,130,246,0.15)]">
+              <Building2 size={28} />
+            </div>
+            <h3 className="text-white font-bold text-lg mb-1">Nenhum grupo cadastrado</h3>
+            <p className="text-dark-400 text-xs mb-6 max-w-sm mx-auto leading-relaxed">
+              Crie grupos (ex: "Rede Centro", "Franquias SP") para organizar suas filiais e lojas em uma visão consolidada.
+            </p>
+            <button
+              onClick={() => setModalNovoGrupoAberto(true)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-900/30 transition-all active:scale-[0.98] cursor-pointer"
+            >
               <Plus size={16} /> Criar meu primeiro grupo
             </button>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-              <div className="bg-[#11141c] border border-dark-700 rounded-xl p-4">
-                <p className="text-dark-400 text-xs font-semibold mb-1">Grupos</p>
-                <p className="text-white text-2xl font-bold">{grupos.length}</p>
+            {/* KPI Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="glass-card-dark p-4 rounded-2xl border border-dark-700/80 relative overflow-hidden group hover:border-dark-600 transition-all">
+                <div className="flex items-center justify-between">
+                  <span className="text-dark-400 text-[11px] font-semibold uppercase tracking-wider">Grupos Criados</span>
+                  <div className="w-7 h-7 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                    <Layers size={13} />
+                  </div>
+                </div>
+                <div className="text-2xl font-black text-white font-mono tabular-nums mt-1.5">
+                  {grupos.length}
+                </div>
+                <p className="text-[10px] text-dark-500 mt-0.5">Grupos operacionais ativos</p>
               </div>
-              <div className="bg-[#11141c] border border-dark-700 rounded-xl p-4">
-                <p className="text-dark-400 text-xs font-semibold mb-1">Lojas no total</p>
-                <p className="text-white text-2xl font-bold">{grupos.reduce((acc, g) => acc + g.totalLojas, 0)}</p>
+
+              <div className="glass-card-dark p-4 rounded-2xl border border-dark-700/80 relative overflow-hidden group hover:border-dark-600 transition-all">
+                <div className="flex items-center justify-between">
+                  <span className="text-dark-400 text-[11px] font-semibold uppercase tracking-wider">Total de Lojas</span>
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                    <Building2 size={13} />
+                  </div>
+                </div>
+                <div className="text-2xl font-black text-emerald-400 font-mono tabular-nums mt-1.5">
+                  {totalLojasGeral}
+                </div>
+                <p className="text-[10px] text-dark-500 mt-0.5">Empresas vinculadas</p>
               </div>
             </div>
 
+            {/* Grid de Grupos */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {grupos.map(grupo => (
                 <div
@@ -159,11 +236,11 @@ export default function MeusGrupos() {
                   role="button"
                   tabIndex={0}
                   onKeyDown={e => { if (e.key === 'Enter') router.push(`/gestao-pagamentos/${grupo.id}`) }}
-                  className="bg-[#11141c] border border-dark-700 hover:border-brand-500 rounded-2xl p-5 text-left transition-all shadow-lg group cursor-pointer"
+                  className="bg-dark-900/60 border border-dark-700/80 hover:border-blue-500/50 hover:bg-dark-850/80 rounded-2xl p-5 text-left transition-all duration-200 shadow-lg hover:shadow-blue-500/5 group cursor-pointer backdrop-blur-sm relative overflow-hidden"
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 bg-brand-500/10 border border-brand-500/20 rounded-xl flex items-center justify-center group-hover:bg-brand-500/20 transition-colors">
-                      <Building2 size={18} className="text-brand-400" />
+                  <div className="flex items-center justify-between mb-3.5">
+                    <div className="w-10 h-10 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center group-hover:bg-blue-500/20 group-hover:border-blue-500/40 text-blue-400 transition-all duration-200">
+                      <Building2 size={18} />
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
@@ -171,63 +248,92 @@ export default function MeusGrupos() {
                         className="w-7 h-7 flex items-center justify-center rounded-lg text-dark-400 hover:text-white hover:bg-dark-700 transition-colors"
                         title="Editar grupo"
                       >
-                        <Edit2 size={14} />
+                        <Edit2 size={13} />
                       </button>
                       <button
                         onClick={e => { e.stopPropagation(); handleExcluirGrupo(grupo) }}
                         className="w-7 h-7 flex items-center justify-center rounded-lg text-dark-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
                         title="Excluir grupo"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </div>
-                  <p className="text-white font-bold text-base truncate mb-1">{grupo.nome}</p>
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-blue-500/10 text-blue-400">
-                    {grupo.totalLojas} {grupo.totalLojas === 1 ? 'loja' : 'lojas'}
-                  </span>
+
+                  <p className="text-white font-bold text-base truncate mb-2 group-hover:text-blue-300 transition-colors">
+                    {grupo.nome}
+                  </p>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-dark-800/80">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">
+                      {grupo.totalLojas} {grupo.totalLojas === 1 ? 'loja vinculada' : 'lojas vinculadas'}
+                    </span>
+                    <span className="text-[11px] text-dark-500 group-hover:text-blue-400 transition-colors font-medium">
+                      Acessar →
+                    </span>
+                  </div>
                 </div>
               ))}
 
               <button
                 onClick={() => setModalNovoGrupoAberto(true)}
-                className="border-2 border-dashed border-dark-700 hover:border-brand-500 hover:bg-brand-500/5 rounded-2xl p-5 flex flex-col items-center justify-center gap-2 transition-all text-dark-400 hover:text-brand-400 min-h-[128px]"
+                className="border-2 border-dashed border-dark-700/80 hover:border-blue-500/60 hover:bg-blue-500/5 rounded-2xl p-5 flex flex-col items-center justify-center gap-2.5 transition-all text-dark-400 hover:text-blue-400 min-h-[140px] group cursor-pointer"
               >
-                <Plus size={20} />
-                <span className="text-sm font-semibold">Novo Grupo</span>
+                <div className="w-9 h-9 rounded-xl bg-dark-800 border border-dark-700 flex items-center justify-center group-hover:border-blue-500/40 group-hover:bg-blue-500/10 transition-all">
+                  <Plus size={18} />
+                </div>
+                <span className="text-xs font-bold">Novo Grupo</span>
               </button>
             </div>
           </>
         )}
       </div>
 
+      {/* Modal Novo Grupo */}
       {modalNovoGrupoAberto && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-dark-900 border border-dark-700 rounded-2xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between p-5 border-b border-dark-700">
-              <h3 className="text-white font-bold text-lg">Novo Grupo</h3>
-              <button onClick={() => setModalNovoGrupoAberto(false)} className="p-2 rounded-lg text-dark-400 hover:text-white hover:bg-dark-800 transition-all">
-                <X size={20} />
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-dark-900 border border-dark-700 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-dark-700/80 bg-dark-850/50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                  <Building2 size={16} />
+                </div>
+                <h3 className="text-white font-bold text-base">Novo Grupo Operacional</h3>
+              </div>
+              <button 
+                onClick={() => setModalNovoGrupoAberto(false)} 
+                className="p-1.5 rounded-lg text-dark-400 hover:text-white hover:bg-dark-800 transition-all"
+              >
+                <X size={18} />
               </button>
             </div>
-            <div className="p-6 space-y-2">
-              <label className="text-xs font-semibold text-dark-400 uppercase">Nome do grupo</label>
+            <div className="p-6 space-y-3">
+              <label className="text-[11px] font-bold text-dark-300 uppercase tracking-wider block">
+                Nome do grupo
+              </label>
               <input
                 type="text"
                 autoFocus
                 value={nomeNovoGrupo}
                 onChange={e => setNomeNovoGrupo(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleCriarGrupo() }}
-                placeholder='Ex: "Grupo do Seu Zé"'
-                className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all"
+                placeholder='Ex: "Rede Sul - Varejo" ou "Grupo Holding"'
+                className="w-full bg-dark-950 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder:text-dark-500"
               />
             </div>
-            <div className="p-5 border-t border-dark-700 flex justify-end gap-3">
-              <button onClick={() => setModalNovoGrupoAberto(false)} className="px-5 py-2.5 rounded-xl font-semibold bg-dark-800 text-dark-300 hover:text-white hover:bg-dark-700 transition-all">
+            <div className="p-5 border-t border-dark-700/80 bg-dark-850/30 flex justify-end gap-2.5">
+              <button 
+                onClick={() => setModalNovoGrupoAberto(false)} 
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-dark-800 text-dark-300 hover:text-white hover:bg-dark-700 transition-all"
+              >
                 Cancelar
               </button>
-              <button onClick={handleCriarGrupo} disabled={criando} className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-900/30 transition-all disabled:opacity-50">
-                {criando ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+              <button 
+                onClick={handleCriarGrupo} 
+                disabled={criando} 
+                className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-900/30 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {criando ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                 {criando ? 'Criando...' : 'Criar Grupo'}
               </button>
             </div>
@@ -236,33 +342,50 @@ export default function MeusGrupos() {
       )}
 
       {grupoEditando && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-dark-900 border border-dark-700 rounded-2xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between p-5 border-b border-dark-700">
-              <h3 className="text-white font-bold text-lg">Editar Grupo</h3>
-              <button onClick={() => setGrupoEditando(null)} className="p-2 rounded-lg text-dark-400 hover:text-white hover:bg-dark-800 transition-all">
-                <X size={20} />
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-dark-900 border border-dark-700 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-dark-700/80 bg-dark-850/50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                  <Edit2 size={16} />
+                </div>
+                <h3 className="text-white font-bold text-base">Editar Grupo</h3>
+              </div>
+              <button 
+                onClick={() => setGrupoEditando(null)} 
+                className="p-1.5 rounded-lg text-dark-400 hover:text-white hover:bg-dark-800 transition-all"
+              >
+                <X size={18} />
               </button>
             </div>
-            <div className="p-6 space-y-2">
-              <label className="text-xs font-semibold text-dark-400 uppercase">Nome do grupo</label>
+            <div className="p-6 space-y-3">
+              <label className="text-[11px] font-bold text-dark-300 uppercase tracking-wider block">
+                Nome do grupo
+              </label>
               <input
                 type="text"
                 autoFocus
                 value={nomeEditado}
                 onChange={e => setNomeEditado(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleSalvarEdicaoGrupo() }}
-                placeholder='Ex: "Grupo do Seu Zé"'
-                className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all"
+                placeholder='Ex: "Rede Sul - Varejo"'
+                className="w-full bg-dark-950 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder:text-dark-500"
               />
             </div>
-            <div className="p-5 border-t border-dark-700 flex justify-end gap-3">
-              <button onClick={() => setGrupoEditando(null)} className="px-5 py-2.5 rounded-xl font-semibold bg-dark-800 text-dark-300 hover:text-white hover:bg-dark-700 transition-all">
+            <div className="p-5 border-t border-dark-700/80 bg-dark-850/30 flex justify-end gap-2.5">
+              <button 
+                onClick={() => setGrupoEditando(null)} 
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-dark-800 text-dark-300 hover:text-white hover:bg-dark-700 transition-all"
+              >
                 Cancelar
               </button>
-              <button onClick={handleSalvarEdicaoGrupo} disabled={salvandoEdicao} className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-900/30 transition-all disabled:opacity-50">
-                {salvandoEdicao ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                {salvandoEdicao ? 'Salvando...' : 'Salvar'}
+              <button 
+                onClick={handleSalvarEdicaoGrupo} 
+                disabled={salvandoEdicao} 
+                className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-900/30 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {salvandoEdicao ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                {salvandoEdicao ? 'Salvando...' : 'Salvar Alterações'}
               </button>
             </div>
           </div>

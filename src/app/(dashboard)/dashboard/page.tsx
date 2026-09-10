@@ -181,7 +181,7 @@ export default function DashboardPage() {
           <p className="text-dark-400 text-sm mt-1">Crie sua primeira empresa para começar</p>
         </div>
         <Link href="/empresas?new=true"
-          className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all shadow-lg shadow-brand-900/30">
+          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-blue-600/25">
           <Plus size={18} /> Criar empresa
         </Link>
       </div>
@@ -277,7 +277,7 @@ export default function DashboardPage() {
           <button
             onClick={() => carregarStats(true)}
             disabled={refreshing}
-            className="flex items-center gap-2 text-sm text-dark-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 px-4 py-2 rounded-xl backdrop-blur-md transition-all shadow-lg shadow-black/20"
+            className="flex items-center gap-2 text-xs font-bold text-dark-300 hover:text-white bg-dark-900 hover:bg-dark-850 border border-dark-700 hover:border-dark-600 px-4 py-2.5 rounded-xl transition-all shadow-sm"
           >
             <RefreshCw size={14} className={refreshing ? 'animate-spin text-brand-400' : 'text-brand-400'} />
             Atualizar

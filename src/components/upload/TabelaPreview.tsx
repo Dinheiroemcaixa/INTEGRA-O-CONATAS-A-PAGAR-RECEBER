@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { formatCurrency, formatDate, visualizarAnexo } from '@/lib/utils'
 import type { ContaPagarPreview } from '@/types'
-import { CheckCircle, AlertCircle, Trash2, Edit2, ChevronDown, Paperclip } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Trash2, Edit2, ChevronDown, Paperclip, Search, Sparkles, Filter, Layers } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import SelectorFornecedor from './SelectorFornecedor'
 import SelectorCategoria from './SelectorCategoria'
@@ -22,7 +22,7 @@ interface Props {
   onUpdateCategoriaLote: (indices: number[], novaCategoria: string) => void
   onUpdateContaLote: (indices: number[], novaConta: string) => void
   onUpdateFornecedorLote: (indices: number[], novoFornecedor: string) => void
-  contasFinanceiras: ContaFinanceiraOpcao[]
+  contasFinanceiras?: ContaFinanceiraOpcao[]
   categoriasCA?: string[]
   onUpdateValor: (idx: number, novoValor: number) => void
   onUpdateVencimento: (idx: number, novaData: string) => void
@@ -33,31 +33,30 @@ interface Props {
 function BadgeMatch({ confianca, score }: { confianca: string; score: number }) {
   if (confianca === 'exato' || score === 100) {
     return (
-      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded-full font-medium" title="Nome exato encontrado no ContaAzul">
-        <CheckCircle size={9} /> exato
+      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md font-mono font-medium" title="Nome exato encontrado no ContaAzul">
+        <CheckCircle2 size={10} /> exato
       </span>
     )
   }
   
   if (score >= 80) {
     return (
-      <span className="inline-flex items-center gap-1 text-[10px] text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded-full font-medium" title={`Match automático — confiança ${score}%`}>
-        ✓ {score}%
+      <span className="inline-flex items-center gap-1 text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md font-mono font-medium" title={`Match automático — confiança ${score}%`}>
+        <Sparkles size={10} /> {score}%
       </span>
     )
   }
 
   return (
-    <span className="inline-flex items-center gap-1 text-[10px] text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded-full font-medium" title={`Match fraco — verifique — confiança ${score}%`}>
-      <AlertCircle size={9} /> {score}%
+    <span className="inline-flex items-center gap-1 text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-md font-mono font-medium" title={`Match fraco — verifique — confiança ${score}%`}>
+      <AlertCircle size={10} /> {score}%
     </span>
   )
 }
 
-
 export default function TabelaPreview({
   dados, filtro, selecionados, onToggle, onToggleTodosLote, onRemover, onUpdateFornecedor, onUpdateCategoria,
-  onRemoverLote, onUpdateCategoriaLote, onUpdateConta, onUpdateContaLote, onUpdateFornecedorLote, contasFinanceiras,
+  onRemoverLote, onUpdateCategoriaLote, onUpdateConta, onUpdateContaLote, onUpdateFornecedorLote, contasFinanceiras = [],
   categoriasCA = [], onUpdateValor, onUpdateVencimento, onUpdateEmissao, onUpdateDescricao
 }: Props) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
@@ -70,542 +69,529 @@ export default function TabelaPreview({
   const [buscaFornecedor, setBuscaFornecedor] = useState('')
   const [buscaCategoria, setBuscaCategoria] = useState('')
   const [buscaValor, setBuscaValor] = useState('')
-  const [loteCategoria, setLoteCategoria] = useState('')
-  const [loteConta, setLoteConta] = useState('')
   const [showBulkEdit, setShowBulkEdit] = useState(false)
   const [showBulkList, setShowBulkList] = useState(false)
   const [showBulkContaList, setShowBulkContaList] = useState(false)
-  
-  // Filtrar os dados para exibição
-  const dadosFiltrados = dados.filter(d => {
-    // Filtro de status (bolinhas)
-    if (filtro === 'erro' && d.valido) return false
-    if (filtro === 'revisao' && (!d.valido || !d.matchFornecedor || d.matchFornecedor.confianca === 'exato')) return false
-    
-    // Filtros de texto/valor
-    if (buscaFornecedor && !d.fornecedor.toLowerCase().includes(buscaFornecedor.toLowerCase())) return false
-    if (buscaCategoria && ! (d.categoria || 'Materiais para Revenda').toLowerCase().includes(buscaCategoria.toLowerCase())) return false
-    if (buscaValor && !d.valor.toString().includes(buscaValor)) return false
-    
+
+  // Filtragem local
+  const dadosFiltrados = dados.filter(item => {
+    if (filtro === 'erro' && item.valido) return false
+    if (filtro === 'revisao' && (!item.valido || !item.matchFornecedor || item.matchFornecedor.confianca === 'exato')) return false
+
+    if (buscaFornecedor && !item.fornecedor.toLowerCase().includes(buscaFornecedor.toLowerCase())) return false
+    if (buscaCategoria && !item.categoria?.toLowerCase().includes(buscaCategoria.toLowerCase())) return false
+    if (buscaValor && !item.valor.toString().includes(buscaValor)) return false
+
     return true
   })
 
-  const filtradosValidos = dadosFiltrados.filter(d => d.valido)
-  const indicesFiltradosValidos = filtradosValidos.map(d => d.originalIdx as number)
-  const todosFiltradosSelecionados = filtradosValidos.length > 0 && indicesFiltradosValidos.every(idx => selecionados.has(idx))
-  const algunsFiltradosSelecionados = indicesFiltradosValidos.some(idx => selecionados.has(idx)) && !todosFiltradosSelecionados
-  const temMatch = dados.some((d) => d.matchFornecedor)
-  const corrigidos = dados.filter(
-    (d) => d.matchFornecedor && (d.matchFornecedor.confianca === 'exato' || d.matchFornecedor.confianca === 'alto')
-      && d.matchFornecedor.nomeOriginal !== d.matchFornecedor.nomeCorrigido
-  ).length
-  // Sempre que os filtros mudarem, desmarca automaticamente os itens que não estão mais visíveis/filtrados
-  useEffect(() => {
-    const indicesFiltradosValidosSet = new Set(indicesFiltradosValidos)
-    const indicesParaDesmarcar: number[] = []
+  const todosVisiveisSelecionados = dadosFiltrados.length > 0 && dadosFiltrados.every(d => selecionados.has(d.originalIdx ?? 0))
 
-    selecionados.forEach((idx) => {
-      if (!indicesFiltradosValidosSet.has(idx)) {
-        indicesParaDesmarcar.push(idx)
-      }
-    })
-
-    if (indicesParaDesmarcar.length > 0) {
-      onToggleTodosLote(indicesParaDesmarcar, 'desmarcar')
+  const handleToggleTodosVisiveis = () => {
+    const indices = dadosFiltrados.map(d => d.originalIdx ?? 0)
+    if (todosVisiveisSelecionados) {
+      onToggleTodosLote(indices, 'desmarcar')
+    } else {
+      onToggleTodosLote(indices, 'marcar')
     }
-  }, [buscaFornecedor, buscaCategoria, buscaValor, filtro, onToggleTodosLote])
+  }
+
+  const handleAplicarCategoriaLote = (cat: string) => {
+    const indices = Array.from(selecionados)
+    onUpdateCategoriaLote(indices, cat)
+    setShowBulkList(false)
+    setShowBulkEdit(false)
+  }
+
+  const handleAplicarContaLote = (conta: string) => {
+    const indices = Array.from(selecionados)
+    onUpdateContaLote(indices, conta)
+    setShowBulkContaList(false)
+    setShowBulkEdit(false)
+  }
+
+  const handleExcluirLote = () => {
+    const indices = Array.from(selecionados)
+    if (confirm(`Deseja realmente excluir os ${indices.length} registros selecionados?`)) {
+      onRemoverLote(indices)
+      setShowBulkEdit(false)
+    }
+  }
 
   return (
-    <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden">
-      {/* Header da tabela */}
-      <div className="px-4 py-3 border-b border-dark-700 space-y-3">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <p className="text-sm text-dark-400">
-            Mostrando <span className="text-white font-semibold">{dadosFiltrados.length}</span> de <span className="text-white font-semibold">{dados.length}</span> registros
-          </p>
-          <div className="flex items-center gap-3 flex-wrap">
-            {temMatch && corrigidos > 0 && (
-              <span className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">
-                <CheckCircle size={11} />
-                {corrigidos} fornecedores corrigidos
-              </span>
-            )}
-            <span className="flex items-center gap-1.5 text-xs text-green-400">
-              <CheckCircle size={12} />
-              {dados.filter((d) => d.valido).length} válidos
-            </span>
-            {dados.filter((d) => !d.valido).length > 0 && (
-              <span className="flex items-center gap-1.5 text-xs text-red-400">
-                <AlertCircle size={12} />
-                {dados.filter((d) => !d.valido).length} com erro
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Barra de Filtros Pesquisa */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="relative">
-            <input 
-              type="text" 
-              placeholder="Filtrar fornecedor..."
+    <div className="space-y-3">
+      {/* Barra de Filtros Rápidos e Ações em Massa */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-dark-900/60 p-3 rounded-2xl border border-dark-700/80 backdrop-blur-sm shadow-lg">
+        <div className="flex items-center gap-2 flex-wrap flex-1">
+          <div className="relative flex-1 min-w-[140px] max-w-xs">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-500" />
+            <input
+              type="text"
+              placeholder="Buscar fornecedor..."
               value={buscaFornecedor}
-              onChange={(e) => setBuscaFornecedor(e.target.value)}
-              className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:ring-1 focus:ring-brand-500"
+              onChange={e => setBuscaFornecedor(e.target.value)}
+              className="w-full bg-dark-950 border border-dark-700/80 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-dark-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
             />
           </div>
-          <div className="relative">
-            <input 
-              type="text" 
-              placeholder="Filtrar categoria..."
+          <div className="relative flex-1 min-w-[130px] max-w-xs">
+            <Filter size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-500" />
+            <input
+              type="text"
+              placeholder="Buscar categoria..."
               value={buscaCategoria}
-              onChange={(e) => setBuscaCategoria(e.target.value)}
-              className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:ring-1 focus:ring-brand-500"
+              onChange={e => setBuscaCategoria(e.target.value)}
+              className="w-full bg-dark-950 border border-dark-700/80 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-dark-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
             />
           </div>
-          <div className="relative">
-            <input 
-              type="text" 
-              placeholder="Filtrar valor..."
+          <div className="relative w-28">
+            <input
+              type="text"
+              placeholder="Valor..."
               value={buscaValor}
-              onChange={(e) => setBuscaValor(e.target.value)}
-              className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:ring-1 focus:ring-brand-500"
+              onChange={e => setBuscaValor(e.target.value)}
+              className="w-full bg-dark-950 border border-dark-700/80 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-dark-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-mono transition-all"
             />
           </div>
+          {(buscaFornecedor || buscaCategoria || buscaValor) && (
+            <button
+              onClick={() => {
+                setBuscaFornecedor('')
+                setBuscaCategoria('')
+                setBuscaValor('')
+              }}
+              className="text-xs text-dark-400 hover:text-white px-2 py-1 transition-colors cursor-pointer"
+            >
+              Limpar
+            </button>
+          )}
         </div>
 
-        {/* Painel de Edição em Lote */}
+        {/* Painel de Ações em Massa */}
         {selecionados.size > 0 && (
-          <div className="bg-brand-600/10 border border-brand-600/30 rounded-lg p-3 flex items-center justify-between animate-in slide-in-from-top-2">
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-bold text-brand-400">{selecionados.size} selecionados</span>
-              <div className="h-4 w-px bg-dark-600" />
-              {showBulkEdit ? (
-                <div className="flex items-center gap-3 flex-wrap">
-                  {/* Categoria em Lote */}
-                  <div className="flex items-center gap-2 relative">
-                    <div className="relative">
-                      <input 
-                        type="text" 
-                        placeholder="Categoria para todos..."
-                        value={loteCategoria}
-                        onChange={(e) => { setLoteCategoria(e.target.value); setShowBulkList(true) }}
-                        onFocus={() => setShowBulkList(true)}
-                        className="bg-dark-900 border border-dark-600 rounded px-2 py-1 text-xs text-white outline-none w-[160px]"
-                      />
-                      {showBulkList && (
-                        <div className="absolute z-50 mt-1 w-full bg-dark-800 border border-dark-600 rounded-lg shadow-2xl overflow-hidden max-h-[200px] overflow-y-auto">
-                          {((categoriasCA && categoriasCA.length > 0) ? categoriasCA : LISTA_CATEGORIAS_FLAT).filter(c => c.toLowerCase().includes(loteCategoria.toLowerCase())).slice(0, 10).map((cat, i) => (
-                            <button
-                              key={i}
-                              onClick={() => { setLoteCategoria(cat); setShowBulkList(false) }}
-                              className="w-full text-left px-3 py-1.5 text-[10px] text-white hover:bg-brand-600/20 transition-colors"
-                            >
-                              {cat}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <button 
-                      onClick={() => {
-                        onUpdateCategoriaLote(Array.from(selecionados), loteCategoria)
-                        setShowBulkList(false)
-                        setLoteCategoria('')
-                      }}
-                      disabled={!loteCategoria}
-                      className="bg-brand-600 text-white px-2 py-1 rounded text-[10px] font-bold disabled:opacity-50"
-                    >
-                      Aplicar
-                    </button>
-                  </div>
-
-                  {/* Conta em Lote */}
-                  <div className="flex items-center gap-2 relative">
-                    <div className="relative">
-                      <input 
-                        type="text" 
-                        placeholder="Conta para todos..."
-                        value={loteConta}
-                        onChange={(e) => { setLoteConta(e.target.value); setShowBulkContaList(true) }}
-                        onFocus={() => setShowBulkContaList(true)}
-                        className="bg-dark-900 border border-dark-600 rounded px-2 py-1 text-xs text-white outline-none w-[160px]"
-                      />
-                      {showBulkContaList && (
-                        <div className="absolute z-50 mt-1 w-full bg-dark-800 border border-dark-600 rounded-lg shadow-2xl overflow-hidden max-h-[200px] overflow-y-auto">
-                          {contasFinanceiras.filter(c => c.descricao.toLowerCase().includes(loteConta.toLowerCase())).map((c) => (
-                            <button
-                              key={c.id}
-                              onClick={() => { setLoteConta(c.descricao); setShowBulkContaList(false) }}
-                              className="w-full text-left px-3 py-1.5 text-[10px] text-white hover:bg-blue-600/20 transition-colors"
-                            >
-                              {c.descricao}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <button 
-                      onClick={() => {
-                        onUpdateContaLote(Array.from(selecionados), loteConta)
-                        setShowBulkContaList(false)
-                        setLoteConta('')
-                      }}
-                      disabled={!loteConta}
-                      className="bg-blue-600 text-white px-2 py-1 rounded text-[10px] font-bold disabled:opacity-50"
-                    >
-                      Aplicar
-                    </button>
-                  </div>
-
-                  {/* Limpar Fornecedor em Lote */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (confirm(`Limpar o fornecedor de todos os ${selecionados.size} itens selecionados?`)) {
-                        onUpdateFornecedorLote(Array.from(selecionados), '')
-                      }
-                    }}
-                    className="bg-amber-600 hover:bg-amber-500 text-white px-2 py-1 rounded text-[10px] font-bold transition-all"
-                    title="Remove o fornecedor selecionado para enviar em branco"
-                  >
-                    Limpar Fornecedor
-                  </button>
-
-                  <button onClick={() => { setShowBulkEdit(false); setShowBulkList(false); setShowBulkContaList(false) }} className="text-dark-400 text-[10px]">Fechar</button>
-                </div>
-              ) : (
-                <button 
-                  onClick={() => setShowBulkEdit(true)}
-                  className="text-xs text-brand-400 hover:text-brand-300 font-semibold flex items-center gap-1"
-                >
-                  <Edit2 size={12} /> Alterar em Lote
-                </button>
-              )}
-            </div>
-            <button 
-              onClick={() => {
-                if (confirm(`Remover todos os ${selecionados.size} itens selecionados?`)) {
-                  onRemoverLote(Array.from(selecionados))
-                }
-              }}
-              className="text-xs text-red-400 hover:text-red-300 font-semibold flex items-center gap-1"
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowBulkEdit(!showBulkEdit)}
+              className="flex items-center gap-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-md shadow-blue-900/30 transition-all cursor-pointer whitespace-nowrap"
             >
-              <Trash2 size={12} /> Excluir selecionados
+              <Layers size={14} />
+              <span>Ações em Massa ({selecionados.size})</span>
+              <ChevronDown size={13} className={cn("transition-transform duration-200", showBulkEdit ? "rotate-180" : "")} />
             </button>
+
+            {showBulkEdit && (
+              <div className="absolute right-0 top-full mt-2 w-64 bg-dark-900 border border-dark-700/90 rounded-2xl shadow-2xl p-2 z-50 space-y-1 backdrop-blur-xl animate-fade-in">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBulkList(true)
+                    setShowBulkContaList(false)
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs font-semibold text-dark-200 hover:text-white hover:bg-dark-800 rounded-xl transition-all flex items-center justify-between"
+                >
+                  <span>Alterar Categoria ({selecionados.size})</span>
+                  <ChevronDown size={12} className="-rotate-90 text-dark-500" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBulkContaList(true)
+                    setShowBulkList(false)
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs font-semibold text-dark-200 hover:text-white hover:bg-dark-800 rounded-xl transition-all flex items-center justify-between"
+                >
+                  <span>Alterar Conta Financeira ({selecionados.size})</span>
+                  <ChevronDown size={12} className="-rotate-90 text-dark-500" />
+                </button>
+
+                <div className="h-px bg-dark-800 my-1" />
+
+                <button
+                  type="button"
+                  onClick={handleExcluirLote}
+                  className="w-full text-left px-3 py-2 text-xs font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl transition-all flex items-center gap-2"
+                >
+                  <Trash2 size={13} />
+                  <span>Excluir Selecionados</span>
+                </button>
+
+                {/* Submenu Categorias */}
+                {showBulkList && (
+                  <div className="p-2 border-t border-dark-800 max-h-48 overflow-y-auto space-y-1 custom-scrollbar">
+                    <p className="text-[10px] font-bold text-dark-400 uppercase tracking-wider mb-1">Selecione a categoria:</p>
+                    {(categoriasCA.length > 0 ? categoriasCA : LISTA_CATEGORIAS_FLAT).map(cat => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => handleAplicarCategoriaLote(cat)}
+                        className="w-full text-left px-2 py-1 text-[11px] text-dark-300 hover:text-white hover:bg-dark-800 rounded-lg truncate transition-all"
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Submenu Contas Financeiras */}
+                {showBulkContaList && (
+                  <div className="p-2 border-t border-dark-800 max-h-48 overflow-y-auto space-y-1 custom-scrollbar">
+                    <p className="text-[10px] font-bold text-dark-400 uppercase tracking-wider mb-1">Selecione a conta:</p>
+                    {contasFinanceiras.map(conta => (
+                      <button
+                        key={conta.id}
+                        type="button"
+                        onClick={() => handleAplicarContaLote(conta.descricao)}
+                        className="w-full text-left px-2 py-1 text-[11px] text-dark-300 hover:text-white hover:bg-dark-800 rounded-lg truncate transition-all"
+                      >
+                        {conta.descricao}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="table-bpo">
-          <thead>
-            <tr>
-              <th className="w-10">
-                <input
-                  type="checkbox"
-                  checked={todosFiltradosSelecionados}
-                  ref={(el) => { if (el) el.indeterminate = algunsFiltradosSelecionados }}
-                  onChange={() => {
-                    if (todosFiltradosSelecionados) {
-                      onToggleTodosLote(indicesFiltradosValidos, 'desmarcar')
-                    } else {
-                      onToggleTodosLote(indicesFiltradosValidos, 'marcar')
-                    }
-                  }}
-                  className="w-4 h-4 rounded border-dark-500 bg-dark-700 checked:bg-brand-600 cursor-pointer"
-                />
-              </th>
-              <th>Fornecedor</th>
-              <th className="text-right">Valor</th>
-              <th>Vencimento</th>
-              <th>Competência</th>
-              <th>Categoria</th>
-              <th>Conta</th>
-              <th>Descrição</th>
-              <th className="text-center">Status</th>
-              <th className="w-10"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {dadosFiltrados.map((item) => {
-              const idx = item.originalIdx ?? 0
-              const match = item.matchFornecedor
-              const foiCorrigido = match && match.nomeOriginal !== match.nomeCorrigido
-                && (match.confianca === 'exato' || match.confianca === 'alto')
-              const isEditing = editingIdx === idx
-
-              return (
-                <tr
-                  key={idx}
-                  className={cn(
-                    !item.valido && 'bg-red-500/5',
-                    selecionados.has(idx) && item.valido && 'bg-brand-600/5',
-                    isEditing && 'bg-brand-900/10'
-                  )}
-                >
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={selecionados.has(idx)}
-                      onChange={() => onToggle(idx)}
-                      className="w-4 h-4 rounded border-dark-500 bg-dark-700 checked:bg-brand-600 cursor-pointer"
-                    />
-                  </td>
-                  <td className="min-w-[250px]">
-                    {isEditing ? (
-                      <SelectorFornecedor 
-                        valorInicial={item.fornecedor}
-                        onCancel={() => setEditingIdx(null)}
-                        onSelect={(nome) => {
-                          onUpdateFornecedor(idx, nome)
-                          setEditingIdx(null)
-                        }}
-                      />
-                    ) : (
-                      <div className="flex flex-col group relative">
-                        <div className="flex items-center gap-2">
-                          <span className={cn(
-                            'font-medium transition-colors',
-                            foiCorrigido ? 'text-emerald-400' : 'text-white',
-                            !item.valido && 'text-red-400'
-                          )}>
-                            {item.fornecedor}
-                          </span>
-                          {match && <BadgeMatch confianca={match.confianca} score={match.score} />}
-                          <button 
-                            onClick={() => setEditingIdx(idx)}
-                            className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1"
-                            title="Editar fornecedor"
-                          >
-                            <Edit2 size={12} />
-                          </button>
-                        </div>
-                        {foiCorrigido && (
-                          <span className="text-[10px] text-dark-500 flex items-center gap-1">
-                            original: {match.nomeOriginal}
-                          </span>
-                        )}
-                        {item.ca_duplicidade?.encontrado && (
-                          <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-400 bg-amber-400/10 px-2 py-1 rounded border border-amber-400/20 w-max cursor-help" title={`Possível duplicidade no Conta Azul:\nStatus: ${item.ca_duplicidade.status}\nData: ${item.ca_duplicidade.vencimento}\nValor: R$ ${item.ca_duplicidade.valor}\nFornecedor: ${item.ca_duplicidade.fornecedor}`}>
-                            <AlertCircle size={10} />
-                            <span>Possível Duplicidade CA</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                  <td className="text-right font-mono text-white min-w-[120px]">
-                    {editingValorIdx === idx ? (
-                      <input
-                        type="number"
-                        step="0.01"
-                        defaultValue={item.valor}
-                        autoFocus
-                        onBlur={(e) => {
-                          const val = parseFloat(e.target.value)
-                          if (!isNaN(val)) onUpdateValor(idx, val)
-                          setEditingValorIdx(null)
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            const val = parseFloat(e.currentTarget.value)
-                            if (!isNaN(val)) onUpdateValor(idx, val)
-                            setEditingValorIdx(null)
-                          } else if (e.key === 'Escape') setEditingValorIdx(null)
-                        }}
-                        className="w-full bg-dark-900 border border-brand-500 rounded px-2 py-1 text-xs text-right outline-none"
-                      />
-                    ) : (
-                      <div className="group flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => setEditingValorIdx(idx)}
-                          className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 flex-shrink-0"
-                          title="Editar valor"
-                        >
-                          <Edit2 size={12} />
-                        </button>
-                        <span>{formatCurrency(item.valor)}</span>
-                      </div>
-                    )}
-                  </td>
-                  <td className="text-dark-300 text-sm min-w-[140px]">
-                    {editingVencIdx === idx ? (
-                      <input
-                        type="date"
-                        defaultValue={item.vencimento || ''}
-                        autoFocus
-                        onBlur={(e) => {
-                          onUpdateVencimento(idx, e.target.value)
-                          setEditingVencIdx(null)
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            onUpdateVencimento(idx, e.currentTarget.value)
-                            setEditingVencIdx(null)
-                          } else if (e.key === 'Escape') setEditingVencIdx(null)
-                        }}
-                        className="w-full bg-dark-900 border border-brand-500 rounded px-2 py-1 text-xs outline-none"
-                      />
-                    ) : (
-                      <div className="group flex items-center gap-2">
-                        <span>{item.vencimento ? formatDate(item.vencimento) : '---'}</span>
-                        <button
-                          onClick={() => setEditingVencIdx(idx)}
-                          className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 flex-shrink-0"
-                          title="Editar vencimento"
-                        >
-                          <Edit2 size={12} />
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                  <td className="text-dark-300 text-sm min-w-[140px]">
-                    {editingEmissaoIdx === idx ? (
-                      <input
-                        type="date"
-                        defaultValue={item.emissao || ''}
-                        autoFocus
-                        onBlur={(e) => {
-                          onUpdateEmissao(idx, e.target.value)
-                          setEditingEmissaoIdx(null)
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            onUpdateEmissao(idx, e.currentTarget.value)
-                            setEditingEmissaoIdx(null)
-                          } else if (e.key === 'Escape') setEditingEmissaoIdx(null)
-                        }}
-                        className="w-full bg-dark-900 border border-brand-500 rounded px-2 py-1 text-xs outline-none"
-                      />
-                    ) : (
-                      <div className="group flex items-center gap-2">
-                        <span>{item.emissao ? formatDate(item.emissao) : '---'}</span>
-                        <button
-                          onClick={() => setEditingEmissaoIdx(idx)}
-                          className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 flex-shrink-0"
-                          title="Editar competência (emissão)"
-                        >
-                          <Edit2 size={12} />
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                  <td className="text-dark-300 text-xs min-w-[200px]">
-                    {editingCatIdx === idx ? (
-                      <SelectorCategoria 
-                        valorInicial={item.categoria || 'Materiais para Revenda'}
-                        categorias={categoriasCA}
-                        onCancel={() => setEditingCatIdx(null)}
-                        onSelect={(cat) => {
-                          onUpdateCategoria(idx, cat)
-                          setEditingCatIdx(null)
-                        }}
-                      />
-                    ) : (
-                      <div 
-                        className="group flex items-center justify-between gap-2 bg-dark-900/50 border border-dark-700/50 hover:border-dark-600 rounded px-2 py-1 cursor-pointer transition-all"
-                        onClick={() => setEditingCatIdx(idx)}
-                      >
-                        <span className="truncate">
-                          {item.categoria || 'Materiais para Revenda'}
-                        </span>
-                        <ChevronDown size={12} className="text-dark-500 group-hover:text-dark-300" />
-                      </div>
-                    )}
-                  </td>
-                  <td className="text-dark-300 text-xs min-w-[180px]">
-                    {editingContaIdx === idx ? (
-                      <SelectorContaFinanceira 
-                        valorInicial={item.conta_financeira || ''}
-                        contas={contasFinanceiras}
-                        onCancel={() => setEditingContaIdx(null)}
-                        onSelect={(nome, id) => {
-                          onUpdateConta(idx, nome, id)
-                          setEditingContaIdx(null)
-                        }}
-                      />
-                    ) : (
-                      <div 
-                        className="group flex items-center justify-between gap-2 bg-blue-900/10 border border-blue-500/20 hover:border-blue-500/40 rounded px-2 py-1 cursor-pointer transition-all"
-                        onClick={() => setEditingContaIdx(idx)}
-                      >
-                        <span className="truncate text-blue-300">
-                          {item.conta_financeira || 'Selecionar conta...'}
-                        </span>
-                        <ChevronDown size={12} className="text-blue-500 group-hover:text-blue-300" />
-                      </div>
-                    )}
-                  </td>
-                  <td className="text-dark-400 text-xs max-w-[200px]">
-                    {editingDescIdx === idx ? (
-                      <input
-                        type="text"
-                        defaultValue={item.descricao || ''}
-                        autoFocus
-                        onBlur={(e) => {
-                          onUpdateDescricao(idx, e.target.value)
-                          setEditingDescIdx(null)
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            onUpdateDescricao(idx, e.currentTarget.value)
-                            setEditingDescIdx(null)
-                          } else if (e.key === 'Escape') setEditingDescIdx(null)
-                        }}
-                        className="w-full bg-dark-900 border border-brand-500 rounded px-2 py-1 text-xs outline-none"
-                      />
-                    ) : (
-                      <div className="group flex items-center gap-2 truncate">
-                        <span className="truncate" title={item.descricao}>{item.descricao || '---'}</span>
-                        <button
-                          onClick={() => setEditingDescIdx(idx)}
-                          className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 flex-shrink-0"
-                          title="Editar descrição"
-                        >
-                          <Edit2 size={12} />
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                  <td className="text-center">
-                    {item.valido ? (
-                      <span className="text-emerald-400 text-[10px] font-bold uppercase tracking-wider">OK</span>
-                    ) : (
-                      <div className="flex flex-col items-center">
-                        <span className="text-red-400 text-[10px] font-bold uppercase tracking-wider">Erro</span>
-                        <p className="text-[9px] text-red-400/70 max-w-[100px] leading-tight">
-                          {item.erros?.[0]}
-                        </p>
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    <div className="flex items-center gap-1">
-                      {(item.anexo_url || item.metadata?.anexo_url) && (
-                        <button
-                          type="button"
-                          onClick={() => visualizarAnexo(item.anexo_url || item.metadata?.anexo_url)}
-                          className="text-emerald-400 hover:text-emerald-300 transition-colors p-1 bg-emerald-500/10 rounded"
-                          title="Visualizar Anexo/Comprovante"
-                        >
-                          <Paperclip size={14} />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => onRemover(idx)}
-                        className="text-dark-500 hover:text-red-400 transition-colors p-1"
-                        title="Excluir"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+      {/* Tabela de Lançamentos */}
+      <div className="bg-dark-900/60 border border-dark-700/80 rounded-2xl overflow-hidden shadow-xl backdrop-blur-sm">
+        <div className="overflow-x-auto custom-scrollbar max-h-[600px]">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-dark-950/90 text-dark-400 text-[11px] font-bold uppercase tracking-wider sticky top-0 z-20 backdrop-blur-md border-b border-dark-700/80 select-none">
+              <tr>
+                <th className="p-3.5 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    checked={todosVisiveisSelecionados}
+                    onChange={handleToggleTodosVisiveis}
+                    className="rounded border-dark-700 bg-dark-900 text-blue-500 focus:ring-blue-500/20 cursor-pointer"
+                  />
+                </th>
+                <th className="p-3.5 min-w-[200px]">Fornecedor</th>
+                <th className="p-3.5 text-right min-w-[120px]">Valor</th>
+                <th className="p-3.5 min-w-[130px]">Vencimento</th>
+                <th className="p-3.5 min-w-[130px]">Competência</th>
+                <th className="p-3.5 min-w-[180px]">Categoria</th>
+                <th className="p-3.5 min-w-[170px]">Conta Financeira</th>
+                <th className="p-3.5 min-w-[180px]">Descrição</th>
+                <th className="p-3.5 text-center w-20">Status</th>
+                <th className="p-3.5 text-center w-16">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-dark-800/60 text-xs">
+              {dadosFiltrados.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="text-center py-12 text-dark-400">
+                    Nenhum registro encontrado com os filtros aplicados.
                   </td>
                 </tr>
-              )
-            })}
-          </tbody>
-        </table>
+              ) : (
+                dadosFiltrados.map(item => {
+                  const idx = item.originalIdx ?? 0
+                  const isSelected = selecionados.has(idx)
+
+                  return (
+                    <tr
+                      key={idx}
+                      className={cn(
+                        "hover:bg-dark-850/60 transition-colors group",
+                        isSelected ? "bg-blue-500/5" : "",
+                        !item.valido ? "bg-rose-500/5" : ""
+                      )}
+                    >
+                      <td className="p-3.5 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => onToggle(idx)}
+                          className="rounded border-dark-700 bg-dark-900 text-blue-500 focus:ring-blue-500/20 cursor-pointer"
+                        />
+                      </td>
+
+                      {/* Fornecedor */}
+                      <td className="p-3.5">
+                        {editingIdx === idx ? (
+                          <SelectorFornecedor
+                            valorInicial={item.fornecedor}
+                            onSelect={nome => {
+                              onUpdateFornecedor(idx, nome)
+                              setEditingIdx(null)
+                            }}
+                            onCancel={() => setEditingIdx(null)}
+                          />
+                        ) : (
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-white font-bold tracking-tight text-xs">
+                                {item.fornecedor}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setEditingIdx(idx)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-dark-400 hover:text-blue-400 p-0.5"
+                                title="Editar fornecedor"
+                              >
+                                <Edit2 size={11} />
+                              </button>
+                            </div>
+                            {item.matchFornecedor && (
+                              <div className="flex items-center gap-1.5">
+                                <BadgeMatch
+                                  confianca={item.matchFornecedor.confianca}
+                                  score={item.matchFornecedor.score}
+                                />
+                                {item.matchFornecedor.nomeCorrigido && item.matchFornecedor.nomeCorrigido !== item.fornecedor && (
+                                  <span className="text-[10px] text-dark-400 truncate max-w-[140px]">
+                                    → {item.matchFornecedor.nomeCorrigido}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Valor */}
+                      <td className="p-3.5 text-right font-mono font-bold tabular-nums">
+                        {editingValorIdx === idx ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            defaultValue={item.valor}
+                            autoFocus
+                            onBlur={e => {
+                              onUpdateValor(idx, parseFloat(e.target.value) || 0)
+                              setEditingValorIdx(null)
+                            }}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                onUpdateValor(idx, parseFloat(e.currentTarget.value) || 0)
+                                setEditingValorIdx(null)
+                              } else if (e.key === 'Escape') setEditingValorIdx(null)
+                            }}
+                            className="w-24 bg-dark-950 border border-blue-500 rounded-lg px-2 py-1 text-xs text-right text-white outline-none font-mono"
+                          />
+                        ) : (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <span className="text-emerald-400 text-xs">
+                              {formatCurrency(item.valor)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setEditingValorIdx(idx)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-dark-400 hover:text-blue-400 p-0.5"
+                              title="Editar valor"
+                            >
+                              <Edit2 size={11} />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Vencimento */}
+                      <td className="p-3.5 font-mono text-dark-300">
+                        {editingVencIdx === idx ? (
+                          <input
+                            type="date"
+                            defaultValue={item.vencimento}
+                            autoFocus
+                            onBlur={e => {
+                              onUpdateVencimento(idx, e.target.value)
+                              setEditingVencIdx(null)
+                            }}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                onUpdateVencimento(idx, e.currentTarget.value)
+                                setEditingVencIdx(null)
+                              } else if (e.key === 'Escape') setEditingVencIdx(null)
+                            }}
+                            className="bg-dark-950 border border-blue-500 rounded-lg px-2 py-1 text-xs text-white outline-none font-mono"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <span>{formatDate(item.vencimento)}</span>
+                            <button
+                              type="button"
+                              onClick={() => setEditingVencIdx(idx)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-dark-400 hover:text-blue-400 p-0.5"
+                              title="Editar vencimento"
+                            >
+                              <Edit2 size={11} />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Emissão / Competência */}
+                      <td className="p-3.5 font-mono text-dark-300">
+                        {editingEmissaoIdx === idx ? (
+                          <input
+                            type="date"
+                            defaultValue={item.emissao || ''}
+                            autoFocus
+                            onBlur={e => {
+                              onUpdateEmissao(idx, e.target.value)
+                              setEditingEmissaoIdx(null)
+                            }}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                onUpdateEmissao(idx, e.currentTarget.value)
+                                setEditingEmissaoIdx(null)
+                              } else if (e.key === 'Escape') setEditingEmissaoIdx(null)
+                            }}
+                            className="bg-dark-950 border border-blue-500 rounded-lg px-2 py-1 text-xs text-white outline-none font-mono"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <span>{item.emissao ? formatDate(item.emissao) : '---'}</span>
+                            <button
+                              type="button"
+                              onClick={() => setEditingEmissaoIdx(idx)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-dark-400 hover:text-blue-400 p-0.5"
+                              title="Editar emissão"
+                            >
+                              <Edit2 size={11} />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Categoria */}
+                      <td className="p-3.5">
+                        {editingCatIdx === idx ? (
+                          <SelectorCategoria
+                            valorInicial={item.categoria || 'Materiais para Revenda'}
+                            categorias={categoriasCA}
+                            onCancel={() => setEditingCatIdx(null)}
+                            onSelect={cat => {
+                              onUpdateCategoria(idx, cat)
+                              setEditingCatIdx(null)
+                            }}
+                          />
+                        ) : (
+                          <div
+                            onClick={() => setEditingCatIdx(idx)}
+                            className="flex items-center justify-between gap-1.5 bg-dark-950/70 border border-dark-700/60 hover:border-blue-500/50 rounded-xl px-2.5 py-1.5 cursor-pointer transition-all text-xs"
+                          >
+                            <span className="truncate text-dark-200">
+                              {item.categoria || 'Materiais para Revenda'}
+                            </span>
+                            <ChevronDown size={11} className="text-dark-500 flex-shrink-0" />
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Conta Financeira */}
+                      <td className="p-3.5">
+                        {editingContaIdx === idx ? (
+                          <SelectorContaFinanceira
+                            valorInicial={item.conta_financeira || ''}
+                            contas={contasFinanceiras}
+                            onCancel={() => setEditingContaIdx(null)}
+                            onSelect={(nome, id) => {
+                              onUpdateConta(idx, nome, id)
+                              setEditingContaIdx(null)
+                            }}
+                          />
+                        ) : (
+                          <div
+                            onClick={() => setEditingContaIdx(idx)}
+                            className="flex items-center justify-between gap-1.5 bg-blue-950/20 border border-blue-500/30 hover:border-blue-500/60 rounded-xl px-2.5 py-1.5 cursor-pointer transition-all text-xs"
+                          >
+                            <span className="truncate text-blue-300 font-medium">
+                              {item.conta_financeira || 'Selecionar conta...'}
+                            </span>
+                            <ChevronDown size={11} className="text-blue-400 flex-shrink-0" />
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Descrição */}
+                      <td className="p-3.5 text-dark-400">
+                        {editingDescIdx === idx ? (
+                          <input
+                            type="text"
+                            defaultValue={item.descricao || ''}
+                            autoFocus
+                            onBlur={e => {
+                              onUpdateDescricao(idx, e.target.value)
+                              setEditingDescIdx(null)
+                            }}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                onUpdateDescricao(idx, e.currentTarget.value)
+                                setEditingDescIdx(null)
+                              } else if (e.key === 'Escape') setEditingDescIdx(null)
+                            }}
+                            className="w-full bg-dark-950 border border-blue-500 rounded-lg px-2 py-1 text-xs text-white outline-none"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-1.5 truncate max-w-[200px]">
+                            <span className="truncate text-xs" title={item.descricao}>
+                              {item.descricao || '---'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setEditingDescIdx(idx)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-dark-400 hover:text-blue-400 p-0.5 flex-shrink-0"
+                              title="Editar descrição"
+                            >
+                              <Edit2 size={11} />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Status */}
+                      <td className="p-3.5 text-center">
+                        {item.valido ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md font-mono">
+                            OK
+                          </span>
+                        ) : (
+                          <div className="flex flex-col items-center">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-md font-mono">
+                              Erro
+                            </span>
+                            <p className="text-[9px] text-rose-400/80 max-w-[90px] leading-tight truncate mt-0.5" title={item.erros?.[0]}>
+                              {item.erros?.[0]}
+                            </p>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Ações */}
+                      <td className="p-3.5 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          {(item.anexo_url || item.metadata?.anexo_url) && (
+                            <button
+                              type="button"
+                              onClick={() => visualizarAnexo(item.anexo_url || item.metadata?.anexo_url)}
+                              className="text-emerald-400 hover:text-emerald-300 transition-colors p-1 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg cursor-pointer"
+                              title="Visualizar Anexo/Comprovante"
+                            >
+                              <Paperclip size={13} />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => onRemover(idx)}
+                            className="text-dark-500 hover:text-rose-400 hover:bg-rose-500/10 p-1 rounded-lg transition-colors cursor-pointer"
+                            title="Excluir item"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )
