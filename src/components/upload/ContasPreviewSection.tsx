@@ -297,7 +297,8 @@ export default function ContasPreviewSection({
           nomeCorrigido: novoNome,
           cnpj: next[idx].matchFornecedor?.cnpj || '',
           confianca: 'exato',
-          score: 100
+          score: 100,
+          origem: 'manual'
         },
         valido: true,
         erros: undefined

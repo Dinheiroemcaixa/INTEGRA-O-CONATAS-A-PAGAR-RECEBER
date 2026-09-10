@@ -95,6 +95,7 @@ export interface MatchFornecedorInfo {
   categoria?: string
   confianca: 'exato' | 'alto' | 'medio' | 'baixo' | 'nenhum'
   score: number
+  origem?: 'cnpj' | 'direto' | 'depara' | 'similaridade' | 'nenhum' | 'manual'
 }
 
 export interface ContaPagarPreview {

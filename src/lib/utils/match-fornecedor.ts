@@ -7,6 +7,7 @@
 import { normalizarNome, type FornecedorContaAzul } from '@/lib/parsers/fornecedores-contaazul'
 
 export type ConfiancaMatch = 'exato' | 'alto' | 'medio' | 'baixo' | 'nenhum'
+export type OrigemMatch = 'cnpj' | 'direto' | 'depara' | 'similaridade' | 'nenhum' | 'manual'
 
 export interface ResultadoMatch {
   nomeOriginal: string        // nome vindo do Datacar
@@ -15,6 +16,7 @@ export interface ResultadoMatch {
   categoria?: string
   confianca: ConfiancaMatch
   score: number               // 0-100
+  origem?: OrigemMatch
 }
 
 /** Regra De-Para aprendida de correções manuais do usuário */
@@ -113,6 +115,7 @@ export function matchFornecedor(
         categoria: fEncontrado.categoria,
         confianca: 'exato',
         score: 100,
+        origem: 'cnpj',
       }
     }
   }
@@ -131,6 +134,7 @@ export function matchFornecedor(
         categoria: fEncontrado?.categoria,
         confianca: 'exato',
         score: 100,
+        origem: 'depara',
       }
     }
   }
@@ -145,6 +149,7 @@ export function matchFornecedor(
         categoria: f.categoria,
         confianca: 'exato',
         score: 100,
+        origem: 'direto',
       }
     }
   }
@@ -168,6 +173,7 @@ export function matchFornecedor(
       cnpj: '',
       confianca: 'nenhum',
       score: melhorScore,
+      origem: 'nenhum',
     }
   }
 
@@ -178,6 +184,7 @@ export function matchFornecedor(
     categoria: melhorFornecedor.categoria,
     confianca: scoreParaConfianca(melhorScore),
     score: melhorScore,
+    origem: 'similaridade',
   }
 }
 

@@ -30,26 +30,64 @@ interface Props {
   onUpdateDescricao: (idx: number, novaDesc: string) => void
 }
 
-function BadgeMatch({ confianca, score }: { confianca: string; score: number }) {
-  if (confianca === 'exato' || score === 100) {
+function BadgeMatch({ 
+  confianca, 
+  score, 
+  origem, 
+  foiCorrigido 
+}: { 
+  confianca: string
+  score: number
+  origem?: string
+  foiCorrigido?: boolean 
+}) {
+  // 1. Corrigido por Regra De-Para ou Ajuste Manual (AZUL)
+  if (origem === 'depara' || origem === 'manual' || foiCorrigido) {
     return (
-      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded-full font-medium" title="Nome exato encontrado no ContaAzul">
-        <CheckCircle size={9} /> exato
-      </span>
-    )
-  }
-  
-  if (score >= 80) {
-    return (
-      <span className="inline-flex items-center gap-1 text-[10px] text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded-full font-medium" title={`Match automático — confiança ${score}%`}>
-        ✓ {score}%
+      <span 
+        className="inline-flex items-center gap-1 text-[10px] text-blue-400 bg-blue-500/10 border border-blue-500/25 px-2 py-0.5 rounded-full font-medium shadow-sm whitespace-nowrap" 
+        title="Fornecedor corrigido por regra De-Para ou ajuste salvo"
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+        🔄 De-Para
       </span>
     )
   }
 
+  // 2. Bateu direto com cadastro oficial do Conta Azul ou CNPJ (VERDE)
+  if (origem === 'direto' || origem === 'cnpj' || confianca === 'exato' || score === 100) {
+    return (
+      <span 
+        className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-full font-medium shadow-sm whitespace-nowrap" 
+        title="Nome/CNPJ corresponde exatamente ao cadastro do Conta Azul"
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+        ✓ Exato
+      </span>
+    )
+  }
+
+  // 3. Similaridade média/alta (AMARELO / SUGESTÃO)
+  if (score >= 50) {
+    return (
+      <span 
+        className="inline-flex items-center gap-1 text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-full font-medium shadow-sm whitespace-nowrap" 
+        title={`Sugestão por similaridade (${score}%) — revise antes de enviar`}
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+        🔍 {score}%
+      </span>
+    )
+  }
+
+  // 4. Não encontrado (AMARELO ALERTA)
   return (
-    <span className="inline-flex items-center gap-1 text-[10px] text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded-full font-medium" title={`Match fraco — verifique — confiança ${score}%`}>
-      <AlertCircle size={9} /> {score}%
+    <span 
+      className="inline-flex items-center gap-1 text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-full font-medium shadow-sm whitespace-nowrap" 
+      title="Fornecedor não encontrado no Conta Azul — será criado ou precisa de conferência"
+    >
+      <AlertCircle size={9} className="text-amber-400" />
+      Não Encontrado
     </span>
   )
 }
@@ -95,10 +133,26 @@ export default function TabelaPreview({
   const todosFiltradosSelecionados = filtradosValidos.length > 0 && indicesFiltradosValidos.every(idx => selecionados.has(idx))
   const algunsFiltradosSelecionados = indicesFiltradosValidos.some(idx => selecionados.has(idx)) && !todosFiltradosSelecionados
   const temMatch = dados.some((d) => d.matchFornecedor)
-  const corrigidos = dados.filter(
-    (d) => d.matchFornecedor && (d.matchFornecedor.confianca === 'exato' || d.matchFornecedor.confianca === 'alto')
-      && d.matchFornecedor.nomeOriginal !== d.matchFornecedor.nomeCorrigido
-  ).length
+  const exatosCount = dados.filter(d => {
+    const m = d.matchFornecedor
+    if (!m) return false
+    const isDepara = m.origem === 'depara' || m.origem === 'manual' || (m.nomeOriginal !== m.nomeCorrigido && (m.confianca === 'exato' || m.confianca === 'alto'))
+    return !isDepara && (m.origem === 'direto' || m.origem === 'cnpj' || m.confianca === 'exato' || m.score === 100)
+  }).length
+
+  const deparaCount = dados.filter(d => {
+    const m = d.matchFornecedor
+    if (!m) return false
+    return m.origem === 'depara' || m.origem === 'manual' || (m.nomeOriginal !== m.nomeCorrigido && (m.confianca === 'exato' || m.confianca === 'alto'))
+  }).length
+
+  const naoEncontradosCount = dados.filter(d => {
+    const m = d.matchFornecedor
+    if (!m) return true
+    const isDepara = m.origem === 'depara' || m.origem === 'manual' || (m.nomeOriginal !== m.nomeCorrigido && (m.confianca === 'exato' || m.confianca === 'alto'))
+    const isExato = !isDepara && (m.origem === 'direto' || m.origem === 'cnpj' || m.confianca === 'exato' || m.score === 100)
+    return !isDepara && !isExato
+  }).length
   // Sempre que os filtros mudarem, desmarca automaticamente os itens que não estão mais visíveis/filtrados
   useEffect(() => {
     const indicesFiltradosValidosSet = new Set(indicesFiltradosValidos)
@@ -124,13 +178,25 @@ export default function TabelaPreview({
             Mostrando <span className="text-white font-semibold">{dadosFiltrados.length}</span> de <span className="text-white font-semibold">{dados.length}</span> registros
           </p>
           <div className="flex items-center gap-3 flex-wrap">
-            {temMatch && corrigidos > 0 && (
-              <span className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">
-                <CheckCircle size={11} />
-                {corrigidos} fornecedores corrigidos
+            {exatosCount > 0 && (
+              <span className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full font-medium shadow-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                {exatosCount} exatos
               </span>
             )}
-            <span className="flex items-center gap-1.5 text-xs text-green-400">
+            {deparaCount > 0 && (
+              <span className="flex items-center gap-1.5 text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-0.5 rounded-full font-medium shadow-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                {deparaCount} De-Para
+              </span>
+            )}
+            {naoEncontradosCount > 0 && (
+              <span className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full font-medium shadow-sm">
+                <AlertCircle size={11} />
+                {naoEncontradosCount} não encontrados
+              </span>
+            )}
+            <span className="flex items-center gap-1.5 text-xs text-green-400 ml-1">
               <CheckCircle size={12} />
               {dados.filter((d) => d.valido).length} válidos
             </span>
@@ -331,8 +397,11 @@ export default function TabelaPreview({
             {dadosFiltrados.map((item) => {
               const idx = item.originalIdx ?? 0
               const match = item.matchFornecedor
-              const foiCorrigido = match && match.nomeOriginal !== match.nomeCorrigido
-                && (match.confianca === 'exato' || match.confianca === 'alto')
+              const foiCorrigido = match && (
+                match.origem === 'depara' || 
+                match.origem === 'manual' || 
+                (match.nomeOriginal !== match.nomeCorrigido && (match.confianca === 'exato' || match.confianca === 'alto'))
+              )
               const isEditing = editingIdx === idx
 
               return (
@@ -352,7 +421,7 @@ export default function TabelaPreview({
                       className="w-4 h-4 rounded border-dark-500 bg-dark-700 checked:bg-brand-600 cursor-pointer"
                     />
                   </td>
-                  <td className="min-w-[250px]">
+                  <td className="min-w-[260px]">
                     {isEditing ? (
                       <SelectorFornecedor 
                         valorInicial={item.fornecedor}
@@ -364,25 +433,31 @@ export default function TabelaPreview({
                       />
                     ) : (
                       <div className="flex flex-col group relative">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className={cn(
-                            'font-medium transition-colors',
-                            foiCorrigido ? 'text-emerald-400' : 'text-white',
-                            !item.valido && 'text-red-400'
+                            'font-medium transition-colors text-xs sm:text-sm',
+                            foiCorrigido ? 'text-blue-300' : (item.valido ? 'text-white' : 'text-red-400')
                           )}>
                             {item.fornecedor}
                           </span>
-                          {match && <BadgeMatch confianca={match.confianca} score={match.score} />}
+                          {match && (
+                            <BadgeMatch 
+                              confianca={match.confianca} 
+                              score={match.score} 
+                              origem={match.origem} 
+                              foiCorrigido={foiCorrigido} 
+                            />
+                          )}
                           <button 
                             onClick={() => setEditingIdx(idx)}
-                            className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1"
-                            title="Editar fornecedor"
+                            className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 rounded hover:bg-dark-700"
+                            title="Editar ou corrigir fornecedor"
                           >
                             <Edit2 size={12} />
                           </button>
                         </div>
-                        {foiCorrigido && (
-                          <span className="text-[10px] text-dark-500 flex items-center gap-1">
+                        {foiCorrigido && match.nomeOriginal !== item.fornecedor && (
+                          <span className="text-[10px] text-blue-400/80 flex items-center gap-1 mt-0.5 font-mono">
                             original: {match.nomeOriginal}
                           </span>
                         )}
