@@ -604,7 +604,7 @@ export default function NotasEmitidasPage() {
               placeholder="Pesquisar pessoa física ou jurídica..."
               value={busca}
               onChange={e => setBusca(e.target.value)}
-              className="w-full bg-dark-900 border border-dark-700 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-dark-500 focus:border-blue-500 outline-none transition-all font-medium"
+              className="w-full bg-dark-900 border border-dark-700 rounded-lg pl-9 pr-4 py-2 text-sm text-white placeholder-dark-500 focus:border-brand-500 outline-none transition-colors"
             />
           </div>
 
@@ -615,7 +615,7 @@ export default function NotasEmitidasPage() {
               type="date"
               value={dataInicio}
               onChange={e => setDataInicio(e.target.value)}
-              className="bg-dark-900 border border-dark-700 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white focus:border-blue-500 outline-none font-mono transition-all"
+              className="bg-dark-900 border border-dark-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:border-brand-500 outline-none"
             />
           </div>
           <span className="text-dark-500 text-sm">até</span>

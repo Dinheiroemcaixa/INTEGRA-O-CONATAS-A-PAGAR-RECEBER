@@ -6,253 +6,385 @@ import type { ContaFinanceiraOpcao } from '@/components/upload/SelectorContaFina
 import { createClient } from '@/lib/supabase/client'
 import TabelaPreview from '@/components/upload/TabelaPreview'
 import type { ContaPagarPreview, Empresa } from '@/types'
-import { Loader2, FileDown, Trash2, Save, Upload, CheckCircle2, AlertTriangle, AlertCircle, Layers } from 'lucide-react'
+import { Loader2, FileDown, Trash2, Save, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { formatCurrency } from '@/lib/utils'
-import { cn } from '@/lib/utils'
+import { formatCurrency, cn } from '@/lib/utils'
+import { matchFornecedoresEmLote, type RegraDepara } from '@/lib/utils/match-fornecedor'
+import { sugerirCategoria } from '@/lib/utils/auto-categoria'
+import { normalizarNome, type FornecedorContaAzul } from '@/lib/parsers/fornecedores-contaazul'
 
 interface Props {
   dadosIniciais: ContaPagarPreview[]
-  contasFinanceirasCA?: ContaFinanceiraOpcao[]
-  categoriasCA?: string[]
-  onSalvar: (dados: ContaPagarPreview[]) => void
-  onBaixarXls?: (dados: ContaPagarPreview[]) => void
-  salvando: boolean
-  empresaAtiva?: Empresa | null
-  nomeArquivo?: string
+  empresaAtiva: Empresa | null
+  onSalvar: (itens: ContaPagarPreview[]) => Promise<void>
+  onBaixarXls?: (itens: ContaPagarPreview[]) => void
+  salvando?: boolean
 }
 
 export default function ContasPreviewSection({
   dadosIniciais,
-  contasFinanceirasCA = [],
-  categoriasCA = [],
+  empresaAtiva,
   onSalvar,
   onBaixarXls,
-  salvando,
-  empresaAtiva,
-  nomeArquivo
+  salvando = false
 }: Props) {
-  const [dadosEditados, setDadosEditados] = useState<(ContaPagarPreview & { originalIdx?: number })[]>(dadosIniciais)
+  const [dadosEditados, setDadosEditados] = useState<ContaPagarPreview[]>([])
+  const [selecionados, setSelecionados] = useState<Set<number>>(new Set())
   const [filtroPreview, setFiltroPreview] = useState<'todos' | 'erro' | 'revisao'>('todos')
-  const [selecionados, setSelecionados] = useState<Set<number>>(
-    new Set(dadosIniciais.map((_, i) => i))
-  )
+  const [contasFinanceirasCA, setContasFinanceirasCA] = useState<ContaFinanceiraOpcao[]>([])
+  const [categoriasCA, setCategoriasCA] = useState<string[]>([])
   const [loadingMatch, setLoadingMatch] = useState(false)
   const supabase = createClient()
 
-  // Auto match fornecedores do Conta Azul
+  const { empresas } = useEmpresa()
+  const empresaAlvo = empresaAtiva?.access_token_conta_azul
+    ? empresaAtiva
+    : (empresas.find(e => !!e.access_token_conta_azul) || empresaAtiva)
+
   useEffect(() => {
-    async function realizarAutoMatch() {
-      if (!empresaAtiva || dadosIniciais.length === 0) return
-      
-      const precisaMatch = dadosIniciais.some(d => !d.matchFornecedor)
-      if (!precisaMatch) {
-        setDadosEditados(dadosIniciais)
+    if (!empresaAlvo?.id) { setContasFinanceirasCA([]); setCategoriasCA([]); return }
+    
+    fetch(`/api/conta-azul/contas-financeiras?empresa_id=${empresaAlvo.id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.contas && Array.isArray(data.contas)) {
+          setContasFinanceirasCA(data.contas.map((c: any) => ({ id: c.id, descricao: c.descricao })))
+        }
+      })
+      .catch(() => {})
+
+    fetch(`/api/conta-azul/categorias?empresa_id=${empresaAlvo.id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.categorias && Array.isArray(data.categorias)) {
+          setCategoriasCA(data.categorias.map((c: any) => c.nome))
+        }
+      })
+      .catch(() => {})
+  }, [empresaAlvo?.id])
+
+  useEffect(() => {
+    let mounted = true
+    const processarMatch = async () => {
+      if (!dadosIniciais || dadosIniciais.length === 0) {
+        if (mounted) {
+          setDadosEditados([])
+          setSelecionados(new Set())
+        }
         return
       }
 
       setLoadingMatch(true)
-      try {
-        const { data: fornecedoresCA } = await supabase
-          .from('fornecedores_contaazul')
-          .select('nome, cnpj, categoria_padrao, nome_normalizado')
-          .eq('empresa_id', empresaAtiva.id)
+      let dadosComMatch = [...dadosIniciais]
 
-        if (!fornecedoresCA || fornecedoresCA.length === 0) {
-          setDadosEditados(dadosIniciais)
-          setLoadingMatch(false)
-          return
-        }
+      if (empresaAtiva) {
+        try {
+          const { data: fornecedoresDB } = await supabase
+            .from('fornecedores_contaazul')
+            .select('nome, cnpj, nome_normalizado, categoria_padrao')
+            .eq('empresa_id', empresaAtiva.id)
 
-        const norm = (s: string) =>
-          s.toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/[^a-z0-9]/g, '')
-            .trim()
+          const resDepara = await fetch(`/api/fornecedor-depara?empresa_id=${empresaAtiva.id}&t=${Date.now()}`)
+          const jsonDepara = await resDepara.json()
+          const deparaDB = jsonDepara.data || []
 
-        const atualizados: (ContaPagarPreview & { originalIdx?: number })[] = dadosIniciais.map(item => {
-          if (item.matchFornecedor) return item
+          const regrasDepara: RegraDepara[] = (deparaDB || []).map((r: any) => ({
+            nomeOriginalNormalizado: r.nome_original_normalizado,
+            nomeCorrigido: r.nome_corrigido,
+          }))
 
-          const nomeItemNorm = norm(item.fornecedor)
+          if ((fornecedoresDB && fornecedoresDB.length > 0) || regrasDepara.length > 0) {
+            const fornecedores: FornecedorContaAzul[] = (fornecedoresDB || []).map((f) => ({
+              nome: f.nome,
+              cnpj: f.cnpj || '',
+              categoria: f.categoria_padrao || undefined,
+              nomeNormalizado: f.nome_normalizado,
+            }))
+
+            const itensDatacar = dadosIniciais.map((d) => ({
+              nome: d.fornecedor,
+              cnpj: d._datacar?.cnpjEmit ? d._datacar.cnpjEmit.replace(/\D/g, '') : undefined
+            }))
+            const matchMap = matchFornecedoresEmLote(itensDatacar, fornecedores, regrasDepara)
+
+            let defaultConta: { descricao: string, id: string } | null = null
+            if (empresaAtiva) {
+              const saved = localStorage.getItem(`contaPadrao_${empresaAtiva.id}`)
+              if (saved) {
+                try { defaultConta = JSON.parse(saved) } catch (e) {}
+              }
+            }
+
+            dadosComMatch = dadosIniciais.map((d) => {
+              const match = matchMap.get(d.fornecedor)
+              const deveCorrigirAuto = match && ['exato', 'alto', 'medio'].includes(match.confianca)
+              const nomeFinal = deveCorrigirAuto ? match.nomeCorrigido : d.fornecedor
+              const sugestao = sugerirCategoria(nomeFinal) || sugerirCategoria(d.descricao || '')
+
+              return {
+                ...d,
+                fornecedor: nomeFinal,
+                categoria: match?.categoria || sugestao || 'Materiais para Revenda',
+                matchFornecedor: match,
+                conta_financeira: d.conta_financeira || defaultConta?.descricao,
+                conta_financeira_id: d.conta_financeira_id || defaultConta?.id,
+              }
+            })
+
+            const corrigidos = dadosComMatch.filter(
+              (d) => d.matchFornecedor && d.matchFornecedor.nomeOriginal !== d.fornecedor
+            ).length
+            
+            if (mounted && corrigidos > 0) {
+              toast.success(`${corrigidos} nomes de fornecedores corrigidos automaticamente!`, { duration: 4000 })
+            }
+          }
           
-          const exato = fornecedoresCA.find(f => 
-            norm(f.nome) === nomeItemNorm || 
-            (f.nome_normalizado && norm(f.nome_normalizado) === nomeItemNorm)
-          )
-
-          if (exato) {
-            return {
-              ...item,
-              fornecedor: exato.nome,
-              categoria: exato.categoria_padrao || item.categoria,
-              matchFornecedor: {
-                nomeOriginal: item.fornecedor,
-                nomeCorrigido: exato.nome,
-                cnpj: exato.cnpj || '',
-                categoria: exato.categoria_padrao || item.categoria,
-                confianca: 'exato',
-                score: 100
+          // Verificação de Duplicidades no Conta Azul
+          if (dadosComMatch.length > 0 && empresaAtiva.conta_azul_connected) {
+            const parseData = (str: string) => {
+              const [d, m, y] = str.split('/')
+              return new Date(`${y}-${m}-${d}T12:00:00Z`).getTime()
+            }
+            const datas = dadosComMatch.map(d => parseData(d.vencimento)).filter(t => !isNaN(t))
+            if (datas.length > 0) {
+              const dtIniStr = new Date(Math.min(...datas)).toISOString().split('T')[0]
+              const dtFimStr = new Date(Math.max(...datas)).toISOString().split('T')[0]
+              
+              try {
+                const dupRes = await fetch('/api/conta-azul/contas-pagar/verificar-duplicidades', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ empresa_id: empresaAtiva.id, dtIni: dtIniStr, dtFim: dtFimStr })
+                })
+                
+                if (dupRes.ok) {
+                  const dupData = await dupRes.json()
+                  const contasCa = dupData.contasCa || []
+                  
+                  if (contasCa.length > 0) {
+                    dadosComMatch = dadosComMatch.map(d => {
+                      const dData = parseData(d.vencimento)
+                      if (isNaN(dData)) return d
+                      
+                      const duplicada = contasCa.find((c: any) => {
+                        const cData = new Date(`${c.data_vencimento}T12:00:00Z`).getTime()
+                        const diffDias = Math.abs(cData - dData) / (1000 * 60 * 60 * 24)
+                        
+                        if (diffDias > 3) return false
+                        
+                        const diffValor = Math.abs(c.valor - d.valor)
+                        // Tolerância de até 2 reais para considerar como suspeita
+                        if (diffValor > 2.00) return false
+                        
+                        const caFornecedor = normalizarNome(c.descricao || '')
+                        const datacarFornecedor = normalizarNome(d.fornecedor)
+                        
+                        // Se bateu data exata e valor exato, já é grande chance.
+                        // Adicionamos match de nome se a descricao do CA contiver o nome
+                        if (diffValor < 0.1 && diffDias === 0) return true
+                        
+                        if (caFornecedor && datacarFornecedor) {
+                          if (caFornecedor.includes(datacarFornecedor) || datacarFornecedor.includes(caFornecedor)) {
+                            return true
+                          }
+                        }
+                        return false
+                      })
+                      
+                      if (duplicada) {
+                        return {
+                          ...d,
+                          ca_duplicidade: {
+                            encontrado: true,
+                            id_conta: duplicada.id,
+                            vencimento: duplicada.data_vencimento,
+                            valor: duplicada.valor,
+                            fornecedor: duplicada.descricao || 'Fornecedor Desconhecido',
+                            status: duplicada.status
+                          }
+                        }
+                      }
+                      return d
+                    })
+                  }
+                }
+              } catch (e) {
+                console.warn('Erro ao verificar duplicidades no Conta Azul', e)
               }
             }
           }
+        } catch {
+          // falha silenciosa
+        }
+      }
 
-          const parcial = fornecedoresCA.find(f => {
-            const fNorm = norm(f.nome)
-            return fNorm.includes(nomeItemNorm) || nomeItemNorm.includes(fNorm)
-          })
-
-          if (parcial) {
-            return {
-              ...item,
-              fornecedor: parcial.nome,
-              categoria: parcial.categoria_padrao || item.categoria,
-              matchFornecedor: {
-                nomeOriginal: item.fornecedor,
-                nomeCorrigido: parcial.nome,
-                cnpj: parcial.cnpj || '',
-                categoria: parcial.categoria_padrao || item.categoria,
-                confianca: 'alto',
-                score: 80
-              }
-            }
-          }
-
-          return item
-        })
-
-        setDadosEditados(atualizados)
-      } catch (err) {
-        console.error('Erro ao realizar match de fornecedores:', err)
-        setDadosEditados(dadosIniciais)
-      } finally {
+      if (mounted) {
+        setDadosEditados(dadosComMatch)
+        const validos = new Set<number>(
+          dadosComMatch.reduce((acc: number[], d, i) => { if (d.valido) acc.push(i); return acc }, [])
+        )
+        setSelecionados(validos)
         setLoadingMatch(false)
       }
     }
 
-    realizarAutoMatch()
-  }, [dadosIniciais, empresaAtiva, supabase])
+    processarMatch()
+    return () => { mounted = false }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dadosIniciais, empresaAtiva?.id])
 
-  const toggleItem = useCallback((idx: number) => {
-    setSelecionados(prev => {
+
+  const toggleItem = (idx: number) => {
+    setSelecionados((prev) => {
       const next = new Set(prev)
-      if (next.has(idx)) next.delete(idx)
-      else next.add(idx)
+      if (next.has(idx)) next.delete(idx); else next.add(idx)
       return next
     })
-  }, [])
+  }
 
   const toggleTodosLote = useCallback((indices: number[], acao: 'marcar' | 'desmarcar') => {
-    setSelecionados(prev => {
+    setSelecionados((prev) => {
       const next = new Set(prev)
-      indices.forEach(idx => {
-        if (acao === 'marcar') next.add(idx)
-        else next.delete(idx)
-      })
-      return next
-    })
-  }, [])
-
-  const removerItem = useCallback((idx: number) => {
-    setDadosEditados(prev => prev.filter((_, i) => i !== idx))
-    setSelecionados(prev => {
-      const next = new Set<number>()
-      prev.forEach(i => {
-        if (i < idx) next.add(i)
-        else if (i > idx) next.add(i - 1)
-      })
-      return next
-    })
-  }, [])
-
-  const removerEmLote = useCallback((indices: number[]) => {
-    const indicesSet = new Set(indices)
-    setDadosEditados(prev => prev.filter((_, i) => !indicesSet.has(i)))
-    setSelecionados(prev => {
-      const next = new Set<number>()
-      let shift = 0
-      dadosEditados.forEach((_, i) => {
-        if (indicesSet.has(i)) {
-          shift++
-        } else if (prev.has(i)) {
-          next.add(i - shift)
-        }
-      })
-      return next
-    })
-    toast.success(`${indices.length} registros excluídos.`)
-  }, [dadosEditados])
-
-  const updateFornecedor = useCallback((idx: number, novoNome: string) => {
-    setDadosEditados(prev => {
-      const next = [...prev]
-      next[idx] = { ...next[idx], fornecedor: novoNome }
-      return next
-    })
-  }, [])
-
-  const updateFornecedorEmLote = useCallback((indices: number[], novoFornecedor: string) => {
-    setDadosEditados(prev => {
-      const next = [...prev]
-      indices.forEach(idx => {
-        if (next[idx]) next[idx] = { ...next[idx], fornecedor: novoFornecedor }
-      })
-      return next
-    })
-    toast.success(`Fornecedor atualizado em ${indices.length} registros.`)
-  }, [])
-
-  const updateCategoria = useCallback((idx: number, novaCategoria: string) => {
-    setDadosEditados(prev => {
-      const next = [...prev]
-      next[idx] = { ...next[idx], categoria: novaCategoria }
-      return next
-    })
-  }, [])
-
-  const updateCategoriaEmLote = useCallback((indices: number[], novaCategoria: string) => {
-    setDadosEditados(prev => {
-      const next = [...prev]
-      indices.forEach(idx => {
-        if (next[idx]) next[idx] = { ...next[idx], categoria: novaCategoria }
-      })
-      return next
-    })
-    toast.success(`Categoria atualizada em ${indices.length} registros.`)
-  }, [])
-
-  const updateConta = useCallback((idx: number, novaConta: string, contaId: string) => {
-    setDadosEditados(prev => {
-      const next = [...prev]
-      next[idx] = { 
-        ...next[idx], 
-        conta_financeira: novaConta,
-        conta_financeira_id: contaId
+      if (acao === 'desmarcar') {
+        indices.forEach(idx => next.delete(idx))
+      } else {
+        indices.forEach(idx => next.add(idx))
       }
       return next
     })
   }, [])
 
-  const updateContaEmLote = useCallback((indices: number[], novaConta: string) => {
-    const contaObj = contasFinanceirasCA.find(c => c.descricao === novaConta)
-    setDadosEditados(prev => {
-      const next = [...prev]
-      indices.forEach(idx => {
-        if (next[idx]) {
-          next[idx] = { 
-            ...next[idx], 
-            conta_financeira: novaConta,
-            conta_financeira_id: contaObj?.id || next[idx].conta_financeira_id
-          }
-        }
-      })
+  const removerItem = (idx: number) => {
+    setDadosEditados((prev) => prev.filter((_, i) => i !== idx))
+    setSelecionados((prev) => {
+      const next = new Set<number>()
+      prev.forEach((i) => { if (i < idx) next.add(i); else if (i > idx) next.add(i - 1) })
       return next
     })
-    toast.success(`Conta financeira atualizada em ${indices.length} registros.`)
-  }, [contasFinanceirasCA])
+  }
+
+  const excluirTudoFiltrado = () => {
+    const indicesParaRemover = dadosEditados
+      .map((d, i) => ({ d, i }))
+      .filter(({ d }) => {
+        if (filtroPreview === 'erro') return !d.valido
+        if (filtroPreview === 'revisao') return d.valido && d.matchFornecedor && d.matchFornecedor.confianca !== 'exato'
+        return true
+      })
+      .map(({ i }) => i)
+
+    if (indicesParaRemover.length === 0) return
+    if (!confirm(`Deseja remover todos os ${indicesParaRemover.length} registros selecionados pelo filtro?`)) return
+
+    const novosDados = dadosEditados.filter((_, i) => !indicesParaRemover.includes(i))
+    setDadosEditados(novosDados)
+    setSelecionados(new Set())
+    setFiltroPreview('todos')
+    toast.success('Registros removidos')
+  }
+
+  const updateFornecedor = useCallback(async (idx: number, novoNome: string) => {
+    // Para garantir que a regra seja salva corretamente, sempre usamos o nome bruto vindo do Datacar
+    const nomeOriginal = dadosIniciais[idx]?.fornecedor || dadosEditados[idx]?.fornecedor
+
+    setDadosEditados((prev) => {
+      const next = [...prev]
+      next[idx] = {
+        ...next[idx],
+        fornecedor: novoNome,
+        matchFornecedor: {
+          nomeOriginal: nomeOriginal,
+          nomeCorrigido: novoNome,
+          cnpj: next[idx].matchFornecedor?.cnpj || '',
+          confianca: 'exato',
+          score: 100
+        },
+        valido: true,
+        erros: undefined
+      }
+      return next
+    })
+
+    if (empresaAtiva && nomeOriginal && nomeOriginal !== novoNome) {
+      try {
+        const nomeNormalizado = normalizarNome(nomeOriginal)
+        const res = await fetch('/api/fornecedor-depara', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            empresa_id: empresaAtiva.id,
+            nome_original: nomeOriginal,
+            nome_original_normalizado: nomeNormalizado,
+            nome_corrigido: novoNome,
+          }),
+        })
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          console.error('Erro ao salvar regra De-Para:', data)
+          toast.error('Erro ao salvar fornecedor.')
+          return
+        }
+          
+        toast.success(`Aprendido: "${nomeOriginal}" → "${novoNome}"`, { id: 'learn-depara', duration: 3000 })
+      } catch (err) {
+        console.error('Erro ao salvar regra De-Para:', err)
+        toast.error('Erro inesperado ao salvar fornecedor.')
+      }
+    }
+  }, [empresaAtiva, dadosIniciais, dadosEditados])
+
+  const updateCategoria = useCallback(async (idx: number, novaCategoria: string) => {
+    setDadosEditados((prev) => {
+      const next = [...prev]
+      next[idx] = { ...next[idx], categoria: novaCategoria }
+      return next
+    })
+
+    if (empresaAtiva) {
+      const conta = dadosEditados[idx]
+      const nomeFornecedor = conta.matchFornecedor?.nomeCorrigido || conta.fornecedor
+      const nomeNorm = normalizarNome(nomeFornecedor)
+      try {
+        // Usa upsert para garantir que a categoria seja salva mesmo que o
+        // fornecedor ainda não exista na tabela (ex: renomeado via De-Para)
+        const { error } = await supabase
+          .from('fornecedores_contaazul')
+          .upsert({
+            empresa_id: empresaAtiva.id,
+            nome: nomeFornecedor,
+            nome_normalizado: nomeNorm,
+            categoria_padrao: novaCategoria,
+          }, {
+            onConflict: 'empresa_id,nome_normalizado',
+          })
+
+        if (error) {
+          console.error('Erro ao salvar categoria padrão:', error)
+          toast.error('Erro ao salvar categoria.')
+        } else {
+          toast.success(`Categoria '${novaCategoria}' salva para ${nomeFornecedor}`, { id: 'learn-cat' })
+        }
+      } catch (err) {
+        console.error('Erro ao salvar categoria padrão:', err)
+      }
+    }
+  }, [empresaAtiva, dadosEditados, supabase])
+ 
+  const updateConta = useCallback(async (idx: number, novaConta: string, contaId: string) => {
+    setDadosEditados((prev) => {
+      const next = [...prev]
+      next[idx] = { ...next[idx], conta_financeira: novaConta, conta_financeira_id: contaId }
+      return next
+    })
+    if (empresaAtiva) {
+      localStorage.setItem(`contaPadrao_${empresaAtiva.id}`, JSON.stringify({ descricao: novaConta, id: contaId }))
+    }
+  }, [empresaAtiva])
 
   const updateValor = useCallback((idx: number, novoValor: number) => {
-    setDadosEditados(prev => {
+    setDadosEditados((prev) => {
       const next = [...prev]
       next[idx] = { ...next[idx], valor: novoValor }
       return next
@@ -260,7 +392,7 @@ export default function ContasPreviewSection({
   }, [])
 
   const updateVencimento = useCallback((idx: number, novaData: string) => {
-    setDadosEditados(prev => {
+    setDadosEditados((prev) => {
       const next = [...prev]
       next[idx] = { ...next[idx], vencimento: novaData }
       return next
@@ -268,7 +400,7 @@ export default function ContasPreviewSection({
   }, [])
 
   const updateEmissao = useCallback((idx: number, novaData: string) => {
-    setDadosEditados(prev => {
+    setDadosEditados((prev) => {
       const next = [...prev]
       next[idx] = { ...next[idx], emissao: novaData }
       return next
@@ -276,50 +408,117 @@ export default function ContasPreviewSection({
   }, [])
 
   const updateDescricao = useCallback((idx: number, novaDesc: string) => {
-    setDadosEditados(prev => {
+    setDadosEditados((prev) => {
       const next = [...prev]
       next[idx] = { ...next[idx], descricao: novaDesc }
       return next
     })
   }, [])
 
-  const excluirTudoFiltrado = () => {
-    let indicesParaRemover: number[] = []
-    if (filtroPreview === 'erro') {
-      indicesParaRemover = dadosEditados
-        .map((d, i) => (!d.valido ? i : -1))
-        .filter(i => i !== -1)
-    } else if (filtroPreview === 'revisao') {
-      indicesParaRemover = dadosEditados
-        .map((d, i) => (d.valido && d.matchFornecedor && d.matchFornecedor.confianca !== 'exato' ? i : -1))
-        .filter(i => i !== -1)
-    }
+  const removerEmLote = (indices: number[]) => {
+    const novosDados = dadosEditados.filter((_, i) => !indices.includes(i))
+    setDadosEditados(novosDados)
+    setSelecionados(new Set())
+    toast.success(`${indices.length} registros removidos`)
+  }
 
-    if (indicesParaRemover.length === 0) return
+  const updateCategoriaEmLote = async (indices: number[], novaCategoria: string) => {
+    if (!novaCategoria.trim()) return
+    setDadosEditados((prev) => {
+      const next = [...prev]
+      indices.forEach(idx => {
+        next[idx] = { ...next[idx], categoria: novaCategoria }
+      })
+      return next
+    })
 
-    if (confirm(`Deseja realmente excluir todos os ${indicesParaRemover.length} registros deste filtro?`)) {
-      removerEmLote(indicesParaRemover)
-      setFiltroPreview('todos')
+    if (empresaAtiva) {
+      // Garante fornecedores únicos com seus nomes normalizados
+      const fornecedoresUnicos = Array.from(new Map(
+        indices.map(idx => {
+          const d = dadosEditados[idx]
+          const nome = d.matchFornecedor?.nomeCorrigido || d.fornecedor
+          return [normalizarNome(nome), nome]
+        })
+      ).entries()).map(([nomeNorm, nome]) => ({ nome, nomeNorm }))
+
+      try {
+        // Upsert para garantir que a categoria seja salva mesmo que o
+        // fornecedor ainda não exista na tabela
+        const registros = fornecedoresUnicos.map(({ nome, nomeNorm }) => ({
+          empresa_id: empresaAtiva.id,
+          nome,
+          nome_normalizado: nomeNorm,
+          categoria_padrao: novaCategoria,
+        }))
+
+        const { error } = await supabase
+          .from('fornecedores_contaazul')
+          .upsert(registros, { onConflict: 'empresa_id,nome_normalizado' })
+
+        if (error) {
+          console.error('Erro ao salvar categoria padrão em lote:', error)
+          toast.error('Erro ao salvar categorias.')
+        } else {
+          toast.success(`Categoria salva para ${fornecedoresUnicos.length} fornecedores`, { id: 'learn-cat-lote' })
+        }
+      } catch (err) {
+        console.error('Erro ao salvar categoria padrão em lote:', err)
+      }
     }
+    setSelecionados(new Set())
+  }
+
+  const updateFornecedorEmLote = useCallback((indices: number[], novoFornecedor: string) => {
+    setDadosEditados((prev) => {
+      const next = [...prev]
+      indices.forEach(idx => {
+        next[idx] = { 
+          ...next[idx], 
+          fornecedor: novoFornecedor,
+          matchFornecedor: undefined // Limpa o match automático
+        }
+      })
+      return next
+    })
+    setSelecionados(new Set())
+    toast.success(`${indices.length} fornecedores atualizados em lote!`)
+  }, [])
+
+  const updateContaEmLote = async (indices: number[], novaConta: string) => {
+    if (!novaConta.trim()) return
+    const contaId = contasFinanceirasCA.find(c => c.descricao === novaConta)?.id || ''
+    
+    setDadosEditados((prev) => {
+      const next = [...prev]
+      indices.forEach(idx => {
+        next[idx] = { ...next[idx], conta_financeira: novaConta, conta_financeira_id: contaId }
+      })
+      return next
+    })
+    if (empresaAtiva) {
+      localStorage.setItem(`contaPadrao_${empresaAtiva.id}`, JSON.stringify({ descricao: novaConta, id: contaId }))
+    }
+    setSelecionados(new Set())
   }
 
   const handleClickSalvar = () => {
-    const selecionadosArray = dadosEditados.filter((_, i) => selecionados.has(i))
-    if (selecionadosArray.length === 0) {
-      toast.error('Selecione pelo menos um registro para salvar.')
-      return
-    }
-    onSalvar(selecionadosArray)
+    const itensSelecionados = dadosEditados.filter((_, i) => selecionados.has(i))
+    onSalvar(itensSelecionados)
   }
 
   const handleClickBaixarXls = () => {
     if (!onBaixarXls) return
-    const selecionadosArray = dadosEditados.filter((_, i) => selecionados.has(i))
-    if (selecionadosArray.length === 0) {
-      toast.error('Selecione pelo menos um registro para exportar.')
-      return
-    }
-    onBaixarXls(selecionadosArray)
+    const itens = dadosEditados.filter((d, i) => {
+      if (!selecionados.has(i)) return false
+      if (filtroPreview === 'erro') return !d.valido
+      if (filtroPreview === 'revisao') return d.valido && d.matchFornecedor && d.matchFornecedor.confianca !== 'exato'
+      return true
+    }).map(d => ({
+      ...d,
+      fornecedor: (d.matchFornecedor?.nomeCorrigido || d.fornecedor).trim()
+    }))
+    onBaixarXls(itens)
   }
 
   const valorSelecionado = dadosEditados
@@ -328,23 +527,23 @@ export default function ContasPreviewSection({
 
   if (loadingMatch) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 bg-dark-900/60 rounded-3xl border border-dark-700/80 backdrop-blur-sm shadow-xl">
-        <Loader2 className="w-10 h-10 animate-spin text-blue-500 mb-4" />
-        <p className="text-white font-bold text-base">Analisando fornecedores...</p>
-        <p className="text-dark-400 text-xs mt-1">Comparando nomes e sugerindo categorias inteligentes</p>
+      <div className="flex flex-col items-center justify-center p-12 bg-dark-800 rounded-xl border border-dark-700">
+        <Loader2 className="w-10 h-10 animate-spin text-brand-500 mb-4" />
+        <p className="text-white font-medium">Analisando fornecedores...</p>
+        <p className="text-dark-400 text-sm mt-1">Comparando nomes e sugerindo categorias</p>
       </div>
     )
   }
 
   if (dadosEditados.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 bg-dark-900/60 rounded-3xl border border-dark-700/80 space-y-4 animate-fade-in text-center my-4 backdrop-blur-sm shadow-xl">
-        <div className="w-14 h-14 bg-blue-500/10 border border-blue-500/20 rounded-2xl flex items-center justify-center text-blue-400 shadow-[0_0_30px_rgba(59,130,246,0.15)]">
+      <div className="flex flex-col items-center justify-center p-12 bg-dark-800/80 rounded-2xl border border-dark-700 space-y-4 animate-fade-in text-center my-4">
+        <div className="w-14 h-14 bg-brand-500/10 border border-brand-500/20 rounded-2xl flex items-center justify-center text-brand-400">
           <Upload size={28} />
         </div>
         <div>
           <h3 className="text-white font-bold text-base">Nenhum registro para importação</h3>
-          <p className="text-dark-400 text-xs mt-1 max-w-md mx-auto leading-relaxed">
+          <p className="text-dark-400 text-xs mt-1 max-w-md">
             A lista está limpa. Clique no botão abaixo para selecionar ou arrastar uma nova planilha Excel / CSV.
           </p>
         </div>
@@ -357,7 +556,7 @@ export default function ContasPreviewSection({
               else window.location.reload()
             }
           }}
-          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-lg shadow-blue-900/30 active:scale-[0.98] cursor-pointer"
+          className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-3 rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-lg shadow-brand-600/20"
         >
           <Upload size={16} /> Arraste ou Selecione Nova Planilha
         </button>
@@ -365,109 +564,82 @@ export default function ContasPreviewSection({
     )
   }
 
-  const totalConfirmados = dadosEditados.filter(d => d.valido && (!d.matchFornecedor || d.matchFornecedor.confianca === 'exato')).length
-  const totalRevisao = dadosEditados.filter(d => d.valido && d.matchFornecedor && d.matchFornecedor.confianca !== 'exato').length
-  const totalErro = dadosEditados.filter(d => !d.valido).length
-
   return (
     <div className="space-y-4">
-      {/* Resumo / Filtros em Cards Fintech */}
+      {/* Resumo / Filtros */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <button
-          type="button"
           onClick={() => setFiltroPreview('todos')}
           className={cn(
-            "glass-card-dark p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer relative overflow-hidden group",
-            filtroPreview === 'todos' 
-              ? "border-blue-500 ring-1 ring-blue-500/50 bg-blue-500/5" 
-              : "border-dark-700/80 hover:border-dark-600"
+            "bg-dark-800 border rounded-xl p-4 text-left transition-all",
+            filtroPreview === 'todos' ? "border-brand-500 ring-1 ring-brand-500" : "border-dark-700 hover:border-dark-500"
           )}
         >
-          <div className="flex items-center justify-between">
-            <p className="text-dark-400 text-[11px] font-semibold uppercase tracking-wider">Total Geral</p>
-            <Layers size={13} className="text-dark-500 group-hover:text-blue-400 transition-colors" />
-          </div>
-          <p className="text-white text-2xl font-black font-mono tabular-nums mt-1">{dadosEditados.length}</p>
+          <p className="text-dark-400 text-xs mb-1">Total</p>
+          <p className="text-white text-2xl font-bold">{dadosEditados.length}</p>
         </button>
 
-        <div className="glass-card-emerald p-4 rounded-2xl border border-emerald-500/20 text-left relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <p className="text-emerald-400/80 text-[11px] font-semibold uppercase tracking-wider">Confirmados</p>
-            <CheckCircle2 size={13} className="text-emerald-400" />
-          </div>
-          <p className="text-emerald-400 text-2xl font-black font-mono tabular-nums mt-1">
-            {totalConfirmados}
+        <div className="bg-dark-800 border border-green-500/20 rounded-xl p-4">
+          <p className="text-dark-400 text-xs mb-1">Confirmados</p>
+          <p className="text-green-400 text-2xl font-bold">
+            {dadosEditados.filter(d => d.valido && (!d.matchFornecedor || d.matchFornecedor.confianca === 'exato')).length}
           </p>
         </div>
 
         <button
-          type="button"
           onClick={() => setFiltroPreview('revisao')}
           className={cn(
-            "p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer relative overflow-hidden group",
-            filtroPreview === 'revisao' 
-              ? "bg-amber-500/10 border-amber-500 ring-1 ring-amber-500/50" 
-              : "glass-card-dark border-amber-500/20 hover:border-amber-500/40"
+            "bg-dark-800 border rounded-xl p-4 text-left transition-all",
+            filtroPreview === 'revisao' ? "border-yellow-500 ring-1 ring-yellow-500" : "border-yellow-500/20 hover:border-yellow-500/40"
           )}
         >
-          <div className="flex items-center justify-between">
-            <p className="text-amber-400/90 text-[11px] font-semibold uppercase tracking-wider">Revisar</p>
-            <AlertTriangle size={13} className="text-amber-400" />
-          </div>
-          <p className="text-amber-400 text-2xl font-black font-mono tabular-nums mt-1">
-            {totalRevisao}
+          <p className="text-yellow-500/70 text-xs mb-1">Amarelas (Revisar)</p>
+          <p className="text-yellow-400 text-2xl font-bold">
+            {dadosEditados.filter(d => d.valido && d.matchFornecedor && d.matchFornecedor.confianca !== 'exato').length}
           </p>
         </button>
 
         <button
-          type="button"
           onClick={() => setFiltroPreview('erro')}
           className={cn(
-            "p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer relative overflow-hidden group",
-            filtroPreview === 'erro' 
-              ? "bg-rose-500/10 border-rose-500 ring-1 ring-rose-500/50" 
-              : "glass-card-dark border-rose-500/20 hover:border-rose-500/40"
+            "bg-dark-800 border rounded-xl p-4 text-left transition-all",
+            filtroPreview === 'erro' ? "border-red-500 ring-1 ring-red-500" : "border-red-500/20 hover:border-red-500/40"
           )}
         >
-          <div className="flex items-center justify-between">
-            <p className="text-rose-400/90 text-[11px] font-semibold uppercase tracking-wider">Erros</p>
-            <AlertCircle size={13} className="text-rose-400" />
-          </div>
-          <p className="text-rose-400 text-2xl font-black font-mono tabular-nums mt-1">
-            {totalErro}
+          <p className="text-red-500/70 text-xs mb-1">Vermelhas (Erro)</p>
+          <p className="text-red-400 text-2xl font-bold">
+            {dadosEditados.filter(d => !d.valido).length}
           </p>
         </button>
 
-        <div className="glass-card-blue p-4 rounded-2xl border border-blue-500/20 text-left relative overflow-hidden">
-          <p className="text-blue-400/80 text-[11px] font-semibold uppercase tracking-wider">Valor Selecionado</p>
-          <p className="text-blue-400 text-xl font-black font-mono tabular-nums mt-1 truncate">
-            {formatCurrency(valorSelecionado)}
-          </p>
+        <div className="bg-dark-800 border border-brand-500/20 rounded-xl p-4">
+          <p className="text-dark-400 text-xs mb-1">Valor selecionado</p>
+          <p className="text-brand-400 text-xl font-bold">{formatCurrency(valorSelecionado)}</p>
         </div>
       </div>
 
-      {/* Barra de Ação de Filtro Ativo */}
+      {/* Barra de Ação de Filtro */}
       {filtroPreview !== 'todos' && (
-        <div className="bg-dark-900/80 border border-dark-700/80 px-4 py-2.5 rounded-2xl flex items-center justify-between backdrop-blur-sm animate-fade-in">
+        <div className="bg-dark-800 border border-dark-700 px-4 py-2 rounded-lg flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className={cn(
-              "w-2 h-2 rounded-full animate-ping",
-              filtroPreview === 'erro' ? "bg-rose-500" : "bg-amber-500"
+              "w-2 h-2 rounded-full animate-pulse",
+              filtroPreview === 'erro' ? "bg-red-500" : "bg-yellow-500"
             )} />
-            <p className="text-xs text-dark-300">
-              Filtrando por: <span className={cn("font-bold uppercase tracking-wider", filtroPreview === 'erro' ? 'text-rose-400' : 'text-amber-400')}>{filtroPreview === 'erro' ? 'Registros com Erro' : 'Necessita Revisão'}</span>
+            <p className="text-sm text-dark-300">
+              Filtrando por: <span className="font-bold uppercase">{filtroPreview === 'erro' ? 'Vermelhas' : 'Amarelas'}</span>
             </p>
           </div>
           <div className="flex items-center gap-3">
             <button 
               onClick={excluirTudoFiltrado}
-              className="text-xs text-rose-400 hover:text-rose-300 flex items-center gap-1 font-semibold transition-colors cursor-pointer"
+              className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 font-medium"
             >
-              <Trash2 size={13} /> Excluir filtrados
+              <Trash2 size={14} /> Excluir tudo do filtro
             </button>
             <button 
               onClick={() => setFiltroPreview('todos')}
-              className="text-xs text-dark-400 hover:text-white transition-colors cursor-pointer font-medium"
+              className="text-xs text-dark-400 hover:text-white"
             >
               Limpar filtro
             </button>
@@ -498,35 +670,33 @@ export default function ContasPreviewSection({
         onUpdateDescricao={updateDescricao}
       />
 
-      {/* Ações e Rodapé */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-dark-900/60 border border-dark-700/80 rounded-2xl p-4 backdrop-blur-sm shadow-xl">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-dark-400">
-            <strong className="text-white font-bold">{selecionados.size}</strong> registros selecionados •{' '}
-            <strong className="text-emerald-400 font-bold">{formatCurrency(valorSelecionado)}</strong>
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2.5 flex-wrap w-full sm:w-auto justify-end">
+      {/* Ações */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-dark-800 border border-dark-700 rounded-xl p-4">
+        <p className="text-sm text-dark-400">
+          <span className="text-white font-semibold">{selecionados.size}</span> registros selecionados •{' '}
+          <span className="text-green-400 font-semibold">{formatCurrency(valorSelecionado)}</span>
+        </p>
+        <div className="flex items-center gap-2 flex-wrap">
           {onBaixarXls && (
             <button
-              type="button"
               onClick={handleClickBaixarXls}
               disabled={selecionados.size === 0}
-              className="bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer"
+              className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed
+                         text-white px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 transition-all"
               title="Gera o arquivo .xls no modelo do ContaAzul sem salvar no banco"
             >
-              <FileDown size={15} /> Baixar XLS ContaAzul
+              <FileDown size={16} /> Baixar XLS ContaAzul
             </button>
           )}
 
           <button
-            type="button"
             onClick={handleClickSalvar}
             disabled={salvando || selecionados.size === 0 || !empresaAtiva}
-            className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-lg shadow-blue-900/30 active:scale-[0.98] cursor-pointer"
+            className="bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed
+                       text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all
+                       shadow-lg shadow-brand-900/20"
           >
-            {salvando ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+            {salvando ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
             Salvar e Continuar
           </button>
         </div>
