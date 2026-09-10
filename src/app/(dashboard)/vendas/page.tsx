@@ -880,7 +880,7 @@ export default function VendasPage() {
                                   )}
                                   
                                   {venda.forma_pagamento && (
-                                    <span className="text-[11px] text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20 font-medium">
+                                    <span className="inline-flex items-center gap-1 text-[11px] text-purple-200 bg-purple-500/20 px-2.5 py-0.5 rounded-lg border border-purple-500/40 font-semibold shadow-[0_0_8px_rgba(168,85,247,0.2)]">
                                       💳 {venda.forma_pagamento}
                                     </span>
                                   )}
@@ -897,10 +897,10 @@ export default function VendasPage() {
                                   )}
                                   {(venda.cliente_ja_cadastrado || venda.ca_status === 'cliente_existente') && (
                                     <span 
-                                      title="Este cliente já possui cadastro prévio no Conta Azul (identificado por CPF/CNPJ)"
-                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-sky-500/15 text-sky-300 border border-sky-500/30 shadow-[0_0_8px_rgba(56,189,248,0.15)]"
+                                      title="Este cliente já possui cadastro ativo no Conta Azul (identificado por CPF/CNPJ)"
+                                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/60 shadow-[0_0_12px_rgba(245,158,11,0.25)] tracking-wide"
                                     >
-                                      <UserCheck size={11} className="text-sky-400" />
+                                      <UserCheck size={12} className="text-amber-400" />
                                       Já cadastrado no CA
                                     </span>
                                   )}
