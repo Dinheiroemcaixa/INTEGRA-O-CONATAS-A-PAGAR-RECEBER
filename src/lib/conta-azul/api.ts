@@ -798,6 +798,12 @@ export async function buscarOuCriarProduto(
  * Prioriza busca por CPF/CNPJ para evitar duplicatas.
  * @param cpfCnpj - CPF (11 dígitos) ou CNPJ (14 dígitos) sem máscara, ou com máscara (será limpo)
  */
+export interface ResultadoClienteCA {
+  id: string
+  existente: boolean
+  nomeCadastrado?: string
+}
+
 export async function buscarOuCriarCliente(
   accessToken: string,
   nome: string,
@@ -811,7 +817,7 @@ export async function buscarOuCriarCliente(
     cep?: string | null
     complemento?: string | null
   }
-): Promise<string | undefined> {
+): Promise<ResultadoClienteCA | undefined> {
   const docLimpo = cpfCnpj ? cpfCnpj.replace(/\D/g, '') : ''
   // CPF = 11 dígitos, CNPJ = 14 dígitos
   const tipoPessoa = docLimpo.length === 14 ? 'Jurídica' : 'Física'
@@ -838,7 +844,7 @@ export async function buscarOuCriarCliente(
               })
               if (matchDoc) {
                 console.log(`[buscarOuCriarCliente] Cliente encontrado por CPF/CNPJ (${docLimpo}): ${matchDoc.nome || matchDoc.name} (ID: ${matchDoc.id || matchDoc.uuid})`)
-                return matchDoc.id || matchDoc.uuid
+                return { id: matchDoc.id || matchDoc.uuid, existente: true, nomeCadastrado: matchDoc.nome || matchDoc.name }
               }
             }
           }
@@ -901,7 +907,7 @@ export async function buscarOuCriarCliente(
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(bodyCliente),
     })
-    if (criar.ok) { const novo: any = await criar.json(); return novo.id }
+    if (criar.ok) { const novo: any = await criar.json(); return { id: novo.id, existente: false, nomeCadastrado: nome } }
 
     const errTextPrincipal = await criar.text()
     console.error('[buscarOuCriarCliente] Erro POST /pessoas:', criar.status, errTextPrincipal)
@@ -926,7 +932,7 @@ export async function buscarOuCriarCliente(
                 return pDoc === docLimpo
               }) || listaDoc[0]
               console.log('[buscarOuCriarCliente] Pessoa encontrada por CPF/CNPJ duplicado:', matchDoc.id, matchDoc.nome)
-              return matchDoc.id || matchDoc.uuid
+              return { id: matchDoc.id || matchDoc.uuid, existente: true, nomeCadastrado: matchDoc.nome || matchDoc.name }
             }
           }
         } catch (e) { console.warn('[buscarOuCriarCliente] erro ao buscar por doc duplicado:', e) }
@@ -942,7 +948,7 @@ export async function buscarOuCriarCliente(
         headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(bodySemDoc),
       })
-      if (criarSemDoc.ok) { const novo: any = await criarSemDoc.json(); return novo.id }
+      if (criarSemDoc.ok) { const novo: any = await criarSemDoc.json(); return { id: novo.id, existente: false, nomeCadastrado: nome } }
       const errSemDoc = await criarSemDoc.text()
       console.error('[buscarOuCriarCliente] Erro criar sem doc:', criarSemDoc.status, errSemDoc)
     }

@@ -281,6 +281,7 @@ export default function VendasPage() {
       let sucessosTotais = 0
       let errosTotais = 0
       const detalhesErros: string[] = []
+      const avisosClientesExistentes: string[] = []
       const idsSucesso = new Set<string>()
 
       for (const venda of vendasParaEnviar) {
@@ -297,6 +298,9 @@ export default function VendasPage() {
           if (res.ok && data.sucessos > 0) {
             sucessosTotais++
             idsSucesso.add(venda.id)
+            if (data.detalhesClientesExistentes && Array.isArray(data.detalhesClientesExistentes)) {
+              avisosClientesExistentes.push(...data.detalhesClientesExistentes)
+            }
           } else {
             errosTotais++
             detalhesErros.push(`OS ${venda.os_numero}: ${data.error || 'Erro na API do Conta Azul'}`)
@@ -309,6 +313,21 @@ export default function VendasPage() {
 
       if (sucessosTotais > 0) {
         toast.success(`${sucessosTotais} vendas de produtos sincronizadas com sucesso no Conta Azul!`)
+        if (avisosClientesExistentes.length > 0) {
+          avisosClientesExistentes.forEach((aviso: string) => {
+            toast(aviso, {
+              icon: '👤',
+              duration: 8000,
+              style: {
+                background: '#0f172a',
+                color: '#38bdf8',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                fontSize: '13px',
+                fontWeight: 500
+              }
+            })
+          })
+        }
         setVendasDatacar(prev => prev.map(v => {
           if (idsSucesso.has(v.id)) return { ...v, status: 'enviado' }
           return v
@@ -434,6 +453,21 @@ export default function VendasPage() {
 
       if (data.sucessos > 0) {
         toast.success(`${data.sucessos} vendas enviadas ao Conta Azul com sucesso!`)
+        if (data.detalhesClientesExistentes && Array.isArray(data.detalhesClientesExistentes) && data.detalhesClientesExistentes.length > 0) {
+          data.detalhesClientesExistentes.forEach((aviso: string) => {
+            toast(aviso, {
+              icon: '👤',
+              duration: 8000,
+              style: {
+                background: '#0f172a',
+                color: '#38bdf8',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                fontSize: '13px',
+                fontWeight: 500
+              }
+            })
+          })
+        }
         setEtapa('upload')
         setResultado(null)
         setDadosEditados([])

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { buscarOuCriarProduto, criarVenda, VendaPayload, buscarOuCriarCliente } from '@/lib/conta-azul/api'
+import { buscarOuCriarProduto, criarVenda, VendaPayload, buscarOuCriarCliente, ResultadoClienteCA } from '@/lib/conta-azul/api'
 import { getValidToken, TokenError } from '@/lib/conta-azul/token-manager'
 import type { VendaPreview } from '@/types'
 
@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
     let sucessos = 0
     let erros = 0
     let detalhesErros: string[] = []
+    let detalhesClientesExistentes: string[] = []
 
     const mapPagamento = (forma: string): string => {
       const f = forma?.toLowerCase() || ''
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Cache em memória durante o lote para evitar requisições repetidas ao Conta Azul
-    const cacheClientesPorDoc = new Map<string, string>()
+    const cacheClientesPorDoc = new Map<string, ResultadoClienteCA>()
     const cacheProdutosPorCodigo = new Map<string, string>()
 
     for (const venda of vendas as VendaPreview[]) {
@@ -81,15 +82,24 @@ export async function POST(req: NextRequest) {
         const docLimpo = (venda.cliente_cpf_cnpj || '').replace(/\D/g, '')
         const chaveCliente = docLimpo || (venda.cliente || '').toLowerCase().trim()
         
-        let idCliente = cacheClientesPorDoc.get(chaveCliente)
-        if (!idCliente) {
-          idCliente = await buscarOuCriarCliente(accessToken, venda.cliente, venda.cliente_cpf_cnpj, venda.cliente_endereco)
-          if (idCliente) {
-            cacheClientesPorDoc.set(chaveCliente, idCliente)
+        let dadosCliente = cacheClientesPorDoc.get(chaveCliente)
+        if (!dadosCliente) {
+          dadosCliente = await buscarOuCriarCliente(accessToken, venda.cliente, venda.cliente_cpf_cnpj, venda.cliente_endereco)
+          if (dadosCliente) {
+            cacheClientesPorDoc.set(chaveCliente, dadosCliente)
           }
         }
-        if (!idCliente) throw new Error(`Não foi possível criar/encontrar o cliente: ${venda.cliente}`)
+        if (!dadosCliente || !dadosCliente.id) throw new Error(`Não foi possível criar/encontrar o cliente: ${venda.cliente}`)
+        
+        const idCliente = dadosCliente.id
 
+        // Se o cliente já existia no Conta Azul (encontrado pelo CPF/CNPJ ou Nome), registrar informativo
+        if (dadosCliente.existente) {
+          const infoDoc = venda.cliente_cpf_cnpj ? ` (${venda.cliente_cpf_cnpj})` : ''
+          const nomeExibicao = dadosCliente.nomeCadastrado || venda.cliente
+          detalhesClientesExistentes.push(`OS ${venda.os_numero || 'S/N'}: Cliente já cadastrado no Conta Azul: ${nomeExibicao}${infoDoc}`)
+        }
+        
         // 2. Busca/Cria Produtos com cache estrito por CÓDIGO
         const itensPayload = []
         let totalBrutoItens = 0
@@ -276,7 +286,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ sucessos, erros, detalhesErros })
+    return NextResponse.json({ sucessos, erros, detalhesErros, detalhesClientesExistentes })
 
   } catch (error: any) {
     console.error('Erro geral no endpoint enviar-vendas:', error)
