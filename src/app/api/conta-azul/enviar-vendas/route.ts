@@ -41,18 +41,18 @@ export async function POST(req: NextRequest) {
     let erros = 0
     let detalhesErros: string[] = []
 
-    const mapPagamento = (forma: string) => {
+    const mapPagamento = (forma: string): string => {
       const f = forma?.toLowerCase() || ''
-      // PIX e conta bancária ANTES de cartão de crédito (ex: "Crédito em conta bancária/PIX" deve ser PIX)
-      if (f.includes('pix')) return 'PIX'
-      if (f.includes('conta bancária') || f.includes('conta bancaria')) return 'PIX'
-      if (f.includes('transf') || f.includes('depósito') || f.includes('deposito')) return 'TRANSFERENCIA_BANCARIA'
-      if (f.includes('boleto')) return 'BOLETO_BANCARIO'
+      // PIX e pagamentos instantâneos (o Conta Azul exige PIX_PAGAMENTO_INSTANTANEO)
+      if (f.includes('pix') || f.includes('instantaneo') || f.includes('instantâneo')) return 'PIX_PAGAMENTO_INSTANTANEO'
+      if (f.includes('conta bancária') || f.includes('conta bancaria') || f.includes('transf') || f.includes('ted') || f.includes('doc')) return 'TRANSFERENCIA_BANCARIA'
+      if (f.includes('depósito') || f.includes('deposito')) return 'DEPOSITO_BANCARIO'
+      if (f.includes('boleto') || f.includes('bol')) return 'BOLETO_BANCARIO'
       if (f.includes('deb') || f.includes('déb')) return 'CARTAO_DEBITO'
-      if (f.includes('cred') || f.includes('créd')) return 'CARTAO_CREDITO'
-      
-      // Se tiver a palavra "parcela" ou "vez", por padrão vamos assumir Cartão de Crédito
-      if (f.includes('parcela') || f.match(/(\d+)\s*x/)) return 'CARTAO_CREDITO'
+      if (f.includes('cred') || f.includes('créd') || f.includes('cartão') || f.includes('cartao') || f.includes('parcela') || f.match(/(\d+)\s*x/)) return 'CARTAO_CREDITO'
+      if (f.includes('cheque')) return 'CHEQUE'
+      if (f.includes('carteira') || f.includes('picpay') || f.includes('link') || f.includes('mercado')) return 'CARTEIRA_DIGITAL'
+      if (f.includes('dinheiro') || f.includes('especie') || f.includes('espécie')) return 'DINHEIRO'
       
       return 'DINHEIRO'
     }
