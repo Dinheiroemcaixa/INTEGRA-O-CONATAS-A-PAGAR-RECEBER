@@ -117,7 +117,7 @@ export default function ContasPreviewSection({
 
             dadosComMatch = dadosIniciais.map((d) => {
               const match = matchMap.get(d.fornecedor)
-              const deveCorrigirAuto = match && ['exato', 'alto', 'medio'].includes(match.confianca)
+              const deveCorrigirAuto = match && match.confianca === 'exato'
               const nomeFinal = deveCorrigirAuto ? match.nomeCorrigido : d.fornecedor
               const sugestao = sugerirCategoria(nomeFinal) || sugerirCategoria(d.descricao || '')
 
@@ -284,9 +284,8 @@ export default function ContasPreviewSection({
     toast.success('Registros removidos')
   }
 
-  const updateFornecedor = useCallback(async (idx: number, novoNome: string) => {
-    // Para garantir que a regra seja salva corretamente, sempre usamos o nome bruto vindo do Datacar
-    const nomeOriginal = dadosIniciais[idx]?.fornecedor || dadosEditados[idx]?.fornecedor
+  const updateFornecedor = useCallback((idx: number, novoNome: string) => {
+    const nomeOriginal = dadosIniciais[idx]?.fornecedor || dadosEditados[idx]?.fornecedor || novoNome
 
     setDadosEditados((prev) => {
       const next = [...prev]
@@ -305,35 +304,7 @@ export default function ContasPreviewSection({
       }
       return next
     })
-
-    if (empresaAtiva && nomeOriginal && nomeOriginal !== novoNome) {
-      try {
-        const nomeNormalizado = normalizarNome(nomeOriginal)
-        const res = await fetch('/api/fornecedor-depara', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            empresa_id: empresaAtiva.id,
-            nome_original: nomeOriginal,
-            nome_original_normalizado: nomeNormalizado,
-            nome_corrigido: novoNome,
-          }),
-        })
-
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}))
-          console.error('Erro ao salvar regra De-Para:', data)
-          toast.error('Erro ao salvar fornecedor.')
-          return
-        }
-          
-        toast.success(`Aprendido: "${nomeOriginal}" → "${novoNome}"`, { id: 'learn-depara', duration: 3000 })
-      } catch (err) {
-        console.error('Erro ao salvar regra De-Para:', err)
-        toast.error('Erro inesperado ao salvar fornecedor.')
-      }
-    }
-  }, [empresaAtiva, dadosIniciais, dadosEditados])
+  }, [dadosIniciais, dadosEditados])
 
   const updateCategoria = useCallback(async (idx: number, novaCategoria: string) => {
     setDadosEditados((prev) => {

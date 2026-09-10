@@ -482,9 +482,7 @@ export default function ContasPagarPage() {
 
       const contas: ContaPagarPreview[] = data.map((c) => {
         const match = matchMap.get(c.fornecedor)
-        const fornecedorFinal = match && (match.confianca === 'exato' || match.confianca === 'alto' || match.confianca === 'medio')
-          ? match.nomeCorrigido
-          : c.fornecedor
+        const fornecedorFinal = match && match.confianca === 'exato' ? match.nomeCorrigido : c.fornecedor
 
         return {
           fornecedor: fornecedorFinal,

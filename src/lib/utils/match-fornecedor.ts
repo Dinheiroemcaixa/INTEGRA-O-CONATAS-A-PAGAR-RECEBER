@@ -82,18 +82,12 @@ function calcularSimilaridade(a: string, b: string): number {
   return Math.min(100, Math.round(score * 100))
 }
 
-
 function scoreParaConfianca(score: number): ConfiancaMatch {
   if (score >= 95) return 'exato'
   if (score >= 75) return 'alto'
   if (score >= 50) return 'medio'
   if (score >= 30) return 'baixo'
   return 'nenhum'
-}
-
-// Regras específicas de "De-Para" legadas/fixas no código
-const REGRAS_CUSTOMIZADAS: Record<string, string> = {
-  'GP CONTAGEM MG': 'GOMMA PNEUS LTDA',
 }
 
 /**
@@ -123,23 +117,7 @@ export function matchFornecedor(
     }
   }
 
-  // 1. Verificar regras customizadas (De-Para específico fixo)
-  if (REGRAS_CUSTOMIZADAS[normalizado]) {
-    const nomeAlvo = REGRAS_CUSTOMIZADAS[normalizado]
-    const fEncontrado = fornecedores.find(f => 
-      f.nome === nomeAlvo || f.nomeNormalizado === normalizarNome(nomeAlvo)
-    )
-    return {
-      nomeOriginal: nomeDatacar,
-      nomeCorrigido: nomeAlvo,
-      cnpj: fEncontrado?.cnpj || '',
-      categoria: fEncontrado?.categoria,
-      confianca: 'exato',
-      score: 100,
-    }
-  }
-
-  // 2. Verificar regras De-Para aprendidas (correções manuais salvas no banco)
+  // 1. Verificar regras De-Para aprendidas (correções manuais salvas no banco)
   if (regrasDepara && regrasDepara.length > 0) {
     const regra = regrasDepara.find(r => r.nomeOriginalNormalizado === normalizado)
     if (regra) {
@@ -157,11 +135,8 @@ export function matchFornecedor(
     }
   }
 
-  let melhorScore = 0
-  let melhorFornecedor: FornecedorContaAzul | null = null
-
+  // 2. Match por Nome Normalizado 100% idêntico
   for (const f of fornecedores) {
-    // Match exato
     if (f.nomeNormalizado === normalizado) {
       return {
         nomeOriginal: nomeDatacar,
@@ -172,8 +147,13 @@ export function matchFornecedor(
         score: 100,
       }
     }
+  }
 
+  // 3. Similaridade Textual
+  let melhorScore = 0
+  let melhorFornecedor: FornecedorContaAzul | null = null
 
+  for (const f of fornecedores) {
     const score = calcularSimilaridade(normalizado, f.nomeNormalizado)
     if (score > melhorScore) {
       melhorScore = score
