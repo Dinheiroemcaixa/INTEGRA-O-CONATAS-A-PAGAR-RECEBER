@@ -596,32 +596,71 @@ export default function VendasPage() {
                     <h3>Buscar Vendas do Datacar {empresaAtiva ? `— ${empresaAtiva.nome}` : ''}</h3>
                   </div>
 
-                  <div className="flex items-center gap-1 bg-dark-900/80 p-1 rounded-xl border border-dark-700/60">
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setFiltroTipoItens('tudo')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                        filtroTipoItens === 'tudo'
-                          ? 'bg-brand-600 text-white shadow-md'
-                          : 'text-dark-400 hover:text-white'
-                      }`}
+                      onClick={() => setShowPlanilhaFiscal(!showPlanilhaFiscal)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-dark-900 hover:bg-dark-700 border border-blue-500/30 text-blue-400 hover:text-white transition-all flex items-center gap-1.5 shadow-sm"
+                      title="Importar ou atualizar planilha de NCM e CEST para vinculação automática"
                     >
-                      🛍️ Todos os Itens
+                      <FileSpreadsheet size={14} />
+                      Base Fiscal (NCM/CEST)
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setFiltroTipoItens('produtos')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                        filtroTipoItens === 'produtos'
-                          ? 'bg-blue-600 text-white shadow-md'
-                          : 'text-dark-400 hover:text-white'
-                      }`}
-                    >
-                      📦 Apenas Produtos
-                    </button>
+
+                    <div className="flex items-center gap-1 bg-dark-900/80 p-1 rounded-xl border border-dark-700/60">
+                      <button
+                        type="button"
+                        onClick={() => setFiltroTipoItens('tudo')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                          filtroTipoItens === 'tudo'
+                            ? 'bg-brand-600 text-white shadow-md'
+                            : 'text-dark-400 hover:text-white'
+                        }`}
+                      >
+                        🛍️ Todos os Itens
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFiltroTipoItens('produtos')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                          filtroTipoItens === 'produtos'
+                            ? 'bg-blue-600 text-white shadow-md'
+                            : 'text-dark-400 hover:text-white'
+                        }`}
+                      >
+                        📦 Apenas Produtos
+                      </button>
+                    </div>
                   </div>
                 </div>
                 
+                {showPlanilhaFiscal && (
+                  <div className="mb-4 p-4 bg-dark-900/90 border border-blue-500/30 rounded-xl space-y-3 animate-fade-in">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileSpreadsheet size={16} className="text-blue-400" />
+                        <span className="text-xs font-bold text-white">Importar Planilha Fiscal (NCM / CEST)</span>
+                      </div>
+                      <span className="text-[11px] text-dark-400">Suporta .xlsx, .xls, .csv com colunas de Descrição e NCM</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls,.csv"
+                        onChange={handleUploadPlanilhaFiscal}
+                        disabled={uploadingPlanilha}
+                        className="block w-full text-xs text-dark-400 file:mr-3 file:py-1.5 file:px-3.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer bg-dark-950 rounded-lg p-1 border border-dark-700"
+                      />
+                      {uploadingPlanilha && (
+                        <div className="flex items-center gap-2 text-xs text-blue-400 font-semibold whitespace-nowrap">
+                          <Loader2 size={14} className="animate-spin" />
+                          Processando base...
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-end gap-4 flex-wrap">
                   {/* Tipo Período */}
                   <div>
@@ -1177,6 +1216,7 @@ export default function VendasPage() {
         <ModalEditarDatacar
           vendaId={editandoDatacarId}
           venda={vendasDatacar.find(v => v.id === editandoDatacarId)!}
+          empresaId={empresaAtiva?.id}
           onClose={() => setEditandoDatacarId(null)}
           onSaveSuccess={(vendaAtualizada: any) => {
             setVendasDatacar(prev => prev.map(v => v.id === vendaAtualizada.id ? vendaAtualizada : v))

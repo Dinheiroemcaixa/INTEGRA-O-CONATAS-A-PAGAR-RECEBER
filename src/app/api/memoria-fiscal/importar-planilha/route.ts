@@ -10,6 +10,39 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+// Tabela de correspondência padrão NCM -> CEST se a planilha não trouxer o CEST
+function sugerirCestPorNcm(ncmStr: string): string {
+  const limpo = ncmStr.replace(/\D/g, '').trim()
+  if (!limpo) return ''
+  const cap4 = limpo.slice(0, 4)
+  const mapa: Record<string, string> = {
+    '4011': '1600100', // Pneus novos
+    '4012': '1600100', // Pneus recauchutados
+    '4013': '1600200', // Câmaras de ar
+    '8708': '0107500', // Partes e acessórios de veículos
+    '8421': '0101700', // Filtros
+    '8413': '0103200', // Bombas
+    '6813': '0100700', // Pastilhas e guarnições de fricção
+    '8482': '0102500', // Rolamentos
+    '8483': '0102600', // Árvores de transmissão
+    '8511': '0104300', // Velas e bobinas de ignição
+    '8512': '0104700', // Aparelhos de iluminação/sinalização
+    '7320': '0101100', // Molas e folhas de molas
+    '7326': '1006200', // Abraçadeiras e outras obras de ferro/aço
+    '4016': '0100900', // Coxins e juntas de borracha vulcanizada
+    '4010': '0100600', // Correias de transmissão
+    '8544': '0107300', // Cabos elétricos
+    '3917': '0100200', // Tubos e mangueiras plásticas
+    '3926': '1002000', // Outras obras de plástico
+    '3208': '2400100', // Tintas e vernizes
+    '2710': '0600100', // Óleos lubrificantes
+    '3819': '0600400', // Fluidos para freios hidráulicos
+    '3820': '0600500', // Fluidos anticongelantes/radiador
+    '3824': '1600100', // Graxas e outros
+  }
+  return mapa[cap4] || ''
+}
+
 /**
  * Importa uma planilha Excel do fiscal contendo Descrição, NCM e CEST.
  * Extrai a primeira palavra da descrição como "palavra-chave" (família do produto)
@@ -44,7 +77,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Detectar nomes das colunas (pode ser DESCRIÇÃO, Descrição, descrição, DESCRIÇAO, etc.)
+    // Detectar nomes das colunas flexíveis
     const primeiraLinha = rows[0]
     const colunas = Object.keys(primeiraLinha)
     
@@ -55,10 +88,10 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const colDescricao = findCol(['DESCRICAO', 'DESCRIÇÃO', 'DESC', 'PRODUTO', 'NOME'])
-    const colNCM = findCol(['NCM'])
-    const colCEST = findCol(['CEST'])
-    const colCodigo = findCol(['CODIGO', 'COD', 'CÓDIGO', 'COD.'])
+    const colDescricao = findCol(['DESCRICAO', 'PRODUTO', 'ITEM', 'DESC', 'NOME', 'ESPECIFICACAO'])
+    const colNCM = findCol(['NCM', 'CLASSIFICACAO', 'FISCAL', 'COD NCM'])
+    const colCEST = findCol(['CEST', 'COD CEST'])
+    const colCodigo = findCol(['CODIGO', 'COD', 'REF', 'REFERENCIA'])
 
     if (!colDescricao && !colNCM) {
       return NextResponse.json(
@@ -71,28 +104,34 @@ export async function POST(req: NextRequest) {
     let erros = 0
     let ignorados = 0
 
-    // Mapa para evitar duplicatas de família — guarda a primeira ocorrência
+    // Mapa para evitar duplicatas de família
     const familiasProcessadas = new Map<string, { ncm: string; cest: string }>()
 
     for (const row of rows) {
       const descricao = String(row[colDescricao!] || '').trim()
       const ncmRaw = String(row[colNCM!] || '').trim()
-      const cestRaw = colCEST ? String(row[colCEST] || '').trim() : ''
+      let cestRaw = colCEST ? String(row[colCEST] || '').trim() : ''
       const codigoRaw = colCodigo ? String(row[colCodigo] || '').trim() : ''
 
-      // Limpar NCM (remover pontos e espaços)
-      const ncm = ncmRaw.replace(/[.\s]/g, '')
-      // Limpar CEST (remover pontos e espaços)
-      const cest = cestRaw.replace(/[.\s]/g, '')
+      // Limpar NCM e CEST para conter somente dígitos
+      const ncm = ncmRaw.replace(/\D/g, '')
+      let cest = cestRaw.replace(/\D/g, '')
+
+      // Se não veio CEST na planilha, deduz pelo NCM padrão
+      if (ncm && !cest) {
+        cest = sugerirCestPorNcm(ncm)
+      }
 
       if (!descricao || !ncm) {
         ignorados++
         continue
       }
 
-      // Extrair a primeira palavra como fallback
-      const primeiraPalavra = descricao.split(/[\s/,;()-]+/)[0]?.toUpperCase()
-      const descricaoCompleta = descricao.toUpperCase().replace(/\s+/g, ' ').trim()
+      // Normalizar termos
+      const descLimpa = descricao.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+      const palavras = descLimpa.split(/[\s/,;()-]+/).filter(Boolean)
+      const primeiraPalavra = palavras[0]
+      const descricaoCompleta = descLimpa.replace(/\s+/g, ' ').trim()
 
       if (!primeiraPalavra || primeiraPalavra.length < 2) {
         ignorados++
@@ -104,9 +143,17 @@ export async function POST(req: NextRequest) {
         familiasProcessadas.set(descricaoCompleta, { ncm, cest })
       }
 
-      // Guardar a primeira palavra como fallback (se já não houver, ou se esta tiver CEST e a anterior não)
+      // Guardar a primeira palavra como família
       if (!familiasProcessadas.has(primeiraPalavra) || (cest && !familiasProcessadas.get(primeiraPalavra)?.cest)) {
         familiasProcessadas.set(primeiraPalavra, { ncm, cest })
+      }
+
+      // Se tiver mais de uma palavra, guardar também o prefixo de 2 palavras (ex: PASTILHA FREIO, FILTRO OLEO)
+      if (palavras.length >= 2) {
+        const prefixo2 = `${palavras[0]} ${palavras[1]}`
+        if (!familiasProcessadas.has(prefixo2) || (cest && !familiasProcessadas.get(prefixo2)?.cest)) {
+          familiasProcessadas.set(prefixo2, { ncm, cest })
+        }
       }
 
       // Se tiver código, salva também na memoria_fiscal (por código exato)
@@ -116,7 +163,7 @@ export async function POST(req: NextRequest) {
             .from('memoria_fiscal')
             .upsert({
               empresa_id,
-              codigo: codigoRaw,
+              codigo: codigoRaw.toUpperCase().trim(),
               descricao,
               ncm: ncm || null,
               cest: cest || null,
@@ -136,7 +183,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Agora salva todas as famílias
+    // Salvar todas as famílias identificadas
     for (const [palavraChave, dados] of familiasProcessadas.entries()) {
       try {
         const { error } = await supabaseAdmin

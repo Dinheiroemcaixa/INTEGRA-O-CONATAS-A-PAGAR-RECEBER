@@ -164,114 +164,164 @@ export async function POST(req: NextRequest) {
       await Promise.all(promessas)
     }
 
-    // --- NOVA LÓGICA DE INTELIGÊNCIA FISCAL ---
-    let memoriaFiscalExata: Record<string, any> = {}
-    let memoriaFiscalFamilia: Record<string, any> = {}
-    if (codigosProdutos.size > 0) {
-      try {
-        const listaCodigos = Array.from(codigosProdutos)
-        const { data: dataExata } = await supabaseAdmin
+    // --- INTELIGÊNCIA FISCAL ROBUSTA (CÓDIGO EXATO + FAMÍLIA + CORRELAÇÃO CEST + DICIONÁRIO PADRÃO) ---
+    const mapaExata: Record<string, any> = {}
+    const mapaFamilia: Record<string, any> = {}
+    const ncmParaCest = new Map<string, string>()
+
+    // Função de auxílio padrão para sugerir CEST
+    const sugerirCestPadrao = (ncmStr?: string | null): string => {
+      if (!ncmStr) return ''
+      const limpo = ncmStr.replace(/\D/g, '').trim()
+      const cap4 = limpo.slice(0, 4)
+      const mapa: Record<string, string> = {
+        '4011': '1600100', '4012': '1600100', '4013': '1600200', '8708': '0107500',
+        '8421': '0101700', '8413': '0103200', '6813': '0100700', '8482': '0102500',
+        '8483': '0102600', '8511': '0104300', '8512': '0104700', '7320': '0101100',
+        '7326': '1006200', '4016': '0100900', '4010': '0100600', '8544': '0107300',
+        '3917': '0100200', '3926': '1002000', '3208': '2400100', '2710': '0600100',
+        '3819': '0600400', '3820': '0600500', '3824': '1600100',
+      }
+      return mapa[cap4] || ''
+    }
+
+    try {
+      // 1. Carrega a base geral compartilhada (fallback)
+      const { data: todasFamilias } = await supabaseAdmin
+        .from('memoria_fiscal_familia')
+        .select('*')
+        .limit(3000)
+
+      if (todasFamilias) {
+        for (const item of todasFamilias) {
+          if (item.palavra_chave) {
+            const k = item.palavra_chave.toUpperCase().trim()
+            mapaFamilia[k] = item
+          }
+          if (item.ncm && item.cest) {
+            ncmParaCest.set(item.ncm.replace(/\D/g, ''), item.cest.replace(/\D/g, ''))
+          }
+        }
+      }
+
+      if (codigosProdutos.size > 0) {
+        const listaCodigos = Array.from(codigosProdutos).map(c => c.toUpperCase().trim())
+        const { data: todosCodigos } = await supabaseAdmin
+          .from('memoria_fiscal')
+          .select('*')
+          .in('codigo', listaCodigos)
+
+        if (todosCodigos) {
+          for (const item of todosCodigos) {
+            if (item.codigo) mapaExata[item.codigo.toUpperCase().trim()] = item
+            if (item.ncm && item.cest) {
+              ncmParaCest.set(item.ncm.replace(/\D/g, ''), item.cest.replace(/\D/g, ''))
+            }
+          }
+        }
+      }
+
+      // 2. Sobrescreve com as regras específicas da empresa atual (prioridade máxima)
+      const { data: dataFamiliaEmpresa } = await supabaseAdmin
+        .from('memoria_fiscal_familia')
+        .select('*')
+        .eq('empresa_id', empresa_id)
+
+      if (dataFamiliaEmpresa) {
+        for (const item of dataFamiliaEmpresa) {
+          if (item.palavra_chave) {
+            const k = item.palavra_chave.toUpperCase().trim()
+            mapaFamilia[k] = item
+          }
+          if (item.ncm && item.cest) {
+            ncmParaCest.set(item.ncm.replace(/\D/g, ''), item.cest.replace(/\D/g, ''))
+          }
+        }
+      }
+
+      if (codigosProdutos.size > 0) {
+        const listaCodigos = Array.from(codigosProdutos).map(c => c.toUpperCase().trim())
+        const { data: dataExataEmpresa } = await supabaseAdmin
           .from('memoria_fiscal')
           .select('*')
           .eq('empresa_id', empresa_id)
           .in('codigo', listaCodigos)
 
-        if (dataExata) {
-          for (const item of dataExata) {
-            memoriaFiscalExata[item.codigo] = item
+        if (dataExataEmpresa) {
+          for (const item of dataExataEmpresa) {
+            if (item.codigo) mapaExata[item.codigo.toUpperCase().trim()] = item
+            if (item.ncm && item.cest) {
+              ncmParaCest.set(item.ncm.replace(/\D/g, ''), item.cest.replace(/\D/g, ''))
+            }
           }
         }
-
-        const { data: dataFamilia } = await supabaseAdmin
-          .from('memoria_fiscal_familia')
-          .select('*')
-          .eq('empresa_id', empresa_id)
-
-        if (dataFamilia) {
-          for (const item of dataFamilia) {
-            memoriaFiscalFamilia[item.palavra_chave] = item
-          }
-        }
-      } catch (e) {
-        console.warn('Erro ao buscar memória fiscal:', e)
       }
+    } catch (e) {
+      console.warn('Erro ao carregar base de memória fiscal:', e)
     }
-
-    const ncmParaCest = new Map<string, string>()
-    try {
-      const { data: todosMemoria } = await supabaseAdmin.from('memoria_fiscal').select('ncm, cest').eq('empresa_id', empresa_id).not('cest', 'is', null)
-      if (todosMemoria) {
-        todosMemoria.forEach(m => {
-          if (m.ncm && m.cest) ncmParaCest.set(m.ncm, m.cest)
-        })
-      }
-    } catch (e) {}
 
     const inteligenciaFiscal = new Map<string, any>()
     for (const codigo of Array.from(codigosProdutos)) {
+      const codLimpo = codigo.toUpperCase().trim()
+      const descricao = descricoesProdutos.get(codigo) || ''
+      const descNorm = descricao.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+      const palavras = descNorm.split(/[\s/,;()-]+/).filter(Boolean)
+
       let ncm = null
       let cest = null
-      let tipo = null
-      let origem = null
+      let tipo = '00 - Merc. para Revenda'
+      let origem = '0 - Nacional'
       let unidade = 'UN'
-      const descricao = descricoesProdutos.get(codigo) || ''
-      const descNormalizada = descricao.toUpperCase().replace(/\s+/g, ' ').trim()
-      const palavras = descNormalizada.split(' ')
-      
-      let matchFamilia = null
-      for (let i = palavras.length; i > 0; i--) {
-        const prefixo = palavras.slice(0, i).join(' ')
-        if (memoriaFiscalFamilia[prefixo]) {
-          matchFamilia = memoriaFiscalFamilia[prefixo]
-          break
-        }
+
+      // 1. Busca por código exato na memória fiscal
+      if (mapaExata[codLimpo]) {
+        const mem = mapaExata[codLimpo]
+        ncm = mem.ncm ? mem.ncm.replace(/\D/g, '') : null
+        cest = mem.cest ? mem.cest.replace(/\D/g, '') : null
+        if (mem.tipo_produto) tipo = mem.tipo_produto
+        if (mem.origem) origem = mem.origem
+        if (mem.unidade_medida) unidade = mem.unidade_medida
       }
 
-      if (memoriaFiscalExata[codigo]) {
-        const mem = memoriaFiscalExata[codigo]
-        ncm = mem.ncm
-        cest = mem.cest
-        tipo = mem.tipo_produto
-        origem = mem.origem
-        unidade = mem.unidade_medida || 'UN'
-      } 
-      else if (matchFamilia) {
-        ncm = matchFamilia.ncm
-        cest = matchFamilia.cest
-        tipo = matchFamilia.tipo_produto
-        origem = matchFamilia.origem
-        unidade = matchFamilia.unidade_medida || 'UN'
-      }
-      else {
-        if (descricao) {
-          try {
-            const firstWord = descricao.split(' ')[0]
-            const termoBusca = encodeURIComponent(firstWord)
-            const brasilRes = await fetch(`https://brasilapi.com.br/api/ncm/v1?search=${termoBusca}`)
-            if (brasilRes.ok) {
-              const resultados = await brasilRes.json()
-              if (resultados && Array.isArray(resultados) && resultados.length > 0) {
-                const ncmValido = resultados.find((r: any) => r.codigo && r.codigo.replace(/\./g, '').length === 8)
-                if (ncmValido) {
-                  ncm = ncmValido.codigo.replace(/\./g, '')
-                  if (ncm && ncmParaCest.has(ncm)) {
-                    cest = ncmParaCest.get(ncm)
-                  }
-                }
-              }
-            }
-          } catch (e) {
-             console.warn(`Erro na Brasil API para ${descricao}:`, e)
+      // 2. Se não achou por código, busca por família/prefixo da descrição
+      if (!ncm) {
+        let matchFamilia = null
+        for (let i = palavras.length; i > 0; i--) {
+          const prefixo = palavras.slice(0, i).join(' ')
+          if (mapaFamilia[prefixo]) {
+            matchFamilia = mapaFamilia[prefixo]
+            break
           }
         }
+
+        if (!matchFamilia && palavras.length > 0) {
+          const prim = palavras[0]
+          if (mapaFamilia[prim]) {
+            matchFamilia = mapaFamilia[prim]
+          }
+        }
+
+        if (matchFamilia) {
+          ncm = matchFamilia.ncm ? matchFamilia.ncm.replace(/\D/g, '') : null
+          cest = matchFamilia.cest ? matchFamilia.cest.replace(/\D/g, '') : null
+          if (matchFamilia.tipo_produto) tipo = matchFamilia.tipo_produto
+          if (matchFamilia.origem) origem = matchFamilia.origem
+          if (matchFamilia.unidade_medida) unidade = matchFamilia.unidade_medida
+        }
       }
 
+      // 3. Se ainda não achou, consulta metadados vindos da API do Datacar
       const metadados = produtosMetadata.get(codigo)
-      if (!ncm) ncm = metadados?.ncm || undefined
-      if (!cest) cest = metadados?.cest || undefined
-      if (!origem) origem = metadados?.origem || '0 - Nacional'
-      if (!tipo) tipo = '00 - Merc. para Revenda'
-      if (!unidade) unidade = metadados?.unidade_medida || 'UN'
+      if (!ncm && metadados?.ncm) ncm = metadados.ncm.replace(/\D/g, '')
+      if (!cest && metadados?.cest) cest = metadados.cest.replace(/\D/g, '')
+      if (metadados?.origem) origem = metadados.origem
+      if (metadados?.unidade_medida) unidade = metadados.unidade_medida
+
+      // 4. Se tem NCM mas não tem CEST, resolve automaticamente
+      if (ncm && !cest) {
+        const ncmLimpo = ncm.replace(/\D/g, '')
+        cest = ncmParaCest.get(ncmLimpo) || sugerirCestPadrao(ncmLimpo) || null
+      }
 
       inteligenciaFiscal.set(codigo, { ncm, cest, tipo, origem, unidade })
     }

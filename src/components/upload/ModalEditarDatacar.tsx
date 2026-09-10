@@ -10,6 +10,7 @@ import toast from 'react-hot-toast'
 interface ModalEditarDatacarProps {
   vendaId: string
   venda: any
+  empresaId?: string
   onClose: () => void
   onSaveSuccess: (vendaAtualizada: any) => void
 }
@@ -63,7 +64,7 @@ const sugerirCestPorNcm = (ncmStr: string): string => {
   return mapa[cap4] || ''
 }
 
-export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSuccess }: ModalEditarDatacarProps) {
+export default function ModalEditarDatacar({ vendaId, venda, empresaId, onClose, onSaveSuccess }: ModalEditarDatacarProps) {
   const [formData, setFormData] = useState<any>(null)
   const [salvando, setSalvando] = useState(false)
   const [buscandoCep, setBuscandoCep] = useState(false)
@@ -265,6 +266,19 @@ export default function ModalEditarDatacar({ vendaId, venda, onClose, onSaveSucc
           cliente_uf: formData.estado,
           cliente_cep: formData.cep
         }
+      }
+
+      // Sincroniza e aprende regras de NCM / CEST na memória fiscal
+      const targetEmpresaId = empresaId || venda.empresa_id || venda._empresa_id
+      if (targetEmpresaId && formData.itens && formData.itens.length > 0) {
+        fetch('/api/memoria-fiscal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            empresa_id: targetEmpresaId,
+            itens: formData.itens
+          })
+        }).catch(e => console.warn('[ModalEditarDatacar] Erro ao sincronizar memoria fiscal:', e))
       }
 
       onSaveSuccess(vendaAtualizada)
