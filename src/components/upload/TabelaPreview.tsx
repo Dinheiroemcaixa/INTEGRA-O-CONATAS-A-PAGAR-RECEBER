@@ -49,7 +49,7 @@ function BadgeMatch({
         title="Fornecedor corrigido por regra De-Para ou ajuste salvo"
       >
         <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-        🔄 De-Para
+        🔄 Corrigido
       </span>
     )
   }
@@ -187,7 +187,7 @@ export default function TabelaPreview({
             {deparaCount > 0 && (
               <span className="flex items-center gap-1.5 text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-0.5 rounded-full font-medium shadow-sm">
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-                {deparaCount} De-Para
+                {deparaCount} corrigidos
               </span>
             )}
             {naoEncontradosCount > 0 && (
@@ -436,7 +436,7 @@ export default function TabelaPreview({
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className={cn(
                             'font-medium transition-colors text-xs sm:text-sm',
-                            foiCorrigido ? 'text-blue-300' : (item.valido ? 'text-white' : 'text-red-400')
+                            item.valido ? 'text-white' : 'text-red-400'
                           )}>
                             {item.fornecedor}
                           </span>
@@ -457,7 +457,7 @@ export default function TabelaPreview({
                           </button>
                         </div>
                         {foiCorrigido && match.nomeOriginal !== item.fornecedor && (
-                          <span className="text-[10px] text-blue-400/80 flex items-center gap-1 mt-0.5 font-mono">
+                          <span className="text-[10px] text-dark-400 flex items-center gap-1 mt-0.5 font-mono">
                             original: {match.nomeOriginal}
                           </span>
                         )}
