@@ -13,7 +13,7 @@ import SelectorEmpresa from '@/components/layout/SelectorEmpresa'
 import PainelAgendamento from '@/components/agendamento/PainelAgendamento'
 import type { VendaPreview, ResultadoImportacaoVendas } from '@/types'
 import {
-  FileCheck, UploadCloud,
+  FileCheck, UploadCloud, UserCheck,
   Upload, ArrowLeft, Loader2,
   CheckCircle, AlertCircle, Send, ShoppingCart,
   Database, RefreshCw, ChevronDown, ChevronUp,
@@ -52,6 +52,8 @@ interface VendaImportada {
     unidade_medida?: string
   }>
   status: string
+  cliente_ja_cadastrado?: boolean
+  ca_status?: string
   _datacar?: Record<string, any> | null
   dados_datacar?: Record<string, any> | null
   created_at?: string
@@ -281,8 +283,8 @@ export default function VendasPage() {
       let sucessosTotais = 0
       let errosTotais = 0
       const detalhesErros: string[] = []
-      const avisosClientesExistentes: string[] = []
       const idsSucesso = new Set<string>()
+      const idsClientesExistentes = new Set<string>()
 
       for (const venda of vendasParaEnviar) {
         try {
@@ -298,8 +300,8 @@ export default function VendasPage() {
           if (res.ok && data.sucessos > 0) {
             sucessosTotais++
             idsSucesso.add(venda.id)
-            if (data.detalhesClientesExistentes && Array.isArray(data.detalhesClientesExistentes)) {
-              avisosClientesExistentes.push(...data.detalhesClientesExistentes)
+            if (data.detalhesClientesExistentes && Array.isArray(data.detalhesClientesExistentes) && data.detalhesClientesExistentes.length > 0) {
+              idsClientesExistentes.add(venda.id)
             }
           } else {
             errosTotais++
@@ -312,24 +314,15 @@ export default function VendasPage() {
       }
 
       if (sucessosTotais > 0) {
-        toast.success(`${sucessosTotais} vendas de produtos sincronizadas com sucesso no Conta Azul!`)
-        if (avisosClientesExistentes.length > 0) {
-          avisosClientesExistentes.forEach((aviso: string) => {
-            toast(aviso, {
-              icon: '👤',
-              duration: 8000,
-              style: {
-                background: '#0f172a',
-                color: '#38bdf8',
-                border: '1px solid rgba(56, 189, 248, 0.3)',
-                fontSize: '13px',
-                fontWeight: 500
-              }
-            })
-          })
-        }
+        toast.success(`${sucessosTotais} vendas sincronizadas com sucesso no Conta Azul!`)
         setVendasDatacar(prev => prev.map(v => {
-          if (idsSucesso.has(v.id)) return { ...v, status: 'enviado' }
+          if (idsSucesso.has(v.id)) {
+            return { 
+              ...v, 
+              status: 'enviado',
+              cliente_ja_cadastrado: idsClientesExistentes.has(v.id) || v.cliente_ja_cadastrado
+            }
+          }
           return v
         }))
         setSelecionadosDatacar(prev => {
@@ -893,13 +886,22 @@ export default function VendasPage() {
                                   )}
                                 </div>
 
-                                <div className="flex items-center gap-2 text-xs">
+                                <div className="flex items-center gap-2 text-xs flex-wrap">
                                   <span className="text-white font-bold truncate max-w-[280px]">
                                     {venda.cliente}
                                   </span>
                                   {venda.cliente_cpf_cnpj && (
                                     <span className="text-dark-400 font-mono text-[11px]">
                                       • {venda.cliente_cpf_cnpj}
+                                    </span>
+                                  )}
+                                  {(venda.cliente_ja_cadastrado || venda.ca_status === 'cliente_existente') && (
+                                    <span 
+                                      title="Este cliente já possui cadastro prévio no Conta Azul (identificado por CPF/CNPJ)"
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-sky-500/15 text-sky-300 border border-sky-500/30 shadow-[0_0_8px_rgba(56,189,248,0.15)]"
+                                    >
+                                      <UserCheck size={11} className="text-sky-400" />
+                                      Já cadastrado no CA
                                     </span>
                                   )}
                                 </div>
