@@ -304,7 +304,68 @@ export default function ContasPreviewSection({
       }
       return next
     })
-  }, [dadosIniciais, dadosEditados])
+
+    if (empresaAtiva && nomeOriginal && nomeOriginal !== novoNome) {
+      const nomeNormalizado = normalizarNome(nomeOriginal)
+      toast((t) => (
+        <div className="flex flex-col gap-2 text-xs">
+          <div>
+            <span className="font-bold text-white block">Salvar regra de fornecedor?</span>
+            <span className="text-dark-300 text-[11px] block mt-0.5 leading-snug">
+              Deseja que todas as contas futuras de <strong className="text-white">"{nomeOriginal}"</strong> sejam convertidas para <strong className="text-emerald-400">"{novoNome}"</strong>?
+            </span>
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <button
+              onClick={async () => {
+                toast.dismiss(t.id)
+                try {
+                  const res = await fetch('/api/fornecedor-depara', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      empresa_id: empresaAtiva.id,
+                      nome_original: nomeOriginal,
+                      nome_original_normalizado: nomeNormalizado,
+                      nome_corrigido: novoNome,
+                    }),
+                  })
+                  if (res.ok) {
+                    toast.success(`Regra memorizada: "${nomeOriginal}" → "${novoNome}"`)
+                  } else {
+                    toast.error('Erro ao salvar regra De-Para.')
+                  }
+                } catch {
+                  toast.error('Erro de conexão ao salvar regra.')
+                }
+              }}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors cursor-pointer text-xs shadow-sm"
+            >
+              Sim, salvar regra
+            </button>
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="px-2.5 py-1.5 bg-dark-700 hover:bg-dark-600 text-dark-300 hover:text-white rounded-lg transition-colors cursor-pointer text-xs"
+            >
+              Apenas nesta conta
+            </button>
+          </div>
+        </div>
+      ), {
+        id: `depara-prompt-${nomeNormalizado}`,
+        duration: 8000,
+        style: {
+          background: '#181b24',
+          border: '1px solid rgba(255,255,255,0.15)',
+          color: '#fff',
+          borderRadius: '16px',
+          padding: '12px 16px',
+          maxWidth: '380px',
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)'
+        }
+      })
+    }
+  }, [empresaAtiva, dadosIniciais, dadosEditados])
 
   const updateCategoria = useCallback(async (idx: number, novaCategoria: string) => {
     setDadosEditados((prev) => {

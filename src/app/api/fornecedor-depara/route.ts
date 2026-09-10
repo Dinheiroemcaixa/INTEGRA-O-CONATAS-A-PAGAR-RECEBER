@@ -53,12 +53,39 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from('fornecedor_depara')
-    .select('nome_original_normalizado, nome_corrigido')
+    .select('id, nome_original, nome_original_normalizado, nome_corrigido, updated_at')
     .eq('empresa_id', empresa_id)
+    .order('updated_at', { ascending: false })
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
   return NextResponse.json({ data })
+}
+
+// Route DELETE para remover regra específica pelo ID
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID da regra obrigatório' }, { status: 400 })
+    }
+
+    const { error } = await supabaseAdmin
+      .from('fornecedor_depara')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('Erro ao excluir regra De-Para:', err)
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+  }
 }

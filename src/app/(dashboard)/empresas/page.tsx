@@ -58,6 +58,8 @@ function PainelFornecedores({ empresa }: { empresa: Empresa }) {
   const [importando, setImportando] = useState(false)
   const [sincronizando, setSincronizando] = useState(false)
   const [limpando, setLimpando] = useState(false)
+  const [regrasDepara, setRegrasDepara] = useState<any[]>([])
+  const [carregandoDepara, setCarregandoDepara] = useState(false)
   const supabase = createClient()
 
   const carregarTotal = useCallback(async () => {
@@ -68,7 +70,40 @@ function PainelFornecedores({ empresa }: { empresa: Empresa }) {
     setTotal(count ?? 0)
   }, [empresa.id, supabase])
 
-  useEffect(() => { carregarTotal() }, [carregarTotal])
+  const carregarRegrasDepara = useCallback(async () => {
+    try {
+      setCarregandoDepara(true)
+      const res = await fetch('/api/fornecedor-depara?empresa_id=' + empresa.id)
+      const json = await res.json()
+      if (json.data) {
+        setRegrasDepara(json.data)
+      }
+    } catch {
+      // silencioso
+    } finally {
+      setCarregandoDepara(false)
+    }
+  }, [empresa.id])
+
+  useEffect(() => { 
+    carregarTotal()
+    carregarRegrasDepara()
+  }, [carregarTotal, carregarRegrasDepara])
+
+  const handleExcluirRegraDepara = async (id: string, nomeOriginal: string) => {
+    if (!confirm(`Excluir regra de aprendizado para "${nomeOriginal}"?`)) return
+    try {
+      const res = await fetch(`/api/fornecedor-depara?id=${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        toast.success('Regra De-Para removida!')
+        carregarRegrasDepara()
+      } else {
+        toast.error('Erro ao excluir regra.')
+      }
+    } catch {
+      toast.error('Erro ao excluir regra.')
+    }
+  }
 
   const handleImportar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -128,7 +163,7 @@ function PainelFornecedores({ empresa }: { empresa: Empresa }) {
         className="flex items-center gap-2 text-sm text-dark-400 hover:text-white transition-colors w-full"
       >
         <Users size={14} />
-        <span>Fornecedores ContaAzul</span>
+        <span>Fornecedores & De-Para</span>
         {total !== null && (
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
             total > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-dark-700 text-dark-500'
@@ -136,14 +171,19 @@ function PainelFornecedores({ empresa }: { empresa: Empresa }) {
             {total} cadastrados
           </span>
         )}
+        {regrasDepara.length > 0 && (
+          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-500/20 text-blue-400">
+            {regrasDepara.length} regras De-Para
+          </span>
+        )}
         {aberto ? <ChevronUp size={14} className="ml-auto" /> : <ChevronDown size={14} className="ml-auto" />}
       </button>
 
       {aberto && (
-        <div className="mt-3 space-y-2 animate-fade-in">
+        <div className="mt-3 space-y-3 animate-fade-in">
           <p className="text-xs text-dark-500">
-            Sincronize os fornecedores diretamente do Conta Azul para que o app corrija
-            automaticamente os nomes ao importar planilhas do Datacar.
+            Sincronize os fornecedores diretamente do Conta Azul para que o app faça correspondência
+            automática ao importar planilhas do Datacar.
           </p>
           <div className="flex items-center gap-2 flex-wrap">
             <button
@@ -203,18 +243,53 @@ function PainelFornecedores({ empresa }: { empresa: Empresa }) {
               <button
                 onClick={handleLimpar}
                 disabled={limpando}
-                className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 px-3 py-2 rounded-lg hover:bg-red-500/10 transition-all"
+                className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 px-3 py-2 rounded-lg hover:bg-red-500/10 transition-all cursor-pointer"
               >
                 {limpando ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                 Limpar lista
               </button>
             )}
           </div>
-          {total !== null && total > 0 && (
-            <p className="text-xs text-emerald-400">
-              Lista atualizada — {total} fornecedores prontos para match automático.
-            </p>
-          )}
+
+          {/* Seção de Regras De-Para Aprendidas */}
+          <div className="bg-dark-900/80 border border-dark-700 rounded-xl p-3 space-y-2 mt-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-dark-200">
+                Regras De-Para de Fornecedores ({regrasDepara.length})
+              </span>
+              <span className="text-[10px] text-dark-400">
+                Regras memorizadas para conversão automática
+              </span>
+            </div>
+
+            {regrasDepara.length === 0 ? (
+              <p className="text-xs text-dark-500 italic py-1">
+                Nenhuma regra De-Para memorizada para esta empresa.
+              </p>
+            ) : (
+              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                {regrasDepara.map((r: any) => (
+                  <div key={r.id || r.nome_original_normalizado} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-dark-950/60 border border-dark-800 text-xs">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="text-dark-400 font-mono truncate" title={r.nome_original}>"{r.nome_original}"</span>
+                      <span className="text-blue-400 font-bold">➔</span>
+                      <span className="text-emerald-400 font-semibold truncate" title={r.nome_corrigido}>"{r.nome_corrigido}"</span>
+                    </div>
+                    {r.id && (
+                      <button
+                        type="button"
+                        onClick={() => handleExcluirRegraDepara(r.id, r.nome_original)}
+                        className="text-dark-500 hover:text-red-400 p-1 rounded hover:bg-red-500/10 transition-colors flex-shrink-0 cursor-pointer"
+                        title="Excluir esta regra De-Para"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
