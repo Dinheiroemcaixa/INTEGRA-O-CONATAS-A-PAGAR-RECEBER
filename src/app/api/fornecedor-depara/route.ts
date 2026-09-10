@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Route GET para buscar as regras (evita cache e RLS problemáticos)
+// Route GET para buscar as regras com fallback entre lojas do mesmo grupo
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const empresa_id = searchParams.get('empresa_id')
@@ -51,17 +51,41 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'empresa_id obrigatório' }, { status: 400 })
   }
 
-  const { data, error } = await supabaseAdmin
+  // 1. Regras específicas da empresa atual
+  const { data: regrasEmpresa, error: errEmpresa } = await supabaseAdmin
     .from('fornecedor_depara')
-    .select('id, nome_original, nome_original_normalizado, nome_corrigido, updated_at')
+    .select('id, nome_original, nome_original_normalizado, nome_corrigido, updated_at, empresa_id')
     .eq('empresa_id', empresa_id)
     .order('updated_at', { ascending: false })
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  if (errEmpresa) {
+    return NextResponse.json({ error: errEmpresa.message }, { status: 500 })
   }
 
-  return NextResponse.json({ data })
+  // 2. Regras aprendidas em outras lojas (fallback global do grupo)
+  const { data: todasRegras } = await supabaseAdmin
+    .from('fornecedor_depara')
+    .select('id, nome_original, nome_original_normalizado, nome_corrigido, updated_at, empresa_id')
+    .neq('empresa_id', empresa_id)
+    .order('updated_at', { ascending: false })
+
+  const mapRegras = new Map<string, any>()
+  
+  // Primeiro insere fallback
+  todasRegras?.forEach(r => {
+    if (r.nome_original_normalizado) {
+      mapRegras.set(r.nome_original_normalizado, r)
+    }
+  })
+
+  // Sobrescreve com as regras da empresa atual (prioridade máxima)
+  regrasEmpresa?.forEach(r => {
+    if (r.nome_original_normalizado) {
+      mapRegras.set(r.nome_original_normalizado, r)
+    }
+  })
+
+  return NextResponse.json({ data: Array.from(mapRegras.values()) })
 }
 
 // Route DELETE para remover regra específica pelo ID

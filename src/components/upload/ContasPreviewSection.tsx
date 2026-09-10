@@ -286,28 +286,43 @@ export default function ContasPreviewSection({
 
   const updateFornecedor = useCallback((idx: number, novoNome: string) => {
     const nomeOriginal = dadosIniciais[idx]?.fornecedor || dadosEditados[idx]?.fornecedor || novoNome
+    const nomeNormalizado = normalizarNome(nomeOriginal)
 
+    let totalLinhasAfetadas = 0
+
+    // 1. Atualiza IMEDIATAMENTE todas as contas na lista que possuem o mesmo fornecedor original
     setDadosEditados((prev) => {
       const next = [...prev]
-      next[idx] = {
-        ...next[idx],
-        fornecedor: novoNome,
-        matchFornecedor: {
-          nomeOriginal: nomeOriginal,
-          nomeCorrigido: novoNome,
-          cnpj: next[idx].matchFornecedor?.cnpj || '',
-          confianca: 'exato',
-          score: 100,
-          origem: 'manual'
-        },
-        valido: true,
-        erros: undefined
+      for (let i = 0; i < next.length; i++) {
+        const itemOrig = dadosIniciais[i]?.fornecedor || next[i].fornecedor
+        const itemNorm = normalizarNome(itemOrig)
+
+        if (i === idx || itemNorm === nomeNormalizado || itemOrig === nomeOriginal) {
+          totalLinhasAfetadas++
+          next[i] = {
+            ...next[i],
+            fornecedor: novoNome,
+            matchFornecedor: {
+              nomeOriginal: itemOrig,
+              nomeCorrigido: novoNome,
+              cnpj: next[i].matchFornecedor?.cnpj || '',
+              confianca: 'exato',
+              score: 100,
+              origem: 'manual'
+            },
+            valido: true,
+            erros: undefined
+          }
+        }
       }
       return next
     })
 
+    if (totalLinhasAfetadas > 1) {
+      toast.success(`${totalLinhasAfetadas} contas de "${nomeOriginal}" foram atualizadas para "${novoNome}"`, { id: `bulk-update-${nomeNormalizado}` })
+    }
+
     if (empresaAtiva && nomeOriginal && nomeOriginal !== novoNome) {
-      const nomeNormalizado = normalizarNome(nomeOriginal)
       toast((t) => (
         <div className="flex flex-col gap-2 text-xs">
           <div>
@@ -333,6 +348,26 @@ export default function ContasPreviewSection({
                   })
                   if (res.ok) {
                     toast.success(`Regra memorizada: "${nomeOriginal}" → "${novoNome}"`)
+                    // Garante que o badge fique 'depara' em todas as contas da tela
+                    setDadosEditados(prev => prev.map((item, i) => {
+                      const itemOrig = dadosIniciais[i]?.fornecedor || item.fornecedor
+                      if (normalizarNome(itemOrig) === nomeNormalizado || itemOrig === nomeOriginal) {
+                        return {
+                          ...item,
+                          fornecedor: novoNome,
+                          matchFornecedor: {
+                            nomeOriginal: itemOrig,
+                            nomeCorrigido: novoNome,
+                            cnpj: item.matchFornecedor?.cnpj || '',
+                            confianca: 'exato',
+                            score: 100,
+                            origem: 'depara'
+                          },
+                          valido: true
+                        }
+                      }
+                      return item
+                    }))
                   } else {
                     toast.error('Erro ao salvar regra De-Para.')
                   }
@@ -345,7 +380,18 @@ export default function ContasPreviewSection({
               Sim, salvar regra
             </button>
             <button
-              onClick={() => toast.dismiss(t.id)}
+              onClick={() => {
+                toast.dismiss(t.id)
+                // Se clicar em 'Apenas nesta conta', reverte as demais e mantém apenas o item idx
+                setDadosEditados(prev => prev.map((item, i) => {
+                  if (i === idx) return item
+                  const itemOrig = dadosIniciais[i]?.fornecedor || item.fornecedor
+                  if (normalizarNome(itemOrig) === nomeNormalizado || itemOrig === nomeOriginal) {
+                    return dadosIniciais[i] || item
+                  }
+                  return item
+                }))
+              }}
               className="px-2.5 py-1.5 bg-dark-700 hover:bg-dark-600 text-dark-300 hover:text-white rounded-lg transition-colors cursor-pointer text-xs"
             >
               Apenas nesta conta
@@ -354,7 +400,7 @@ export default function ContasPreviewSection({
         </div>
       ), {
         id: `depara-prompt-${nomeNormalizado}`,
-        duration: 8000,
+        duration: 9000,
         style: {
           background: '#181b24',
           border: '1px solid rgba(255,255,255,0.15)',
@@ -506,17 +552,27 @@ export default function ContasPreviewSection({
     setDadosEditados((prev) => {
       const next = [...prev]
       indices.forEach(idx => {
+        const itemOrig = dadosIniciais[idx]?.fornecedor || next[idx].fornecedor
         next[idx] = { 
           ...next[idx], 
           fornecedor: novoFornecedor,
-          matchFornecedor: undefined // Limpa o match automático
+          matchFornecedor: {
+            nomeOriginal: itemOrig,
+            nomeCorrigido: novoFornecedor,
+            cnpj: next[idx].matchFornecedor?.cnpj || '',
+            confianca: 'exato',
+            score: 100,
+            origem: 'manual'
+          },
+          valido: true,
+          erros: undefined
         }
       })
       return next
     })
     setSelecionados(new Set())
     toast.success(`${indices.length} fornecedores atualizados em lote!`)
-  }, [])
+  }, [dadosIniciais])
 
   const updateContaEmLote = async (indices: number[], novaConta: string) => {
     if (!novaConta.trim()) return
