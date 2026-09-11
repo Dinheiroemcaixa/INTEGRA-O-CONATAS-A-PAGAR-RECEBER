@@ -293,9 +293,13 @@ export default function ContasPagarPage() {
     emExecucao: boolean
   } | null>(null)
 
-  // Estados Datacar
-  const hoje = new Date().toISOString().split('T')[0]
-  const primeiroDia = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
+  // Estados Datacar (Datas determinísticas timezone-safe)
+  const agora = new Date()
+  const anoAtual = agora.getFullYear()
+  const mesAtual = String(agora.getMonth() + 1).padStart(2, '0')
+  const diaAtual = String(agora.getDate()).padStart(2, '0')
+  const hoje = `${anoAtual}-${mesAtual}-${diaAtual}`
+  const primeiroDia = `${anoAtual}-${mesAtual}-01`
   const [buscando, setBuscando] = useState(false)
   const [dtIni, setDtIni] = useState(primeiroDia)
   const [dtFim, setDtFim] = useState(hoje)
@@ -359,12 +363,15 @@ export default function ContasPagarPage() {
       const dadosPreview: ContaPagarPreview[] = (data.dados || []).map((d: any) => {
         const converterData = (dt: string | null | undefined) => {
           if (!dt) return undefined
-          const dataStr = dt.split('T')[0].split(' ')[0]
-          if (dataStr.includes('/')) {
-            const [dia, mes, ano] = dataStr.split('/')
-            if (dia && mes && ano) return `${ano}-${mes}-${dia}`
+          const s = String(dt).trim()
+          if (!s) return undefined
+          if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10)
+          if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) {
+            const [dia, mes, ano] = s.split('/')
+            return `${ano.substring(0, 4)}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`
           }
-          return dataStr
+          const dataStr = s.split('T')[0].split(' ')[0]
+          return dataStr || undefined
         }
 
         return {
@@ -399,7 +406,7 @@ export default function ContasPagarPage() {
           empresa_id: empresaAtiva.id,
           fornecedor: d.fornecedor.trim(),
           valor: d.valor,
-          vencimento: d.vencimento || new Date().toISOString().split('T')[0],
+          vencimento: d.vencimento || hoje,
           categoria: d.categoria || 'Materiais para Revenda',
           conta_financeira: d.conta_financeira || null,
           conta_financeira_id: d.conta_financeira_id || null,

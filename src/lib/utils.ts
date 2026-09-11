@@ -12,16 +12,35 @@ export function formatCurrency(value: number): string {
   }).format(value)
 }
 
-export function formatDate(dateStr: string): string {
+export function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '-'
-  const parts = dateStr.split(/[-/]/)
-  if (parts.length !== 3) return dateStr
-  // Se vier no formato YYYY-MM-DD
-  if (parts[0].length === 4) {
-    return `${parts[2]}/${parts[1]}/${parts[0]}`
+  try {
+    const s = String(dateStr).trim()
+    // Formato brasileiro DD/MM/AAAA ou D/M/AAAA
+    const brMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/)
+    if (brMatch) {
+      const dia = brMatch[1].padStart(2, '0')
+      const mes = brMatch[2].padStart(2, '0')
+      const ano = brMatch[3]
+      return `${dia}/${mes}/${ano}`
+    }
+    // Formato ISO YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+      const [ano, mes, diaResto] = s.split('-')
+      const dia = diaResto.substring(0, 2)
+      return `${dia}/${mes}/${ano}`
+    }
+    const d = new Date(s)
+    if (!isNaN(d.getTime())) {
+      const dia = String(d.getDate()).padStart(2, '0')
+      const mes = String(d.getMonth() + 1).padStart(2, '0')
+      const ano = d.getFullYear()
+      return `${dia}/${mes}/${ano}`
+    }
+    return s
+  } catch {
+    return String(dateStr)
   }
-  // Se vier no formato DD/MM/YYYY ou DD-MM-YYYY
-  return `${parts[0]}/${parts[1]}/${parts[2]}`
 }
 
 export function parseDate(dateStr: string): string {

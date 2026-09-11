@@ -13,22 +13,29 @@ const AUTHORIZE_URL = 'https://auth.contaazul.com/login'
 
 /**
  * Helper para lidar com os limites de requisição da Conta Azul (Spike Arrest).
- * Intercepta erros 429 e aplica um backoff exponencial.
+ * Intercepta exclusivamente erros 429 e aplica backoff exponencial com até 3 tentativas.
+ * Tentativa 1 -> 1s | Tentativa 2 -> 2s | Tentativa 3 -> última tentativa.
  */
 async function fetchCA(url: string | URL | Request, options?: RequestInit): Promise<Response> {
-  const maxRetries = 3;
-  for (let i = 0; i < maxRetries; i++) {
-    await new Promise(r => setTimeout(r, 100)); // Delay reduzido de 200ms para 100ms para agilizar sem quebrar o limite base
-    const res = await fetch(url, options);
-    if (res.status === 429) {
-      const waitTime = (2 ** i) * 1000;
-      console.warn(`[fetchCA] Rate limit atingido (429) na URL ${typeof url === 'string' ? url : '...'} - Tentativa ${i+1}/${maxRetries}. Aguardando ${waitTime}ms...`);
+  const maxTentativas = 3;
+  let res: Response;
+
+  for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
+    res = await fetch(url, options);
+
+    if (res.status === 429 && tentativa < maxTentativas) {
+      const waitTime = tentativa === 1 ? 1000 : 2000;
+      console.warn(
+        `[fetchCA] Rate limit atingido (429) na URL ${typeof url === 'string' ? url : '...'} - Tentativa ${tentativa}/${maxTentativas}. Aguardando ${waitTime}ms...`
+      );
       await new Promise(r => setTimeout(r, waitTime));
       continue;
     }
+
     return res;
   }
-  return fetch(url, options);
+
+  return res!;
 }
 
 export interface TokenResponse {
