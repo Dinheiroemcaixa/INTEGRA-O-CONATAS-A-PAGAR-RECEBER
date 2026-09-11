@@ -87,7 +87,8 @@ export async function GET(req: NextRequest) {
     }
 
     // ────────────────────────────────────────────────────────
-    // ABA PRODUTOS: Consulta via API Conta Azul
+    // ABA PRODUTOS: Consulta via API Oficial de Notas Fiscais (v1) Conta Azul
+    // Endpoint: GET /v1/notas-fiscais
     // ────────────────────────────────────────────────────────
     if (tipo === 'produtos') {
       const { getValidToken } = await import('@/lib/conta-azul/token-manager')
@@ -103,7 +104,7 @@ export async function GET(req: NextRequest) {
         } catch {
           return NextResponse.json({ 
             notas: [], 
-            aviso: 'Empresa nao conectada ao Conta Azul.' 
+            aviso: 'Empresa não conectada ao Conta Azul.' 
           })
         }
       }
@@ -111,27 +112,42 @@ export async function GET(req: NextRequest) {
       const CA_BASE = 'https://api-v2.contaazul.com/v1'
 
       const hoje = new Date()
-      const trintaDiasAtras = new Date()
-      trintaDiasAtras.setDate(hoje.getDate() - 30)
+      let dtInicial = data_inicio
+      let dtFinal = data_fim
 
-      const dtInicial = data_inicio || trintaDiasAtras.toISOString().split('T')[0]
-      const dtFinal = data_fim || hoje.toISOString().split('T')[0]
+      if (!dtFinal) {
+        dtFinal = hoje.toISOString().split('T')[0]
+      }
+      if (!dtInicial) {
+        const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1)
+        dtInicial = primeiroDiaMes.toISOString().split('T')[0]
+      }
+
+      // Se vier em formato DD/MM/YYYY, converter para YYYY-MM-DD
+      if (dtInicial.includes('/')) {
+        const [d, m, y] = dtInicial.split('/')
+        dtInicial = `${y}-${m}-${d}`
+      }
+      if (dtFinal.includes('/')) {
+        const [d, m, y] = dtFinal.split('/')
+        dtFinal = `${y}-${m}-${d}`
+      }
 
       let todasNotas: any[] = []
       let pagina = 1
-      const tamanhoPagina = 50
-      let erroCA = null
+      let totalPaginas = 1
+      const tamanhoPagina = 100
 
-      while (pagina <= 5) {
-        const urlVendas = `${CA_BASE}/vendas?tamanho_pagina=${tamanhoPagina}&pagina=${pagina}&data_emissao_de=${dtInicial}&data_emissao_ate=${dtFinal}`
-        const resCa = await fetch(urlVendas, {
+      // 1. Busca todas as notas fiscais emitidas no período via endpoint oficial /v1/notas-fiscais
+      while (pagina <= totalPaginas && pagina <= 20) {
+        const urlNotas = `${CA_BASE}/notas-fiscais?data_inicial=${dtInicial}&data_final=${dtFinal}&pagina=${pagina}&tamanho_pagina=${tamanhoPagina}`
+        const resCa = await fetch(urlNotas, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         })
 
         if (!resCa.ok) {
-          const txt = await resCa.text()
-          console.error(`[notas-emitidas] Erro CA Produtos pagina ${pagina}:`, resCa.status, txt)
-          erroCA = `Erro ${resCa.status}: ${txt}`
+          const txt = await resCa.text().catch(() => '')
+          console.error(`[notas-emitidas] Erro CA /notas-fiscais página ${pagina}:`, resCa.status, txt)
           break
         }
 
@@ -141,52 +157,83 @@ export async function GET(req: NextRequest) {
         if (itensDaPagina.length === 0) break
         todasNotas.push(...itensDaPagina)
 
-        if (itensDaPagina.length < tamanhoPagina) break
+        if (dataCa.paginacao && dataCa.paginacao.total_paginas) {
+          totalPaginas = Number(dataCa.paginacao.total_paginas)
+        } else {
+          if (itensDaPagina.length < tamanhoPagina) break
+        }
         pagina++
       }
 
+      // 2. Busca vendas em paralelo para enriquecer o valor total de cada nota
+      const vendasMapPorNum = new Map<number, any>()
+      const vendasMapPorNome = new Map<string, any>()
+
+      try {
+        const urlVendas = `${CA_BASE}/venda/busca?data_inicio=${dtInicial}&data_fim=${dtFinal}&pagina=1&tamanho_pagina=200`
+        const resVendas = await fetch(urlVendas, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
+        if (resVendas.ok) {
+          const dataVendas = await resVendas.json()
+          const itensV = dataVendas.itens || dataVendas.items || []
+          itensV.forEach((v: any) => {
+            if (v.numero) vendasMapPorNum.set(Number(v.numero), v)
+            if (v.cliente && v.cliente.nome) {
+              vendasMapPorNome.set(v.cliente.nome.toLowerCase().trim(), v)
+            }
+          })
+        }
+      } catch (eVendas) {
+        console.warn('[notas-emitidas] Aviso ao buscar vendas para enriquecimento:', eVendas)
+      }
+
+      // 3. Filtrar por busca textual (se fornecida)
       let notasFiltradas = todasNotas
       if (busca) {
-        const b = busca.toLowerCase()
-        notasFiltradas = notasFiltradas.filter((v: any) => {
-          const nomeCliente = v.destinatario?.nome || v.destinatario?.razao_social || v.tomador?.nome || v.cliente?.nome || v.nome_cliente || v.customer?.name || ''
-          const numNota = String(v.numero_nota || v.numero || v.number || '')
-          const doc = String(v.destinatario?.documento || v.tomador?.documento || v.documento || '')
-          const chave = String(v.chave_acesso || '')
-          return nomeCliente.toLowerCase().includes(b) || numNota.includes(b) || doc.includes(b) || chave.includes(b)
+        const b = busca.toLowerCase().trim()
+        notasFiltradas = notasFiltradas.filter((nota: any) => {
+          const nome = (nota.nome_destinatario || '').toLowerCase()
+          const num = String(nota.numero_nota || '')
+          const chave = String(nota.chave_acesso || '').toLowerCase()
+          return nome.includes(b) || num.includes(b) || chave.includes(b)
         })
       }
 
-      vendasFormatadas = notasFiltradas.map((v: any) => {
-        const nomeCliente = v.destinatario?.nome || v.destinatario?.razao_social || v.tomador?.nome || v.tomador?.razao_social || v.cliente?.nome || v.nome_cliente || v.customer?.name || 'Cliente CA'
-        const docCliente = v.destinatario?.documento || v.destinatario?.cpf || v.destinatario?.cnpj || v.tomador?.documento || v.documento || null
-        const numNota = String(v.numero_nota || v.numero || v.serie_numero || v.number || 'S/N')
-        const dataEmissao = v.data_emissao || v.data_autorizacao || v.emissao || v.data_venda || v.created_at || null
-        const valorTotal = Number(v.valor_total || v.valor_nota || v.total || v.valor_composicao?.valor_liquido || 0)
-        const statusRaw = (v.status || v.situacao?.nome || v.situacao || '').toString().toUpperCase()
+      // 4. Formatar para a interface da aplicação
+      vendasFormatadas = notasFiltradas.map((nota: any) => {
+        const nomeCliente = nota.nome_destinatario || 'Cliente CA'
+        const numNota = String(nota.numero_nota || 'S/N')
+        const dataEmissao = nota.data_emissao || nota.data_autorizacao || null
+        const statusRaw = (nota.status || '').toString().toUpperCase()
         const isCancelado = statusRaw.includes('CANCEL')
+        
+        const matchVenda = vendasMapPorNum.get(Number(nota.numero_nota)) || vendasMapPorNome.get(nomeCliente.toLowerCase().trim())
+        const valorTotal = Number(nota.valor_total || nota.valor_nota || matchVenda?.total || 0)
 
         return {
-          id: v.id || v.id_nota || numNota,
+          id: nota.chave_acesso || numNota,
           cliente: nomeCliente,
           os_numero: numNota,
           data_venda: dataEmissao,
           valor_total: valorTotal,
           status: isCancelado ? 'cancelado' : 'enviado',
-          erro_mensagem: v.chave_acesso ? `Chave: ${v.chave_acesso}` : 'Sincronizado do Conta Azul (NF-e)',
-          conta_azul_id: v.id || numNota,
+          erro_mensagem: nota.chave_acesso ? `Chave: ${nota.chave_acesso}` : 'NF-e Emitida no Conta Azul',
+          conta_azul_id: nota.chave_acesso || numNota,
           updated_at: dataEmissao || new Date().toISOString(),
           created_at: dataEmissao || new Date().toISOString(),
           dados_datacar: {
-            cliente_cpf_cnpj: docCliente,
-            chave_acesso: v.chave_acesso || null,
-            serie: v.serie || null,
-            id_venda: v.id_venda || null
+            cliente: nomeCliente,
+            chave_acesso: nota.chave_acesso || null,
+            numero_nota: nota.numero_nota,
+            serie: nota.serie || '1',
+            id_venda: matchVenda?.id || null
           },
           metadata: {
-            cliente_cpf_cnpj: docCliente,
-            chave_acesso: v.chave_acesso || null,
-            serie: v.serie || null
+            chave_acesso: nota.chave_acesso || null,
+            numero_nota: nota.numero_nota,
+            serie: nota.serie || '1',
+            status: nota.status
           }
         }
       })
