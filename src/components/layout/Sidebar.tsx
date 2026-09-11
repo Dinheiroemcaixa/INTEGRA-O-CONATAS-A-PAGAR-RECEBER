@@ -5,7 +5,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, ArrowDownCircle, ArrowUpCircle,
-  Building2, Settings, ChevronRight, User, LogOut, ShoppingCart, Database, FileKey2,
+  Building2, Settings, ChevronRight, User, LogOut,
+  ShoppingBag, Receipt, FileCheck2, Link2, Layers,
   Sun, Moon
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
@@ -14,15 +15,42 @@ import { createClient } from '@/lib/supabase/client'
 import ModalPerfil from './ModalPerfil'
 import toast from 'react-hot-toast'
 
-const navItems = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Vendas Produtos', href: '/vendas', icon: ShoppingCart },
-  { label: 'Vendas Serviços', href: '/vendas-servicos', icon: ShoppingCart, badge: 'NOVO' },
-    { label: 'Contas a Pagar', href: '/contas-pagar', icon: ArrowDownCircle, badge: 'ATIVO' },
-  { label: 'Gestão de Pagamentos', href: '/gestao-pagamentos', icon: Database, badge: 'NOVO' },
-  { label: 'Contas a Receber', href: '/contas-receber', icon: ArrowUpCircle, badge: 'EM BREVE', disabled: true },
-  { label: 'Empresas', href: '/empresas', icon: Building2 },
-  { label: 'Configuracoes', href: '/configuracoes', icon: Settings, disabled: true },
+interface NavSection {
+  title?: string
+  items: {
+    label: string
+    href: string
+    icon: any
+    badge?: string
+    badgeColor?: string
+    disabled?: boolean
+  }[]
+}
+
+const navSections: NavSection[] = [
+  {
+    items: [
+      { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    ]
+  },
+  {
+    title: 'OPERAÇÃO & FISCAL',
+    items: [
+      { label: 'Vendas Produtos', href: '/vendas', icon: ShoppingBag },
+      { label: 'Vendas Serviços', href: '/vendas-servicos', icon: Receipt, badge: 'NOVO', badgeColor: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30' },
+      { label: 'Notas Emitidas', href: '/notas-emitidas', icon: FileCheck2 },
+      { label: 'Contas a Pagar', href: '/contas-pagar', icon: ArrowDownCircle, badge: 'ATIVO', badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' },
+      { label: 'Gestão Pagamentos', href: '/gestao-pagamentos', icon: Layers, badge: 'NOVO', badgeColor: 'bg-purple-500/10 text-purple-400 border-purple-500/30' },
+      { label: 'Contas a Receber', href: '/contas-receber', icon: ArrowUpCircle, badge: 'EM BREVE', disabled: true },
+    ]
+  },
+  {
+    title: 'SISTEMA & INTEGRAÇÕES',
+    items: [
+      { label: 'Empresas', href: '/empresas', icon: Building2 },
+      { label: 'Conexões & APIs', href: '/conectar', icon: Link2 },
+    ]
+  }
 ]
 
 export default function Sidebar() {
@@ -54,50 +82,81 @@ export default function Sidebar() {
 
   return (
     <>
-      <aside className="w-64 bg-dark-900 border-r border-dark-700 flex flex-col">
+      <aside className="w-64 bg-dark-900 border-r border-dark-700/80 flex flex-col select-none">
 
-        {/* Logo do app — integrado ao fundo */}
-        <div className="p-4 flex flex-col items-center justify-center gap-4 min-h-[120px] border-b border-dark-700/50 mb-2">
-          {/* Logo Dinheiro em Caixa - Grande */}
+        {/* Logo do app */}
+        <div className="p-4 flex flex-col items-center justify-center gap-3 min-h-[110px] border-b border-dark-700/50 mb-1">
           <img 
             src="/images/dinheiro-em-caixa-logo.png" 
             alt="Dinheiro em Caixa" 
-            className="w-full max-w-[180px] h-auto object-contain drop-shadow-md" 
+            className="w-full max-w-[170px] h-auto object-contain drop-shadow-md transition-transform hover:scale-[1.02]" 
           />
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 p-4 space-y-1">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
-            const Icon = item.icon
-            return (
-              <Link
-                key={item.href}
-                href={item.disabled ? '#' : item.href}
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group',
-                  isActive ? `${accentClasses.bg} text-white shadow-md` : 'text-dark-400 hover:text-white hover:bg-dark-800',
-                  item.disabled && 'opacity-40 cursor-not-allowed pointer-events-none'
-                )}
-              >
-                <Icon size={18} className={cn(isActive ? 'text-white' : 'text-dark-400 group-hover:text-white')} />
-                <span className="flex-1">{item.label}</span>
-                {item.badge && !item.disabled && (
-                  <span className="text-[10px] bg-brand-500/20 text-brand-400 px-1.5 py-0.5 rounded-full font-semibold tracking-wider">{item.badge}</span>
-                )}
-                {item.badge && item.disabled && (
-                  <span className="text-[10px] bg-dark-700 text-dark-500 px-1.5 py-0.5 rounded-full font-semibold">{item.badge}</span>
-                )}
-                {isActive && !item.disabled && <ChevronRight size={14} className="text-white/60" />}
-              </Link>
-            )
-          })}
+        <nav className="flex-1 px-3 py-2 space-y-4 overflow-y-auto">
+          {navSections.map((section, sIdx) => (
+            <div key={sIdx} className="space-y-1">
+              {section.title && (
+                <p className="px-3 pt-2 pb-1 text-[10px] font-bold text-dark-500 tracking-wider uppercase">
+                  {section.title}
+                </p>
+              )}
+              {section.items.map((item) => {
+                const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
+                const Icon = item.icon
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.disabled ? '#' : item.href}
+                    className={cn(
+                      'relative flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150 group',
+                      isActive 
+                        ? `${accentClasses.bg} text-white shadow-lg shadow-emerald-950/40 font-semibold` 
+                        : 'text-dark-400 hover:text-white hover:bg-dark-800/70',
+                      item.disabled && 'opacity-40 cursor-not-allowed pointer-events-none'
+                    )}
+                  >
+                    {/* Indicador sutil de item ativo */}
+                    {isActive && (
+                      <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-white rounded-r-full shadow-sm" />
+                    )}
+
+                    <Icon size={16} className={cn(
+                      'flex-shrink-0 transition-transform duration-150 group-hover:scale-110',
+                      isActive ? 'text-white' : 'text-dark-400 group-hover:text-white'
+                    )} />
+                    
+                    <span className="flex-1 truncate">{item.label}</span>
+
+                    {item.badge && !item.disabled && (
+                      <span className={cn(
+                        'text-[9px] px-1.5 py-0.5 rounded-full font-bold border tracking-wider',
+                        item.badgeColor || 'bg-brand-500/20 text-brand-400 border-brand-500/30'
+                      )}>
+                        {item.badge}
+                      </span>
+                    )}
+
+                    {item.badge && item.disabled && (
+                      <span className="text-[9px] bg-dark-800 text-dark-500 border border-dark-700 px-1.5 py-0.5 rounded-full font-semibold">
+                        {item.badge}
+                      </span>
+                    )}
+
+                    {isActive && !item.disabled && (
+                      <ChevronRight size={13} className="text-white/60 ml-auto" />
+                    )}
+                  </Link>
+                )
+              })}
+            </div>
+          ))}
         </nav>
 
-        {/* Footer — perfil + alternar tema + sair */}
-        <div className="p-4 border-t border-dark-700 space-y-2">
-          <div className="flex items-center justify-between bg-dark-800 hover:bg-dark-700 border border-dark-700 hover:border-dark-600 rounded-xl px-3 py-2 transition-all">
+        {/* Footer */}
+        <div className="p-3 border-t border-dark-700/80 space-y-2 bg-dark-900/60 backdrop-blur-sm">
+          <div className="flex items-center justify-between bg-dark-800/80 hover:bg-dark-700/80 border border-dark-700/70 hover:border-dark-600 rounded-xl px-2.5 py-2 transition-all">
             <button
               onClick={() => setModalPerfil(true)}
               className="flex-1 flex items-center gap-2.5 min-w-0 text-left group"
@@ -107,11 +166,10 @@ export default function Sidebar() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-white text-xs font-semibold truncate">{userEmail || '...'}</p>
-                <p className="text-[9px] text-dark-500">Opções & Perfil</p>
+                <p className="text-[9px] text-dark-400">Opções & Perfil</p>
               </div>
             </button>
 
-            {/* Botão de Alternar Modo Claro / Modo Escuro (embarcado sem estourar a largura) */}
             <button
               onClick={toggleTema}
               title={config.darkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
@@ -123,30 +181,28 @@ export default function Sidebar() {
 
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-dark-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all group"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-dark-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all group"
           >
-            <LogOut size={16} className="text-dark-400 group-hover:text-rose-400 transition-colors" />
+            <LogOut size={15} className="text-dark-400 group-hover:text-rose-400 transition-colors" />
             <span>Sair do sistema</span>
           </button>
 
-          {/* Logo Connecta AI no rodapé */}
-          <div className="pt-4 border-t border-dark-700/50 flex flex-col items-center mt-2">
+          {/* Logo Connecta AI */}
+          <div className="pt-2 border-t border-dark-700/50 flex flex-col items-center">
             {config.appLogoUrl ? (
-              <img src={config.appLogoUrl} alt={config.appNome} className="h-8 max-w-[120px] object-contain mix-blend-screen opacity-70 hover:opacity-100 transition-opacity" />
+              <img src={config.appLogoUrl} alt={config.appNome} className="h-7 max-w-[110px] object-contain mix-blend-screen opacity-70 hover:opacity-100 transition-opacity" />
             ) : (
               <div className="flex items-center gap-2 opacity-80 hover:opacity-100 transition-opacity">
-                <div className={`w-7 h-7 ${accentClasses.bg} rounded-lg flex items-center justify-center shadow-sm flex-shrink-0`}>
-                  <span className="text-white font-black text-sm">{config.appNome.charAt(0)}</span>
+                <div className={`w-6 h-6 ${accentClasses.bg} rounded-lg flex items-center justify-center shadow-sm flex-shrink-0`}>
+                  <span className="text-white font-black text-xs">{config.appNome.charAt(0)}</span>
                 </div>
                 <div>
                   <p className="text-white font-bold text-xs leading-tight">{config.appNome}</p>
-                  <p className="text-dark-500 text-[8px] uppercase tracking-wider">Inteligencia Financeira</p>
+                  <p className="text-dark-500 text-[8px] uppercase tracking-wider">Inteligência Financeira</p>
                 </div>
               </div>
             )}
           </div>
-
-          <p className="text-[9px] text-dark-800 text-center mt-2 select-none">dev: AH Cardoso</p>
         </div>
       </aside>
 

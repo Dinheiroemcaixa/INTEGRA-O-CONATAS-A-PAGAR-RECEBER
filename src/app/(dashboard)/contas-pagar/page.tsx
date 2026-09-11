@@ -701,8 +701,8 @@ export default function ContasPagarPage() {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-white">Contas a Pagar</h1>
-            <span className="px-2 py-0.5 bg-dark-700 text-dark-400 text-[10px] font-mono rounded border border-dark-600">
-              v1.2
+            <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-semibold rounded-full border border-emerald-500/25 tracking-wider">
+              PRODUÇÃO
             </span>
           </div>
           <p className="text-dark-400 text-sm mt-1">
@@ -730,30 +730,32 @@ export default function ContasPagarPage() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-dark-700 pb-2">
-        <button
-          onClick={() => setSubAba('datacar')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-            subAba === 'datacar'
-              ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-              : 'text-dark-400 hover:text-white hover:bg-dark-800'
-          }`}
-        >
-          <Database size={16} />
-          Datacar Contas
-        </button>
-        <button
-          onClick={() => setSubAba('planilha')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-            subAba === 'planilha'
-              ? 'bg-brand-600/20 text-brand-400 border border-brand-500/30'
-              : 'text-dark-400 hover:text-white hover:bg-dark-800'
-          }`}
-        >
-          <FileSpreadsheet size={16} />
-          Importar Planilha
-        </button>
+      {/* Segmented Control de Abas (Harmonizado com Vendas) */}
+      <div className="flex items-center justify-between border-b border-dark-700/70 pb-3">
+        <div className="inline-flex p-1 bg-dark-800/80 backdrop-blur-md rounded-2xl border border-dark-700/60 gap-1 shadow-inner">
+          <button
+            onClick={() => setSubAba('datacar')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+              subAba === 'datacar'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-950/40'
+                : 'text-dark-400 hover:text-white hover:bg-dark-700/50'
+            }`}
+          >
+            <Database size={14} />
+            Datacar Contas
+          </button>
+          <button
+            onClick={() => setSubAba('planilha')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+              subAba === 'planilha'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/40'
+                : 'text-dark-400 hover:text-white hover:bg-dark-700/50'
+            }`}
+          >
+            <FileSpreadsheet size={14} />
+            Importar Planilha
+          </button>
+        </div>
       </div>
 
       {/* SUB-ABA: DATACAR */}

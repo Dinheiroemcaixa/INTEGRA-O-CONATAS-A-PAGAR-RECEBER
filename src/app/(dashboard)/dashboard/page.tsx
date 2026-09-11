@@ -270,7 +270,15 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
+            Dashboard
+            <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-semibold tracking-wider">
+              LIVE
+            </span>
+          </h1>
+          <p className="text-xs text-dark-400 mt-1 font-normal">
+            Visão executiva em tempo real de operações financeiras e integrações.
+          </p>
         </div>
         <div className="flex items-center gap-4">
           <SelectorEmpresa />
@@ -349,8 +357,8 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   <>
-                    <p className="text-4xl font-bold text-white tabular-nums leading-none drop-shadow-sm">{card.value}</p>
-                    <p className="text-dark-400 text-sm mt-2 font-medium">{card.sub}</p>
+                    <p className="text-3xl font-bold text-white font-mono tabular-nums leading-none drop-shadow-sm tracking-tight">{card.value}</p>
+                    <p className="text-dark-300 text-xs mt-2 font-medium font-mono">{card.sub}</p>
                   </>
                 )}
               </div>

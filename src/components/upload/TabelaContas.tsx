@@ -264,15 +264,15 @@ export default function TabelaContas({ empresaId }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Resumo rápido */}
+            {/* Resumo rápido */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-dark-800 border border-yellow-500/20 rounded-xl p-4">
-          <p className="text-xs text-dark-400 mb-1">Total Pendente</p>
-          <p className="text-yellow-400 text-xl font-bold">{formatCurrency(totalPendente)}</p>
+        <div className="bg-dark-800/80 backdrop-blur-md border border-amber-500/20 rounded-2xl p-4 shadow-lg">
+          <p className="text-xs text-dark-400 mb-1 font-medium">Total Pendente</p>
+          <p className="text-amber-400 text-xl font-bold font-mono tabular-nums">{formatCurrency(totalPendente)}</p>
         </div>
-        <div className="bg-dark-800 border border-green-500/20 rounded-xl p-4">
-          <p className="text-xs text-dark-400 mb-1">Total Enviado</p>
-          <p className="text-green-400 text-xl font-bold">{formatCurrency(totalEnviado)}</p>
+        <div className="bg-dark-800/80 backdrop-blur-md border border-emerald-500/20 rounded-2xl p-4 shadow-lg">
+          <p className="text-xs text-dark-400 mb-1 font-medium">Total Enviado</p>
+          <p className="text-emerald-400 text-xl font-bold font-mono tabular-nums">{formatCurrency(totalEnviado)}</p>
         </div>
       </div>
 
@@ -424,7 +424,7 @@ export default function TabelaContas({ empresaId }: Props) {
           </p>
         </div>
       ) : (
-        <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden shadow-2xl">
+        <div className="bg-dark-800/90 backdrop-blur-md border border-dark-700/80 rounded-2xl overflow-hidden shadow-2xl">
           <div className="overflow-x-auto">
             <table className="table-bpo">
               <thead>

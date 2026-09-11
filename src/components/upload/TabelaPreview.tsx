@@ -170,7 +170,7 @@ export default function TabelaPreview({
   }, [buscaFornecedor, buscaCategoria, buscaValor, filtro, onToggleTodosLote])
 
   return (
-    <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden">
+    <div className="bg-dark-800/90 backdrop-blur-md border border-dark-700/80 rounded-2xl overflow-hidden shadow-2xl">
       {/* Header da tabela */}
       <div className="px-4 py-3 border-b border-dark-700 space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
@@ -217,7 +217,7 @@ export default function TabelaPreview({
               placeholder="Filtrar fornecedor..."
               value={buscaFornecedor}
               onChange={(e) => setBuscaFornecedor(e.target.value)}
-              className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:ring-1 focus:ring-brand-500"
+              className="w-full bg-dark-900/80 border border-dark-700/80 rounded-xl px-3 py-2 text-xs text-white outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500/80 transition-all shadow-inner"
             />
           </div>
           <div className="relative">
@@ -226,7 +226,7 @@ export default function TabelaPreview({
               placeholder="Filtrar categoria..."
               value={buscaCategoria}
               onChange={(e) => setBuscaCategoria(e.target.value)}
-              className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:ring-1 focus:ring-brand-500"
+              className="w-full bg-dark-900/80 border border-dark-700/80 rounded-xl px-3 py-2 text-xs text-white outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500/80 transition-all shadow-inner"
             />
           </div>
           <div className="relative">
@@ -235,7 +235,7 @@ export default function TabelaPreview({
               placeholder="Filtrar valor..."
               value={buscaValor}
               onChange={(e) => setBuscaValor(e.target.value)}
-              className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:ring-1 focus:ring-brand-500"
+              className="w-full bg-dark-900/80 border border-dark-700/80 rounded-xl px-3 py-2 text-xs text-white outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500/80 transition-all shadow-inner"
             />
           </div>
         </div>
