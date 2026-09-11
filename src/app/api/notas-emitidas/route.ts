@@ -4,39 +4,72 @@ import { createClient } from '@supabase/supabase-js'
 export const dynamic = 'force-dynamic'
 
 function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  return createClient(supabaseUrl, supabaseServiceKey)
 }
 
-// ─── GET: Buscar notas emitidas (Produtos via Conta Azul ou Serviços via Gov.br) ───
+// Divide um intervalo [dtInicial, dtFinal] em blocos de no máximo 14 dias (limite do Conta Azul é 15 dias)
+function gerarIntervalosDe15Dias(dtInicial: string, dtFinal: string, maxDias: number = 14) {
+  const intervalos: { ini: string; fim: string }[] = []
+  const start = new Date(dtInicial + 'T00:00:00')
+  const end = new Date(dtFinal + 'T00:00:00')
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+    return [{ ini: dtInicial, fim: dtFinal }]
+  }
+
+  let currentStart = new Date(start)
+  while (currentStart <= end) {
+    let currentEnd = new Date(currentStart)
+    currentEnd.setDate(currentEnd.getDate() + maxDias)
+    if (currentEnd > end) currentEnd = new Date(end)
+
+    const formatYMD = (d: Date) => {
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const dia = String(d.getDate()).padStart(2, '0')
+      return `${y}-${m}-${dia}`
+    }
+
+    intervalos.push({
+      ini: formatYMD(currentStart),
+      fim: formatYMD(currentEnd)
+    })
+
+    currentStart = new Date(currentEnd)
+    currentStart.setDate(currentStart.getDate() + 1)
+  }
+
+  return intervalos
+}
+
+// ─── GET: Listar notas emitidas (Serviços e Produtos) ────────────────────────
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const empresa_id = searchParams.get('empresa_id')
-    const tipo = searchParams.get('tipo') || 'produtos' // 'produtos' ou 'servicos'
+    const tipo = searchParams.get('tipo') || 'servicos'
+    const busca = searchParams.get('busca') || ''
     const data_inicio = searchParams.get('data_inicio')
     const data_fim = searchParams.get('data_fim')
-    const busca = searchParams.get('busca')
 
     if (!empresa_id) {
-      return NextResponse.json({ error: 'empresa_id obrigatorio' }, { status: 400 })
+      return NextResponse.json({ error: 'empresa_id e obrigatorio' }, { status: 400 })
     }
 
     const supabase = getSupabaseAdmin()
     let vendasFormatadas: any[] = []
 
     // ────────────────────────────────────────────────────────
-    // ABA SERVIÇOS: Consulta DIRETA no Supabase (Gov.br / Emissor Nacional)
+    // ABA SERVIÇOS: Consulta tabela vendas_importadas
     // ────────────────────────────────────────────────────────
     if (tipo === 'servicos') {
       let query = supabase
         .from('vendas_importadas')
         .select('*')
         .eq('empresa_id', empresa_id)
-        .in('status', ['enviado', 'cancelado'])
-        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false })
 
       if (data_inicio) query = query.gte('data_venda', data_inicio)
       if (data_fim) query = query.lte('data_venda', data_fim)
@@ -88,7 +121,7 @@ export async function GET(req: NextRequest) {
 
     // ────────────────────────────────────────────────────────
     // ABA PRODUTOS: Consulta via API Oficial de Notas Fiscais (v1) Conta Azul
-    // Endpoint: GET /v1/notas-fiscais
+    // Endpoint: GET /v1/notas-fiscais (com suporte a períodos de qualquer tamanho via fatiamento de 15 dias)
     // ────────────────────────────────────────────────────────
     if (tipo === 'produtos') {
       const { getValidToken } = await import('@/lib/conta-azul/token-manager')
@@ -133,62 +166,75 @@ export async function GET(req: NextRequest) {
         dtFinal = `${y}-${m}-${d}`
       }
 
-      let todasNotas: any[] = []
-      let pagina = 1
-      let totalPaginas = 1
-      const tamanhoPagina = 100
+      // 1. Gerar intervalos de no máximo 14 dias para contornar a limitação da API do Conta Azul
+      const blocos = gerarIntervalosDe15Dias(dtInicial, dtFinal, 14)
+      const notasMap = new Map<string, any>()
 
-      // 1. Busca todas as notas fiscais emitidas no período via endpoint oficial /v1/notas-fiscais
-      while (pagina <= totalPaginas && pagina <= 20) {
-        const urlNotas = `${CA_BASE}/notas-fiscais?data_inicial=${dtInicial}&data_final=${dtFinal}&pagina=${pagina}&tamanho_pagina=${tamanhoPagina}`
-        const resCa = await fetch(urlNotas, {
-          headers: { 'Authorization': `Bearer ${accessToken}` }
-        })
+      // 2. Busca todas as notas fiscais emitidas em cada bloco
+      for (const bloco of blocos) {
+        let pagina = 1
+        let totalPaginas = 1
+        const tamanhoPagina = 100
 
-        if (!resCa.ok) {
-          const txt = await resCa.text().catch(() => '')
-          console.error(`[notas-emitidas] Erro CA /notas-fiscais página ${pagina}:`, resCa.status, txt)
-          break
+        while (pagina <= totalPaginas && pagina <= 20) {
+          const urlNotas = `${CA_BASE}/notas-fiscais?data_inicial=${bloco.ini}&data_final=${bloco.fim}&pagina=${pagina}&tamanho_pagina=${tamanhoPagina}`
+          const resCa = await fetch(urlNotas, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          })
+
+          if (!resCa.ok) {
+            const txt = await resCa.text().catch(() => '')
+            console.error(`[notas-emitidas] Erro CA /notas-fiscais bloco ${bloco.ini}..${bloco.fim} pg ${pagina}:`, resCa.status, txt)
+            break
+          }
+
+          const dataCa = await resCa.json()
+          const itensDaPagina = dataCa.itens || dataCa.items || (Array.isArray(dataCa) ? dataCa : [])
+
+          if (itensDaPagina.length === 0) break
+
+          itensDaPagina.forEach((n: any) => {
+            const idNota = n.chave_acesso || `${n.serie || '1'}_${n.numero_nota}`
+            if (idNota) notasMap.set(idNota, n)
+          })
+
+          if (dataCa.paginacao && dataCa.paginacao.total_paginas) {
+            totalPaginas = Number(dataCa.paginacao.total_paginas)
+          } else {
+            if (itensDaPagina.length < tamanhoPagina) break
+          }
+          pagina++
         }
-
-        const dataCa = await resCa.json()
-        const itensDaPagina = dataCa.itens || dataCa.items || (Array.isArray(dataCa) ? dataCa : [])
-
-        if (itensDaPagina.length === 0) break
-        todasNotas.push(...itensDaPagina)
-
-        if (dataCa.paginacao && dataCa.paginacao.total_paginas) {
-          totalPaginas = Number(dataCa.paginacao.total_paginas)
-        } else {
-          if (itensDaPagina.length < tamanhoPagina) break
-        }
-        pagina++
       }
 
-      // 2. Busca vendas em paralelo para enriquecer o valor total de cada nota
+      const todasNotas = Array.from(notasMap.values())
+
+      // 3. Busca vendas em paralelo para enriquecer o valor total de cada nota
       const vendasMapPorNum = new Map<number, any>()
       const vendasMapPorNome = new Map<string, any>()
 
       try {
-        const urlVendas = `${CA_BASE}/venda/busca?data_inicio=${dtInicial}&data_fim=${dtFinal}&pagina=1&tamanho_pagina=200`
-        const resVendas = await fetch(urlVendas, {
-          headers: { 'Authorization': `Bearer ${accessToken}` }
-        })
-        if (resVendas.ok) {
-          const dataVendas = await resVendas.json()
-          const itensV = dataVendas.itens || dataVendas.items || []
-          itensV.forEach((v: any) => {
-            if (v.numero) vendasMapPorNum.set(Number(v.numero), v)
-            if (v.cliente && v.cliente.nome) {
-              vendasMapPorNome.set(v.cliente.nome.toLowerCase().trim(), v)
-            }
+        for (const bloco of blocos) {
+          const urlVendas = `${CA_BASE}/venda/busca?data_inicio=${bloco.ini}&data_fim=${bloco.fim}&pagina=1&tamanho_pagina=200`
+          const resVendas = await fetch(urlVendas, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
           })
+          if (resVendas.ok) {
+            const dataVendas = await resVendas.json()
+            const itensV = dataVendas.itens || dataVendas.items || []
+            itensV.forEach((v: any) => {
+              if (v.numero) vendasMapPorNum.set(Number(v.numero), v)
+              if (v.cliente && v.cliente.nome) {
+                vendasMapPorNome.set(v.cliente.nome.toLowerCase().trim(), v)
+              }
+            })
+          }
         }
       } catch (eVendas) {
         console.warn('[notas-emitidas] Aviso ao buscar vendas para enriquecimento:', eVendas)
       }
 
-      // 3. Filtrar por busca textual (se fornecida)
+      // 4. Filtrar por busca textual (se fornecida)
       let notasFiltradas = todasNotas
       if (busca) {
         const b = busca.toLowerCase().trim()
@@ -200,7 +246,7 @@ export async function GET(req: NextRequest) {
         })
       }
 
-      // 4. Formatar para a interface da aplicação
+      // 5. Formatar para a interface da aplicação
       vendasFormatadas = notasFiltradas.map((nota: any) => {
         const nomeCliente = nota.nome_destinatario || 'Cliente CA'
         const numNota = String(nota.numero_nota || 'S/N')
@@ -238,6 +284,13 @@ export async function GET(req: NextRequest) {
         }
       })
 
+      // Ordenar da mais recente para a mais antiga
+      vendasFormatadas.sort((a, b) => {
+        const timeA = new Date(a.data_venda || a.created_at).getTime()
+        const timeB = new Date(b.data_venda || b.created_at).getTime()
+        return timeB - timeA
+      })
+
       return NextResponse.json({ notas: vendasFormatadas })
     }
 
@@ -258,50 +311,34 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { empresa_id, nota_id, acao } = body
 
-    if (!empresa_id || !nota_id || !acao) {
-      return NextResponse.json({ error: 'empresa_id, nota_id e acao sao obrigatorios' }, { status: 400 })
+    if (!empresa_id || !nota_id) {
+      return NextResponse.json({ error: 'empresa_id e nota_id sao obrigatorios' }, { status: 400 })
     }
 
     const supabase = getSupabaseAdmin()
 
     if (acao === 'cancelar') {
-      const { data: nota, error: notaErr } = await supabase
-        .from('vendas_importadas')
-        .select('id, status, os_numero')
-        .eq('id', nota_id)
-        .eq('empresa_id', empresa_id)
-        .single()
-
-      if (notaErr || !nota) {
-        return NextResponse.json({ error: 'Nota nao encontrada' }, { status: 404 })
-      }
-
-      if (nota.status === 'cancelado') {
-        return NextResponse.json({ error: 'Nota ja esta cancelada' }, { status: 400 })
-      }
-
-      const { error: updateErr } = await supabase
+      const { error } = await supabase
         .from('vendas_importadas')
         .update({
           status: 'cancelado',
-          erro_mensagem: 'NFS-e Cancelada em ' + new Date().toLocaleDateString('pt-BR') + ' - Cancelamento Gov.br'
+          erro_mensagem: 'Cancelada pelo usuario via painel',
+          updated_at: new Date().toISOString()
         })
         .eq('id', nota_id)
+        .eq('empresa_id', empresa_id)
 
-      if (updateErr) {
-        return NextResponse.json({ error: 'Erro ao cancelar: ' + updateErr.message }, { status: 500 })
-      }
+      if (error) throw error
 
-      return NextResponse.json({
-        success: true,
-        mensagem: 'NFS-e da OS #' + nota.os_numero + ' cancelada com sucesso.'
-      })
+      return NextResponse.json({ success: true, message: 'Nota cancelada com sucesso' })
     }
 
-    return NextResponse.json({ error: 'Acao desconhecida' }, { status: 400 })
-
+    return NextResponse.json({ error: 'Acao nao suportada' }, { status: 400 })
   } catch (err: any) {
-    console.error('[notas-emitidas] Erro ao executar acao:', err)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    console.error('[notas-emitidas] Erro no POST:', err)
+    return NextResponse.json(
+      { error: err.message || 'Erro ao processar acao' },
+      { status: 500 }
+    )
   }
 }
