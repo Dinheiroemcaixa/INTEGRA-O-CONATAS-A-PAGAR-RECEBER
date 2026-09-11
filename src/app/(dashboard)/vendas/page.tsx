@@ -479,13 +479,25 @@ export default function VendasPage() {
   const formatCurrency = (val: number) =>
     val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
-  const formatDate = (dt: string | null) => {
+  const formatDate = (dt: string | null | undefined) => {
     if (!dt) return '-'
     try {
-      const d = new Date(dt + 'T12:00:00')
-      if (isNaN(d.getTime())) return dt
-      return d.toLocaleDateString('pt-BR')
-    } catch { return dt }
+      const s = String(dt).trim()
+      if (/^\d{2}\/\d{2}\/\d{4}/.test(s)) return s.substring(0, 10)
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+        const [ano, mes, diaResto] = s.split('-')
+        const dia = diaResto.substring(0, 2)
+        return `${dia}/${mes}/${ano}`
+      }
+      const d = new Date(s)
+      if (!isNaN(d.getTime())) {
+        const dia = String(d.getDate()).padStart(2, '0')
+        const mes = String(d.getMonth() + 1).padStart(2, '0')
+        const ano = d.getFullYear()
+        return `${dia}/${mes}/${ano}`
+      }
+      return s
+    } catch { return String(dt) }
   }
 
   const totalFaturadoNfe = notasEmitidas.reduce((acc, n) => acc + (Number(n.valor_total) || 0), 0)
@@ -1151,16 +1163,28 @@ export default function VendasPage() {
                           </td>
                           <td className="py-3 px-4 text-right">
                             {chave ? (
-                              <a
-                                href={`/api/notas-emitidas/xml?empresa_id=${empresaAtiva?.id}&chave=${chave}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-dark-700 hover:bg-dark-600 text-blue-400 hover:text-white rounded text-xs font-semibold transition-colors"
-                                title="Baixar XML oficial da NF-e"
-                              >
-                                <Download size={13} />
-                                XML
-                              </a>
+                              <div className="flex items-center justify-end gap-1.5">
+                                <a
+                                  href={`/api/notas-emitidas/danfe?empresa_id=${empresaAtiva?.id}&chave=${chave}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 rounded text-xs font-semibold transition-colors shadow-sm"
+                                  title="Visualizar e Imprimir DANFE em PDF"
+                                >
+                                  <FileText size={13} />
+                                  DANFE / PDF
+                                </a>
+                                <a
+                                  href={`/api/notas-emitidas/xml?empresa_id=${empresaAtiva?.id}&chave=${chave}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-dark-700 hover:bg-dark-600 text-blue-400 hover:text-white rounded text-xs font-semibold transition-colors"
+                                  title="Baixar XML oficial da NF-e"
+                                >
+                                  <Download size={13} />
+                                  XML
+                                </a>
+                              </div>
                             ) : (
                               <span className="text-[10px] text-dark-500 font-mono">
                                 ID CA: {nota.conta_azul_id ? String(nota.conta_azul_id).slice(0, 8) : '—'}

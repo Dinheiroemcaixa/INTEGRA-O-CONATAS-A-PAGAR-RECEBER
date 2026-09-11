@@ -473,13 +473,25 @@ export default function VendasServicosPage() {
   const formatCurrency = (val: number) =>
     val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
-  const formatDate = (dt: string | null) => {
+  const formatDate = (dt: string | null | undefined) => {
     if (!dt) return '-'
     try {
-      const d = new Date(dt + 'T12:00:00')
-      if (isNaN(d.getTime())) return dt
-      return d.toLocaleDateString('pt-BR')
-    } catch { return dt }
+      const s = String(dt).trim()
+      if (/^\d{2}\/\d{2}\/\d{4}/.test(s)) return s.substring(0, 10)
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+        const [ano, mes, diaResto] = s.split('-')
+        const dia = diaResto.substring(0, 2)
+        return `${dia}/${mes}/${ano}`
+      }
+      const d = new Date(s)
+      if (!isNaN(d.getTime())) {
+        const dia = String(d.getDate()).padStart(2, '0')
+        const mes = String(d.getMonth() + 1).padStart(2, '0')
+        const ano = d.getFullYear()
+        return `${dia}/${mes}/${ano}`
+      }
+      return s
+    } catch { return String(dt) }
   }
 
   // Calcula faturamento de NFS-e emitidas (não canceladas)
