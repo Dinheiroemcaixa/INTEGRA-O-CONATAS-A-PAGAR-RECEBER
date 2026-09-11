@@ -98,31 +98,75 @@ export async function POST(req: NextRequest) {
     const resultados: any[] = []
     const contatosCache = new Map<string, string>()
 
-    // 4. Processar cada conta
-    for (const conta of contas) {
+    // Pré-popular cache com identificadores já persistidos no De-Para
+    try {
+      const { data: regrasDepara } = await supabaseAdmin
+        .from('fornecedor_depara')
+        .select('nome_original, nome_original_normalizado, nome_corrigido, conta_azul_contato_id')
+        .eq('empresa_id', empresa_id)
+
+      if (regrasDepara && regrasDepara.length > 0) {
+        for (const r of regrasDepara) {
+          if (r.conta_azul_contato_id) {
+            if (r.nome_original) contatosCache.set(r.nome_original.trim().toUpperCase(), r.conta_azul_contato_id)
+            if (r.nome_original_normalizado) contatosCache.set(r.nome_original_normalizado.trim().toUpperCase(), r.conta_azul_contato_id)
+            if (r.nome_corrigido) contatosCache.set(r.nome_corrigido.trim().toUpperCase(), r.conta_azul_contato_id)
+          }
+        }
+      }
+    } catch (errDepara) {
+      console.warn('[ca/enviar] Aviso ao carregar cache de contatos persistido:', errDepara)
+    }
+
+    // Helper defensivo para obter e persistir o ID de contato
+    const resolverContatoId = async (fornecedorNome: string): Promise<string | null> => {
+      const nomeLimpo = (fornecedorNome || '').trim()
+      const chaveNorm = nomeLimpo.toUpperCase()
+      if (!chaveNorm || chaveNorm === 'NÃO INFORMADO' || chaveNorm === 'NÃO IDENTIFICADO') {
+        return null
+      }
+
+      if (contatosCache.has(chaveNorm)) {
+        return contatosCache.get(chaveNorm) || null
+      }
+
+      try {
+        const resContato = await buscarOuCriarContato(accessToken, nomeLimpo)
+        if (resContato) {
+          contatosCache.set(chaveNorm, resContato)
+          // Persistência assíncrona na tabela fornecedor_depara
+          try {
+            await supabaseAdmin
+              .from('fornecedor_depara')
+              .update({
+                conta_azul_contato_id: resContato,
+                updated_at: new Date().toISOString()
+              })
+              .eq('empresa_id', empresa_id)
+              .eq('nome_original_normalizado', chaveNorm)
+          } catch (errPersist) {
+            console.warn('[ca/enviar] Aviso ao persistir conta_azul_contato_id em fornecedor_depara:', errPersist)
+          }
+          return resContato
+        }
+      } catch (errContato) {
+        console.error(`[ca/enviar] Erro ao buscar/criar contato ${nomeLimpo}:`, errContato)
+      }
+
+      return null
+    }
+
+    // 4. Processar contas em lotes com concorrência controlada (Chunk Size = 3)
+    const CHUNK_SIZE = 3
+    for (let i = 0; i < contas.length; i += CHUNK_SIZE) {
+      const chunk = contas.slice(i, i + CHUNK_SIZE)
+      await Promise.all(
+        chunk.map(async (conta) => {
       let payloadFinal: any = null
       try {
-        // Fornecedor
-        let contatoId: string | null = null
+        // Fornecedor (com cache em memória e persistência em fornecedor_depara)
         const fornecedorNome = (conta.fornecedor || '').trim()
-
-        if (fornecedorNome && fornecedorNome.toUpperCase() !== 'NÃO INFORMADO' && fornecedorNome.toUpperCase() !== 'NÃO IDENTIFICADO') {
-          if (contatosCache.has(fornecedorNome)) {
-            contatoId = contatosCache.get(fornecedorNome) || null
-          } else {
-            try {
-              const resContato = await buscarOuCriarContato(accessToken, fornecedorNome)
-              if (resContato) {
-                contatoId = resContato
-                contatosCache.set(fornecedorNome, resContato)
-              }
-            } catch (errContato) {
-              console.error(`[ca/enviar] Erro ao buscar/criar contato ${fornecedorNome}:`, errContato)
-            }
-          }
-        } else {
-          console.log('[ca/enviar] Fornecedor vazio ou não informado. Omitindo contato do payload.')
-        }
+        const contatoId = await resolverContatoId(fornecedorNome)
 
         // Categoria (Match Inteligente)
         let catId = null
@@ -283,7 +327,9 @@ export async function POST(req: NextRequest) {
 
         resultados.push({ id: conta.id, status: 'erro', detalhe: msg })
       }
-    }
+    })
+  )
+}
 
     // Limpar do banco os registros "enviados" com mais de 2 horas para evitar sobrecarregar
     try {

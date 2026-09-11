@@ -12,21 +12,26 @@ const supabaseAdmin = createClient(
 /** Salva regra De-Para de fornecedor (nome do Datacar → nome do Conta Azul) */
 export async function POST(req: NextRequest) {
   try {
-    const { empresa_id, nome_original, nome_original_normalizado, nome_corrigido } = await req.json()
+    const { empresa_id, nome_original, nome_original_normalizado, nome_corrigido, conta_azul_contato_id } = await req.json()
 
     if (!empresa_id || !nome_original || !nome_original_normalizado || !nome_corrigido) {
       return NextResponse.json({ error: 'Campos obrigatórios: empresa_id, nome_original, nome_original_normalizado, nome_corrigido' }, { status: 400 })
     }
 
+    const payloadUpsert: Record<string, any> = {
+      empresa_id,
+      nome_original,
+      nome_original_normalizado,
+      nome_corrigido,
+      updated_at: new Date().toISOString(),
+    }
+    if (conta_azul_contato_id) {
+      payloadUpsert.conta_azul_contato_id = conta_azul_contato_id
+    }
+
     const { error } = await supabaseAdmin
       .from('fornecedor_depara')
-      .upsert({
-        empresa_id,
-        nome_original,
-        nome_original_normalizado,
-        nome_corrigido,
-        updated_at: new Date().toISOString(),
-      }, {
+      .upsert(payloadUpsert, {
         onConflict: 'empresa_id,nome_original_normalizado',
       })
 
@@ -54,7 +59,7 @@ export async function GET(req: NextRequest) {
   // 1. Regras específicas da empresa atual
   const { data: regrasEmpresa, error: errEmpresa } = await supabaseAdmin
     .from('fornecedor_depara')
-    .select('id, nome_original, nome_original_normalizado, nome_corrigido, updated_at, empresa_id')
+    .select('id, nome_original, nome_original_normalizado, nome_corrigido, conta_azul_contato_id, updated_at, empresa_id')
     .eq('empresa_id', empresa_id)
     .order('updated_at', { ascending: false })
 
@@ -65,7 +70,7 @@ export async function GET(req: NextRequest) {
   // 2. Regras aprendidas em outras lojas (fallback global do grupo)
   const { data: todasRegras } = await supabaseAdmin
     .from('fornecedor_depara')
-    .select('id, nome_original, nome_original_normalizado, nome_corrigido, updated_at, empresa_id')
+    .select('id, nome_original, nome_original_normalizado, nome_corrigido, conta_azul_contato_id, updated_at, empresa_id')
     .neq('empresa_id', empresa_id)
     .order('updated_at', { ascending: false })
 
