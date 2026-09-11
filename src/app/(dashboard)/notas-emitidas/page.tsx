@@ -650,19 +650,51 @@ export default function NotasEmitidasPage() {
           </button>
         </div>
 
-        {/* ─── Resumo ─────────────────────────────────────────────────── */}
-        <div className="px-4 py-3 flex gap-6 items-center text-xs text-dark-400 border-b border-dark-700/30 bg-dark-800/50">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <strong className="text-emerald-400">{totalEmitidas}</strong> emitida{totalEmitidas !== 1 ? 's' : ''}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-rose-500" />
-            <strong className="text-rose-400">{totalCanceladas}</strong> cancelada{totalCanceladas !== 1 ? 's' : ''}
-          </span>
-          <span className="ml-auto text-dark-300 font-mono">
-            Total: <strong className="text-white">{formatCurrency(totalValor)}</strong>
-          </span>
+        {/* ─── Painel Superior de Resumo (4 Cards Estilo Conta Azul) ─── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 bg-dark-850/90 border-b border-dark-700/80 divide-y sm:divide-y-0 sm:divide-x divide-dark-700/60 text-xs">
+          {/* Card 1: Notas Canceladas */}
+          <div className="p-3.5 text-center">
+            <div className="text-[11px] font-medium text-dark-300 flex items-center justify-center gap-1">
+              <span>Notas canceladas</span>
+              <span className="text-dark-400 font-semibold">({totalCanceladas})</span>
+            </div>
+            <div className="text-base font-bold text-dark-200 mt-1 tabular-nums">
+              {formatCurrency(notasAtivas.filter(n => n.status === 'cancelado').reduce((s, n) => s + (n.valor_total || 0), 0))}
+            </div>
+          </div>
+
+          {/* Card 2: Pendentes */}
+          <div className="p-3.5 text-center">
+            <div className="text-[11px] font-medium text-amber-400/90 flex items-center justify-center gap-1">
+              <span>Pendentes</span>
+              <span className="text-amber-400/70 font-semibold">(0)</span>
+            </div>
+            <div className="text-base font-bold text-amber-400 mt-1 tabular-nums">
+              R$ 0,00
+            </div>
+          </div>
+
+          {/* Card 3: Emitidas */}
+          <div className="p-3.5 text-center">
+            <div className="text-[11px] font-medium text-emerald-400/90 flex items-center justify-center gap-1">
+              <span>Emitidas</span>
+              <span className="text-emerald-400/70 font-semibold">({totalEmitidas})</span>
+            </div>
+            <div className="text-base font-bold text-emerald-400 mt-1 tabular-nums">
+              {formatCurrency(notasAtivas.filter(n => n.status === 'enviado').reduce((s, n) => s + (n.valor_total || 0), 0))}
+            </div>
+          </div>
+
+          {/* Card 4: Total do Período */}
+          <div className="p-3.5 text-center border-t-2 border-t-blue-500 bg-blue-500/[0.02]">
+            <div className="text-[11px] font-medium text-blue-400/90 flex items-center justify-center gap-1">
+              <span>Total do período</span>
+              <span className="text-blue-400/70 font-semibold">({notasAtivas.length})</span>
+            </div>
+            <div className="text-base font-bold text-blue-400 mt-1 tabular-nums">
+              {formatCurrency(totalValor)}
+            </div>
+          </div>
         </div>
 
         {/* ─── Tabela ─────────────────────────────────────────────────── */}

@@ -16,7 +16,7 @@ import {
   FileCheck, UploadCloud, UserCheck,
   Upload, ArrowLeft, Loader2,
   CheckCircle, AlertCircle, Send, ShoppingCart,
-  Database, RefreshCw, ChevronDown, ChevronUp,
+  Database, RefreshCw, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, HelpCircle,
   Trash2, FileSpreadsheet, BookOpen,
   Search, Calendar, ExternalLink, FileText, Download,
   Layers, PackageCheck
@@ -108,6 +108,32 @@ export default function VendasPage() {
   const [buscaEmitidas, setBuscaEmitidas] = useState('')
   const [dtIniEmitidas, setDtIniEmitidas] = useState(primeiroDia)
   const [dtFimEmitidas, setDtFimEmitidas] = useState(hoje)
+  const [filtroSituacao, setFiltroSituacao] = useState<'todas' | 'emitida' | 'cancelado' | 'pendente'>('todas')
+  const [mesRef, setMesRef] = useState<Date>(() => {
+    const agora = new Date()
+    return new Date(agora.getFullYear(), agora.getMonth(), 1)
+  })
+  const [mostrarFiltroCustomizado, setMostrarFiltroCustomizado] = useState(false)
+
+  // Navegação mensal inteligente (Estilo Conta Azul)
+  const navegarMes = (delta: number) => {
+    const novo = new Date(mesRef.getFullYear(), mesRef.getMonth() + delta, 1)
+    setMesRef(novo)
+    const ultimoDia = new Date(novo.getFullYear(), novo.getMonth() + 1, 0)
+    
+    const y = novo.getFullYear()
+    const m = String(novo.getMonth() + 1).padStart(2, '0')
+    const dIni = `${y}-${m}-01`
+    const dFim = `${y}-${m}-${String(ultimoDia.getDate()).padStart(2, '0')}`
+    
+    setDtIniEmitidas(dIni)
+    setDtFimEmitidas(dFim)
+  }
+
+  const formatNomeMes = (d: Date) => {
+    const nome = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+    return nome.charAt(0).toUpperCase() + nome.slice(1)
+  }
 
   // ─── Estado do Upload de Planilha Fiscal ───────────────────
   const [showPlanilhaFiscal, setShowPlanilhaFiscal] = useState(false)
@@ -1056,155 +1082,324 @@ export default function VendasPage() {
       {/* ══════════════════════════════════════════════════════
           SUB-ABA 2: NF-E EMITIDAS (HISTÓRICO CONTA AZUL)
       ══════════════════════════════════════════════════════ */}
-      {subAba === 'emitidas' && (
-        <div className="space-y-4 animate-fade-in">
-          {/* Barra de Filtros */}
-          <div className="bg-dark-800 border border-dark-700 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3 flex-1 min-w-[280px]">
-              <div className="relative flex-1">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+      {/* ══════════════════════════════════════════════════════
+          SUB-ABA 2: NF-E EMITIDAS (HISTÓRICO CONTA AZUL)
+      ══════════════════════════════════════════════════════ */}
+      {subAba === 'emitidas' && (() => {
+        // Cálculos dos 4 Indicadores (Idêntico ao Conta Azul)
+        const canceladas = notasEmitidas.filter(n => n.status === 'cancelado')
+        const emitidasValidas = notasEmitidas.filter(n => n.status !== 'cancelado')
+        
+        const countCanceladas = canceladas.length
+        const valorCanceladas = canceladas.reduce((acc, n) => acc + (Number(n.valor_total) || 0), 0)
+        
+        const countPendentes = vendasDatacar.filter(v => v.status === 'pendente').length
+        const valorPendentes = vendasDatacar.filter(v => v.status === 'pendente').reduce((acc, v) => acc + (Number(v.valor_total) || 0), 0)
+        
+        const countEmitidas = emitidasValidas.length
+        const valorEmitidas = emitidasValidas.reduce((acc, n) => acc + (Number(n.valor_total) || 0), 0)
+        
+        const totalPeriodoCount = countEmitidas + countCanceladas
+        const totalPeriodoValor = valorEmitidas
+
+        // Filtragem por situação conforme clique nos cards
+        const notasExibidas = notasEmitidas.filter(n => {
+          if (filtroSituacao === 'cancelado') return n.status === 'cancelado'
+          if (filtroSituacao === 'emitida') return n.status !== 'cancelado'
+          return true
+        })
+
+        return (
+          <div className="space-y-4 animate-fade-in">
+            {/* ─── BARRA DE PERÍODO & PESQUISA (ESTILO CONTA AZUL) ─── */}
+            <div className="bg-dark-800/90 border border-dark-700/80 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-md">
+              
+              {/* Seletor de Mês < Mês de Ano > */}
+              <div className="flex items-center gap-1.5 bg-dark-900 border border-dark-700 rounded-lg p-1">
+                <button
+                  onClick={() => navegarMes(-1)}
+                  disabled={carregandoNotas}
+                  title="Mês anterior"
+                  className="p-1.5 hover:bg-dark-750 text-dark-300 hover:text-white rounded transition-colors disabled:opacity-40"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                
+                <div className="px-3 py-1 text-xs font-bold text-white min-w-[140px] text-center select-none">
+                  {formatNomeMes(mesRef)}
+                </div>
+
+                <button
+                  onClick={() => navegarMes(1)}
+                  disabled={carregandoNotas}
+                  title="Próximo mês"
+                  className="p-1.5 hover:bg-dark-750 text-dark-300 hover:text-white rounded transition-colors disabled:opacity-40"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+
+              {/* Campo de Pesquisa */}
+              <div className="flex-1 min-w-[260px] relative">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
                 <input
                   type="text"
-                  placeholder="Pesquisar por cliente, número ou chave de acesso da NF-e..."
+                  placeholder="Pesquisar por cliente, número ou chave da NF-e..."
                   value={buscaEmitidas}
                   onChange={e => setBuscaEmitidas(e.target.value)}
-                  className="w-full bg-dark-900 border border-dark-600 rounded-lg pl-9 pr-3 py-2 text-white text-xs outline-none focus:border-blue-500"
+                  className="w-full bg-dark-900 border border-dark-700 rounded-lg pl-9 pr-3 py-2 text-white text-xs outline-none focus:border-blue-500 transition-colors"
                 />
+              </div>
+
+              {/* Ações & Período Customizado */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setMostrarFiltroCustomizado(!mostrarFiltroCustomizado)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                    mostrarFiltroCustomizado 
+                      ? 'bg-blue-600/20 text-blue-300 border-blue-500/40' 
+                      : 'bg-dark-900 text-dark-300 border-dark-700 hover:text-white hover:bg-dark-750'
+                  }`}
+                  title="Definir intervalo de datas personalizado"
+                >
+                  <Calendar size={13} />
+                  <span>Datas</span>
+                </button>
+
+                <button
+                  onClick={carregarNotasEmitidas}
+                  disabled={carregandoNotas}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-blue-600/20"
+                >
+                  <RefreshCw size={13} className={carregandoNotas ? 'animate-spin' : ''} />
+                  <span>Atualizar</span>
+                </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5 text-xs text-dark-400">
-                <span>Período:</span>
+            {/* Painel Expansível de Datas Personalizadas */}
+            {mostrarFiltroCustomizado && (
+              <div className="bg-dark-850 border border-dark-700 rounded-xl p-3 flex flex-wrap items-center gap-3 animate-fade-in text-xs">
+                <span className="text-dark-400 font-medium">Intervalo de Emissão:</span>
                 <input
                   type="date"
                   value={dtIniEmitidas}
                   onChange={e => setDtIniEmitidas(e.target.value)}
-                  className="bg-dark-900 border border-dark-600 rounded-lg px-2.5 py-1.5 text-white text-xs outline-none"
+                  className="bg-dark-900 border border-dark-700 rounded-lg px-2.5 py-1.5 text-white outline-none focus:border-blue-500"
                 />
-                <span>até</span>
+                <span className="text-dark-500">até</span>
                 <input
                   type="date"
                   value={dtFimEmitidas}
                   onChange={e => setDtFimEmitidas(e.target.value)}
-                  className="bg-dark-900 border border-dark-600 rounded-lg px-2.5 py-1.5 text-white text-xs outline-none"
+                  className="bg-dark-900 border border-dark-700 rounded-lg px-2.5 py-1.5 text-white outline-none focus:border-blue-500"
                 />
+                <button
+                  onClick={carregarNotasEmitidas}
+                  className="px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-white font-semibold rounded-lg transition-colors"
+                >
+                  Filtrar Datas
+                </button>
               </div>
+            )}
 
-              <button
-                onClick={carregarNotasEmitidas}
-                disabled={carregandoNotas}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-white rounded-lg text-xs font-semibold transition-colors"
+            {/* ─── PAINEL SUPERIOR DE RESUMO (4 CARDS ESTILO CONTA AZUL) ─── */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 bg-dark-800/90 border border-dark-700/80 rounded-xl overflow-hidden shadow-lg divide-y sm:divide-y-0 sm:divide-x divide-dark-700/60">
+              
+              {/* Card 1: Notas Canceladas */}
+              <div 
+                onClick={() => setFiltroSituacao(filtroSituacao === 'cancelado' ? 'todas' : 'cancelado')}
+                className={`p-4 text-center cursor-pointer transition-all duration-200 select-none hover:bg-dark-750/50 ${
+                  filtroSituacao === 'cancelado' ? 'bg-rose-500/10 ring-2 ring-rose-500/40' : ''
+                }`}
               >
-                <RefreshCw size={13} className={carregandoNotas ? 'animate-spin' : ''} />
-                Atualizar
-              </button>
-            </div>
-          </div>
-
-          {/* Tabela de NF-e Emitidas */}
-          {carregandoNotas ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 size={32} className="animate-spin text-blue-400" />
-            </div>
-          ) : notasEmitidas.length === 0 ? (
-            <div className="bg-dark-800 border border-dark-700 rounded-xl p-12 text-center">
-              <FileText size={40} className="text-dark-600 mx-auto mb-3" />
-              <h3 className="text-white font-bold text-sm">Nenhuma NF-e encontrada</h3>
-              <p className="text-dark-400 text-xs mt-1">
-                As vendas de produtos sincronizadas e emitidas no Conta Azul aparecerão aqui.
-              </p>
-            </div>
-          ) : (
-            <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden shadow-lg">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-dark-900/60 border-b border-dark-700 text-dark-400 font-bold uppercase tracking-wider">
-                      <th className="py-3 px-4">NF-e / Venda CA</th>
-                      <th className="py-3 px-4">Cliente / Destinatário</th>
-                      <th className="py-3 px-4">Data Emissão</th>
-                      <th className="py-3 px-4 text-right">Valor Total</th>
-                      <th className="py-3 px-4 text-center">Situação</th>
-                      <th className="py-3 px-4 text-right">Chave / Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-dark-700/50">
-                    {notasEmitidas.map((nota) => {
-                      const isCancelada = nota.status === 'cancelado'
-                      const chave = nota.metadata?.chave_acesso || nota.dados_datacar?.chave_acesso
-                      return (
-                        <tr key={nota.id} className="hover:bg-dark-750/30 transition-colors">
-                          <td className="py-3 px-4 font-mono font-bold text-white">
-                            <span className="text-blue-400">NF-e #{nota.os_numero}</span>
-                          </td>
-                          <td className="py-3 px-4 font-medium text-white">
-                            {nota.cliente}
-                            {nota.metadata?.cliente_cpf_cnpj && (
-                              <span className="block text-[10px] text-dark-400 font-mono">
-                                {nota.metadata.cliente_cpf_cnpj}
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-3 px-4 text-dark-300 font-mono">
-                            {formatDate(nota.data_venda)}
-                          </td>
-                          <td className="py-3 px-4 text-right font-bold text-white tabular-nums">
-                            {formatCurrency(nota.valor_total)}
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                              isCancelada 
-                                ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
-                                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                            }`}>
-                              {isCancelada ? '● CANCELADA' : '● FATURADA'}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            {chave ? (
-                              <div className="flex items-center justify-end gap-1.5">
-                                <a
-                                  href={`/api/notas-emitidas/danfe?empresa_id=${empresaAtiva?.id}&chave=${chave}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 rounded text-xs font-semibold transition-colors shadow-sm"
-                                  title="Visualizar e Imprimir DANFE em PDF"
-                                >
-                                  <FileText size={13} />
-                                  DANFE / PDF
-                                </a>
-                                <a
-                                  href={`/api/notas-emitidas/xml?empresa_id=${empresaAtiva?.id}&chave=${chave}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-dark-700 hover:bg-dark-600 text-blue-400 hover:text-white rounded text-xs font-semibold transition-colors"
-                                  title="Baixar XML oficial da NF-e"
-                                >
-                                  <Download size={13} />
-                                  XML
-                                </a>
-                              </div>
-                            ) : (
-                              <span className="text-[10px] text-dark-500 font-mono">
-                                ID CA: {nota.conta_azul_id ? String(nota.conta_azul_id).slice(0, 8) : '—'}
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+                <div className="text-[11px] font-medium text-dark-300 flex items-center justify-center gap-1">
+                  <span>Notas canceladas</span>
+                  <span className="text-dark-400 font-semibold">({countCanceladas})</span>
+                </div>
+                <div className="text-base sm:text-lg font-bold text-dark-200 mt-1 tabular-nums">
+                  {formatCurrency(valorCanceladas)}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
 
-      {/* ══════════════════════════════════════════════════════
-          SUB-ABA 3: UPLOAD DE PLANILHA
-      ══════════════════════════════════════════════════════ */}
+              {/* Card 2: Pendentes */}
+              <div 
+                onClick={() => {
+                  setFiltroSituacao(filtroSituacao === 'pendente' ? 'todas' : 'pendente')
+                  if (countPendentes > 0) setSubAba('datacar')
+                }}
+                className={`p-4 text-center cursor-pointer transition-all duration-200 select-none hover:bg-dark-750/50 ${
+                  filtroSituacao === 'pendente' ? 'bg-amber-500/10 ring-2 ring-amber-500/40' : ''
+                }`}
+              >
+                <div className="text-[11px] font-medium text-amber-400/90 flex items-center justify-center gap-1">
+                  <span>Pendentes</span>
+                  <span className="text-amber-400/70 font-semibold">({countPendentes})</span>
+                </div>
+                <div className="text-base sm:text-lg font-bold text-amber-400 mt-1 tabular-nums">
+                  {formatCurrency(valorPendentes)}
+                </div>
+              </div>
+
+              {/* Card 3: Emitidas */}
+              <div 
+                onClick={() => setFiltroSituacao(filtroSituacao === 'emitida' ? 'todas' : 'emitida')}
+                className={`p-4 text-center cursor-pointer transition-all duration-200 select-none hover:bg-dark-750/50 ${
+                  filtroSituacao === 'emitida' ? 'bg-emerald-500/10 ring-2 ring-emerald-500/40' : ''
+                }`}
+              >
+                <div className="text-[11px] font-medium text-emerald-400/90 flex items-center justify-center gap-1">
+                  <span>Emitidas</span>
+                  <span className="text-emerald-400/70 font-semibold">({countEmitidas})</span>
+                </div>
+                <div className="text-base sm:text-lg font-bold text-emerald-400 mt-1 tabular-nums">
+                  {formatCurrency(valorEmitidas)}
+                </div>
+              </div>
+
+              {/* Card 4: Total do Período */}
+              <div 
+                onClick={() => setFiltroSituacao('todas')}
+                className={`p-4 text-center cursor-pointer transition-all duration-200 select-none hover:bg-dark-750/50 border-t-2 border-t-blue-500 bg-blue-500/[0.03] ${
+                  filtroSituacao === 'todas' ? 'bg-blue-500/10 ring-2 ring-blue-500/40' : ''
+                }`}
+              >
+                <div className="text-[11px] font-medium text-blue-400/90 flex items-center justify-center gap-1">
+                  <span>Total do período</span>
+                  <span className="text-blue-400/70 font-semibold">({totalPeriodoCount})</span>
+                </div>
+                <div className="text-base sm:text-lg font-bold text-blue-400 mt-1 tabular-nums">
+                  {formatCurrency(totalPeriodoValor)}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Aviso de Filtro Ativo */}
+            {filtroSituacao !== 'todas' && (
+              <div className="flex items-center justify-between px-3 py-2 bg-dark-900 border border-dark-700/80 rounded-lg text-xs">
+                <span className="text-dark-300">
+                  Filtrando por situação: <strong className="text-white capitalize">{filtroSituacao}</strong> ({notasExibidas.length} notas)
+                </span>
+                <button
+                  onClick={() => setFiltroSituacao('todas')}
+                  className="text-blue-400 hover:text-blue-300 font-semibold text-[11px] underline"
+                >
+                  Mostrar todas
+                </button>
+              </div>
+            )}
+
+            {/* ─── TABELA DE NF-E EMITIDAS ─── */}
+            {carregandoNotas ? (
+              <div className="flex items-center justify-center py-20 bg-dark-800 border border-dark-700 rounded-xl">
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 size={32} className="animate-spin text-blue-400" />
+                  <span className="text-dark-400 text-xs font-medium">Carregando notas do Conta Azul...</span>
+                </div>
+              </div>
+            ) : notasExibidas.length === 0 ? (
+              <div className="bg-dark-800 border border-dark-700 rounded-xl p-12 text-center">
+                <FileText size={40} className="text-dark-600 mx-auto mb-3" />
+                <h3 className="text-white font-bold text-sm">Nenhuma NF-e encontrada no período</h3>
+                <p className="text-dark-400 text-xs mt-1">
+                  Não encontramos notas fiscais emitidas com os filtros selecionados para este mês.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden shadow-lg">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-dark-900/60 border-b border-dark-700 text-dark-400 font-bold uppercase tracking-wider">
+                        <th className="py-3 px-4">Série - NF</th>
+                        <th className="py-3 px-4">Emissão</th>
+                        <th className="py-3 px-4">Cliente / Fornecedor</th>
+                        <th className="py-3 px-4 text-center">Tipo</th>
+                        <th className="py-3 px-4 text-center">Situação</th>
+                        <th className="py-3 px-4 text-right">Valor (R$)</th>
+                        <th className="py-3 px-4 text-right">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-dark-700/50">
+                      {notasExibidas.map((nota) => {
+                        const isCancelada = nota.status === 'cancelado'
+                        const chave = nota.metadata?.chave_acesso || nota.dados_datacar?.chave_acesso
+                        const serie = nota.metadata?.serie || nota.dados_datacar?.serie || '1'
+                        return (
+                          <tr key={nota.id} className="hover:bg-dark-750/40 transition-colors">
+                            <td className="py-3.5 px-4 font-mono font-bold text-white">
+                              <span className="text-blue-400">{serie} - {nota.os_numero}</span>
+                            </td>
+                            <td className="py-3.5 px-4 text-dark-300 font-mono">
+                              {formatDate(nota.data_venda)}
+                            </td>
+                            <td className="py-3.5 px-4 font-medium text-white">
+                              {nota.cliente}
+                              {nota.metadata?.cliente_cpf_cnpj && (
+                                <span className="block text-[10px] text-dark-400 font-mono">
+                                  {nota.metadata.cliente_cpf_cnpj}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4 text-center text-dark-300">
+                              Saída
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <span className={`inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[11px] font-bold border ${
+                                isCancelada 
+                                  ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
+                                  : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                              }`}>
+                                {isCancelada ? 'Cancelada' : 'Emitida'}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-bold text-white tabular-nums text-[13px]">
+                              {formatCurrency(nota.valor_total)}
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              {chave ? (
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <a
+                                    href={`/api/notas-emitidas/danfe?empresa_id=${empresaAtiva?.id}&chave=${chave}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 rounded text-xs font-semibold transition-colors shadow-sm"
+                                    title="Visualizar e Imprimir DANFE em PDF"
+                                  >
+                                    <FileText size={13} />
+                                    PDF
+                                  </a>
+                                  <a
+                                    href={`/api/notas-emitidas/xml?empresa_id=${empresaAtiva?.id}&chave=${chave}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-dark-700 hover:bg-dark-600 text-blue-400 hover:text-white rounded text-xs font-semibold transition-colors"
+                                    title="Baixar XML oficial da NF-e"
+                                  >
+                                    <Download size={13} />
+                                    XML
+                                  </a>
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-dark-500 font-mono">
+                                  ID CA: {nota.conta_azul_id ? String(nota.conta_azul_id).slice(0, 8) : '—'}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
+
       {subAba === 'planilha' && (
         <div className="space-y-6 animate-fade-in">
           {etapa === 'upload' ? (
