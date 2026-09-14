@@ -361,6 +361,11 @@ function EmpresasPageContent() {
                     toast.success(`"${emp.nome}" agora é a empresa ativa no sistema!`)
                   }}
                   onCopiarWhatsApp={(modulo) => handleCopiarWhatsApp(emp, modulo)}
+                  onAbrirAba={(aba) => {
+                    setEmpresaSelecionadaId(emp.id)
+                    setAbaAtiva(aba)
+                    setPainelMobileAberto(true)
+                  }}
                   getAvatarGradient={getAvatarGradient}
                 />
               ))
@@ -415,10 +420,7 @@ function EmpresasPageContent() {
 
                     <div className="flex items-center gap-2 mt-1.5 text-xs text-dark-300 font-mono">
                       <span>{empresaSelecionada.cnpj ? formatCNPJ(empresaSelecionada.cnpj) : 'Sem CNPJ'}</span>
-                      <span className="text-dark-600">•</span>
-                      <span className="text-dark-400 font-sans uppercase text-[10px] tracking-wider font-semibold">
-                        {empresaSelecionada.tipo_empresa || 'ambos'}
-                      </span>
+                      
                     </div>
                   </div>
                 </div>

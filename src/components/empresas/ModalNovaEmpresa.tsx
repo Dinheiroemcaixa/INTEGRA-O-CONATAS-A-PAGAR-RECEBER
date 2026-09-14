@@ -7,15 +7,10 @@ import { buscarCnpj } from '@/services/brasil-api/client'
 import { createClient } from '@/lib/supabase/client'
 import { 
   Building2, 
-  X, 
   Search, 
-  Plus, 
-  Loader2, 
   Save, 
-  Sparkles,
-  Database,
-  CreditCard,
-  ShoppingBag
+  X, 
+  Loader2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -30,13 +25,10 @@ export function ModalNovaEmpresa({ aberto, onFechar, onCriada }: ModalNovaEmpres
   const [cnpj, setCnpj] = useState('')
   const [razaoSocial, setRazaoSocial] = useState('')
   const [nomeFantasia, setNomeFantasia] = useState('')
-  const [tipoEmpresa, setTipoEmpresa] = useState<'vendas' | 'financeiro' | 'ambos'>('ambos')
   const [emailLogin, setEmailLogin] = useState('')
   const [emailLoginVendas, setEmailLoginVendas] = useState('')
-  const [datacarToken, setDatacarToken] = useState('')
   const [datacarCodEmp, setDatacarCodEmp] = useState('')
   const [datacarIdOperador, setDatacarIdOperador] = useState('')
-  const [somenteBanco, setSomenteBanco] = useState(false)
 
   const [salvando, setSalvando] = useState(false)
   const [buscandoCnpj, setBuscandoCnpj] = useState(false)
@@ -45,11 +37,11 @@ export function ModalNovaEmpresa({ aberto, onFechar, onCriada }: ModalNovaEmpres
 
   if (!aberto) return null
 
-  // Consultar CNPJ na Receita Federal
+  // Busca na Brasil API
   const handleBuscarCnpj = async () => {
     const cnpjLimpo = cnpj.replace(/\D/g, '')
     if (cnpjLimpo.length !== 14) {
-      toast.error('CNPJ inválido. Digite os 14 dígitos.')
+      toast.error('Informe um CNPJ válido com 14 dígitos.')
       return
     }
 
@@ -57,7 +49,7 @@ export function ModalNovaEmpresa({ aberto, onFechar, onCriada }: ModalNovaEmpres
     try {
       const data = await buscarCnpj(cnpjLimpo)
       if (!data || (data as any).erro) {
-        toast.error('CNPJ não localizado na base pública da Receita Federal.')
+        toast.error('CNPJ não localizado na Receita Federal.')
         return
       }
 
@@ -66,37 +58,39 @@ export function ModalNovaEmpresa({ aberto, onFechar, onCriada }: ModalNovaEmpres
       if (!nome) {
         setNome(data.nome_fantasia || data.razao_social || '')
       }
-      toast.success('Dados da empresa localizados com sucesso!')
+      toast.success('Dados preenchidos via Receita Federal!')
     } catch {
-      toast.error('Erro ao consultar a base de CNPJ.')
+      toast.error('Erro ao consultar a base da Receita Federal.')
     } finally {
       setBuscandoCnpj(false)
     }
   }
 
-  // Criar empresa
+  // Submissão do Formulário
   const handleSalvar = async (e: React.FormEvent) => {
     e.preventDefault()
+
     if (!nome.trim()) {
-      toast.error('O Nome da empresa é obrigatório.')
+      toast.error('O nome de exibição da empresa é obrigatório.')
+      return
+    }
+
+    const cnpjLimpo = cnpj.replace(/\D/g, '')
+    if (!cnpjLimpo || cnpjLimpo.length !== 14) {
+      toast.error('O CNPJ é obrigatório e deve ter 14 dígitos.')
       return
     }
 
     setSalvando(true)
     try {
+      // 1. Obter usuário autenticado
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        toast.error('Você precisa estar logado para cadastrar uma empresa.')
+        toast.error('Sessão expirada. Faça login novamente.')
         return
       }
 
-      const cnpjLimpo = cnpj.replace(/\D/g, '')
-      let datacarCodEmpFinal = datacarCodEmp.trim()
-      if (somenteBanco && datacarCodEmpFinal && !datacarCodEmpFinal.endsWith('_sb')) {
-        datacarCodEmpFinal += '_sb'
-      }
-
-      // Inserir empresa
+      // 2. Inserir empresa mantendo tipo_empresa: 'ambos' por compatibilidade com o banco
       const { data: novaEmpresa, error: errEmpresa } = await supabase
         .from('empresas')
         .insert({
@@ -104,58 +98,65 @@ export function ModalNovaEmpresa({ aberto, onFechar, onCriada }: ModalNovaEmpres
           cnpj: cnpjLimpo,
           razao_social: razaoSocial.trim() || null,
           nome_fantasia: nomeFantasia.trim() || null,
-          tipo_empresa: tipoEmpresa,
+          tipo_empresa: 'ambos',
           email_login: emailLogin.trim() || null,
           email_login_vendas: emailLoginVendas.trim() || null,
-          datacar_token: datacarToken.trim() || null,
-          datacar_cod_emp: datacarCodEmpFinal || null,
-          datacar_id_operador: datacarIdOperador.trim() || null,
+          datacar_cod_emp: datacarCodEmp.trim() || null,
+          datacar_id_operador: datacarIdOperador.trim() || null
         })
-        .select()
+        .select('*')
         .single()
 
-      if (errEmpresa || !novaEmpresa) throw errEmpresa || new Error('Falha ao criar empresa')
+      if (errEmpresa) throw errEmpresa
 
-      // Vincular na tabela usuarios_empresas para RLS
+      // 3. Vincular usuário logado na tabela multi-tenant usuarios_empresas
       const { error: errVinculo } = await supabase
         .from('usuarios_empresas')
         .insert({
-          usuario_id: user.id,
+          user_id: user.id,
           empresa_id: novaEmpresa.id,
+          role: 'admin'
         })
 
       if (errVinculo) {
-        console.warn('Aviso no vínculo usuarios_empresas:', errVinculo)
+        console.warn('Aviso: Vínculo automático de usuário não pôde ser inserido:', errVinculo)
       }
 
-      toast.success(`Empresa "${nome}" cadastrada com sucesso!`)
-      onCriada(novaEmpresa)
+      toast.success('Empresa cadastrada com sucesso!')
+      onCriada(novaEmpresa as Empresa)
       onFechar()
+
+      // Reset
+      setNome('')
+      setCnpj('')
+      setRazaoSocial('')
+      setNomeFantasia('')
+      setEmailLogin('')
+      setEmailLoginVendas('')
+      setDatacarCodEmp('')
+      setDatacarIdOperador('')
     } catch (err: any) {
-      toast.error(err.message || 'Erro ao cadastrar empresa')
+      console.error('Erro ao cadastrar empresa:', err)
+      toast.error(err.message || 'Falha ao cadastrar a empresa.')
     } finally {
       setSalvando(false)
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-      <div 
-        className="bg-dark-800 border border-dark-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl space-y-5 p-6 animate-scale-in"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Cabeçalho do Modal */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-dark-800 border border-dark-700 rounded-2xl w-full max-w-xl p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+        {/* Cabeçalho */}
         <div className="flex items-center justify-between pb-3 border-b border-dark-700">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
               <Building2 size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-white">Cadastrar Nova Empresa / Filial</h3>
-              <p className="text-xs text-dark-400">Preencha os dados cadastrais e as credenciais iniciais da filial</p>
+              <h3 className="font-semibold text-white text-base">Cadastrar Nova Empresa</h3>
+              <p className="text-xs text-dark-400">Adicione uma nova organização ao Connecta AI</p>
             </div>
           </div>
-
           <button
             type="button"
             onClick={onFechar}
@@ -232,31 +233,6 @@ export function ModalNovaEmpresa({ aberto, onFechar, onCriada }: ModalNovaEmpres
                 placeholder="Nome Fantasia Comercial"
                 className="w-full bg-dark-900 border border-dark-600 rounded-xl px-3.5 py-2 text-white text-xs focus:ring-2 focus:ring-blue-500/50 outline-none"
               />
-            </div>
-
-            {/* Tipo de Empresa */}
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-medium text-dark-300 mb-1">Tipo de Operação</label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { val: 'ambos', label: 'Ambos (Produtos & Serviços)' },
-                  { val: 'vendas', label: 'Vendas / Peças' },
-                  { val: 'financeiro', label: 'Contas a Pagar' },
-                ].map((item) => (
-                  <button
-                    type="button"
-                    key={item.val}
-                    onClick={() => setTipoEmpresa(item.val as any)}
-                    className={`py-2 px-2 rounded-xl border text-xs font-medium transition-all text-center ${
-                      tipoEmpresa === item.val
-                        ? 'bg-blue-600/20 border-blue-500/60 text-blue-300'
-                        : 'bg-dark-900/60 border-dark-700 text-dark-400 hover:text-white'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
 

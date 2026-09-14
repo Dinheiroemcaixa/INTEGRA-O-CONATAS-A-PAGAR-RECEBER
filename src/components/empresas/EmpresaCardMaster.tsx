@@ -19,7 +19,10 @@ import {
   X,
   Link,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  Settings,
+  Activity,
+  Loader2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -30,6 +33,7 @@ interface EmpresaCardMasterProps {
   onSelecionarParaVer: () => void
   onDefinirComoAtiva: () => void
   onCopiarWhatsApp: (modulo: 'financeiro' | 'vendas') => void
+  onAbrirAba?: (aba: 'geral' | 'integracoes' | 'fornecedores' | 'fiscal' | 'avancado') => void
   getAvatarGradient: (id: string) => string
 }
 
@@ -40,11 +44,13 @@ export function EmpresaCardMaster({
   onSelecionarParaVer,
   onDefinirComoAtiva,
   onCopiarWhatsApp,
+  onAbrirAba,
   getAvatarGradient
 }: EmpresaCardMasterProps) {
   const [copiadoCnpj, setCopiadoCnpj] = useState(false)
   const [copiadoLink, setCopiadoLink] = useState(false)
-  const [modalModulo, setModalModulo] = useState<'financeiro' | 'vendas' | null>(null)
+  const [modalAtivo, setModalAtivo] = useState<'datacar' | 'financeiro' | 'vendas' | 'nfse' | null>(null)
+  const [testandoDatacar, setTestandoDatacar] = useState(false)
 
   const hasDatacar = Boolean(empresa.datacar_token)
   const hasCaFin = Boolean(empresa.conta_azul_connected || empresa.access_token_conta_azul)
@@ -74,9 +80,39 @@ export function EmpresaCardMaster({
     setTimeout(() => setCopiadoLink(false), 2000)
   }
 
-  const handleReconectar = (modulo: 'financeiro' | 'vendas') => {
+  const handleConectarOuReconectar = (modulo: 'financeiro' | 'vendas') => {
     const url = getOAuthUrl(modulo)
     window.location.href = url
+  }
+
+  const handleTestarConexaoDatacar = async () => {
+    setTestandoDatacar(true)
+    try {
+      const res = await fetch('/api/datacar/testar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresa_id: empresa.id }),
+      })
+      const json = await res.json()
+      if (res.ok && json.ok) {
+        toast.success('Conexão Datacar validada com sucesso!')
+      } else {
+        toast.error(json.mensagem || json.error || 'Falha ao testar Datacar')
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao conectar ao Datacar')
+    } finally {
+      setTestandoDatacar(false)
+    }
+  }
+
+  const handleNavegarParaAba = (aba: 'geral' | 'integracoes' | 'fornecedores' | 'fiscal' | 'avancado') => {
+    setModalAtivo(null)
+    if (onAbrirAba) {
+      onAbrirAba(aba)
+    } else {
+      onSelecionarParaVer()
+    }
   }
 
   return (
@@ -115,14 +151,9 @@ export function EmpresaCardMaster({
                 <h3 className="font-bold text-white text-sm truncate leading-snug group-hover:text-primary-300 transition-colors">
                   {empresa.nome}
                 </h3>
-                {empresa.tipo_empresa && (
-                  <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-dark-700/60 text-dark-300 border border-dark-600/40">
-                    {empresa.tipo_empresa}
-                  </span>
-                )}
               </div>
 
-              {/* Razão Social (se houver e for diferente do apelido) */}
+              {/* Razão Social */}
               {empresa.razao_social && empresa.razao_social !== empresa.nome && (
                 <p className="text-xs text-dark-400 truncate mt-0.5">
                   {empresa.razao_social}
@@ -176,81 +207,91 @@ export function EmpresaCardMaster({
           </div>
         </div>
 
-        {/* Grid de Semáforos Visuais Operacionais com Atalhos Interativos */}
+        {/* Grid de Semáforos Visuais Operacionais Clicáveis (4 Serviços) */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-3.5 pt-3 border-t border-dark-700/50">
-          {/* Semáforo Datacar */}
-          <div 
-            title={hasDatacar ? `Datacar conectado (Filial: ${empresa.datacar_cod_emp || 'N/D'})` : 'Datacar não configurado'}
-            className={`px-2 py-1.5 rounded-lg border text-[11px] font-medium flex items-center justify-between select-none ${
-              hasDatacar 
-                ? 'bg-emerald-950/30 border-emerald-800/40 text-emerald-300' 
-                : 'bg-dark-900/60 border-dark-700/40 text-dark-500'
-            }`}
-          >
-            <span className="flex items-center gap-1 truncate">
-              <Database size={11} className="flex-shrink-0" />
-              <span className="truncate">Datacar</span>
-            </span>
-            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${hasDatacar ? 'bg-emerald-400 shadow-glow-sm' : 'bg-red-500/80'}`} />
-          </div>
-
-          {/* Semáforo Conta Azul Financeiro - ATALHO INTERATIVO CLICÁVEL */}
+          {/* 1. Semáforo Datacar (Clicável) */}
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation()
-              setModalModulo('financeiro')
+              setModalAtivo('datacar')
             }}
-            title={hasCaFin ? 'Clique para gerenciar link ou WhatsApp do CA Financeiro (Conectado)' : 'Clique para gerar autorização OAuth do CA Financeiro (Desconectado)'}
-            className={`px-2 py-1.5 rounded-lg border text-[11px] font-medium flex items-center justify-between transition-all group/btn ${
-              hasCaFin 
-                ? 'bg-blue-950/40 hover:bg-blue-900/50 border-blue-800/50 text-blue-300 hover:border-blue-700 shadow-sm cursor-pointer' 
-                : 'bg-dark-900/80 hover:bg-dark-800 border-dark-700/60 text-dark-400 hover:text-dark-200 hover:border-dark-600 cursor-pointer'
+            title={hasDatacar ? 'Datacar Configurado - Clique para opções' : 'Datacar Não Configurado - Clique para configurar'}
+            className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-medium flex items-center justify-between transition-all cursor-pointer hover:scale-[1.02] shadow-sm ${
+              hasDatacar 
+                ? 'bg-emerald-950/40 hover:bg-emerald-900/50 border-emerald-800/50 text-emerald-300' 
+                : 'bg-dark-900/80 hover:bg-dark-800 border-dark-700/60 text-dark-400 hover:text-dark-200'
             }`}
           >
             <span className="flex items-center gap-1 truncate">
-              <CreditCard size={11} className="flex-shrink-0 group-hover/btn:text-blue-400 transition-colors" />
+              <Database size={11} className={hasDatacar ? 'text-emerald-400' : 'text-dark-500'} />
+              <span className="truncate font-semibold">Datacar</span>
+            </span>
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${hasDatacar ? 'bg-emerald-400 shadow-glow-sm' : 'bg-dark-600'}`} />
+          </button>
+
+          {/* 2. Semáforo Conta Azul Financeiro (Clicável) */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              setModalAtivo('financeiro')
+            }}
+            title={hasCaFin ? 'CA Financeiro Conectado - Clique para gerenciar links' : 'CA Financeiro Não Conectado - Clique para autorizar'}
+            className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-medium flex items-center justify-between transition-all cursor-pointer hover:scale-[1.02] shadow-sm ${
+              hasCaFin 
+                ? 'bg-emerald-950/40 hover:bg-emerald-900/50 border-emerald-800/50 text-emerald-300' 
+                : 'bg-red-950/20 hover:bg-red-900/30 border-red-900/40 text-red-300 hover:text-red-200'
+            }`}
+          >
+            <span className="flex items-center gap-1 truncate">
+              <CreditCard size={11} className={hasCaFin ? 'text-emerald-400' : 'text-red-400'} />
               <span className="truncate font-semibold">CA Fin</span>
             </span>
-            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${hasCaFin ? 'bg-emerald-400 shadow-glow-sm' : 'bg-red-500/80'}`} />
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${hasCaFin ? 'bg-emerald-400 shadow-glow-sm' : 'bg-red-500'}`} />
           </button>
 
-          {/* Semáforo Conta Azul Vendas - ATALHO INTERATIVO CLICÁVEL */}
+          {/* 3. Semáforo Conta Azul Vendas (Clicável) */}
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation()
-              setModalModulo('vendas')
+              setModalAtivo('vendas')
             }}
-            title={hasCaVendas ? 'Clique para gerenciar link ou WhatsApp do CA Vendas (Conectado)' : 'Clique para gerar autorização OAuth do CA Vendas (Desconectado)'}
-            className={`px-2 py-1.5 rounded-lg border text-[11px] font-medium flex items-center justify-between transition-all group/btn ${
+            title={hasCaVendas ? 'CA Vendas Conectado - Clique para gerenciar links' : 'CA Vendas Não Conectado - Clique para autorizar'}
+            className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-medium flex items-center justify-between transition-all cursor-pointer hover:scale-[1.02] shadow-sm ${
               hasCaVendas 
-                ? 'bg-purple-950/40 hover:bg-purple-900/50 border-purple-800/50 text-purple-300 hover:border-purple-700 shadow-sm cursor-pointer' 
-                : 'bg-dark-900/80 hover:bg-dark-800 border-dark-700/60 text-dark-400 hover:text-dark-200 hover:border-dark-600 cursor-pointer'
+                ? 'bg-emerald-950/40 hover:bg-emerald-900/50 border-emerald-800/50 text-emerald-300' 
+                : 'bg-red-950/20 hover:bg-red-900/30 border-red-900/40 text-red-300 hover:text-red-200'
             }`}
           >
             <span className="flex items-center gap-1 truncate">
-              <ShoppingBag size={11} className="flex-shrink-0 group-hover/btn:text-purple-400 transition-colors" />
+              <ShoppingBag size={11} className={hasCaVendas ? 'text-emerald-400' : 'text-red-400'} />
               <span className="truncate font-semibold">CA Vendas</span>
             </span>
-            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${hasCaVendas ? 'bg-emerald-400 shadow-glow-sm' : 'bg-red-500/80'}`} />
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${hasCaVendas ? 'bg-emerald-400 shadow-glow-sm' : 'bg-red-500'}`} />
           </button>
 
-          {/* Semáforo NFS-e Gov.br */}
-          <div 
-            title={hasNfse ? 'NFS-e Gov.br Habilitada' : 'NFS-e Gov.br Inativa'}
-            className={`px-2 py-1.5 rounded-lg border text-[11px] font-medium flex items-center justify-between select-none ${
+          {/* 4. Semáforo NFS-e Gov.br (Clicável) */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              setModalAtivo('nfse')
+            }}
+            title={hasNfse ? 'NFS-e Gov.br Configurada - Clique para opções' : 'NFS-e Gov.br Pendente - Clique para configurar'}
+            className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-medium flex items-center justify-between transition-all cursor-pointer hover:scale-[1.02] shadow-sm ${
               hasNfse 
-                ? 'bg-teal-950/30 border-teal-800/40 text-teal-300' 
-                : 'bg-dark-900/60 border-dark-700/40 text-dark-500'
+                ? 'bg-emerald-950/40 hover:bg-emerald-900/50 border-emerald-800/50 text-emerald-300' 
+                : 'bg-dark-900/80 hover:bg-dark-800 border-dark-700/60 text-dark-400 hover:text-dark-200'
             }`}
           >
             <span className="flex items-center gap-1 truncate">
-              <FileText size={11} className="flex-shrink-0" />
-              <span className="truncate">NFS-e</span>
+              <FileText size={11} className={hasNfse ? 'text-emerald-400' : 'text-dark-500'} />
+              <span className="truncate font-semibold">NFS-e</span>
             </span>
             <span className={`w-2 h-2 rounded-full flex-shrink-0 ${hasNfse ? 'bg-emerald-400 shadow-glow-sm' : 'bg-dark-600'}`} />
-          </div>
+          </button>
         </div>
 
         {/* Rodapé do Card: Atalhos Rápidos */}
@@ -263,7 +304,7 @@ export function EmpresaCardMaster({
                   e.stopPropagation()
                   onCopiarWhatsApp('financeiro')
                 }}
-                title="Copiar link de WhatsApp do Financeiro"
+                title="Copiar mensagem de WhatsApp do Financeiro"
                 className="flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300 transition-colors"
               >
                 <MessageSquare size={12} />
@@ -278,7 +319,7 @@ export function EmpresaCardMaster({
                   e.stopPropagation()
                   onCopiarWhatsApp('vendas')
                 }}
-                title="Copiar link de WhatsApp de Vendas"
+                title="Copiar mensagem de WhatsApp de Vendas"
                 className="flex items-center gap-1 text-[11px] text-purple-400 hover:text-purple-300 transition-colors"
               >
                 <MessageSquare size={12} />
@@ -294,109 +335,302 @@ export function EmpresaCardMaster({
         </div>
       </div>
 
-      {/* MODAL / POPOVER DE AÇÃO RÁPIDA DE AUTORIZAÇÃO CONTA AZUL */}
-      {modalModulo && (
+      {/* MODAIS RÁPIDOS PARA CADA SERVIÇO */}
+      {modalAtivo && (
         <div 
           onClick={(e) => {
             e.stopPropagation()
-            setModalModulo(null)
+            setModalAtivo(null)
           }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-dark-850 border border-dark-700/90 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4"
+            className="bg-dark-850 border border-dark-700/90 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4 animate-scaleUp"
           >
-            {/* Cabeçalho do Modal Rápido */}
-            <div className="flex items-center justify-between pb-3 border-b border-dark-700/70">
-              <div className="flex items-center gap-2.5">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                  modalModulo === 'financeiro' 
-                    ? 'bg-blue-500/15 border border-blue-500/30 text-blue-400' 
-                    : 'bg-purple-500/15 border border-purple-500/30 text-purple-400'
-                }`}>
-                  {modalModulo === 'financeiro' ? <CreditCard size={18} /> : <ShoppingBag size={18} />}
+            {/* 1. CASO CONTA AZUL FINANCEIRO OU VENDAS */}
+            {(modalAtivo === 'financeiro' || modalAtivo === 'vendas') && (() => {
+              const isFin = modalAtivo === 'financeiro'
+              const conectado = isFin ? hasCaFin : hasCaVendas
+              const nomeServico = isFin ? 'Conta Azul Financeiro' : 'Conta Azul Vendas'
+
+              return (
+                <>
+                  <div className="flex items-center justify-between pb-3 border-b border-dark-700/70">
+                    <div className="flex items-center gap-2.5">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                        isFin 
+                          ? 'bg-blue-500/15 border border-blue-500/30 text-blue-400' 
+                          : 'bg-purple-500/15 border border-purple-500/30 text-purple-400'
+                      }`}>
+                        {isFin ? <CreditCard size={18} /> : <ShoppingBag size={18} />}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-white text-sm">{nomeServico}</h4>
+                        <p className="text-xs text-dark-400 truncate max-w-[200px]">{empresa.nome}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setModalAtivo(null)}
+                      className="p-1.5 text-dark-400 hover:text-white rounded-lg hover:bg-dark-700 transition-colors"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  {/* Status */}
+                  <div className="p-3 bg-dark-900/80 rounded-xl border border-dark-700/60 flex items-center justify-between">
+                    <span className="text-xs text-dark-400">Status:</span>
+                    {conectado ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-glow-sm" />
+                        <span>Conectado</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-400">
+                        <span className="w-2 h-2 rounded-full bg-red-500" />
+                        <span>Não Conectado</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Ações */}
+                  <div className="space-y-2">
+                    {conectado ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleCopiarLinkOAuth(modalAtivo)}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-dark-800 hover:bg-dark-700 border border-dark-700/80 hover:border-dark-600 rounded-xl text-xs font-medium text-white transition-colors"
+                        >
+                          {copiadoLink ? <Check size={14} className="text-emerald-400" /> : <Link size={14} className="text-blue-400" />}
+                          <span>{copiadoLink ? 'Link Copiado!' : 'Copiar Link de Autorização'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onCopiarWhatsApp(modalAtivo)
+                            toast.success('Mensagem de WhatsApp formatada com link copiada!')
+                          }}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-xs font-medium text-emerald-300 transition-colors"
+                        >
+                          <MessageSquare size={14} className="text-emerald-400" />
+                          <span>Copiar Mensagem WhatsApp</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleConectarOuReconectar(modalAtivo)}
+                          className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm ${
+                            isFin ? 'bg-blue-600 hover:bg-blue-500' : 'bg-purple-600 hover:bg-purple-500'
+                          }`}
+                        >
+                          <ExternalLink size={14} />
+                          <span>Reconectar</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleNavegarParaAba('integracoes')}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-dark-800/60 hover:bg-dark-800 border border-dark-700/50 rounded-xl text-xs font-medium text-dark-300 hover:text-white transition-colors"
+                        >
+                          <Settings size={13} />
+                          <span>Abrir Configurações</span>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleConectarOuReconectar(modalAtivo)}
+                          className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm ${
+                            isFin ? 'bg-blue-600 hover:bg-blue-500' : 'bg-purple-600 hover:bg-purple-500'
+                          }`}
+                        >
+                          <ExternalLink size={14} />
+                          <span>Conectar Agora</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleCopiarLinkOAuth(modalAtivo)}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-dark-800 hover:bg-dark-700 border border-dark-700/80 hover:border-dark-600 rounded-xl text-xs font-medium text-white transition-colors"
+                        >
+                          {copiadoLink ? <Check size={14} className="text-emerald-400" /> : <Link size={14} className="text-blue-400" />}
+                          <span>{copiadoLink ? 'Link Copiado!' : 'Copiar Link'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onCopiarWhatsApp(modalAtivo)
+                            toast.success('Mensagem de WhatsApp formatada com link copiada!')
+                          }}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-xs font-medium text-emerald-300 transition-colors"
+                        >
+                          <MessageSquare size={14} className="text-emerald-400" />
+                          <span>Copiar Mensagem WhatsApp</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleNavegarParaAba('integracoes')}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-dark-800/60 hover:bg-dark-800 border border-dark-700/50 rounded-xl text-xs font-medium text-dark-300 hover:text-white transition-colors"
+                        >
+                          <Settings size={13} />
+                          <span>Abrir Configurações</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </>
+              )
+            })()}
+
+            {/* 2. CASO DATACAR ERP */}
+            {modalAtivo === 'datacar' && (
+              <>
+                <div className="flex items-center justify-between pb-3 border-b border-dark-700/70">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                      <Database size={18} />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white text-sm">Datacar ERP</h4>
+                      <p className="text-xs text-dark-400 truncate max-w-[200px]">{empresa.nome}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setModalAtivo(null)}
+                    className="p-1.5 text-dark-400 hover:text-white rounded-lg hover:bg-dark-700 transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
-                <div>
-                  <h4 className="font-bold text-white text-sm">
-                    Conta Azul {modalModulo === 'financeiro' ? 'Financeiro' : 'Vendas'}
-                  </h4>
-                  <p className="text-xs text-dark-400 truncate max-w-[200px]">{empresa.nome}</p>
+
+                {/* Status */}
+                <div className="p-3 bg-dark-900/80 rounded-xl border border-dark-700/60 flex items-center justify-between">
+                  <span className="text-xs text-dark-400">Status:</span>
+                  {hasDatacar ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-glow-sm" />
+                      <span>Configurado</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-dark-400">
+                      <span className="w-2 h-2 rounded-full bg-dark-500" />
+                      <span>Não Configurado</span>
+                    </span>
+                  )}
                 </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setModalModulo(null)}
-                className="p-1.5 text-dark-400 hover:text-white rounded-lg hover:bg-dark-700 transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
 
-            {/* Status Atual da Conexão */}
-            <div className="p-3 bg-dark-900/80 rounded-xl border border-dark-700/60 flex items-center justify-between">
-              <span className="text-xs text-dark-400">Status da Conexão:</span>
-              {(modalModulo === 'financeiro' ? hasCaFin : hasCaVendas) ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
-                  <ShieldCheck size={14} className="text-emerald-400" />
-                  <span>Conectado</span>
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-400">
-                  <AlertCircle size={14} className="text-red-400" />
-                  <span>Desconectado</span>
-                </span>
-              )}
-            </div>
+                {/* Ações */}
+                <div className="space-y-2">
+                  {hasDatacar ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleTestarConexaoDatacar}
+                        disabled={testandoDatacar}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm"
+                      >
+                        {testandoDatacar ? <Loader2 size={14} className="animate-spin" /> : <Activity size={14} />}
+                        <span>{testandoDatacar ? 'Testando Conexão...' : 'Testar Conexão'}</span>
+                      </button>
 
-            {/* Ações Rápidas (Copiar Link, WhatsApp, Reconectar/Conectar) */}
-            <div className="space-y-2">
-              {/* Botão Copiar Link OAuth */}
-              <button
-                type="button"
-                onClick={() => handleCopiarLinkOAuth(modalModulo)}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-dark-800 hover:bg-dark-700 border border-dark-700/80 hover:border-dark-600 rounded-xl text-xs font-medium text-white transition-colors"
-              >
-                {copiadoLink ? <Check size={14} className="text-emerald-400" /> : <Link size={14} className="text-blue-400" />}
-                <span>{copiadoLink ? 'Link Copiado para Área de Transferência!' : 'Copiar Link OAuth'}</span>
-              </button>
+                      <button
+                        type="button"
+                        onClick={() => handleNavegarParaAba('integracoes')}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-dark-800 hover:bg-dark-700 border border-dark-700/80 hover:border-dark-600 rounded-xl text-xs font-medium text-white transition-colors"
+                      >
+                        <Settings size={14} className="text-primary-400" />
+                        <span>Abrir Configurações</span>
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleNavegarParaAba('integracoes')}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-primary-600 hover:bg-primary-500 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm"
+                    >
+                      <Settings size={14} />
+                      <span>Configurar Agora</span>
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
 
-              {/* Botão Copiar WhatsApp */}
-              <button
-                type="button"
-                onClick={() => {
-                  onCopiarWhatsApp(modalModulo)
-                  toast.success('Mensagem de WhatsApp formatada com link copiada!')
-                }}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-xs font-medium text-emerald-300 transition-colors"
-              >
-                <MessageSquare size={14} className="text-emerald-400" />
-                <span>Copiar Mensagem WhatsApp</span>
-              </button>
+            {/* 3. CASO NFS-e GOV.BR */}
+            {modalAtivo === 'nfse' && (
+              <>
+                <div className="flex items-center justify-between pb-3 border-b border-dark-700/70">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-teal-500/15 border border-teal-500/30 flex items-center justify-center text-teal-400">
+                      <FileText size={18} />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white text-sm">NFS-e Gov.br</h4>
+                      <p className="text-xs text-dark-400 truncate max-w-[200px]">{empresa.nome}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setModalAtivo(null)}
+                    className="p-1.5 text-dark-400 hover:text-white rounded-lg hover:bg-dark-700 transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
 
-              {/* Botão Conectar / Reconectar */}
-              <button
-                type="button"
-                onClick={() => handleReconectar(modalModulo)}
-                className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm ${
-                  modalModulo === 'financeiro' 
-                    ? 'bg-blue-600 hover:bg-blue-500' 
-                    : 'bg-purple-600 hover:bg-purple-500'
-                }`}
-              >
-                <ExternalLink size={14} />
-                <span>
-                  {(modalModulo === 'financeiro' ? hasCaFin : hasCaVendas) 
-                    ? 'Reconectar OAuth' 
-                    : 'Conectar Conta Azul Agora'}
-                </span>
-              </button>
-            </div>
+                {/* Status */}
+                <div className="p-3 bg-dark-900/80 rounded-xl border border-dark-700/60 flex items-center justify-between">
+                  <span className="text-xs text-dark-400">Status:</span>
+                  {hasNfse ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-glow-sm" />
+                      <span>Configurado</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-400">
+                      <span className="w-2 h-2 rounded-full bg-amber-400" />
+                      <span>Pendente</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* Ações */}
+                <div className="space-y-2">
+                  {hasNfse ? (
+                    <button
+                      type="button"
+                      onClick={() => handleNavegarParaAba('fiscal')}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-dark-800 hover:bg-dark-700 border border-dark-700/80 hover:border-dark-600 rounded-xl text-xs font-medium text-white transition-colors"
+                    >
+                      <Settings size={14} className="text-teal-400" />
+                      <span>Abrir Configuração Fiscal</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleNavegarParaAba('fiscal')}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-primary-600 hover:bg-primary-500 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm"
+                    >
+                      <Settings size={14} />
+                      <span>Configurar Agora</span>
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
 
             <div className="pt-1 text-center">
               <button
                 type="button"
-                onClick={() => setModalModulo(null)}
+                onClick={() => setModalAtivo(null)}
                 className="text-xs text-dark-400 hover:text-white transition-colors"
               >
                 Fechar

@@ -18,8 +18,7 @@ import {
   Copy,
   Check,
   RefreshCw,
-  ShieldCheck,
-  Tag
+  ShieldCheck
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -139,7 +138,6 @@ export function AbaGeral({ empresa, onUpdated }: AbaGeralProps) {
   const situacaoCadastral = dadosReceita?.descricao_situacao_cadastral || 'ATIVA'
   const dataAbertura = dadosReceita?.data_inicio_atividade ? formatarData(dadosReceita.data_inicio_atividade) : 'Não informada'
   const capitalSocial = dadosReceita?.capital_social ? formatarMoeda(dadosReceita.capital_social) : 'Não informado'
-  const tipoExibicao = empresa.tipo_empresa ? empresa.tipo_empresa.toUpperCase() : 'AMBOS'
   const qsaList = (dadosReceita as any)?.qsa || []
 
   return (
@@ -234,17 +232,6 @@ export function AbaGeral({ empresa, onUpdated }: AbaGeralProps) {
             </div>
           </div>
 
-          {/* Tipo de Empresa */}
-          <div className="p-3.5 bg-dark-900/70 rounded-xl border border-dark-700/60 space-y-1">
-            <span className="text-[11px] text-dark-400 font-medium flex items-center gap-1">
-              <Tag size={12} />
-              <span>Tipo Operacional</span>
-            </span>
-            <p className="text-sm font-semibold text-primary-300">
-              {tipoExibicao}
-            </p>
-          </div>
-
           {/* Situação Cadastral */}
           <div className="p-3.5 bg-dark-900/70 rounded-xl border border-dark-700/60 space-y-1">
             <span className="text-[11px] text-dark-400 font-medium flex items-center gap-1">
@@ -269,7 +256,7 @@ export function AbaGeral({ empresa, onUpdated }: AbaGeralProps) {
           </div>
 
           {/* Capital Social */}
-          <div className="p-3.5 bg-dark-900/70 rounded-xl border border-dark-700/60 space-y-1 sm:col-span-2 lg:col-span-3">
+          <div className="p-3.5 bg-dark-900/70 rounded-xl border border-dark-700/60 space-y-1 sm:col-span-2 lg:col-span-1">
             <span className="text-[11px] text-dark-400 font-medium flex items-center gap-1">
               <DollarSign size={12} />
               <span>Capital Social Registrado</span>
