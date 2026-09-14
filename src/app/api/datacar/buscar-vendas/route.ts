@@ -63,32 +63,17 @@ export async function POST(req: NextRequest) {
       idOperador: empresa.datacar_id_operador,
     }
 
-    // Se um número de OS específico foi informado, usamos o tipo de período 'criacao'
-    // e buscamos em uma margem segura de 180 dias para evitar timeouts, ou no período customizado caso seja maior.
+    // OTIMIZAÇÃO: Tratamento inteligente de busca por número de OS
+    // Quando numeroOS está presente, usa venda_Numero diretamente na Datacar em 1 única chamada.
     if (numeroOS) {
       tipoPeriodo = 'criacao'
-      if (dtIni && dtFim) {
-        const dataIniDate = new Date(dtIni)
+      if (!dtIni || !dtFim) {
         const hoje = new Date()
-        const limiteDiferenca = 180 * 24 * 60 * 60 * 1000 // 180 dias
-        
-        // Se o período for menor que 180 dias, ampliamos para 180 dias por segurança
-        if (hoje.getTime() - dataIniDate.getTime() < limiteDiferenca) {
-          const seisMesesAtras = new Date()
-          seisMesesAtras.setDate(hoje.getDate() - 180)
-          const diaI = String(seisMesesAtras.getDate()).padStart(2, '0')
-          const mesI = String(seisMesesAtras.getMonth() + 1).padStart(2, '0')
-          const anoI = seisMesesAtras.getFullYear()
-          dtIni = `${anoI}-${mesI}-${diaI}`
-        }
-      } else {
-        const hoje = new Date()
-        const seisMesesAtras = new Date()
-        seisMesesAtras.setDate(hoje.getDate() - 180)
-        
-        const diaI = String(seisMesesAtras.getDate()).padStart(2, '0')
-        const mesI = String(seisMesesAtras.getMonth() + 1).padStart(2, '0')
-        const anoI = seisMesesAtras.getFullYear()
+        const umAnoAtras = new Date()
+        umAnoAtras.setDate(hoje.getDate() - 365)
+        const diaI = String(umAnoAtras.getDate()).padStart(2, '0')
+        const mesI = String(umAnoAtras.getMonth() + 1).padStart(2, '0')
+        const anoI = umAnoAtras.getFullYear()
         dtIni = `${anoI}-${mesI}-${diaI}`
         
         const diaF = String(hoje.getDate()).padStart(2, '0')
@@ -98,36 +83,32 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Buscar todas as páginas (Datacar retorna max 50 por página)
     let allOS: Awaited<ReturnType<typeof buscarOSPedidos>> = []
-    let pagina = 1
-    let continuar = true
 
-    while (continuar) {
-      const resultado = await buscarOSPedidos(credentials, tipoPeriodo, dtIni, dtFim, String(pagina))
-      if (resultado && resultado.length > 0) {
-        
-        // Se estamos buscando uma OS específica, paramos logo que encontrá-la
-        if (numeroOS) {
-          const found = resultado.find(os => String(os.venda_Numero) === String(numeroOS))
-          if (found) {
-            allOS = [found]
-            break
-          }
-        }
-
-        allOS = [...allOS, ...resultado]
-        pagina++
-        // Se retornou menos de 50, é a última página
-        if (resultado.length < 50) continuar = false
-      } else {
-        continuar = false
-      }
-    }
-
-    // Garante que só retorne a OS buscada, caso tenha percorrido tudo e achado no meio
     if (numeroOS) {
-      allOS = allOS.filter(os => String(os.venda_Numero) === String(numeroOS))
+      // 1 ÚNICA chamada com venda_Numero nativo! Elimina loop de paginação e varredura de 180 dias.
+      const resultado = await buscarOSPedidos(credentials, tipoPeriodo, dtIni, dtFim, '1', String(numeroOS))
+      if (resultado && resultado.length > 0) {
+        const filtered = resultado.filter(os => String(os.venda_Numero) === String(numeroOS))
+        allOS = filtered.length > 0 ? filtered : [resultado[0]]
+      } else {
+        allOS = []
+      }
+    } else {
+      // Busca normal por período: mantém paginação automática com max 50 por página
+      let pagina = 1
+      let continuar = true
+
+      while (continuar) {
+        const resultado = await buscarOSPedidos(credentials, tipoPeriodo, dtIni, dtFim, String(pagina))
+        if (resultado && resultado.length > 0) {
+          allOS = [...allOS, ...resultado]
+          pagina++
+          if (resultado.length < 50) continuar = false
+        } else {
+          continuar = false
+        }
+      }
     }
 
     // === LOG DE DIAGNÓSTICO REMOVIDO PARA MELHORAR PERFORMANCE ===
@@ -143,28 +124,12 @@ export async function POST(req: NextRequest) {
       })
     })
 
-    // Buscar metadados dos produtos no Datacar (NCM, Origem)
-    const produtosMetadata = new Map<string, DatacarProdutoResponse>()
-    const codigosArray = Array.from(codigosProdutos)
-    
-    // Lotes de 20 para evitar timeouts e sobrecarga
-    for (let i = 0; i < codigosArray.length; i += 20) {
-      const chunk = codigosArray.slice(i, i + 20)
-      const promessas = chunk.map(async (codigo) => {
-        try {
-          const res = await buscarProdutos(credentials, codigo)
-          if (res && res.length > 0) {
-            const match = res.find(p => p.codigo?.trim() === codigo)
-            if (match) produtosMetadata.set(codigo, match)
-          }
-        } catch (e) {
-          console.warn(`Erro ao buscar metadados do produto ${codigo} no Datacar:`, e)
-        }
-      })
-      await Promise.all(promessas)
-    }
+    // --- ESTRATÉGIA CACHE-FIRST PARA PRODUTOS ---
+    // 1. Carrega primeiro a Memória Fiscal do banco local (memoria_fiscal e memoria_fiscal_familia).
+    // 2. Identifica os produtos ausentes no banco.
+    // 3. Consulta a Datacar APENAS para os ausentes.
+    // 4. Persiste automaticamente novos produtos encontrados no banco.
 
-    // --- INTELIGÊNCIA FISCAL ROBUSTA (CÓDIGO EXATO + FAMÍLIA + CORRELAÇÃO CEST + DICIONÁRIO PADRÃO) ---
     const mapaExata: Record<string, any> = {}
     const mapaFamilia: Record<string, any> = {}
     const ncmParaCest = new Map<string, string>()
@@ -186,7 +151,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      // 1. Carrega a base geral compartilhada (fallback)
+      // Carrega a base geral compartilhada de famílias (fallback)
       const { data: todasFamilias } = await supabaseAdmin
         .from('memoria_fiscal_familia')
         .select('*')
@@ -204,6 +169,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Carrega produtos conhecidos por código exato na base compartilhada
       if (codigosProdutos.size > 0) {
         const listaCodigos = Array.from(codigosProdutos).map(c => c.toUpperCase().trim())
         const { data: todosCodigos } = await supabaseAdmin
@@ -221,7 +187,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // 2. Sobrescreve com as regras específicas da empresa atual (prioridade máxima)
+      // Sobrescreve com as regras específicas da empresa atual (prioridade máxima)
       const { data: dataFamiliaEmpresa } = await supabaseAdmin
         .from('memoria_fiscal_familia')
         .select('*')
@@ -260,6 +226,87 @@ export async function POST(req: NextRequest) {
       console.warn('Erro ao carregar base de memória fiscal:', e)
     }
 
+    // Identifica produtos que NÃO estão resolvidos no banco local
+    const codigosAusentes: string[] = []
+    for (const codigo of Array.from(codigosProdutos)) {
+      const codLimpo = codigo.toUpperCase().trim()
+      const jaTemExata = mapaExata[codLimpo] && mapaExata[codLimpo].ncm
+      if (jaTemExata) continue
+
+      const descricao = descricoesProdutos.get(codigo) || ''
+      const descNorm = descricao.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+      const palavras = descNorm.split(/[\s/,;()-]+/).filter(Boolean)
+      let temFamilia = false
+      for (let i = palavras.length; i > 0; i--) {
+        const prefixo = palavras.slice(0, i).join(' ')
+        if (mapaFamilia[prefixo] && mapaFamilia[prefixo].ncm) {
+          temFamilia = true
+          break
+        }
+      }
+      if (!temFamilia && palavras.length > 0 && mapaFamilia[palavras[0]]?.ncm) {
+        temFamilia = true
+      }
+
+      if (!temFamilia) {
+        codigosAusentes.push(codigo)
+      }
+    }
+
+    // Consulta Datacar APENAS para produtos ausentes no banco
+    const produtosMetadata = new Map<string, DatacarProdutoResponse>()
+    const novosProdutosParaPersistir: any[] = []
+
+    if (codigosAusentes.length > 0) {
+      for (let i = 0; i < codigosAusentes.length; i += 20) {
+        const chunk = codigosAusentes.slice(i, i + 20)
+        const promessas = chunk.map(async (codigo) => {
+          try {
+            const res = await buscarProdutos(credentials, codigo)
+            if (res && res.length > 0) {
+              const match = res.find(p => p.codigo?.trim() === codigo) || res[0]
+              if (match) {
+                produtosMetadata.set(codigo, match)
+                const ncmLimpo = match.ncm ? String(match.ncm).replace(/\D/g, '') : null
+                const cestLimpo = match.cest ? String(match.cest).replace(/\D/g, '') : (ncmLimpo ? (ncmParaCest.get(ncmLimpo) || sugerirCestPadrao(ncmLimpo) || null) : null)
+                
+                novosProdutosParaPersistir.push({
+                  empresa_id,
+                  codigo: String(match.codigo || codigo).trim().toUpperCase(),
+                  descricao: match.descricao || descricoesProdutos.get(codigo) || null,
+                  ncm: ncmLimpo,
+                  cest: cestLimpo,
+                  tipo_produto: '00 - Merc. para Revenda',
+                  origem: match.origem || '0 - Nacional',
+                  unidade_medida: match.unidade_medida || 'UN',
+                  updated_at: new Date().toISOString(),
+                })
+              }
+            }
+          } catch (e) {
+            console.warn(`Erro ao buscar metadados do produto ${codigo} no Datacar:`, e)
+          }
+        })
+        await Promise.all(promessas)
+      }
+    }
+
+    // Persistência automática de novos produtos na memoria_fiscal
+    if (novosProdutosParaPersistir.length > 0) {
+      try {
+        await supabaseAdmin
+          .from('memoria_fiscal')
+          .upsert(novosProdutosParaPersistir, { onConflict: 'empresa_id,codigo' })
+
+        for (const np of novosProdutosParaPersistir) {
+          mapaExata[np.codigo] = np
+        }
+      } catch (persistErr) {
+        console.warn('Erro ao persistir novos produtos na memoria_fiscal:', persistErr)
+      }
+    }
+
+    // Resolução fiscal unificada para cada produto
     const inteligenciaFiscal = new Map<string, any>()
     for (const codigo of Array.from(codigosProdutos)) {
       const codLimpo = codigo.toUpperCase().trim()

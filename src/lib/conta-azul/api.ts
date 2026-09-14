@@ -427,7 +427,6 @@ export interface VendaPayload {
   data_venda: string
   id_categoria?: string
   id_centro_custo?: string
-  id_vendedor?: string
   observacoes?: string
   observacoes_pagamento?: string
   itens: Array<{
@@ -472,8 +471,13 @@ export async function criarVenda(accessToken: string, payload: VendaPayload): Pr
     }
   }
 
-  // Garante que id_vendedor NÃO seja enviado (vendedor responsável deve ficar em branco)
+  // Garante que nenhum campo de vendedor seja enviado (vendedor responsável deve permanecer vazio no Conta Azul)
   delete (payload as any).id_vendedor
+  delete (payload as any).vendedor
+  delete (payload as any).seller
+  delete (payload as any).salesman
+  delete (payload as any).vendedorResponsavel
+  delete (payload as any).id_vendedor_responsavel
 
   const res = await fetchCA(`${BASE_URL}/venda`, {
     method: 'POST',

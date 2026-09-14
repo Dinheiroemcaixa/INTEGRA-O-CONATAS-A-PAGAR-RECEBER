@@ -180,9 +180,11 @@ export async function buscarOSPedidos(
   dtIni: string,
   dtFim: string,
   noPagina?: string,
+  venda_Numero?: string,
 ): Promise<DatacarOSPedido[]> {
   const extra: Record<string, string> = { tipoPeriodo, dtIni, dtFim }
   if (noPagina) extra.noPagina = noPagina
+  if (venda_Numero) extra.venda_Numero = venda_Numero
   return fetchDatacar<DatacarOSPedido[]>('/ospedido', credentials, extra)
 }
 

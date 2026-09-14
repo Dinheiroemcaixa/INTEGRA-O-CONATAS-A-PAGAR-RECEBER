@@ -1,1644 +1,106 @@
 'use client'
 
+import React, { useState, useEffect, useCallback, Suspense, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import { createClient } from '@/lib/supabase/client'
-import { useState, useEffect, useCallback, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
-import {
-  Building2, Plus, Check, Loader2, ExternalLink, Edit,
-  RefreshCw, Unlink, Upload, Users, ChevronDown, ChevronUp, Trash2, ShieldCheck, Mail, Search, Copy, X, Store
+import { Empresa } from '@/types'
+import { formatCNPJ } from '@/lib/utils'
+
+// Subcomponentes da arquitetura Master-Detail
+import { EmpresaCardMaster } from '@/components/empresas/EmpresaCardMaster'
+import { AbaGeral } from '@/components/empresas/AbaGeral'
+import { AbaIntegracoes } from '@/components/empresas/AbaIntegracoes'
+import { AbaFornecedores } from '@/components/empresas/AbaFornecedores'
+import { AbaFiscal } from '@/components/empresas/AbaFiscal'
+import { AbaAvancado } from '@/components/empresas/AbaAvancado'
+import { ModalNovaEmpresa } from '@/components/empresas/ModalNovaEmpresa'
+
+import { 
+  Building2, 
+  Search, 
+  Plus, 
+  Zap, 
+  Sparkles, 
+  X, 
+  Copy, 
+  Star, 
+  CheckCircle2, 
+  AlertCircle, 
+  Database, 
+  CreditCard, 
+  FileText, 
+  Layers, 
+  ShieldCheck, 
+  Users, 
+  Loader2,
+  ArrowLeft,
+  ChevronRight
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { formatCNPJ } from '@/lib/utils'
-import { parseFornecedoresArquivo } from '@/lib/parsers/fornecedores-contaazul'
-import { buscarCnpj, type BrasilApiCnpjResponse } from '@/services/brasil-api/client'
-import type { Empresa } from '@/types'
 
-const AVATAR_GRADIENTS = [
-  'from-blue-600 to-indigo-600 border-blue-400/30 text-white shadow-[0_0_15px_rgba(37,99,235,0.3)]',
-  'from-emerald-600 to-teal-600 border-emerald-400/30 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)]',
-  'from-purple-600 to-pink-600 border-purple-400/30 text-white shadow-[0_0_15px_rgba(147,51,234,0.3)]',
-  'from-amber-600 to-orange-600 border-amber-400/30 text-white shadow-[0_0_15px_rgba(217,119,6,0.3)]',
-  'from-cyan-600 to-blue-600 border-cyan-400/30 text-white shadow-[0_0_15px_rgba(6,182,212,0.3)]',
-]
+// Gerador determinístico de gradiente para avatar
+function getAvatarGradient(id: string) {
+  const gradients = [
+    'from-blue-600 to-indigo-700',
+    'from-emerald-600 to-teal-700',
+    'from-violet-600 to-purple-700',
+    'from-amber-600 to-orange-700',
+    'from-rose-600 to-pink-700',
+    'from-cyan-600 to-blue-700',
+  ]
+  const index = id ? id.charCodeAt(0) % gradients.length : 0
+  return gradients[index]
+}
 
-
+// Formatador de mensagem WhatsApp para autorização remota
 function formatarMensagemWhatsApp(empresa: Empresa, modulo: 'financeiro' | 'vendas') {
-  const isFin = modulo === 'financeiro';
-  const nomeContaCa = (empresa.nome_fantasia || empresa.nome || empresa.razao_social || 'Empresa').trim();
-  const moduloLabel = isFin ? 'FINANCEIRO (Contas a Pagar / Receber)' : 'VENDAS / EMISSÃO DE NF-E';
-  const link = window.location.origin + '/conectar?empresa_id=' + empresa.id + '&modulo=' + modulo;
-  const cnpjFmt = formatCNPJ(empresa.cnpj);
+  const isVendas = modulo === 'vendas'
+  const nomeModulo = isVendas ? 'VENDAS / NF-E' : 'FINANCEIRO'
+  const emailLogin = isVendas ? empresa.email_login_vendas : empresa.email_login
+  const urlAuth = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/conta-azul/autorizar?empresa_id=${empresa.id}&modulo=${modulo}`
+  const nomeContaCa = (empresa.nome_fantasia || empresa.nome || empresa.razao_social || 'Empresa').trim()
 
-  return 'Olá! Segue o link para autorização da integração Conta Azul da sua unidade:\n\n' +
-    '🏢 *Loja:* ' + empresa.nome + '\n' +
-    '📌 *Módulo:* ' + moduloLabel + '\n' +
-    '🎯 *Conta a selecionar no Conta Azul:* *' + nomeContaCa + '*\n' +
-    '🔢 *CNPJ:* ' + cnpjFmt + '\n' +
-    '🔗 *Link de Conexão:* ' + link + '\n\n' +
-    '⚠️ *Importante:* Ao abrir o Conta Azul, certifique-se de selecionar a empresa indicada acima.';
+  return `Olá! Preciso que você autorize a integração do Connecta AI com o Conta Azul (${nomeModulo}) da empresa *${empresa.nome}*.
+
+*INSTRUÇÕES IMPORTANTES:*
+1. Faça login na conta: *${emailLogin || 'seu e-mail de acesso'}*
+2. Certifique-se de selecionar a empresa: *${nomeContaCa}*
+3. Clique no link abaixo e autorize o acesso:
+
+${urlAuth}
+
+Essa autorização é necessária para emissão e sincronização contábil automática. Qualquer dúvida estou à disposição!`
 }
 
 function handleCopiarWhatsApp(empresa: Empresa, modulo: 'financeiro' | 'vendas') {
-  const msg = formatarMensagemWhatsApp(empresa, modulo);
-  navigator.clipboard.writeText(msg);
-  import('react-hot-toast').then((m) => m.default.success('Mensagem para WhatsApp copiada com sucesso!'));
+  const texto = formatarMensagemWhatsApp(empresa, modulo)
+  navigator.clipboard.writeText(texto)
+  toast.success(`Mensagem com link para o Conta Azul (${modulo === 'vendas' ? 'Vendas' : 'Financeiro'}) copiada!`)
 }
 
-function getAvatarGradient(id: string) {
-  let hash = 0
-  for (let i = 0; i < id.length; i++) hash += id.charCodeAt(i)
-  return AVATAR_GRADIENTS[hash % AVATAR_GRADIENTS.length]
-}
-
-// --- Painel de fornecedores por empresa ---
-function PainelFornecedores({ empresa }: { empresa: Empresa }) {
-  const [aberto, setAberto] = useState(false)
-  const [total, setTotal] = useState<number | null>(null)
-  const [importando, setImportando] = useState(false)
-  const [sincronizando, setSincronizando] = useState(false)
-  const [limpando, setLimpando] = useState(false)
-  const [regrasDepara, setRegrasDepara] = useState<any[]>([])
-  const [carregandoDepara, setCarregandoDepara] = useState(false)
-  const supabase = createClient()
-
-  const carregarTotal = useCallback(async () => {
-    const { count } = await supabase
-      .from('fornecedores_contaazul')
-      .select('*', { count: 'exact', head: true })
-      .eq('empresa_id', empresa.id)
-    setTotal(count ?? 0)
-  }, [empresa.id, supabase])
-
-  const carregarRegrasDepara = useCallback(async () => {
-    try {
-      setCarregandoDepara(true)
-      const res = await fetch('/api/fornecedor-depara?empresa_id=' + empresa.id)
-      const json = await res.json()
-      if (json.data) {
-        setRegrasDepara(json.data)
-      }
-    } catch {
-      // silencioso
-    } finally {
-      setCarregandoDepara(false)
-    }
-  }, [empresa.id])
-
-  useEffect(() => { 
-    carregarTotal()
-    carregarRegrasDepara()
-  }, [carregarTotal, carregarRegrasDepara])
-
-  const handleExcluirRegraDepara = async (id: string, nomeOriginal: string) => {
-    if (!confirm(`Excluir regra de aprendizado para "${nomeOriginal}"?`)) return
-    try {
-      const res = await fetch(`/api/fornecedor-depara?id=${id}`, { method: 'DELETE' })
-      if (res.ok) {
-        toast.success('Regra De-Para removida!')
-        carregarRegrasDepara()
-      } else {
-        toast.error('Erro ao excluir regra.')
-      }
-    } catch {
-      toast.error('Erro ao excluir regra.')
-    }
-  }
-
-  const handleImportar = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setImportando(true)
-    try {
-      const fornecedores = await parseFornecedoresArquivo(file)
-      if (fornecedores.length === 0) {
-        toast.error('Nenhum fornecedor encontrado no arquivo')
-        return
-      }
-
-      await supabase.from('fornecedores_contaazul').delete().eq('empresa_id', empresa.id)
-
-      const registros = fornecedores.map((f) => ({
-        empresa_id: empresa.id,
-        nome: f.nome,
-        cnpj: f.cnpj || null,
-        categoria_padrao: f.categoria || null,
-        nome_normalizado: f.nomeNormalizado,
-      }))
-
-      for (let i = 0; i < registros.length; i += 500) {
-        const lote = registros.slice(i, i + 500)
-        const { error } = await supabase.from('fornecedores_contaazul').insert(lote)
-        if (error) throw error
-      }
-
-      toast.success(`${fornecedores.length} fornecedores importados com sucesso!`)
-      await carregarTotal()
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Erro ao importar fornecedores')
-    } finally {
-      setImportando(false)
-      e.target.value = ''
-    }
-  }
-
-  const handleLimpar = async () => {
-    if (!confirm('Remover todos os fornecedores desta empresa?')) return
-    setLimpando(true)
-    try {
-      await supabase.from('fornecedores_contaazul').delete().eq('empresa_id', empresa.id)
-      setTotal(0)
-      toast.success('Lista de fornecedores removida.')
-    } catch {
-      toast.error('Erro ao remover fornecedores')
-    } finally {
-      setLimpando(false)
-    }
-  }
-
-  return (
-    <div className="border-t border-dark-700 mt-3 pt-3">
-      <button
-        onClick={() => setAberto(!aberto)}
-        className="flex items-center gap-2 text-sm text-dark-400 hover:text-white transition-colors w-full"
-      >
-        <Users size={14} />
-        <span>Fornecedores & De-Para</span>
-        {total !== null && (
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-            total > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-dark-700 text-dark-500'
-          }`}>
-            {total} cadastrados
-          </span>
-        )}
-        {regrasDepara.length > 0 && (
-          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-500/20 text-blue-400">
-            {regrasDepara.length} regras De-Para
-          </span>
-        )}
-        {aberto ? <ChevronUp size={14} className="ml-auto" /> : <ChevronDown size={14} className="ml-auto" />}
-      </button>
-
-      {aberto && (
-        <div className="mt-3 space-y-3 animate-fade-in">
-          <p className="text-xs text-dark-500">
-            Sincronize os fornecedores diretamente do Conta Azul para que o app faça correspondência
-            automática ao importar planilhas do Datacar.
-          </p>
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={async () => {
-                if (!empresa.access_token_conta_azul) {
-                  toast.error('Empresa não conectada ao Conta Azul.')
-                  return
-                }
-                setSincronizando(true)
-                try {
-                  const res = await fetch('/api/conta-azul/fornecedores/sincronizar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ empresa_id: empresa.id })
-                  })
-                  const data = await res.json()
-                  if (!res.ok) throw new Error(data.error || 'Erro ao sincronizar fornecedores')
-                  toast.success(data.message || `${data.count} fornecedores sincronizados com sucesso!`)
-                  await carregarTotal()
-                } catch (err: any) {
-                  toast.error(err.message)
-                } finally {
-                  setSincronizando(false)
-                }
-              }}
-              disabled={sincronizando || importando || !empresa.access_token_conta_azul}
-              className={`flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg cursor-pointer transition-all
-                ${sincronizando || importando || !empresa.access_token_conta_azul
-                  ? 'bg-dark-700 text-dark-500 cursor-not-allowed'
-                  : 'bg-brand-600 hover:bg-brand-500 text-white'
-                }`}
-            >
-              {sincronizando ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
-              {sincronizando ? 'Sincronizando...' : 'Sincronizar Conta Azul'}
-            </button>
-
-            <label className={`flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg cursor-pointer transition-all
-              ${importando || sincronizando
-                ? 'bg-dark-700 text-dark-500 cursor-not-allowed'
-                : 'bg-emerald-700 hover:bg-emerald-600 text-white'
-              }`}>
-              {importando
-                ? <Loader2 size={13} className="animate-spin" />
-                : <Upload size={13} />
-              }
-              {importando ? 'Importando...' : 'Importar CSV ContaAzul'}
-              <input
-                type="file"
-                accept=".csv"
-                className="hidden"
-                disabled={importando}
-                onChange={handleImportar}
-              />
-            </label>
-
-            {total !== null && total > 0 && (
-              <button
-                onClick={handleLimpar}
-                disabled={limpando}
-                className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 px-3 py-2 rounded-lg hover:bg-red-500/10 transition-all cursor-pointer"
-              >
-                {limpando ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                Limpar lista
-              </button>
-            )}
-          </div>
-
-          {/* Seção de Regras De-Para Aprendidas */}
-          <div className="bg-dark-900/80 border border-dark-700 rounded-xl p-3 space-y-2 mt-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-dark-200">
-                Regras De-Para de Fornecedores ({regrasDepara.length})
-              </span>
-              <span className="text-[10px] text-dark-400">
-                Regras memorizadas para conversão automática
-              </span>
-            </div>
-
-            {regrasDepara.length === 0 ? (
-              <p className="text-xs text-dark-500 italic py-1">
-                Nenhuma regra De-Para memorizada para esta empresa.
-              </p>
-            ) : (
-              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                {regrasDepara.map((r: any) => (
-                  <div key={r.id || r.nome_original_normalizado} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-dark-950/60 border border-dark-800 text-xs">
-                    <div className="flex items-center gap-1.5 truncate">
-                      <span className="text-dark-400 font-mono truncate" title={r.nome_original}>"{r.nome_original}"</span>
-                      <span className="text-blue-400 font-bold">➔</span>
-                      <span className="text-emerald-400 font-semibold truncate" title={r.nome_corrigido}>"{r.nome_corrigido}"</span>
-                    </div>
-                    {r.id && (
-                      <button
-                        type="button"
-                        onClick={() => handleExcluirRegraDepara(r.id, r.nome_original)}
-                        className="text-dark-500 hover:text-red-400 p-1 rounded hover:bg-red-500/10 transition-colors flex-shrink-0 cursor-pointer"
-                        title="Excluir esta regra De-Para"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// --- Painel de Ficha Cadastral (Brasil API / Receita Federal) ---
-function PainelFichaCadastral({ empresa }: { empresa: Empresa }) {
-  const [aberto, setAberto] = useState(false)
-  const [carregando, setCarregando] = useState(false)
-  const [dados, setDados] = useState<BrasilApiCnpjResponse | null>(null)
-
-  const carregarFicha = async () => {
-    if (dados) return
-    const cnpjLimpo = (empresa.cnpj || '').replace(/\D/g, '')
-    if (cnpjLimpo.length !== 14) return
-    setCarregando(true)
-    try {
-      const res = await buscarCnpj(cnpjLimpo)
-      if (res) setDados(res)
-    } catch {
-      // Silencioso
-    } finally {
-      setCarregando(false)
-    }
-  }
-
-  return (
-    <div className="border-t border-dark-700/30 mt-2 pt-2 cursor-default" onClick={e => e.stopPropagation()}>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation()
-          const novoState = !aberto
-          setAberto(novoState)
-          if (novoState) carregarFicha()
-        }}
-        className="flex items-center gap-2 text-xs text-dark-400 hover:text-white transition-colors w-full"
-      >
-        <Building2 size={13} className="text-emerald-400" />
-        <span className="font-medium">Ficha Cadastral (Brasil API)</span>
-        {aberto ? <ChevronUp size={13} className="ml-auto" /> : <ChevronDown size={13} className="ml-auto" />}
-      </button>
-
-      {aberto && (
-        <div className="mt-2.5 bg-dark-900/60 border border-dark-700/50 rounded-xl p-3.5 space-y-2 text-xs animate-fade-in">
-          {carregando ? (
-            <div className="flex items-center gap-2 text-dark-400 py-1">
-              <Loader2 size={13} className="animate-spin text-emerald-400" />
-              <span>Consultando Receita Federal...</span>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-dark-400 uppercase font-semibold">CNPJ Oficial</span>
-                <span className="font-mono text-emerald-400 font-bold">{formatCNPJ(empresa.cnpj)}</span>
-              </div>
-              {empresa.razao_social && (
-                <div>
-                  <span className="text-[10px] text-dark-400 uppercase block font-semibold">Razão Social</span>
-                  <span className="text-white font-medium block truncate">{empresa.razao_social}</span>
-                </div>
-              )}
-              {(empresa.nome_fantasia || dados?.nome_fantasia) && (
-                <div>
-                  <span className="text-[10px] text-dark-400 uppercase block font-semibold">Nome Fantasia</span>
-                  <span className="text-white font-medium block truncate">{empresa.nome_fantasia || dados?.nome_fantasia}</span>
-                </div>
-              )}
-              {dados && (
-                <>
-                  <div className="flex items-center justify-between pt-1 border-t border-dark-700/30">
-                    <span className="text-[10px] text-dark-400 uppercase font-semibold">Situação</span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                      dados.descricao_situacao_cadastral === 'ATIVA' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
-                    }`}>
-                      {dados.descricao_situacao_cadastral}
-                    </span>
-                  </div>
-                  {dados.cnae_fiscal_descricao && (
-                    <div>
-                      <span className="text-[10px] text-dark-400 uppercase block font-semibold">CNAE Principal</span>
-                      <span className="text-dark-300 block truncate">{dados.cnae_fiscal} — {dados.cnae_fiscal_descricao}</span>
-                    </div>
-                  )}
-                  {dados.logradouro && (
-                    <div>
-                      <span className="text-[10px] text-dark-400 uppercase block font-semibold">Endereço Registrado</span>
-                      <span className="text-dark-300 block">
-                        {dados.logradouro}, {dados.numero} {dados.complemento ? `- ${dados.complemento}` : ''} — {dados.bairro}, {dados.municipio}/{dados.uf}
-                      </span>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function InlineEmpresaEditForm({
-  empresa,
-  todasEmpresas = [],
-  onCancel,
-  onSaved,
-}: {
-  empresa: Empresa
-  todasEmpresas?: Empresa[]
-  onCancel: () => void
-  onSaved: () => void
-}) {
-  const supabase = createClient()
-  const [nome, setNome] = useState(empresa.nome || '')
-  const [cnpj, setCnpj] = useState(empresa.cnpj ? formatCNPJ(empresa.cnpj) : '')
-  const [razaoSocial, setRazaoSocial] = useState(empresa.razao_social || '')
-  const [nomeFantasia, setNomeFantasia] = useState(empresa.nome_fantasia || '')
-  const [emailLogin, setEmailLogin] = useState(empresa.email_login || '')
-  const [emailLoginVendas, setEmailLoginVendas] = useState(empresa.email_login_vendas || '')
-  const [datacarToken, setDatacarToken] = useState(empresa.datacar_token || '')
-  const [datacarCodEmp, setDatacarCodEmp] = useState(empresa.datacar_cod_emp || '')
-  const [datacarIdOperador, setDatacarIdOperador] = useState(empresa.datacar_id_operador || '')
-  
-  // Estado Fiscal NFS-e
-  const [emiteNfse, setEmiteNfse] = useState((empresa as any).emite_nfse || (empresa as any).optante_simples || false)
-  const [regimeTributario, setRegimeTributario] = useState('1')
-  const [cidadeIbge, setCidadeIbge] = useState('3106200')
-  const [codigoTributacao, setCodigoTributacao] = useState('14.01.01')
-  const [inscricaoMunicipal, setInscricaoMunicipal] = useState('')
-  const [aliquotaSimples, setAliquotaSimples] = useState('11.34')
-  const [aliquotaIssqn, setAliquotaIssqn] = useState('')
-  const [senhaCertificado, setSenhaCertificado] = useState('')
-  const [certificadoFile, setCertificadoFile] = useState<File | null>(null)
-  const [temCertificadoSalvo, setTemCertificadoSalvo] = useState(false)
-  const [salvando, setSalvando] = useState(false)
-  const [buscandoCnpj, setBuscandoCnpj] = useState(false)
-  const [dadosCnpj, setDadosCnpj] = useState<BrasilApiCnpjResponse | null>(null)
-
-  useEffect(() => {
-    fetch(`/api/config-fiscal?empresa_id=${empresa.id}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data?.config) {
-          if (data.config.inscricao_municipal) setInscricaoMunicipal(data.config.inscricao_municipal)
-          if (data.config.aliquota_simples_nacional) setAliquotaSimples(String(data.config.aliquota_simples_nacional))
-          if (data.config.aliquota_issqn) setAliquotaIssqn(String(data.config.aliquota_issqn))
-          if (data.config.regime_tributario) setRegimeTributario(String(data.config.regime_tributario))
-          if (data.config.cidade_ibge) setCidadeIbge(String(data.config.cidade_ibge))
-          if (data.config.codigo_tributacao_nacional) setCodigoTributacao(String(data.config.codigo_tributacao_nacional))
-        }
-        if (data?.temCertificado) setTemCertificadoSalvo(true)
-      })
-      .catch(console.error)
-  }, [empresa.id])
-
-  const handleBuscarCnpjInline = async () => {
-    const cnpjLimpo = (cnpj || '').replace(/\D/g, '')
-    if (cnpjLimpo.length !== 14) {
-      toast.error('CNPJ inválido. Digite os 14 dígitos.')
-      return
-    }
-    setBuscandoCnpj(true)
-    try {
-      const dados = await buscarCnpj(cnpjLimpo)
-      if (!dados) {
-        toast.error('CNPJ não encontrado na base pública da Receita. Verifique o número digitado.')
-        setDadosCnpj(null)
-        return
-      }
-      setDadosCnpj(dados)
-      setCnpj(formatCNPJ(cnpjLimpo))
-      if (!nome.trim()) {
-        setNome(dados.nome_fantasia || dados.razao_social || '')
-      }
-      setRazaoSocial(dados.razao_social || '')
-      setNomeFantasia(dados.nome_fantasia || '')
-      toast.success('Dados oficiais da Receita Federal localizados com sucesso!')
-    } catch (e) {
-      console.error('[handleBuscarCnpjInline] Erro:', e)
-      toast.error('Erro ao consultar a base de CNPJ.')
-    } finally {
-      setBuscandoCnpj(false)
-    }
-  }
-
-  const handleSalvarInline = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSalvando(true)
-    try {
-      const cnpjLimpo = cnpj.replace(/\D/g, '')
-
-      let updatePayload: Record<string, any> = {
-        nome: nome.trim(),
-        cnpj: cnpjLimpo,
-        email_login: emailLogin.trim() || null,
-        email_login_vendas: emailLoginVendas.trim() || null,
-        datacar_token: datacarToken.trim() || null,
-        datacar_cod_emp: datacarCodEmp.trim() || null,
-        datacar_id_operador: datacarIdOperador.trim() || null,
-        razao_social: razaoSocial.trim() || null,
-        nome_fantasia: nomeFantasia.trim() || null,
-        emite_nfse: emiteNfse,
-        optante_simples: emiteNfse,
-      }
-
-      let { error } = await supabase
-        .from('empresas')
-        .update(updatePayload)
-        .eq('id', empresa.id)
-
-      if (error && (error.message?.includes('emite_nfse') || error.code === 'PGRST204')) {
-        delete updatePayload.emite_nfse
-        delete updatePayload.optante_simples
-        const retry = await supabase
-          .from('empresas')
-          .update(updatePayload)
-          .eq('id', empresa.id)
-        error = retry.error
-      }
-
-      if (error) throw error
-
-
-
-      if (emiteNfse) {
-        const formData = new FormData()
-        formData.append('empresa_id', empresa.id)
-        formData.append('cnpj', cnpjLimpo)
-        formData.append('inscricao_municipal', inscricaoMunicipal)
-        formData.append('regime_tributario', regimeTributario)
-        formData.append('cidade_ibge', cidadeIbge)
-        formData.append('codigo_tributacao_nacional', codigoTributacao)
-        formData.append('aliquota_simples_nacional', aliquotaSimples)
-        formData.append('aliquota_issqn', aliquotaIssqn)
-        if (senhaCertificado) formData.append('senha_certificado', senhaCertificado)
-        if (certificadoFile) formData.append('certificado', certificadoFile)
-
-        await fetch('/api/config-fiscal', {
-          method: 'POST',
-          body: formData
-        })
-      }
-
-      toast.success(`Empresa "${nome}" atualizada com sucesso!`)
-      onSaved()
-    } catch (err: any) {
-      toast.error(err.message || 'Erro ao atualizar empresa')
-    } finally {
-      setSalvando(false)
-    }
-  }
-
-  return (
-    <div className="bg-dark-800/80 border border-dark-700 p-6 rounded-2xl shadow-xl space-y-6 animate-fade-in backdrop-blur-sm w-full my-2" onClick={e => e.stopPropagation()}>
-      <div className="flex items-center justify-between border-b border-dark-700/50 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400 font-bold">
-            <Building2 size={20} />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-white">
-              Editar Empresa — <span className="text-brand-300 font-extrabold">{empresa.nome}</span>
-            </h3>
-            <p className="text-xs text-dark-400">
-              Atualize as credenciais e conexões da loja diretamente aqui
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="p-2 rounded-xl text-dark-400 hover:text-white hover:bg-dark-700 transition-colors"
-          title="Fechar edição"
-        >
-          <X size={18} />
-        </button>
-      </div>
-
-      <form onSubmit={handleSalvarInline} className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* COLUNA ESQUERDA: Identidade */}
-          <div className="lg:col-span-7 space-y-6">
-            <div className="bg-dark-900/40 p-1.5 rounded-xl border border-dark-700/50 shadow-inner focus-within:border-brand-500/50 focus-within:bg-dark-900/60 transition-all group">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center">
-                <div className="hidden sm:block pl-4 pr-2 text-brand-500">
-                  <Search size={20} className={buscandoCnpj ? 'animate-pulse' : ''} />
-                </div>
-                <input
-                  value={cnpj}
-                  onChange={(e) => {
-                    const raw = e.target.value.replace(/\D/g, '').slice(0, 14)
-                    const masked = raw
-                      .replace(/^(\d{2})(\d)/, '$1.$2')
-                      .replace(/^(\d{2}\.\d{3})(\d)/, '$1.$2')
-                      .replace(/^(\d{2}\.\d{3}\.\d{3})(\d)/, '$1/$2')
-                      .replace(/^(\d{2}\.\d{3}\.\d{3}\/\d{4})(\d)/, '$1-$2')
-                    setCnpj(masked)
-                  }}
-                  placeholder="CNPJ (00.000.000/0000-00)"
-                  required
-                  className="flex-1 bg-transparent border-none px-4 py-3 sm:px-2 sm:text-lg text-white focus:ring-0 outline-none font-mono placeholder:text-dark-600"
-                />
-                <button
-                  type="button"
-                  onClick={handleBuscarCnpjInline}
-                  disabled={buscandoCnpj || (cnpj || '').replace(/\D/g, '').length < 14}
-                  className={`mt-2 sm:mt-0 sm:mr-1.5 px-6 py-3 sm:py-2.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap flex items-center justify-center gap-2 ${
-                    buscandoCnpj || (cnpj || '').replace(/\D/g, '').length < 14
-                      ? 'bg-dark-800 text-dark-500 cursor-not-allowed'
-                      : 'bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-600/20'
-                  }`}
-                >
-                  {buscandoCnpj ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-                  {buscandoCnpj ? 'Buscando...' : 'Buscar Dados'}
-                </button>
-              </div>
-            </div>
-
-            {dadosCnpj && (
-              <div className="bg-dark-900/60 p-4 rounded-xl border border-brand-500/30 space-y-3 animate-fade-in">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-brand-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Check size={14} /> Dados Oficiais — Receita Federal
-                  </span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    dadosCnpj.descricao_situacao_cadastral === 'ATIVA'
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                      : 'bg-red-500/20 text-red-400 border border-red-500/30'
-                  }`}>
-                    {dadosCnpj.descricao_situacao_cadastral || 'SITUAÇÃO N/D'}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <span className="text-[10px] text-dark-500 block">Razão Social</span>
-                    <span className="text-white font-semibold block truncate" title={dadosCnpj.razao_social}>
-                      {dadosCnpj.razao_social}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-dark-500 block">Nome Fantasia</span>
-                    <span className="text-white font-semibold block truncate" title={dadosCnpj.nome_fantasia || 'Não informado'}>
-                      {dadosCnpj.nome_fantasia || 'Não informado'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-dark-200">Nome Popular da Loja (Apelido interno)</label>
-              <input
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
-                placeholder="Ex: SOFAST MATRIZ, NUFAST BARÃO, DETROIT"
-                required
-                className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-4 py-3 text-xs text-white focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 outline-none transition-all placeholder:text-dark-600 shadow-inner"
-              />
-            </div>
-
-
-
-            {/* MARCADOR: EMPRESA DO SIMPLES NACIONAL / EMISSORA NFS-E */}
-            <div className="bg-dark-900/50 p-4 rounded-xl border border-blue-500/30 space-y-3">
-              <label className="flex items-start gap-3 cursor-pointer bg-dark-900 p-3.5 rounded-xl border border-blue-500/40 hover:border-blue-400 transition-all group">
-                <input
-                  type="checkbox"
-                  checked={emiteNfse}
-                  onChange={(e) => setEmiteNfse(e.target.checked)}
-                  className="w-4 h-4 mt-0.5 rounded text-blue-500 bg-dark-800 border-dark-600 focus:ring-blue-500/50"
-                />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-blue-400 block group-hover:text-blue-300">
-                      🏷️ Empresa do Simples Nacional (Emite NFS-e)
-                    </span>
-                    <span className="text-[10px] bg-blue-500/20 text-blue-300 font-bold px-2 py-0.5 rounded border border-blue-500/30">
-                      NFS-e Gov.br
-                    </span>
-                  </div>
-                  <span className="text-[11px] text-dark-400 block leading-relaxed mt-1">
-                    Ative este marcador para configurar os impostos (Simples/ISSQN) e disponibilizar esta loja exclusivamente no módulo de **Vendas e Serviços (NFS-e)**.
-                  </span>
-                </div>
-              </label>
-
-              {/* PAINEL EXPANSÍVEL FISCAL */}
-              {emiteNfse && (
-                <div className="space-y-4 pt-2 border-t border-dark-700/60 animate-fade-in">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-[11px] font-semibold text-dark-300 block mb-1">Regime Tributário *</label>
-                      <select
-                        value={regimeTributario}
-                        onChange={(e) => setRegimeTributario(e.target.value)}
-                        className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none"
-                      >
-                        <option value="1">Simples Nacional (Microempresa / EPP)</option>
-                        <option value="2">Microempreendedor Individual (MEI)</option>
-                        <option value="3">Lucro Presumido</option>
-                        <option value="4">Lucro Real</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold text-dark-300 block mb-1">Código IBGE da Cidade Sede *</label>
-                      <input
-                        type="text"
-                        value={cidadeIbge}
-                        onChange={(e) => setCidadeIbge(e.target.value)}
-                        placeholder="Ex: 3106200 (Belo Horizonte) ou 5215605"
-                        className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-[11px] font-semibold text-dark-300 block mb-1">Inscrição Municipal</label>
-                      <input
-                        type="text"
-                        value={inscricaoMunicipal}
-                        onChange={(e) => setInscricaoMunicipal(e.target.value)}
-                        placeholder="Ex: 15219040018"
-                        className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold text-dark-300 block mb-1">Alíquota Simples Nacional (%)</label>
-                      <input
-                        type="text"
-                        value={aliquotaSimples}
-                        onChange={(e) => setAliquotaSimples(e.target.value)}
-                        placeholder="Ex: 11.34"
-                        className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-[11px] font-semibold text-dark-300 block mb-1">Alíquota ISSQN (%)</label>
-                      <input
-                        type="text"
-                        value={aliquotaIssqn}
-                        onChange={(e) => setAliquotaIssqn(e.target.value)}
-                        placeholder="Ex: 2.00 ou deixe vazio"
-                        className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold text-dark-300 block mb-1">Cód. Tributação Nacional (LC 116)</label>
-                      <input
-                        type="text"
-                        value={codigoTributacao}
-                        onChange={(e) => setCodigoTributacao(e.target.value)}
-                        placeholder="Ex: 14.01.01 (Manutenção/Revisão)"
-                        className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-[11px] font-semibold text-dark-300 block mb-1">Certificado Digital A1 (.pfx)</label>
-                      <div className="flex items-center gap-2">
-                        <label className="flex-1 bg-dark-900 border border-dark-700 hover:border-dark-500 rounded-lg px-3 py-1.5 text-xs text-dark-300 cursor-pointer flex items-center justify-between truncate">
-                          <span>{certificadoFile ? certificadoFile.name : (temCertificadoSalvo ? '✓ Certificado A1 Salvo (ICP-Brasil)' : 'Selecionar .pfx')}</span>
-                          <input
-                            type="file"
-                            accept=".pfx,.p12"
-                            className="hidden"
-                            onChange={(e) => setCertificadoFile(e.target.files?.[0] || null)}
-                          />
-                        </label>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold text-dark-300 block mb-1">Senha do Certificado A1</label>
-                      <input
-                        type="password"
-                        value={senhaCertificado}
-                        onChange={(e) => setSenhaCertificado(e.target.value)}
-                        placeholder={temCertificadoSalvo ? '•••••••• (Inalterada)' : 'Digite a senha do certificado A1'}
-                        className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* COLUNA DIREITA: Integrações */}
-          <div className="lg:col-span-5 bg-dark-900/40 p-4 rounded-xl border border-dark-700/50 space-y-4 flex flex-col justify-between">
-            
-            <h4 className="text-sm font-bold text-white flex items-center gap-2">
-              <ShieldCheck size={16} className="text-brand-400" />
-              Configurações de Acesso
-            </h4>
-
-            <div className="space-y-2 pt-1">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded bg-blue-500/10 flex items-center justify-center">
-                  <Mail size={12} className="text-blue-400" />
-                </div>
-                <label className="text-xs font-semibold text-dark-200">Conta Azul — Financeiro (Contas a Pagar)</label>
-              </div>
-              <input
-                value={emailLogin}
-                onChange={(e) => setEmailLogin(e.target.value)}
-                placeholder="Deixe em branco (capturado no login do cliente)"
-                type="email"
-                className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-4 py-2.5 text-xs text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all placeholder:text-dark-600 shadow-inner"
-              />
-            </div>
-
-            <div className="h-px w-full bg-dark-700/30" />
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded bg-emerald-500/10 flex items-center justify-center">
-                  <Mail size={12} className="text-emerald-400" />
-                </div>
-                <label className="text-xs font-semibold text-dark-200">Conta Azul — Vendas (Emissão de NFe)</label>
-              </div>
-              <input
-                value={emailLoginVendas || ''}
-                onChange={(e) => setEmailLoginVendas(e.target.value)}
-                placeholder="Deixe em branco (capturado no login do cliente)"
-                type="email"
-                className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-4 py-2.5 text-xs text-white focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all placeholder:text-dark-600 shadow-inner"
-              />
-            </div>
-            
-
-            
-            <div className="h-px w-full bg-dark-700/30" />
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded bg-orange-500/10 flex items-center justify-center">
-                  <Unlink size={12} className="text-orange-400" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-dark-200 block">API Datacar (Opcional)</label>
-                </div>
-              </div>
-              <div className="space-y-2.5 pt-1">
-                <input
-                  value={datacarToken}
-                  onChange={(e) => setDatacarToken(e.target.value)}
-                  placeholder="Token de Acesso Datacar"
-                  className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-4 py-2.5 text-xs text-white focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all placeholder:text-dark-600 shadow-inner"
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] text-dark-400 font-semibold block mb-1">Cód. Empresa Datacar</label>
-                    <input
-                      value={datacarCodEmp}
-                      onChange={(e) => setDatacarCodEmp(e.target.value)}
-                      placeholder="Ex: 001 ou 1"
-                      className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-3 py-2 text-xs text-white focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none font-mono placeholder:text-dark-600 shadow-inner"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-dark-400 font-semibold block mb-1">ID Operador Datacar</label>
-                    <input
-                      value={datacarIdOperador}
-                      onChange={(e) => setDatacarIdOperador(e.target.value)}
-                      placeholder="Ex: 102"
-                      className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-3 py-2 text-xs text-white focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none font-mono placeholder:text-dark-600 shadow-inner"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-4 mt-auto border-t border-dark-700/30 flex flex-col sm:flex-row justify-end gap-3">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="bg-dark-800 hover:bg-dark-700 text-white border border-dark-600 px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all text-xs"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={salvando}
-                className="bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 disabled:opacity-50 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(var(--brand-500),0.2)] text-xs"
-              >
-                {salvando ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                {salvando ? 'Salvando...' : 'Salvar Empresa'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </form>
-    </div>
-  )
-}
-
-function EmpresaCard({
-  empresa,
-  todasEmpresas,
-  isAtiva,
-  isEditandoInline,
-  onSelect,
-  onEdit,
-  onDelete,
-  conectando,
-  onConectarContaAzul,
-  onDesconectar,
-  onRecarregar,
-}: {
-  empresa: Empresa;
-  todasEmpresas: Empresa[];
-  isAtiva: boolean;
-  isEditandoInline?: boolean;
-  onSelect: () => void;
-  onEdit: () => void;
-  conectando: string | null;
-  onConectarContaAzul: (id: string, modulo: 'financeiro' | 'vendas') => void;
-  onDesconectar: (id: string, modulo: 'financeiro' | 'vendas') => void;
-  onDelete: () => void;
-  onRecarregar: () => void;
-}) {
-  const caFinanceiroConectado = Boolean(empresa.access_token_conta_azul || empresa.email_login)
-  const caVendasConectado = Boolean(empresa.access_token_conta_azul_vendas || empresa.email_login_vendas)
-  const ehSomenteBanco = empresa.datacar_cod_emp === 'SOMENTE_BANCO' || (empresa as any).tipo_empresa === 'somente_banco' || (empresa as any).somente_banco === true
-
-  const empresasComCaFinanceiro = todasEmpresas.filter(e => e.id !== empresa.id && Boolean(e.access_token_conta_azul || e.email_login));
-  const empresasComCaVendas = todasEmpresas.filter(e => e.id !== empresa.id && Boolean(e.access_token_conta_azul_vendas || e.email_login_vendas));
-
-  const handleToggleSomenteBancoDireto = async (e: React.MouseEvent) => {
-    e.stopPropagation()
-    const novoValor = !ehSomenteBanco
-    const datacarCodEmpFinal = novoValor ? 'SOMENTE_BANCO' : (empresa.datacar_cod_emp === 'SOMENTE_BANCO' ? null : empresa.datacar_cod_emp)
-    try {
-      const supabase = createClient()
-      const { error } = await supabase.from('empresas').update({ datacar_cod_emp: datacarCodEmpFinal }).eq('id', empresa.id)
-      if (error) throw error
-      toast.success(novoValor ? `"${empresa.nome}" configurada como Somente Banco!` : `"${empresa.nome}" desmarcada de Somente Banco!`)
-      onRecarregar()
-    } catch (err: any) {
-      toast.error('Erro ao atualizar Somente Banco')
-    }
-  }
-
-  if (isEditandoInline) {
-    return (
-      <InlineEmpresaEditForm
-        empresa={empresa}
-        onCancel={onEdit}
-        onSaved={() => {
-          onEdit()
-          onRecarregar()
-        }}
-      />
-    )
-  }
-
-  return (
-    <div
-      onClick={onSelect}
-      className={`relative group rounded-2xl p-5 sm:p-6 transition-all duration-300 cursor-pointer w-full ${
-        isAtiva 
-          ? 'bg-dark-800/90 border-brand-500/50 shadow-[0_0_25px_rgba(var(--brand-500),0.12)] ring-1 ring-brand-500/20' 
-          : 'bg-dark-800/40 border-dark-700/50 hover:bg-dark-800/70 hover:border-dark-600/60 hover:shadow-lg'
-      } border backdrop-blur-sm flex flex-col space-y-5`}
-    >
-      {/* 1. CABEÇALHO DA EMPRESA (Identidade + Ações Principais) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-dark-700/40">
-        <div className="flex items-center gap-4">
-          <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center flex-shrink-0 font-bold border bg-gradient-to-br ${getAvatarGradient(empresa.id)} relative group-hover:scale-105 transition-transform duration-300 shadow-md`}>
-            <Store size={24} className="opacity-90 drop-shadow" />
-            <span className="absolute -bottom-1 -right-1 text-[9px] font-extrabold px-1.5 py-0.2 rounded-md bg-dark-900/90 text-white border border-dark-700 font-mono shadow-sm">
-              {empresa.nome.substring(0, 2).toUpperCase()}
-            </span>
-          </div>
-          
-          <div className="min-w-0">
-            <h3 className="text-white font-bold text-lg leading-tight group-hover:text-brand-100 transition-colors">
-              {empresa.nome}
-            </h3>
-            {empresa.razao_social && (
-              <p className="text-dark-400 text-xs font-medium truncate max-w-[320px] mt-0.5">{empresa.razao_social}</p>
-            )}
-            <p className="text-dark-500 text-xs font-mono mt-0.5">{formatCNPJ(empresa.cnpj)}</p>
-          </div>
-        </div>
-
-        {/* AÇÕES DE EDIÇÃO, SOMENTE BANCO E EXCLUSÃO (Canto Superior Direito) */}
-        <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-center" onClick={e => e.stopPropagation()}>
-          <button
-            type="button"
-            onClick={handleToggleSomenteBancoDireto}
-            className={`px-2.5 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${
-              ehSomenteBanco
-                ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30'
-                : 'bg-dark-900/40 text-dark-400 border-dark-700/60 hover:text-white hover:border-dark-600'
-            }`}
-            title={ehSomenteBanco ? 'Clique para desmarcar Somente Banco' : 'Marcar como Somente Banco (Apenas Gestão de Pagamentos)'}
-          >
-            <Store size={13} className={ehSomenteBanco ? 'text-amber-400' : 'text-dark-400'} />
-            <span>{ehSomenteBanco ? 'Somente Banco' : 'Somente Banco'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              onEdit();
-            }}
-            className="px-3 py-2 rounded-xl text-dark-300 hover:text-white hover:bg-dark-700 transition-all border border-dark-700/60 bg-dark-900/40 flex items-center gap-2 text-xs font-semibold"
-            title="Editar dados da empresa inline"
-          >
-            <Edit size={14} />
-            <span>Editar</span>
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              onDelete();
-            }}
-            className="px-3 py-2 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all border border-red-500/20 bg-dark-900/40 flex items-center gap-2 text-xs font-semibold"
-            title="Excluir empresa"
-          >
-            <Trash2 size={14} />
-            <span>Excluir</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 2. PAINEL DE INTEGRAÇÕES (Grade de 3 Colunas Espaçosas) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5" onClick={e => e.stopPropagation()}>
-        
-        {/* CARD 1: DATACAR */}
-        <div className="bg-dark-900/50 p-3.5 rounded-xl border border-dark-700/40 flex flex-col justify-between space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-dark-300 flex items-center gap-1.5">
-              🚗 API Datacar
-            </span>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-              empresa.datacar_token 
-                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' 
-                : 'bg-red-500/15 text-red-400 border-red-500/30'
-            }`}>
-              {empresa.datacar_token ? '● CONECTADO' : '● SEM CONEXÃO'}
-            </span>
-          </div>
-          <p className="text-[11px] text-dark-500">
-            {empresa.datacar_token ? 'Extrator de lançamentos ativo' : 'Aguardando credenciais'}
-          </p>
-        </div>
-
-        {/* CARD 2: CONTA AZUL FINANCEIRO */}
-        <div className="bg-dark-900/50 p-3.5 rounded-xl border border-dark-700/40 flex flex-col justify-between space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-dark-300 flex items-center gap-1.5">
-              💼 CA Financeiro
-            </span>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-              caFinanceiroConectado 
-                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' 
-                : 'bg-red-500/15 text-red-400 border-red-500/30'
-            }`}>
-              {caFinanceiroConectado ? '● CONECTADO' : '● SEM CONEXÃO'}
-            </span>
-          </div>
-
-          <div className="min-h-[22px]">
-            {empresa.email_login ? (
-              <span className="text-[11px] text-emerald-400/90 font-mono truncate block" title={empresa.email_login}>
-                {empresa.email_login}
-              </span>
-            ) : (
-              <span className="text-[11px] text-dark-500 block">Sem e-mail capturado</span>
-            )}
-          </div>
-
-          {/* Botões de Ação do CA Financeiro */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-dark-800">
-            {caFinanceiroConectado ? (
-              <>
-                <a
-                  href={`/api/conta-azul/diagnostico?empresa_id=${empresa.id}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-2 py-1 bg-dark-800 hover:bg-dark-700 text-yellow-500 rounded text-[10px] font-bold border border-dark-700 flex items-center gap-1"
-                  title="Diagnosticar Financeiro"
-                >
-                  <ShieldCheck size={12} />
-                  Diagnóstico
-                </a>
-                <button
-                  onClick={() => onDesconectar(empresa.id, 'financeiro')}
-                  className="px-2 py-1 bg-dark-800 hover:bg-red-500/10 text-red-400 rounded text-[10px] font-bold border border-dark-700 flex items-center gap-1"
-                  title="Desconectar CA Financeiro"
-                >
-                  <Unlink size={12} />
-                  Sair
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const link = `${window.location.origin}/conectar?empresa_id=${empresa.id}&modulo=financeiro`;
-                    navigator.clipboard.writeText(link);
-                    import('react-hot-toast').then((m) => m.default.success('Link do Financeiro copiado!'));
-                  }}
-                  className="px-2 py-1 bg-dark-800 text-dark-300 hover:text-white rounded text-[10px] font-bold border border-dark-700 flex items-center gap-1"
-                  title="Copiar Link para o cliente"
-                >
-                  <Copy size={11} />
-                  Copiar Link
-                </button>
-                <button
-                  onClick={() => onConectarContaAzul(empresa.id, 'financeiro')}
-                  disabled={conectando === `${empresa.id}:financeiro`}
-                  className="px-2.5 py-1 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded text-[10px] font-bold border border-blue-500/20 flex items-center gap-1"
-                >
-                  {conectando === `${empresa.id}:financeiro` ? <Loader2 size={11} className="animate-spin" /> : <ExternalLink size={11} />}
-                  Conectar
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* CARD 3: CONTA AZUL VENDAS */}
-        <div className="bg-dark-900/50 p-3.5 rounded-xl border border-dark-700/40 flex flex-col justify-between space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-dark-300 flex items-center gap-1.5">
-              🛒 CA Vendas
-            </span>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-              caVendasConectado 
-                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' 
-                : 'bg-red-500/15 text-red-400 border-red-500/30'
-            }`}>
-              {caVendasConectado ? '● CONECTADO' : '● SEM CONEXÃO'}
-            </span>
-          </div>
-
-          <div className="min-h-[22px]">
-            {empresa.email_login_vendas ? (
-              <span className="text-[11px] text-emerald-400/90 font-mono truncate block" title={empresa.email_login_vendas}>
-                {empresa.email_login_vendas}
-              </span>
-            ) : (
-              <span className="text-[11px] text-dark-500 block">Sem e-mail capturado</span>
-            )}
-          </div>
-
-          {/* Botões de Ação do CA Vendas */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-dark-800">
-            {caVendasConectado ? (
-              <button
-                onClick={() => onDesconectar(empresa.id, 'vendas')}
-                className="px-2 py-1 bg-dark-800 hover:bg-red-500/10 text-red-400 rounded text-[10px] font-bold border border-dark-700 flex items-center gap-1"
-                title="Desconectar CA Vendas"
-              >
-                <Unlink size={12} />
-                Sair
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const link = `${window.location.origin}/conectar?empresa_id=${empresa.id}&modulo=vendas`;
-                    navigator.clipboard.writeText(link);
-                    import('react-hot-toast').then((m) => m.default.success('Link de Vendas copiado!'));
-                  }}
-                  className="px-2 py-1 bg-dark-800 text-dark-300 hover:text-white rounded text-[10px] font-bold border border-dark-700 flex items-center gap-1"
-                  title="Copiar Link para o cliente"
-                >
-                  <Copy size={11} />
-                  Copiar Link
-                </button>
-                <button
-                  onClick={() => onConectarContaAzul(empresa.id, 'vendas')}
-                  disabled={conectando === `${empresa.id}:vendas`}
-                  className="px-2.5 py-1 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded text-[10px] font-bold border border-blue-500/20 flex items-center gap-1"
-                >
-                  {conectando === `${empresa.id}:vendas` ? <Loader2 size={11} className="animate-spin" /> : <ExternalLink size={11} />}
-                  Conectar
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-      </div>
-
-      {/* 3. SUB-SEÇÕES EXPANSÍVEIS (Gavetas de Informações Detalhadas) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-dark-700/40" onClick={e => e.stopPropagation()}>
-        <PainelFichaCadastral empresa={empresa} />
-        <PainelFornecedores empresa={empresa} />
-      </div>
-    </div>
-  )
-}
-// --- Componente de Item em Lista Compacta (Conforme Print do Usuário) ---
-function EmpresaRowItem({
-  empresa,
-  todasEmpresas,
-  isAtiva,
-  isEditandoInline,
-  onSelect,
-  onEdit,
-  onDelete,
-  conectando,
-  onConectarContaAzul,
-  onDesconectar,
-  onRecarregar,
-}: {
-  empresa: Empresa;
-  todasEmpresas: Empresa[];
-  isAtiva: boolean;
-  isEditandoInline?: boolean;
-  onSelect: () => void;
-  onEdit: () => void;
-  conectando: string | null;
-  onConectarContaAzul: (id: string, modulo: 'financeiro' | 'vendas') => void;
-  onDesconectar: (id: string, modulo: 'financeiro' | 'vendas') => void;
-  onDelete: () => void;
-  onRecarregar: () => void;
-}) {
-  const [expandido, setExpandido] = useState(false)
-  const [mostrarFicha, setMostrarFicha] = useState(false)
-  const [mostrarFornecedores, setMostrarFornecedores] = useState(false)
-
-  const caFinanceiroConectado = Boolean(empresa.access_token_conta_azul && empresa.conta_azul_connected !== false)
-  const caVendasConectado = Boolean(empresa.access_token_conta_azul_vendas && empresa.conta_azul_vendas_connected !== false)
-
-  if (isEditandoInline) {
-    return (
-      <InlineEmpresaEditForm
-        empresa={empresa}
-        todasEmpresas={todasEmpresas}
-        onCancel={onEdit}
-        onSaved={() => {
-          onEdit()
-          onRecarregar()
-        }}
-      />
-    )
-  }
-
-  return (
-    <div
-      className={`rounded-2xl transition-all duration-200 border overflow-hidden ${
-        isAtiva
-          ? 'bg-dark-800/90 border-brand-500/50 shadow-[0_0_20px_rgba(var(--brand-500),0.12)]'
-          : 'bg-dark-800/40 border-dark-700/50 hover:bg-dark-800/70 hover:border-dark-600/60'
-      }`}
-    >
-      {/* LINHA COMPACTA (Estilo idêntico ao Print do Usuário) */}
-      <div
-        onClick={onSelect}
-        className="p-3.5 sm:p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3 cursor-pointer group"
-      >
-        {/* ESQUERDA: Avatar + Nome + Status no App + Razão + CNPJ */}
-        <div className="flex items-center gap-3 min-w-[280px]">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-extrabold text-sm border bg-gradient-to-br ${getAvatarGradient(empresa.id)} flex-shrink-0 shadow-sm`}>
-            {empresa.nome.substring(0, 2).toUpperCase()}
-          </div>
-          <div className="min-w-0">
-            <h3 className="text-white font-bold text-sm sm:text-base group-hover:text-brand-300 transition-colors">
-              {empresa.nome}
-            </h3>
-            {empresa.razao_social && (
-              <p className="text-dark-400 text-xs truncate max-w-[280px]">{empresa.razao_social}</p>
-            )}
-            <p className="text-dark-500 text-[11px] font-mono">{formatCNPJ(empresa.cnpj)}</p>
-          </div>
-        </div>
-
-        {/* CENTRO: Pill Badges de Integração Inline (Datacar, CA Financeiro, CA Vendas) */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3" onClick={e => e.stopPropagation()}>
-          {/* Datacar */}
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-dark-900/60 border border-dark-700/40 text-[11px] font-bold">
-            <span className={`w-2 h-2 rounded-full ${empresa.datacar_token ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]' : 'bg-red-500'}`} />
-            <span className={empresa.datacar_token ? 'text-emerald-400' : 'text-red-400'}>Datacar</span>
-          </div>
-
-          {/* CA Financeiro */}
-          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold ${
-            caFinanceiroConectado ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'
-          }`}>
-            <span className={`w-2 h-2 rounded-full ${caFinanceiroConectado ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]' : 'bg-red-500'}`} />
-            <span>CA Financeiro</span>
-            {caFinanceiroConectado ? (
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); onDesconectar(empresa.id, 'financeiro') }}
-                className="ml-1 text-[10px] text-red-400 hover:text-red-300 underline font-normal"
-                title="Desconectar CA Financeiro"
-              >
-                (Sair)
-              </button>
-            ) : (
-              <div className="flex items-center gap-1 ml-1">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    const link = `${window.location.origin}/conectar?empresa_id=${empresa.id}&modulo=financeiro`
-                    navigator.clipboard.writeText(link)
-                    import('react-hot-toast').then(m => m.default.success('Link do CA Financeiro copiado! Envie ao cliente.'))
-                  }}
-                  className="px-1.5 py-0.5 bg-dark-800 text-dark-300 hover:text-white rounded text-[9px] font-bold border border-dark-600 flex items-center gap-0.5"
-                  title="Copiar Link de Autorização para o Cliente (BPO)"
-                >
-                  <Copy size={9} /> Link
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onConectarContaAzul(empresa.id, 'financeiro') }}
-                  disabled={conectando === `${empresa.id}:financeiro`}
-                  className="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-[9px] font-bold flex items-center gap-1 transition-all"
-                  title="Conectar Conta Azul Financeiro"
-                >
-                  {conectando === `${empresa.id}:financeiro` ? <Loader2 size={9} className="animate-spin" /> : <ExternalLink size={9} />}
-                  Conectar
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* CA Vendas */}
-          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold ${
-            caVendasConectado ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'
-          }`}>
-            <span className={`w-2 h-2 rounded-full ${caVendasConectado ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]' : 'bg-red-500'}`} />
-            <span>CA Vendas</span>
-            {caVendasConectado ? (
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); onDesconectar(empresa.id, 'vendas') }}
-                className="ml-1 text-[10px] text-red-400 hover:text-red-300 underline font-normal"
-                title="Desconectar CA Vendas"
-              >
-                (Sair)
-              </button>
-            ) : (
-              <div className="flex items-center gap-1 ml-1">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    const link = `${window.location.origin}/conectar?empresa_id=${empresa.id}&modulo=vendas`
-                    navigator.clipboard.writeText(link)
-                    import('react-hot-toast').then(m => m.default.success('Link do CA Vendas copiado! Envie ao cliente.'))
-                  }}
-                  className="px-1.5 py-0.5 bg-dark-800 text-dark-300 hover:text-white rounded text-[9px] font-bold border border-dark-600 flex items-center gap-0.5"
-                  title="Copiar Link de Autorização para o Cliente (BPO)"
-                >
-                  <Copy size={9} /> Link
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onConectarContaAzul(empresa.id, 'vendas') }}
-                  disabled={conectando === `${empresa.id}:vendas`}
-                  className="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-[9px] font-bold flex items-center gap-1 transition-all"
-                  title="Conectar Conta Azul Vendas"
-                >
-                  {conectando === `${empresa.id}:vendas` ? <Loader2 size={9} className="animate-spin" /> : <ExternalLink size={9} />}
-                  Conectar
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* DIREITA: Pílulas de Ação + Ícones de Editar, Excluir e Chevron Expansor */}
-        <div className="flex items-center gap-2 flex-shrink-0 self-end lg:self-center" onClick={e => e.stopPropagation()}>
-          <button
-            type="button"
-            onClick={() => {
-              setMostrarFicha(!mostrarFicha)
-              setExpandido(true)
-            }}
-            className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all ${
-              mostrarFicha
-                ? 'bg-brand-600/30 text-brand-300 border-brand-500/40'
-                : 'bg-dark-900/50 text-dark-300 border-dark-700/50 hover:bg-dark-800 hover:text-white'
-            }`}
-          >
-            Ficha Cadastral
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setMostrarFornecedores(!mostrarFornecedores)
-              setExpandido(true)
-            }}
-            className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all ${
-              mostrarFornecedores
-                ? 'bg-brand-600/30 text-brand-300 border-brand-500/40'
-                : 'bg-dark-900/50 text-dark-300 border-dark-700/50 hover:bg-dark-800 hover:text-white'
-            }`}
-          >
-            Fornecedores
-          </button>
-
-          <button
-            type="button"
-            onClick={onEdit}
-            className="p-1.5 rounded-lg text-dark-400 hover:text-white hover:bg-dark-700 transition-colors border border-transparent hover:border-dark-600/50"
-            title="Editar empresa"
-          >
-            <Edit size={14} />
-          </button>
-
-          <button
-            type="button"
-            onClick={onDelete}
-            className="p-1.5 rounded-lg text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-colors border border-transparent hover:border-red-500/20"
-            title="Excluir empresa"
-          >
-            <Trash2 size={14} />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setExpandido(!expandido)}
-            className="p-1.5 rounded-lg text-dark-400 hover:text-white hover:bg-dark-700 transition-colors border border-dark-700/40"
-            title={expandido ? 'Recolher detalhes' : 'Expandir detalhes'}
-          >
-            {expandido ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
-        </div>
-      </div>
-
-      {/* GAVETA EXPANSÍVEL SOB CLIQUE (Todas as funcionalidades mantidas 100%) */}
-      {expandido && (
-        <div className="p-4 bg-dark-900/80 border-t border-dark-700/40 space-y-4 animate-fade-in" onClick={e => e.stopPropagation()}>
-          
-          {/* PAINEL DE 3 INTEGRAÇÕES COM TODOS OS BOTÕES E SELETORES */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            
-            {/* DATACAR */}
-            <div className="bg-dark-800/60 p-3 rounded-xl border border-dark-700/50 flex flex-col justify-between space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white flex items-center gap-1.5">🚗 API Datacar</span>
-                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${
-                  empresa.datacar_token ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'
-                }`}>
-                  {empresa.datacar_token ? '● CONECTADO' : '● SEM CONEXÃO'}
-                </span>
-              </div>
-              <p className="text-[10px] text-dark-400">
-                {empresa.datacar_token ? 'Sincronização de extratos ativada' : 'Aguardando credenciais'}
-              </p>
-            </div>
-
-            {/* CA FINANCEIRO */}
-            <div className="bg-dark-800/60 p-3 rounded-xl border border-dark-700/50 flex flex-col justify-between space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white flex items-center gap-1.5">💼 CA Financeiro</span>
-                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${
-                  caFinanceiroConectado ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'
-                }`}>
-                  {caFinanceiroConectado ? '● CONECTADO' : '● SEM CONEXÃO'}
-                </span>
-              </div>
-
-              <div className="min-h-[18px]">
-                {empresa.email_login ? (
-                  <span className="text-[10px] text-emerald-400 font-mono truncate block" title={empresa.email_login}>
-                    {empresa.email_login}
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-dark-500 block">Sem e-mail capturado</span>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-dark-700/30">
-                {caFinanceiroConectado ? (
-                  <>
-                    <a
-                      href={`/api/conta-azul/diagnostico?empresa_id=${empresa.id}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="px-2 py-1 bg-dark-900 hover:bg-dark-700 text-yellow-500 rounded text-[10px] font-bold border border-dark-700 flex items-center gap-1"
-                    >
-                      <ShieldCheck size={11} /> Diagnóstico
-                    </a>
-                    <button
-                      onClick={() => onDesconectar(empresa.id, 'financeiro')}
-                      className="px-2 py-1 bg-dark-900 hover:bg-red-500/10 text-red-400 rounded text-[10px] font-bold border border-dark-700 flex items-center gap-1"
-                    >
-                      <Unlink size={11} /> Sair
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => {
-                        const link = `${window.location.origin}/conectar?empresa_id=${empresa.id}&modulo=financeiro`;
-                        navigator.clipboard.writeText(link);
-                        import('react-hot-toast').then((m) => m.default.success('Link do Financeiro copiado!'));
-                      }}
-                      className="px-2 py-1 bg-dark-900 text-dark-300 hover:text-white rounded text-[10px] font-bold border border-dark-700 flex items-center gap-1"
-                    >
-                      <Copy size={11} /> Link Fin
-                    </button>
-                    <button
-                      onClick={() => onConectarContaAzul(empresa.id, 'financeiro')}
-                      disabled={conectando === `${empresa.id}:financeiro`}
-                      className="px-2 py-1 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded text-[10px] font-bold border border-blue-500/20 flex items-center gap-1"
-                    >
-                      {conectando === `${empresa.id}:financeiro` ? <Loader2 size={11} className="animate-spin" /> : <ExternalLink size={11} />}
-                      Conectar
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* CA VENDAS */}
-            <div className="bg-dark-800/60 p-3 rounded-xl border border-dark-700/50 flex flex-col justify-between space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white flex items-center gap-1.5">🛒 CA Vendas</span>
-                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${
-                  caVendasConectado ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'
-                }`}>
-                  {caVendasConectado ? '● CONECTADO' : '● SEM CONEXÃO'}
-                </span>
-              </div>
-
-              <div className="min-h-[18px]">
-                {empresa.email_login_vendas ? (
-                  <span className="text-[10px] text-emerald-400 font-mono truncate block" title={empresa.email_login_vendas}>
-                    {empresa.email_login_vendas}
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-dark-500 block">Sem e-mail capturado</span>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-dark-700/30">
-                {caVendasConectado ? (
-                  <button
-                    onClick={() => onDesconectar(empresa.id, 'vendas')}
-                    className="px-2 py-1 bg-dark-900 hover:bg-red-500/10 text-red-400 rounded text-[10px] font-bold border border-dark-700 flex items-center gap-1"
-                  >
-                    <Unlink size={11} /> Sair
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => {
-                        const link = `${window.location.origin}/conectar?empresa_id=${empresa.id}&modulo=vendas`;
-                        navigator.clipboard.writeText(link);
-                        import('react-hot-toast').then((m) => m.default.success('Link de Vendas copiado!'));
-                      }}
-                      className="px-2 py-1 bg-dark-900 text-dark-300 hover:text-white rounded text-[10px] font-bold border border-dark-700 flex items-center gap-1"
-                    >
-                      <Copy size={11} /> Link Vendas
-                    </button>
-                    <button
-                      onClick={() => onConectarContaAzul(empresa.id, 'vendas')}
-                      disabled={conectando === `${empresa.id}:vendas`}
-                      className="px-2 py-1 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded text-[10px] font-bold border border-blue-500/20 flex items-center gap-1"
-                    >
-                      {conectando === `${empresa.id}:vendas` ? <Loader2 size={11} className="animate-spin" /> : <ExternalLink size={11} />}
-                      Conectar
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* FICHA CADASTRAL EXPANDIDA */}
-          {mostrarFicha && (
-            <div className="pt-2 border-t border-dark-700/40">
-              <PainelFichaCadastral empresa={empresa} />
-            </div>
-          )}
-
-          {/* FORNECEDORES EXPANDIDOS */}
-          {mostrarFornecedores && (
-            <div className="pt-2 border-t border-dark-700/40">
-              <PainelFornecedores empresa={empresa} />
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
+type TipoAba = 'geral' | 'integracoes' | 'fornecedores' | 'fiscal' | 'avancado'
 
 function EmpresasPageContent() {
-  const { empresas, recarregar, setEmpresaAtiva, empresaAtiva } = useEmpresa()
-  const [modoVisualizacao, setModoVisualizacao] = useState<'lista' | 'cards'>('lista')
-  const [searchTerm, setSearchTerm] = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [salvando, setSalvando] = useState(false)
-  const [conectando, setConectando] = useState<string | null>(null)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [buscandoCnpj, setBuscandoCnpj] = useState(false)
-  const [dadosCnpj, setDadosCnpj] = useState<BrasilApiCnpjResponse | null>(null)
-  const [form, setForm] = useState<{
-    nome: string, 
-    cnpj: string, 
-    email_login: string, 
-    email_login_vendas: string,
-    tipo_empresa: 'vendas' | 'financeiro' | 'ambos',
-    datacar_token: string,
-    datacar_cod_emp: string,
-    datacar_id_operador: string,
-    razao_social: string,
-    nome_fantasia: string,
-    somente_banco: boolean,
-  }>({ 
-    nome: '', 
-    cnpj: '', 
-    email_login: '', 
-    email_login_vendas: '',
-    tipo_empresa: 'ambos',
-    datacar_token: '',
-    datacar_cod_emp: '',
-    datacar_id_operador: '',
-    razao_social: '',
-    nome_fantasia: '',
-    somente_banco: false,
-  })
+  const { empresas, empresaAtiva, setEmpresaAtiva, recarregar } = useEmpresa()
   const supabase = createClient()
   const searchParams = useSearchParams()
 
+  // Estados principais
+  const [searchTerm, setSearchTerm] = useState('')
+  const [empresaSelecionadaId, setEmpresaSelecionadaId] = useState<string | null>(null)
+  const [abaAtiva, setAbaAtiva] = useState<TipoAba>('geral')
+  const [modalNovaAberto, setModalNovaAberto] = useState(false)
+  const [painelMobileAberto, setPainelMobileAberto] = useState(false)
+
+  // Tratamento de callbacks OAuth via URL
   useEffect(() => {
     const sucesso = searchParams.get('sucesso')
     const erro = searchParams.get('erro')
     const isNew = searchParams.get('new')
 
     if (isNew === 'true') {
-      setShowForm(true)
+      setModalNovaAberto(true)
     }
 
     if (sucesso === 'conta_azul_conectado') {
@@ -1654,7 +116,7 @@ function EmpresasPageContent() {
       window.history.replaceState({}, '', '/empresas')
     }
 
-    // Validação automática em segundo plano para empresas que possuem token salvo
+    // Health-check silencioso em background para empresas que possuem token salvo
     if (empresas.length > 0) {
       const comToken = empresas.filter(e => !!e.access_token_conta_azul)
       if (comToken.length > 0) {
@@ -1678,17 +140,56 @@ function EmpresasPageContent() {
         })
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [empresas.length])
+  }, [searchParams, empresas, recarregar])
 
-  const handleConectarContaAzul = (empresaId: string, modulo: 'financeiro' | 'vendas' = 'financeiro') => {
-    setConectando(`${empresaId}:${modulo}`)
-    window.location.href = `/conectar?empresa_id=${empresaId}&modulo=${modulo}`
+  // Define empresa selecionada inicial por padrão
+  useEffect(() => {
+    if (empresas.length > 0 && !empresaSelecionadaId) {
+      if (empresaAtiva && empresas.some(e => e.id === empresaAtiva.id)) {
+        setEmpresaSelecionadaId(empresaAtiva.id)
+      } else {
+        setEmpresaSelecionadaId(empresas[0].id)
+      }
+    }
+  }, [empresas, empresaAtiva, empresaSelecionadaId])
+
+  // Filtragem de empresas por busca
+  const empresasFiltradas = useMemo(() => {
+    if (!searchTerm.trim()) return empresas
+    const q = searchTerm.toLowerCase().trim()
+    const qDigitos = q.replace(/\D/g, '')
+
+    return empresas.filter(emp => {
+      const nomeMatch = (emp.nome || '').toLowerCase().includes(q)
+      const razaoMatch = (emp.razao_social || '').toLowerCase().includes(q)
+      const cnpjMatch = qDigitos ? (emp.cnpj || '').replace(/\D/g, '').includes(qDigitos) : false
+      return nomeMatch || razaoMatch || cnpjMatch
+    })
+  }, [empresas, searchTerm])
+
+  // Empresa atualmente em exibição no painel da direita
+  const empresaSelecionada = useMemo(() => {
+    return empresas.find(e => e.id === empresaSelecionadaId) || empresas[0] || null
+  }, [empresas, empresaSelecionadaId])
+
+  // Atualização em memória e recarga quando um subcomponente salva
+  const handleEmpresaAtualizada = (empresaAtualizada: Empresa) => {
+    recarregar()
+    if (empresaAtiva?.id === empresaAtualizada.id) {
+      setEmpresaAtiva(empresaAtualizada)
+    }
   }
 
-  const handleDesconectar = async (empresaId: string, modulo: 'financeiro' | 'vendas' = 'financeiro') => {
+  // Ação de conectar Conta Azul
+  const handleConectarContaAzul = (empresaId: string, modulo: 'financeiro' | 'vendas' = 'financeiro') => {
+    window.location.href = `/api/conta-azul/autorizar?empresa_id=${empresaId}&modulo=${modulo}`
+  }
+
+  // Ação de desconectar Conta Azul
+  const handleDesconectarContaAzul = async (empresaId: string, modulo: 'financeiro' | 'vendas' = 'financeiro') => {
     const isVendas = modulo === 'vendas'
-    if (!confirm(`Tem certeza que deseja desconectar a Conta Azul (${isVendas ? 'Vendas' : 'Financeiro'}) desta empresa?`)) return
+    if (!confirm(`Deseja realmente desconectar a integração do Conta Azul (${isVendas ? 'Vendas' : 'Financeiro'}) desta empresa?`)) return
+
     try {
       const updateData = isVendas ? {
         access_token_conta_azul_vendas: null,
@@ -1702,612 +203,339 @@ function EmpresasPageContent() {
         conta_azul_connected: false,
       }
 
-      const { error } = await supabase
-        .from('empresas')
-        .update(updateData)
-        .eq('id', empresaId)
-
+      const { error } = await supabase.from('empresas').update(updateData).eq('id', empresaId)
       if (error) throw error
-      toast.success(`Conta Azul (${isVendas ? 'Vendas' : 'Financeiro'}) desconectado.`)
-      await recarregar()
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Erro ao desconectar')
+
+      toast.success(`Conta Azul (${isVendas ? 'Vendas' : 'Financeiro'}) desconectado com sucesso!`)
+      recarregar()
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao desconectar Conta Azul')
     }
   }
 
+  // Ação de exclusão em cascata segura
   const handleExcluirEmpresa = async (empresaId: string) => {
-    if (!confirm('ATENÇÃO: Tem certeza que deseja excluir esta empresa? Todos os dados vinculados a ela serão permanentemente excluídos.')) return
     try {
       const res = await fetch('/api/empresas/excluir', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ empresa_id: empresaId })
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erro ao excluir empresa')
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao excluir')
 
       toast.success('Empresa excluída com sucesso!')
-      await recarregar()
-    } catch (err: unknown) {
-      console.error('[handleExcluirEmpresa] Erro:', err)
-      toast.error(err instanceof Error ? err.message : 'Erro ao excluir a empresa')
+      setEmpresaSelecionadaId(null)
+      recarregar()
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao excluir a empresa')
     }
   }
 
-  const handleSalvar = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSalvando(true)
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Usuário não autenticado')
-
-      const cnpjLimpo = (form.cnpj || '').replace(/\D/g, '')
-      const razaoSocialFinal = form.razao_social.trim() || null
-      const nomeFantasiaFinal = form.nome_fantasia.trim() || null
-
-      const datacarCodEmpFinal = form.somente_banco 
-        ? 'SOMENTE_BANCO' 
-        : (form.datacar_cod_emp.trim() === 'SOMENTE_BANCO' ? null : form.datacar_cod_emp.trim() || null)
-
-      const payload = {
-        nome: form.nome.trim(),
-        cnpj: cnpjLimpo,
-        email_login: form.email_login.trim() || null,
-        email_login_vendas: form.email_login_vendas.trim() || null,
-        tipo_empresa: form.tipo_empresa,
-        datacar_token: form.datacar_token.trim() || null,
-        datacar_cod_emp: datacarCodEmpFinal,
-        datacar_id_operador: form.datacar_id_operador.trim() || null,
-        razao_social: razaoSocialFinal,
-        nome_fantasia: nomeFantasiaFinal,
-      }
-
-      if (editingId) {
-        // Atualiza a empresa existente
-        const { error: errEmp } = await supabase
-          .from('empresas')
-          .update(payload)
-          .eq('id', editingId)
-
-        if (errEmp) throw errEmp
-        toast.success('Empresa atualizada com sucesso!')
-      } else {
-        // Cria uma nova empresa
-        const empresaId = crypto.randomUUID()
-
-        const { error: errEmp } = await supabase
-          .from('empresas')
-          .insert({
-            id: empresaId,
-            created_by: user.id,
-            ...payload
-          })
-
-        if (errEmp) throw errEmp
-
-        const { error: errVinc } = await supabase
-          .from('usuarios_empresas')
-          .insert({
-            user_id: user.id,
-            empresa_id: empresaId,
-            papel: 'admin'
-          })
-
-        if (errVinc) throw errVinc
-        toast.success('Empresa criada com sucesso!')
-      }
-
-      setForm({ nome: '', cnpj: '', email_login: '', email_login_vendas: '', tipo_empresa: 'ambos', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '', razao_social: '', nome_fantasia: '', somente_banco: false })
-      setDadosCnpj(null)
-      setEditingId(null)
-      setShowForm(false)
-      await recarregar()
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao salvar empresa'
-      toast.error(msg)
-    } finally {
-      setSalvando(false)
-    }
-  }
-
+  // Criação rápida em branco
   const handleCriarVazio = async () => {
-    setSalvando(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Usuário não autenticado')
-
-      const empresaId = crypto.randomUUID()
-
-      const { error: errEmp } = await supabase
-        .from('empresas')
-        .insert({
-          id: empresaId,
-          nome: 'Aguardando Conexão...',
-          cnpj: '00000000000000',
-          created_by: user.id,
-          tipo_empresa: 'ambos',
-        })
-
-      if (errEmp) throw errEmp
-
-      const { error: errVinc } = await supabase
-        .from('usuarios_empresas')
-        .insert({
-          user_id: user.id,
-          empresa_id: empresaId,
-          papel: 'admin'
-        })
-
-      if (errVinc) throw errVinc
-
-      toast.success('Card em branco criado! Copie o link e envie ao cliente.')
-      setForm({ nome: '', cnpj: '', email_login: '', email_login_vendas: '', tipo_empresa: 'ambos', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '', razao_social: '', nome_fantasia: '', somente_banco: false })
-      setDadosCnpj(null)
-      setEditingId(null)
-      setShowForm(false)
-      await recarregar()
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao criar card em branco'
-      toast.error(msg)
-    } finally {
-      setSalvando(false)
-    }
-  }
-
-  const handleBuscarCnpj = async () => {
-    const cnpjLimpo = (form.cnpj || '').replace(/\D/g, '')
-    if (cnpjLimpo.length !== 14) {
-      toast.error('CNPJ inválido. Digite os 14 dígitos.')
-      return
-    }
-    setBuscandoCnpj(true)
-    try {
-      const dados = await buscarCnpj(cnpjLimpo)
-      if (!dados) {
-        toast.error('CNPJ não encontrado na base de dados pública da Receita. Verifique o número digitado.')
-        setDadosCnpj(null)
+      if (!user) {
+        toast.error('Você precisa estar logado para cadastrar uma empresa.')
         return
       }
-      setDadosCnpj(dados)
-      setForm(prev => ({
-        ...prev,
-        cnpj: formatCNPJ(cnpjLimpo),
-        nome: prev.nome.trim() ? prev.nome : (dados.nome_fantasia || dados.razao_social || ''),
-        razao_social: dados.razao_social || '',
-        nome_fantasia: dados.nome_fantasia || '',
-      }))
-      toast.success('Dados da empresa localizados com sucesso!')
-    } catch (e) {
-      console.error('[handleBuscarCnpj] Erro:', e)
-      toast.error('Erro ao consultar a base de CNPJ. Tente novamente.')
-    } finally {
-      setBuscandoCnpj(false)
+
+      const idTemp = Date.now().toString().slice(-4)
+      const nomePadrao = `Nova Empresa ${idTemp}`
+
+      const { data: nova, error } = await supabase
+        .from('empresas')
+        .insert({
+          nome: nomePadrao,
+          cnpj: '00000000000000',
+          tipo_empresa: 'ambos',
+        })
+        .select()
+        .single()
+
+      if (error || !nova) throw error || new Error('Falha ao criar card')
+
+      await supabase.from('usuarios_empresas').insert({
+        usuario_id: user.id,
+        empresa_id: nova.id,
+      })
+
+      toast.success('Card em branco criado! Preencha os dados ou copie o link para o cliente.')
+      recarregar()
+      setEmpresaSelecionadaId(nova.id)
+      setAbaAtiva('geral')
+      setPainelMobileAberto(true)
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao criar card em branco')
     }
   }
-
-  const handleEditClick = (empresa: Empresa) => {
-    if (editingId === empresa.id) {
-      setEditingId(null)
-    } else {
-      setEditingId(empresa.id)
-      setShowForm(false)
-    }
-  }
-
-  const empresasFiltradas = empresas.filter(emp => {
-    if (!searchTerm.trim()) return true
-    const term = searchTerm.toLowerCase().trim()
-    const nomeMatch = (emp.nome || '').toLowerCase().includes(term)
-    const cnpjMatch = (emp.cnpj || '').replace(/\D/g, '').includes(term.replace(/\D/g, ''))
-    const razaoMatch = (emp.razao_social || '').toLowerCase().includes(term)
-    return nomeMatch || cnpjMatch || razaoMatch
-  })
-
-  const integracoesConectadasCount = empresas.filter(e => e.datacar_token || e.access_token_conta_azul || e.access_token_conta_azul_vendas).length
-  const semConexaoCount = empresas.filter(e => !e.datacar_token && !e.access_token_conta_azul && !e.access_token_conta_azul_vendas).length
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
-      
-      {/* CABEÇALHO DA PÁGINA */}
-      <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">Empresas & Integrações</h1>
-        <p className="text-xs text-dark-400 mt-1">
-          Gerencie conexões (Datacar, ContaAzul) e dados cadastrais de cada empresa do portfólio.
-        </p>
-      </div>
-
-      {/* BALÕES COMPACTOS DE KPI */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="bg-dark-800/50 border border-dark-700/40 rounded-xl px-4 py-2.5 flex items-center justify-between">
-          <span className="text-xs text-dark-400 font-medium">Empresas cadastradas</span>
-          <span className="text-lg sm:text-xl font-bold text-white font-mono">{empresas.length}</span>
-        </div>
-        <div className="bg-dark-800/50 border border-dark-700/40 rounded-xl px-4 py-2.5 flex items-center justify-between">
-          <span className="text-xs text-dark-400 font-medium">Integrações conectadas</span>
-          <span className="text-lg sm:text-xl font-bold text-emerald-400 font-mono">{integracoesConectadasCount}</span>
-        </div>
-        <div className="bg-dark-800/50 border border-dark-700/40 rounded-xl px-4 py-2.5 flex items-center justify-between">
-          <span className="text-xs text-dark-400 font-medium">Sem conexão</span>
-          <span className="text-lg sm:text-xl font-bold text-red-400 font-mono">{semConexaoCount}</span>
-        </div>
-      </div>
-
-      {/* BARRA DE PESQUISA, ALTERNADOR DE MODO E BOTÃO NOVA EMPRESA */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        {/* Campo de Busca */}
-        <div className="flex-1 relative">
-          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-dark-400" />
-          <input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por empresa, CNPJ ou razão social..."
-            className="w-full bg-dark-900/60 border border-dark-700/50 rounded-xl pl-11 pr-4 py-2.5 text-xs text-white placeholder:text-dark-500 focus:outline-none focus:border-brand-500/50 transition-all"
-          />
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Alternador Lista Compacta vs Cards */}
-          <div className="bg-dark-900/80 p-1 rounded-xl border border-dark-700/50 flex items-center gap-1">
-            <button
-              onClick={() => setModoVisualizacao('lista')}
-              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                modoVisualizacao === 'lista'
-                  ? 'bg-brand-600 text-white shadow-md'
-                  : 'text-dark-400 hover:text-white'
-              }`}
-            >
-              <span>☰ Lista compacta</span>
-            </button>
-            <button
-              onClick={() => setModoVisualizacao('cards')}
-              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                modoVisualizacao === 'cards'
-                  ? 'bg-brand-600 text-white shadow-md'
-                  : 'text-dark-400 hover:text-white'
-              }`}
-            >
-              <span>▦ Cards</span>
-            </button>
+    <div className="space-y-5">
+      {/* 1. CABEÇALHO CORPORATIVO SUPERIOR */}
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-dark-850/60 p-5 rounded-2xl border border-dark-700/60 backdrop-blur-sm">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <Building2 className="text-blue-400" size={24} />
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+              Gestão de Empresas & Filiais
+            </h1>
           </div>
+          <p className="text-xs sm:text-sm text-dark-400 mt-1">
+            Controle unificado de identidades fiscais, credenciais Datacar, conexões Conta Azul e fornecedores
+          </p>
+        </div>
 
-          {/* Botão Nova Empresa */}
+        <div className="flex items-center gap-2.5 flex-wrap">
           <button
-            onClick={() => {
-              setShowForm(!showForm)
-              if (!showForm) {
-                setEditingId(null)
-                setDadosCnpj(null)
-                setForm({
-                  nome: '', cnpj: '', email_login: '', email_login_vendas: '', tipo_empresa: 'ambos',
-                  datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '',
-                  razao_social: '', nome_fantasia: '', somente_banco: false
-                })
-              }
-            }}
-            className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-brand-600/20 transition-all whitespace-nowrap flex items-center gap-2"
+            type="button"
+            onClick={handleCriarVazio}
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-dark-800 hover:bg-dark-700 text-white rounded-xl text-xs font-semibold border border-dark-600 hover:border-dark-500 transition-all shadow-sm"
+          >
+            <Zap size={14} className="text-amber-400" />
+            <span>Cadastro Rápido</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setModalNovaAberto(true)}
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold transition-all shadow-lg shadow-blue-500/10"
           >
             <Plus size={16} />
-            <span>+ Nova empresa</span>
+            <span>Adicionar Empresa</span>
           </button>
         </div>
       </div>
 
-      {/* FORMULÁRIO EXPANSÍVEL DE CADASTRO E EDIÇÃO */}
-      {showForm && (
-        <div className="bg-dark-800/80 border border-dark-700 p-6 rounded-2xl shadow-xl space-y-6 animate-fade-in backdrop-blur-sm">
-          <div className="flex items-center justify-between border-b border-dark-700/50 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400 font-bold">
-                <Building2 size={20} />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-white">
-                  {editingId ? 'Editar Empresa' : 'Cadastrar Nova Empresa'}
-                </h3>
-                <p className="text-xs text-dark-400">
-                  {editingId ? 'Atualize as credenciais e conexões da loja' : 'Digite o CNPJ para buscar os dados oficiais da Receita Federal'}
-                </p>
-              </div>
+      {/* 2. LAYOUT MASTER-DETAIL (SPLIT-VIEW RESPONSIVO) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        
+        {/* COLUNA ESQUERDA (MASTER): 5 COLUNAS NO DESKTOP (42%) */}
+        <div className="lg:col-span-5 space-y-3">
+          {/* Barra de Busca e Métricas da Lista */}
+          <div className="bg-dark-800/80 border border-dark-700/70 p-3 rounded-2xl space-y-2">
+            <div className="relative">
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dark-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar por nome, CNPJ ou razão social..."
+                className="w-full bg-dark-900 border border-dark-600/80 rounded-xl pl-9 pr-3 py-2 text-white text-xs focus:ring-2 focus:ring-blue-500/50 outline-none placeholder:text-dark-500 transition-all"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-400 hover:text-white"
+                >
+                  <X size={13} />
+                </button>
+              )}
             </div>
-            <button
-              onClick={() => {
-                setShowForm(false)
-                setEditingId(null)
-              }}
-              className="p-2 rounded-xl text-dark-400 hover:text-white hover:bg-dark-700 transition-colors"
-            >
-              <X size={18} />
-            </button>
+
+            <div className="flex items-center justify-between text-[11px] text-dark-400 px-1 pt-1 border-t border-dark-700/40">
+              <span>{empresasFiltradas.length} {empresasFiltradas.length === 1 ? 'filial encontrada' : 'filiais encontradas'}</span>
+              <span className="text-dark-300">
+                Ativa no sistema: <strong className="text-emerald-400">{empresaAtiva?.nome || 'Nenhuma'}</strong>
+              </span>
+            </div>
           </div>
 
-          <form onSubmit={handleSalvar} className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Lista de Filiais com Scroll Suave */}
+          <div className="space-y-2.5 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
+            {empresasFiltradas.length > 0 ? (
+              empresasFiltradas.map((emp) => (
+                <EmpresaCardMaster
+                  key={emp.id}
+                  empresa={emp}
+                  isAtiva={empresaAtiva?.id === emp.id}
+                  isSelecionada={empresaSelecionada?.id === emp.id}
+                  onSelecionarParaVer={() => {
+                    setEmpresaSelecionadaId(emp.id)
+                    setPainelMobileAberto(true)
+                  }}
+                  onDefinirComoAtiva={() => {
+                    setEmpresaAtiva(emp)
+                    toast.success(`"${emp.nome}" agora é a empresa ativa no sistema!`)
+                  }}
+                  onCopiarWhatsApp={(modulo) => handleCopiarWhatsApp(emp, modulo)}
+                  getAvatarGradient={getAvatarGradient}
+                />
+              ))
+            ) : (
+              <div className="bg-dark-800/40 border border-dark-700/60 rounded-2xl p-8 text-center text-dark-400 space-y-2">
+                <Building2 size={32} className="mx-auto text-dark-600" />
+                <p className="text-sm font-medium text-dark-300">Nenhuma empresa localizada.</p>
+                <p className="text-xs text-dark-500">Tente ajustar o termo da busca ou cadastre uma nova filial.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* COLUNA DIREITA (DETAIL INSPECTOR): 7 COLUNAS NO DESKTOP (58%) */}
+        <div className={`lg:col-span-7 ${
+          painelMobileAberto ? 'fixed inset-0 z-40 p-4 bg-dark-950/95 overflow-y-auto flex flex-col lg:static lg:p-0 lg:bg-transparent' : 'hidden lg:block'
+        }`}>
+          {empresaSelecionada ? (
+            <div className="bg-dark-850/90 border border-dark-700/80 rounded-2xl p-5 sm:p-6 shadow-xl space-y-5 backdrop-blur-sm">
               
-              {/* COLUNA ESQUERDA: Identidade */}
-              <div className="lg:col-span-7 space-y-6">
-                <div className="bg-dark-900/40 p-1.5 rounded-xl border border-dark-700/50 shadow-inner focus-within:border-brand-500/50 focus-within:bg-dark-900/60 transition-all group">
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center">
-                    <div className="hidden sm:block pl-4 pr-2 text-brand-500">
-                      <Search size={20} className={buscandoCnpj ? 'animate-pulse' : ''} />
+              {/* Topo do Inspector de Detalhes */}
+              <div className="flex items-start justify-between gap-4 pb-4 border-b border-dark-700/60">
+                <div className="flex items-start gap-3.5 min-w-0">
+                  {/* Botão Voltar (visível no mobile) */}
+                  <button
+                    type="button"
+                    onClick={() => setPainelMobileAberto(false)}
+                    className="lg:hidden p-2 rounded-xl bg-dark-800 text-dark-300 hover:text-white border border-dark-700 flex-shrink-0"
+                  >
+                    <ArrowLeft size={16} />
+                  </button>
+
+                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${getAvatarGradient(empresaSelecionada.id)} flex items-center justify-center text-white font-bold text-base shadow-md flex-shrink-0 mt-0.5`}>
+                    {(empresaSelecionada.nome || 'E').slice(0, 2).toUpperCase()}
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-lg sm:text-xl font-bold text-white truncate">
+                        {empresaSelecionada.nome}
+                      </h2>
+                      {empresaAtiva?.id === empresaSelecionada.id && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                          <Sparkles size={12} /> Ativa Globalmente
+                        </span>
+                      )}
                     </div>
-                    <input
-                      value={form.cnpj}
-                      onChange={(e) => {
-                        const raw = e.target.value.replace(/\D/g, '').slice(0, 14)
-                        const masked = raw
-                          .replace(/^(\d{2})(\d)/, '$1.$2')
-                          .replace(/^(\d{2}\.\d{3})(\d)/, '$1.$2')
-                          .replace(/^(\d{2}\.\d{3}\.\d{3})(\d)/, '$1/$2')
-                          .replace(/^(\d{2}\.\d{3}\.\d{3}\/\d{4})(\d)/, '$1-$2')
-                        setForm({ ...form, cnpj: masked })
-                      }}
-                      placeholder="CNPJ (00.000.000/0000-00)"
-                      required
-                      className="flex-1 bg-transparent border-none px-4 py-3 sm:px-2 sm:text-lg text-white focus:ring-0 outline-none font-mono placeholder:text-dark-600"
-                    />
+
+                    <p className="text-xs text-dark-400 truncate mt-0.5">
+                      {empresaSelecionada.razao_social || empresaSelecionada.nome_fantasia || 'Sem razão social cadastrada'}
+                    </p>
+
+                    <div className="flex items-center gap-2 mt-1.5 text-xs text-dark-300 font-mono">
+                      <span>{empresaSelecionada.cnpj ? formatCNPJ(empresaSelecionada.cnpj) : 'Sem CNPJ'}</span>
+                      <span className="text-dark-600">•</span>
+                      <span className="text-dark-400 font-sans uppercase text-[10px] tracking-wider font-semibold">
+                        {empresaSelecionada.tipo_empresa || 'ambos'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Botão de Tornar Ativa / Ativa */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {empresaAtiva?.id !== empresaSelecionada.id ? (
                     <button
                       type="button"
-                      onClick={handleBuscarCnpj}
-                      disabled={buscandoCnpj || (form.cnpj || '').replace(/\D/g, '').length < 14}
-                      className={`mt-2 sm:mt-0 sm:mr-1.5 px-6 py-3 sm:py-2.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap flex items-center justify-center gap-2 ${
-                        buscandoCnpj || (form.cnpj || '').replace(/\D/g, '').length < 14
-                          ? 'bg-dark-800 text-dark-500 cursor-not-allowed'
-                          : 'bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-600/20'
+                      onClick={() => {
+                        setEmpresaAtiva(empresaSelecionada)
+                        toast.success(`"${empresaSelecionada.nome}" selecionada como empresa ativa!`)
+                      }}
+                      className="px-3.5 py-2 bg-dark-800 hover:bg-dark-700 text-white border border-dark-600 hover:border-emerald-500/50 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm"
+                    >
+                      <Star size={13} className="text-amber-400" />
+                      <span>Tornar Ativa</span>
+                    </button>
+                  ) : (
+                    <span className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-medium flex items-center gap-1.5">
+                      <CheckCircle2 size={13} />
+                      <span>Ativa no Sistema</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* BARRA DE NAVEGAÇÃO DAS 5 ABAS */}
+              <div className="flex items-center gap-1.5 border-b border-dark-700/60 overflow-x-auto pb-1 text-xs">
+                {[
+                  { id: 'geral', label: 'Geral', icon: Building2 },
+                  { id: 'integracoes', label: 'Integrações', icon: Layers },
+                  { id: 'fornecedores', label: 'Fornecedores De/Para', icon: Users },
+                  { id: 'fiscal', label: 'Fiscal & Certificado', icon: ShieldCheck },
+                  { id: 'avancado', label: 'Avançado', icon: AlertCircle },
+                ].map((tab) => {
+                  const Icon = tab.icon
+                  const ativa = abaAtiva === tab.id
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setAbaAtiva(tab.id as TipoAba)}
+                      className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl font-medium transition-all whitespace-nowrap ${
+                        ativa
+                          ? 'bg-blue-600/20 text-blue-300 border border-blue-500/50 shadow-sm'
+                          : 'text-dark-400 hover:text-white hover:bg-dark-800'
                       }`}
                     >
-                      {buscandoCnpj ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-                      {buscandoCnpj ? 'Buscando...' : 'Buscar Dados'}
+                      <Icon size={14} className={ativa ? 'text-blue-400' : 'text-dark-400'} />
+                      <span>{tab.label}</span>
                     </button>
-                  </div>
-                </div>
+                  )
+                })}
+              </div>
 
-                {dadosCnpj && (
-                  <div className="bg-dark-900/60 p-4 rounded-xl border border-brand-500/30 space-y-3 animate-fade-in">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-brand-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <Check size={14} /> Dados Oficiais — Receita Federal
-                      </span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        dadosCnpj.descricao_situacao_cadastral === 'ATIVA'
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-red-500/20 text-red-400 border border-red-500/30'
-                      }`}>
-                        {dadosCnpj.descricao_situacao_cadastral || 'SITUAÇÃO N/D'}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                      <div>
-                        <span className="text-[10px] text-dark-500 block">Razão Social</span>
-                        <span className="text-white font-semibold block truncate" title={dadosCnpj.razao_social}>
-                          {dadosCnpj.razao_social}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-dark-500 block">Nome Fantasia</span>
-                        <span className="text-white font-semibold block truncate" title={dadosCnpj.nome_fantasia || 'Não informado'}>
-                          {dadosCnpj.nome_fantasia || 'Não informado'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+              {/* CONTEÚDO DA ABA SELECIONADA */}
+              <div className="pt-2 animate-fade-in">
+                {abaAtiva === 'geral' && (
+                  <AbaGeral
+                    empresa={empresaSelecionada}
+                    onUpdated={handleEmpresaAtualizada}
+                  />
                 )}
 
-                  <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-dark-200">Nome Popular da Loja (Apelido interno)</label>
-                  <input
-                    value={form.nome}
-                    onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                    placeholder="Ex: SOFAST MATRIZ, NUFAST BARÃO, DETROIT"
-                    required
-                    className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-4 py-3 text-xs text-white focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 outline-none transition-all placeholder:text-dark-600 shadow-inner"
+                {abaAtiva === 'integracoes' && (
+                  <AbaIntegracoes
+                    empresa={empresaSelecionada}
+                    onUpdated={handleEmpresaAtualizada}
+                    onConectarContaAzul={handleConectarContaAzul}
+                    onDesconectarContaAzul={handleDesconectarContaAzul}
+                    onCopiarWhatsApp={(modulo) => handleCopiarWhatsApp(empresaSelecionada, modulo)}
+                    onIrParaAbaFiscal={() => setAbaAtiva('fiscal')}
                   />
-                </div>
+                )}
 
-                {/* CAMPO DE FINALIDADE / SOMENTE BANCO */}
-                <div className="bg-dark-900/50 p-3.5 rounded-xl border border-dark-700/60 space-y-2">
-                  <label className="text-xs font-bold text-white flex items-center gap-2">
-                    <Store size={14} className="text-amber-400" />
-                    Finalidade e Visibilidade no App
-                  </label>
-                  <label className="flex items-start gap-3 cursor-pointer bg-dark-900 p-3 rounded-xl border border-dark-700 hover:border-amber-500/40 transition-all group">
-                    <input
-                      type="checkbox"
-                      checked={form.somente_banco}
-                      onChange={(e) => setForm({ ...form, somente_banco: e.target.checked })}
-                      className="w-4 h-4 mt-0.5 rounded text-amber-500 bg-dark-800 border-dark-600 focus:ring-amber-500/50"
-                    />
-                    <div>
-                      <span className="text-xs font-semibold text-amber-400 block group-hover:text-amber-300">
-                        Somente Banco (Apenas Gestão de Pagamentos)
-                      </span>
-                      <span className="text-[11px] text-dark-400 block leading-relaxed">
-                        Marque se esta loja/banco é usada apenas para pagamentos e não necessita de integração própria de Vendas ou Contas a Pagar. Ela será ocultada dos filtros de Vendas/Financeiro para não poluir o seletor.
-                      </span>
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              {/* COLUNA DIREITA: Integrações */}
-              <div className="lg:col-span-5 bg-dark-900/40 p-4 rounded-xl border border-dark-700/50 space-y-4 flex flex-col justify-between">
-                
-                <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                  <ShieldCheck size={16} className="text-brand-400" />
-                  Configurações de Acesso
-                </h4>
-
-                <div className="space-y-2 pt-1">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-blue-500/10 flex items-center justify-center">
-                      <Mail size={12} className="text-blue-400" />
-                    </div>
-                    <label className="text-xs font-semibold text-dark-200">Conta Azul — Financeiro (Contas a Pagar)</label>
-                  </div>
-                  <input
-                    value={form.email_login}
-                    onChange={(e) => setForm({ ...form, email_login: e.target.value })}
-                    placeholder="Deixe em branco (capturado no login do cliente)"
-                    type="email"
-                    className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-4 py-2.5 text-xs text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all placeholder:text-dark-600 shadow-inner"
+                {abaAtiva === 'fornecedores' && (
+                  <AbaFornecedores
+                    empresa={empresaSelecionada}
                   />
-                </div>
+                )}
 
-                <div className="h-px w-full bg-dark-700/30" />
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-emerald-500/10 flex items-center justify-center">
-                      <Mail size={12} className="text-emerald-400" />
-                    </div>
-                    <label className="text-xs font-semibold text-dark-200">Conta Azul — Vendas (Emissão de NFe)</label>
-                  </div>
-                  <input
-                    value={form.email_login_vendas || ''}
-                    onChange={(e) => setForm({ ...form, email_login_vendas: e.target.value })}
-                    placeholder="Deixe em branco (capturado no login do cliente)"
-                    type="email"
-                    className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-4 py-2.5 text-xs text-white focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all placeholder:text-dark-600 shadow-inner"
+                {abaAtiva === 'fiscal' && (
+                  <AbaFiscal
+                    empresa={empresaSelecionada}
+                    onUpdated={handleEmpresaAtualizada}
                   />
-                </div>
-                
-                <div className="h-px w-full bg-dark-700/30" />
+                )}
 
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-orange-500/10 flex items-center justify-center">
-                      <Unlink size={12} className="text-orange-400" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-dark-200 block">API Datacar (Opcional)</label>
-                    </div>
-                  </div>
-                  <div className="space-y-2.5 pt-1">
-                    <input
-                      value={form.datacar_token}
-                      onChange={(e) => setForm({ ...form, datacar_token: e.target.value })}
-                      placeholder="Token de Acesso Datacar"
-                      className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-4 py-2.5 text-xs text-white focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all placeholder:text-dark-600 shadow-inner"
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[10px] text-dark-400 font-semibold block mb-1">Cód. Empresa Datacar</label>
-                        <input
-                          value={form.datacar_cod_emp}
-                          onChange={(e) => setForm({ ...form, datacar_cod_emp: e.target.value })}
-                          placeholder="Ex: 001 ou 1"
-                          className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-3 py-2 text-xs text-white focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none font-mono placeholder:text-dark-600 shadow-inner"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-dark-400 font-semibold block mb-1">ID Operador Datacar</label>
-                        <input
-                          value={form.datacar_id_operador}
-                          onChange={(e) => setForm({ ...form, datacar_id_operador: e.target.value })}
-                          placeholder="Ex: 102"
-                          className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-3 py-2 text-xs text-white focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none font-mono placeholder:text-dark-600 shadow-inner"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-4 mt-auto border-t border-dark-700/30 flex flex-col sm:flex-row gap-3">
-                  {!editingId && (
-                    <button
-                      type="button"
-                      onClick={handleCriarVazio}
-                      disabled={salvando}
-                      className="flex-1 bg-dark-800 hover:bg-dark-700 disabled:opacity-50 text-white border border-dark-600 px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all text-xs"
-                    >
-                      {salvando ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                      Criar Vazio (Link)
-                    </button>
-                  )}
-                  <button
-                    type="submit"
-                    disabled={salvando}
-                    className="flex-1 bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(var(--brand-500),0.2)] text-xs"
-                  >
-                    {salvando ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                    {salvando ? 'Salvando...' : 'Salvar Empresa'}
-                  </button>
-                </div>
+                {abaAtiva === 'avancado' && (
+                  <AbaAvancado
+                    empresa={empresaSelecionada}
+                    onExcluirEmpresa={handleExcluirEmpresa}
+                  />
+                )}
               </div>
             </div>
-          </form>
+          ) : (
+            <div className="bg-dark-800/40 border border-dark-700/60 rounded-2xl p-12 text-center text-dark-400 space-y-2">
+              <Building2 size={40} className="mx-auto text-dark-600" />
+              <p className="text-base font-semibold text-white">Nenhuma empresa selecionada</p>
+              <p className="text-xs text-dark-400">Selecione uma empresa na lista à esquerda para gerenciar seus dados e integrações.</p>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* CABEÇALHO PADRONIZADO DAS COLUNAS */}
-      {modoVisualizacao === 'lista' && empresasFiltradas.length > 0 && (
-        <div className="hidden lg:flex items-center justify-between px-5 py-2.5 bg-dark-900/60 rounded-xl border border-dark-700/40 text-[11px] font-bold text-dark-400 uppercase tracking-wider select-none mb-1">
-          <div className="min-w-[280px]">Empresa / CNPJ</div>
-          <div className="text-center flex-1">Status das Integrações</div>
-          <div className="text-right flex-shrink-0 min-w-[240px]">Ações & Ficha Cadastral</div>
-        </div>
-      )}
-
-      {/* RENDERIZAÇÃO DA LISTA DE EMPRESAS (Lista Compacta ou Cards) */}
-      {modoVisualizacao === 'lista' ? (
-        <div className="space-y-3 w-full">
-          {empresasFiltradas.map((empresa) => {
-            const isAtiva = empresaAtiva?.id === empresa.id;
-            return (
-              <EmpresaRowItem
-                key={empresa.id}
-                empresa={empresa}
-                todasEmpresas={empresas}
-                isAtiva={isAtiva}
-                isEditandoInline={editingId === empresa.id}
-                onSelect={() => setEmpresaAtiva(empresa)}
-                onEdit={() => handleEditClick(empresa)}
-                onDelete={() => handleExcluirEmpresa(empresa.id)}
-                conectando={conectando}
-                onConectarContaAzul={handleConectarContaAzul}
-                onDesconectar={handleDesconectar}
-                onRecarregar={recarregar}
-              />
-            );
-          })}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-          {empresasFiltradas.map((empresa) => {
-            const isAtiva = empresaAtiva?.id === empresa.id;
-            return (
-              <EmpresaCard
-                key={empresa.id}
-                empresa={empresa}
-                todasEmpresas={empresas}
-                isAtiva={isAtiva}
-                isEditandoInline={editingId === empresa.id}
-                onSelect={() => setEmpresaAtiva(empresa)}
-                onEdit={() => handleEditClick(empresa)}
-                onDelete={() => handleExcluirEmpresa(empresa.id)}
-                conectando={conectando}
-                onConectarContaAzul={handleConectarContaAzul}
-                onDesconectar={handleDesconectar}
-                onRecarregar={recarregar}
-              />
-            );
-          })}
-        </div>
-      )}
-
-      {empresasFiltradas.length === 0 && !showForm && (
-        <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-dark-700 rounded-2xl">
-          <Building2 size={48} className="text-dark-700 mb-4" />
-          <p className="text-dark-400">Nenhuma empresa encontrada.</p>
-          <button
-            onClick={() => setShowForm(true)}
-            className="text-brand-400 font-semibold mt-2 hover:text-brand-300 transition-colors"
-          >
-            Cadastrar agora
-          </button>
-        </div>
-      )}
+      {/* 3. MODAL DE CADASTRO DE NOVA EMPRESA */}
+      <ModalNovaEmpresa
+        aberto={modalNovaAberto}
+        onFechar={() => setModalNovaAberto(false)}
+        onCriada={(nova) => {
+          recarregar()
+          setEmpresaSelecionadaId(nova.id)
+          setAbaAtiva('geral')
+        }}
+      />
     </div>
   )
 }
@@ -2315,8 +543,11 @@ function EmpresasPageContent() {
 export default function EmpresasPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-brand-600" size={32} />
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 size={32} className="animate-spin text-blue-500" />
+          <p className="text-sm font-medium text-dark-400">Carregando painel de empresas...</p>
+        </div>
       </div>
     }>
       <EmpresasPageContent />

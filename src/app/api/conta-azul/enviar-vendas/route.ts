@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
           numero: undefined,
           situacao: 'APROVADO',
           data_venda: dataVendaFormatada,
-          // 03 - Vendedor responsável: deixado em branco (sem id_vendedor)
+          // 03 - Vendedor responsável: deve permanecer estritamente vazio (sem id_vendedor, seller, salesman ou vendedorResponsavel)
           itens: itensPayload,
           // Desconto conforme API v1: composicao_de_valor.desconto { tipo, valor }
           // O CA calcula: valor_total = (qty × preço_unit) + frete - desconto
