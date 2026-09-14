@@ -511,6 +511,11 @@ function EmpresasPageContent() {
                 {abaAtiva === 'avancado' && (
                   <AbaAvancado
                     empresa={empresaSelecionada}
+                    isAtiva={empresaAtiva?.id === empresaSelecionada.id}
+                    onDefinirComoAtiva={() => {
+                      setEmpresaAtiva(empresaSelecionada)
+                      toast.success(`"${empresaSelecionada.nome}" agora é a empresa ativa no sistema!`)
+                    }}
                     onExcluirEmpresa={handleExcluirEmpresa}
                   />
                 )}

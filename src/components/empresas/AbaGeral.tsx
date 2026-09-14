@@ -1,22 +1,25 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Empresa } from '@/types'
 import { formatCNPJ } from '@/lib/utils'
 import { buscarCnpj, type BrasilApiCnpjResponse } from '@/services/brasil-api/client'
 import { createClient } from '@/lib/supabase/client'
 import { 
   Building2, 
-  Search, 
   Save, 
-  FileText, 
   ChevronDown, 
   ChevronUp, 
-  CheckCircle2, 
   MapPin, 
   Users, 
   Loader2,
-  Briefcase
+  Calendar,
+  DollarSign,
+  Copy,
+  Check,
+  RefreshCw,
+  ShieldCheck,
+  Tag
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -26,344 +29,348 @@ interface AbaGeralProps {
 }
 
 export function AbaGeral({ empresa, onUpdated }: AbaGeralProps) {
-  const [nome, setNome] = useState(empresa.nome || '')
-  const [cnpj, setCnpj] = useState(empresa.cnpj ? formatCNPJ(empresa.cnpj) : '')
-  const [razaoSocial, setRazaoSocial] = useState(empresa.razao_social || '')
-  const [nomeFantasia, setNomeFantasia] = useState(empresa.nome_fantasia || '')
-  const [tipoEmpresa, setTipoEmpresa] = useState<'vendas' | 'financeiro' | 'ambos'>(empresa.tipo_empresa || 'ambos')
-
+  // Apenas Apelido é editável
+  const [apelido, setApelido] = useState(empresa.nome || '')
   const [salvando, setSalvando] = useState(false)
-  const [buscandoCnpj, setBuscandoCnpj] = useState(false)
+  const [copiadoCnpj, setCopiadoCnpj] = useState(false)
 
-  // Estado da Ficha Cadastral da Receita
-  const [mostrarFicha, setMostrarFicha] = useState(false)
-  const [carregandoFicha, setCarregandoFicha] = useState(false)
-  const [dadosFicha, setDadosFicha] = useState<BrasilApiCnpjResponse | null>(null)
+  // Estado dos dados da Receita Federal
+  const [dadosReceita, setDadosReceita] = useState<BrasilApiCnpjResponse | null>(null)
+  const [carregandoReceita, setCarregandoReceita] = useState(false)
+
+  // Accordions
+  const [accordionEnderecoAberto, setAccordionEnderecoAberto] = useState(false)
+  const [accordionSociosAberto, setAccordionSociosAberto] = useState(false)
 
   const supabase = createClient()
 
-  // Buscar dados na Brasil API
-  const handleBuscarCnpj = async () => {
-    const cnpjLimpo = cnpj.replace(/\D/g, '')
-    if (cnpjLimpo.length !== 14) {
-      toast.error('CNPJ inválido. Digite os 14 dígitos.')
-      return
-    }
+  // Carregar dados públicos da Receita Federal automaticamente
+  const carregarDadosReceita = async (forcar = false) => {
+    if (!empresa.cnpj) return
+    const cnpjLimpo = empresa.cnpj.replace(/\D/g, '')
+    if (cnpjLimpo.length !== 14) return
 
-    setBuscandoCnpj(true)
+    setCarregandoReceita(true)
     try {
       const data = await buscarCnpj(cnpjLimpo)
-      if (!data || (data as any).erro) {
-        toast.error('CNPJ não localizado na base pública da Receita Federal.')
-        return
-      }
-
-      setRazaoSocial(data.razao_social || '')
-      setNomeFantasia(data.nome_fantasia || '')
-      if (!nome || nome === 'Nova Empresa' || nome.includes('00000000')) {
-        setNome(data.nome_fantasia || data.razao_social || nome)
-      }
-      setDadosFicha(data)
-      toast.success('Dados localizados com sucesso na Receita Federal!')
-    } catch {
-      toast.error('Erro ao consultar a base do CNPJ.')
-    } finally {
-      setBuscandoCnpj(false)
-    }
-  }
-
-  // Carregar ficha completa da Receita
-  const handleAbrirFicha = async () => {
-    const novoStatus = !mostrarFicha
-    setMostrarFicha(novoStatus)
-    if (novoStatus && !dadosFicha) {
-      const cnpjLimpo = (empresa.cnpj || cnpj).replace(/\D/g, '')
-      if (cnpjLimpo.length === 14) {
-        setCarregandoFicha(true)
-        try {
-          const res = await buscarCnpj(cnpjLimpo)
-          if (res && !(res as any).erro) {
-            setDadosFicha(res)
-          }
-        } catch {
-          // silencioso
-        } finally {
-          setCarregandoFicha(false)
+      if (data && !(data as any).erro) {
+        setDadosReceita(data)
+        if (forcar) {
+          toast.success('Dados da Receita Federal atualizados!')
         }
+      } else if (forcar) {
+        toast.error('CNPJ não localizado na base pública da Receita.')
       }
+    } catch {
+      if (forcar) toast.error('Falha ao consultar a Receita Federal.')
+    } finally {
+      setCarregandoReceita(false)
     }
   }
 
-  // Salvar alterações
-  const handleSalvar = async (e: React.FormEvent) => {
+  useEffect(() => {
+    setApelido(empresa.nome || '')
+    carregarDadosReceita()
+  }, [empresa.id, empresa.cnpj])
+
+  // Salvar apenas o Apelido da Empresa
+  const handleSalvarApelido = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!nome.trim()) {
-      toast.error('O Nome da empresa é obrigatório.')
+    if (!apelido.trim()) {
+      toast.error('O Apelido da empresa é obrigatório.')
       return
     }
 
     setSalvando(true)
     try {
-      const cnpjLimpo = cnpj.replace(/\D/g, '')
       const { data, error } = await supabase
         .from('empresas')
         .update({
-          nome: nome.trim(),
-          cnpj: cnpjLimpo,
-          razao_social: razaoSocial.trim() || null,
-          nome_fantasia: nomeFantasia.trim() || null,
-          tipo_empresa: tipoEmpresa,
+          nome: apelido.trim()
         })
         .eq('id', empresa.id)
-        .select()
+        .select('*')
         .single()
 
       if (error) throw error
 
-      toast.success(`Empresa "${nome}" atualizada com sucesso!`)
-      if (data) {
-        onUpdated(data)
-      }
+      toast.success('Apelido da empresa atualizado com sucesso!')
+      onUpdated(data as Empresa)
     } catch (err: any) {
-      toast.error(err.message || 'Erro ao salvar empresa')
+      console.error('Erro ao salvar apelido:', err)
+      toast.error(err.message || 'Erro ao atualizar o apelido da empresa.')
     } finally {
       setSalvando(false)
     }
   }
 
+  const handleCopiarCnpj = () => {
+    if (!empresa.cnpj) return
+    navigator.clipboard.writeText(empresa.cnpj.replace(/\D/g, ''))
+    setCopiadoCnpj(true)
+    toast.success('CNPJ copiado!')
+    setTimeout(() => setCopiadoCnpj(false), 2000)
+  }
+
+  // Formatador de valor de moeda
+  const formatarMoeda = (valor?: number | string | null) => {
+    if (valor === null || valor === undefined || valor === '') return 'Não informado'
+    const num = Number(valor)
+    if (isNaN(num)) return String(valor)
+    return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  }
+
+  // Formatador de data
+  const formatarData = (dataStr?: string | null) => {
+    if (!dataStr) return 'Não informada'
+    try {
+      const partes = dataStr.split('-')
+      if (partes.length === 3) {
+        return `${partes[2]}/${partes[1]}/${partes[0]}`
+      }
+      return new Date(dataStr).toLocaleDateString('pt-BR')
+    } catch {
+      return dataStr
+    }
+  }
+
+  // Dados consolidados
+  const razaoSocialExibicao = dadosReceita?.razao_social || empresa.razao_social || 'Não informada'
+  const situacaoCadastral = dadosReceita?.descricao_situacao_cadastral || 'ATIVA'
+  const dataAbertura = dadosReceita?.data_inicio_atividade ? formatarData(dadosReceita.data_inicio_atividade) : 'Não informada'
+  const capitalSocial = dadosReceita?.capital_social ? formatarMoeda(dadosReceita.capital_social) : 'Não informado'
+  const tipoExibicao = empresa.tipo_empresa ? empresa.tipo_empresa.toUpperCase() : 'AMBOS'
+  const qsaList = (dadosReceita as any)?.qsa || []
+
   return (
-    <div className="space-y-6">
-      {/* Formulário Cadastral Principal */}
-      <form onSubmit={handleSalvar} className="bg-dark-800/80 border border-dark-700/70 rounded-2xl p-5 sm:p-6 space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-dark-700/60">
-          <div className="flex items-center gap-2">
-            <Building2 className="text-blue-400" size={18} />
-            <h3 className="font-semibold text-white text-base">Identificação & Dados Gerais</h3>
-          </div>
-          <span className="text-xs text-dark-400">ID: <code className="font-mono text-[11px] text-dark-300">{empresa.id.slice(0, 8)}...</code></span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Nome da Empresa */}
-          <div>
-            <label className="block text-xs font-medium text-dark-300 mb-1">
-              Nome de Exibição (Filial) <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              placeholder="Ex: Alpha Pneus Barreiro"
-              className="w-full bg-dark-900 border border-dark-600 rounded-xl px-3.5 py-2.5 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none transition-all placeholder:text-dark-500"
-              required
-            />
-          </div>
-
-          {/* CNPJ + Busca Receita Federal */}
-          <div>
-            <label className="block text-xs font-medium text-dark-300 mb-1">
-              CNPJ <span className="text-red-400">*</span>
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={cnpj}
-                onChange={(e) => setCnpj(formatCNPJ(e.target.value))}
-                placeholder="00.000.000/0000-00"
-                maxLength={18}
-                className="w-full bg-dark-900 border border-dark-600 rounded-xl px-3.5 py-2.5 text-white text-sm font-mono focus:ring-2 focus:ring-blue-500/50 outline-none transition-all placeholder:text-dark-500"
-                required
-              />
-              <button
-                type="button"
-                onClick={handleBuscarCnpj}
-                disabled={buscandoCnpj || cnpj.replace(/\D/g, '').length !== 14}
-                title="Consultar dados na Receita Federal"
-                className="px-3 py-2.5 bg-blue-600/90 hover:bg-blue-600 disabled:opacity-50 text-white rounded-xl text-xs font-medium transition-colors flex items-center gap-1.5 flex-shrink-0 shadow-sm"
-              >
-                {buscandoCnpj ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-                <span className="hidden sm:inline">Receita</span>
-              </button>
+    <div className="space-y-5">
+      {/* FORMULÁRIO DE FICHA CADASTRAL ÚNICA */}
+      <form onSubmit={handleSalvarApelido} className="bg-dark-800/80 border border-dark-700/70 rounded-2xl p-5 sm:p-6 space-y-5">
+        {/* Cabeçalho da Ficha */}
+        <div className="flex items-center justify-between pb-4 border-b border-dark-700/70 flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary-500/15 border border-primary-500/30 flex items-center justify-center text-primary-400">
+              <Building2 size={20} />
+            </div>
+            <div>
+              <h3 className="font-semibold text-white text-base">Ficha Cadastral Oficial</h3>
+              <p className="text-xs text-dark-400">
+                Informações consolidadas da empresa e consulta à Receita Federal
+              </p>
             </div>
           </div>
 
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => carregarDadosReceita(true)}
+              disabled={carregandoReceita}
+              title="Consultar e atualizar dados da Receita Federal"
+              className="px-3 py-1.5 bg-dark-700/60 hover:bg-dark-700 text-dark-300 hover:text-white rounded-xl text-xs font-medium border border-dark-600/50 transition-colors flex items-center gap-1.5"
+            >
+              <RefreshCw size={13} className={carregandoReceita ? 'animate-spin text-primary-400' : ''} />
+              <span>{carregandoReceita ? 'Consultando...' : 'Atualizar da Receita'}</span>
+            </button>
+
+            <button
+              type="submit"
+              disabled={salvando}
+              className="px-4 py-1.5 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm shadow-primary-500/20"
+            >
+              {salvando ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+              <span>{salvando ? 'Salvando...' : 'Salvar Apelido'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* CAMPO EDITÁVEL: APELIDO */}
+        <div className="bg-primary-950/20 border border-primary-900/40 rounded-xl p-4 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label htmlFor="input-apelido" className="text-xs font-semibold text-primary-300 flex items-center gap-1.5">
+              <span>Apelido no Sistema</span>
+              <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-primary-500/20 text-primary-400 font-bold border border-primary-500/30">
+                Editável
+              </span>
+            </label>
+            <span className="text-[11px] text-dark-400">Nome de exibição nos seletores e listagens</span>
+          </div>
+          <input
+            id="input-apelido"
+            type="text"
+            value={apelido}
+            onChange={(e) => setApelido(e.target.value)}
+            placeholder="Ex: Matriz São Paulo"
+            className="w-full bg-dark-900 border border-dark-700 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-dark-500 font-medium transition-colors"
+          />
+        </div>
+
+        {/* CAMPOS VISÍVEIS SOMENTE LEITURA */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
           {/* Razão Social */}
-          <div>
-            <label className="block text-xs font-medium text-dark-300 mb-1">Razão Social</label>
-            <input
-              type="text"
-              value={razaoSocial}
-              onChange={(e) => setRazaoSocial(e.target.value)}
-              placeholder="Razão Social Oficial da Empresa"
-              className="w-full bg-dark-900 border border-dark-600 rounded-xl px-3.5 py-2.5 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none transition-all placeholder:text-dark-500"
-            />
+          <div className="p-3.5 bg-dark-900/70 rounded-xl border border-dark-700/60 space-y-1 sm:col-span-2">
+            <span className="text-[11px] text-dark-400 font-medium block">Razão Social (Receita Federal)</span>
+            <p className="text-sm font-semibold text-white truncate" title={razaoSocialExibicao}>
+              {razaoSocialExibicao}
+            </p>
           </div>
 
-          {/* Nome Fantasia */}
-          <div>
-            <label className="block text-xs font-medium text-dark-300 mb-1">Nome Fantasia</label>
-            <input
-              type="text"
-              value={nomeFantasia}
-              onChange={(e) => setNomeFantasia(e.target.value)}
-              placeholder="Nome Fantasia Comercial"
-              className="w-full bg-dark-900 border border-dark-600 rounded-xl px-3.5 py-2.5 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none transition-all placeholder:text-dark-500"
-            />
+          {/* CNPJ */}
+          <div className="p-3.5 bg-dark-900/70 rounded-xl border border-dark-700/60 space-y-1">
+            <span className="text-[11px] text-dark-400 font-medium block">CNPJ</span>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-mono font-bold text-white">
+                {empresa.cnpj ? formatCNPJ(empresa.cnpj) : 'Não informado'}
+              </span>
+              {empresa.cnpj && (
+                <button
+                  type="button"
+                  onClick={handleCopiarCnpj}
+                  title="Copiar CNPJ"
+                  className="p-1 hover:bg-dark-800 rounded-lg text-dark-400 hover:text-white transition-colors"
+                >
+                  {copiadoCnpj ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Tipo de Empresa */}
-          <div className="sm:col-span-2">
-            <label className="block text-xs font-medium text-dark-300 mb-1">
-              Tipo de Operação no Sistema
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { val: 'ambos', label: 'Ambos (Produtos & Serviços)' },
-                { val: 'vendas', label: 'Apenas Vendas / Peças' },
-                { val: 'financeiro', label: 'Apenas Contas a Pagar / Fin.' },
-              ].map((item) => (
-                <button
-                  type="button"
-                  key={item.val}
-                  onClick={() => setTipoEmpresa(item.val as any)}
-                  className={`py-2 px-3 rounded-xl border text-xs font-medium transition-all text-center ${
-                    tipoEmpresa === item.val
-                      ? 'bg-blue-600/20 border-blue-500/60 text-blue-300 ring-1 ring-blue-500/40'
-                      : 'bg-dark-900/60 border-dark-700 text-dark-400 hover:bg-dark-900 hover:text-white'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
+          <div className="p-3.5 bg-dark-900/70 rounded-xl border border-dark-700/60 space-y-1">
+            <span className="text-[11px] text-dark-400 font-medium flex items-center gap-1">
+              <Tag size={12} />
+              <span>Tipo Operacional</span>
+            </span>
+            <p className="text-sm font-semibold text-primary-300">
+              {tipoExibicao}
+            </p>
+          </div>
+
+          {/* Situação Cadastral */}
+          <div className="p-3.5 bg-dark-900/70 rounded-xl border border-dark-700/60 space-y-1">
+            <span className="text-[11px] text-dark-400 font-medium flex items-center gap-1">
+              <ShieldCheck size={12} />
+              <span>Situação Cadastral</span>
+            </span>
+            <p className="text-sm font-semibold text-emerald-400 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-glow-sm" />
+              <span>{situacaoCadastral}</span>
+            </p>
+          </div>
+
+          {/* Data de Abertura */}
+          <div className="p-3.5 bg-dark-900/70 rounded-xl border border-dark-700/60 space-y-1">
+            <span className="text-[11px] text-dark-400 font-medium flex items-center gap-1">
+              <Calendar size={12} />
+              <span>Data de Abertura</span>
+            </span>
+            <p className="text-sm font-semibold text-dark-200">
+              {dataAbertura}
+            </p>
+          </div>
+
+          {/* Capital Social */}
+          <div className="p-3.5 bg-dark-900/70 rounded-xl border border-dark-700/60 space-y-1 sm:col-span-2 lg:col-span-3">
+            <span className="text-[11px] text-dark-400 font-medium flex items-center gap-1">
+              <DollarSign size={12} />
+              <span>Capital Social Registrado</span>
+            </span>
+            <p className="text-sm font-bold text-emerald-300 font-mono">
+              {capitalSocial}
+            </p>
           </div>
         </div>
 
-        {/* Botão de Salvamento no Rodapé */}
-        <div className="pt-3 border-t border-dark-700/60 flex justify-end">
-          <button
-            type="submit"
-            disabled={salvando}
-            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors shadow-lg shadow-blue-500/10"
-          >
-            {salvando ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {salvando ? 'Salvando...' : 'Salvar Dados Gerais'}
-          </button>
-        </div>
-      </form>
+        {/* ACCORDIONS (EXPANSÍVEIS): ENDEREÇO E QUADRO DE SÓCIOS */}
+        <div className="space-y-3 pt-2">
+          {/* Accordion 1: Endereço na Receita Federal */}
+          <div className="border border-dark-700/60 rounded-xl overflow-hidden bg-dark-900/40">
+            <button
+              type="button"
+              onClick={() => setAccordionEnderecoAberto(!accordionEnderecoAberto)}
+              className="w-full p-3.5 flex items-center justify-between text-left hover:bg-dark-800/50 transition-colors"
+            >
+              <span className="flex items-center gap-2 text-xs font-semibold text-dark-200">
+                <MapPin size={15} className="text-amber-400" />
+                <span>Endereço na Receita Federal</span>
+              </span>
+              {accordionEnderecoAberto ? <ChevronUp size={16} className="text-dark-400" /> : <ChevronDown size={16} className="text-dark-400" />}
+            </button>
 
-      {/* Card Expansível da Ficha Cadastral da Receita Federal */}
-      <div className="bg-dark-800/80 border border-dark-700/70 rounded-2xl overflow-hidden">
-        <button
-          type="button"
-          onClick={handleAbrirFicha}
-          className="w-full p-4 sm:p-5 flex items-center justify-between hover:bg-dark-750 transition-colors text-left"
-        >
-          <div className="flex items-center gap-2.5">
-            <FileText className="text-emerald-400" size={18} />
-            <div>
-              <h4 className="font-semibold text-white text-sm">Ficha Cadastral Oficial da Receita Federal</h4>
-              <p className="text-xs text-dark-400">CNAE, situação cadastral, capital social, endereço e sócios (QSA)</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 text-dark-400">
-            {carregandoFicha && <Loader2 size={16} className="animate-spin text-blue-400" />}
-            {mostrarFicha ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-          </div>
-        </button>
-
-        {mostrarFicha && (
-          <div className="p-5 border-t border-dark-700/60 bg-dark-900/60 space-y-4 animate-fade-in">
-            {carregandoFicha ? (
-              <div className="py-8 text-center text-dark-400 text-sm flex items-center justify-center gap-2">
-                <Loader2 size={16} className="animate-spin text-blue-400" />
-                <span>Buscando dados na base pública da Receita Federal...</span>
-              </div>
-            ) : dadosFicha ? (
-              <div className="space-y-4 text-xs">
-                {/* Status Geral */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 bg-dark-800/90 rounded-xl border border-dark-700/50">
-                  <div>
-                    <span className="text-dark-400 block mb-0.5">Situação Cadastral</span>
-                    <span className="font-semibold text-emerald-400 flex items-center gap-1">
-                      <CheckCircle2 size={13} /> {dadosFicha.descricao_situacao_cadastral || 'ATIVA'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-dark-400 block mb-0.5">Data de Abertura</span>
-                    <span className="text-white font-medium">{dadosFicha.data_inicio_atividade || 'N/D'}</span>
-                  </div>
-                  <div>
-                    <span className="text-dark-400 block mb-0.5">Capital Social</span>
-                    <span className="text-white font-medium">
-                      {dadosFicha.capital_social ? `R$ ${Number(dadosFicha.capital_social).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'N/D'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-dark-400 block mb-0.5">Porte</span>
-                    <span className="text-white font-medium">{dadosFicha.porte || 'N/D'}</span>
-                  </div>
-                </div>
-
-                {/* Endereço */}
-                <div className="p-3 bg-dark-800/90 rounded-xl border border-dark-700/50 space-y-1">
-                  <div className="flex items-center gap-1.5 font-medium text-dark-300">
-                    <MapPin size={13} className="text-blue-400" />
-                    <span>Endereço Registrado</span>
-                  </div>
-                  <p className="text-white">
-                    {`${dadosFicha.logradouro || ''}, ${dadosFicha.numero || 'S/N'}${dadosFicha.complemento ? ` - ${dadosFicha.complemento}` : ''} - ${dadosFicha.bairro || ''}`}
-                  </p>
-                  <p className="text-dark-400">
-                    {`${dadosFicha.municipio || ''} / ${dadosFicha.uf || ''} - CEP: ${dadosFicha.cep || 'N/D'}`}
-                  </p>
-                </div>
-
-                {/* Atividade Econômica / CNAE */}
-                <div className="p-3 bg-dark-800/90 rounded-xl border border-dark-700/50 space-y-1">
-                  <div className="flex items-center gap-1.5 font-medium text-dark-300">
-                    <Briefcase size={13} className="text-amber-400" />
-                    <span>Atividade Principal (CNAE)</span>
-                  </div>
-                  <p className="text-white font-medium">
-                    {dadosFicha.cnae_fiscal ? `${dadosFicha.cnae_fiscal} - ${dadosFicha.cnae_fiscal_descricao || ''}` : 'N/D'}
-                  </p>
-                </div>
-
-                {/* Sócios (QSA) */}
-                {(dadosFicha as any).qsa && (dadosFicha as any).qsa.length > 0 && (
-                  <div className="p-3 bg-dark-800/90 rounded-xl border border-dark-700/50 space-y-2">
-                    <div className="flex items-center gap-1.5 font-medium text-dark-300">
-                      <Users size={13} className="text-purple-400" />
-                      <span>Quadro de Sócios e Administradores (QSA)</span>
+            {accordionEnderecoAberto && (
+              <div className="p-4 border-t border-dark-700/60 bg-dark-900/80 text-xs space-y-2">
+                {dadosReceita ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-dark-300">
+                    <div>
+                      <span className="text-dark-500 block text-[11px]">Logradouro / Número</span>
+                      <span className="text-white font-medium">
+                        {dadosReceita.descricao_tipo_de_logradouro || ''} {dadosReceita.logradouro || 'N/D'}, {dadosReceita.numero || 'S/N'}
+                        {dadosReceita.complemento ? ` (${dadosReceita.complemento})` : ''}
+                      </span>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {(dadosFicha as any).qsa.map((socio: any, idx: number) => (
-                        <div key={idx} className="bg-dark-900/80 p-2 rounded-lg border border-dark-700/40">
-                          <p className="text-white font-medium truncate">{socio.nome_socio || socio.nome || 'Sócio'}</p>
-                          <p className="text-[11px] text-dark-400">{socio.qualificacao_socio || 'Sócio/Administrador'}</p>
-                        </div>
-                      ))}
+                    <div>
+                      <span className="text-dark-500 block text-[11px]">Bairro</span>
+                      <span className="text-white font-medium">{dadosReceita.bairro || 'N/D'}</span>
+                    </div>
+                    <div>
+                      <span className="text-dark-500 block text-[11px]">Município / UF</span>
+                      <span className="text-white font-medium">
+                        {dadosReceita.municipio || 'N/D'} - {dadosReceita.uf || 'N/D'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-dark-500 block text-[11px]">CEP</span>
+                      <span className="text-white font-mono font-medium">{dadosReceita.cep || 'N/D'}</span>
                     </div>
                   </div>
+                ) : (
+                  <p className="text-dark-400 py-1">
+                    {carregandoReceita ? 'Consultando endereço na Receita Federal...' : 'Endereço não disponível. Clique em "Atualizar da Receita" acima.'}
+                  </p>
                 )}
-              </div>
-            ) : (
-              <div className="text-center py-6 text-dark-400">
-                <p>Nenhuma informação carregada. Clique em consultar ou verifique o CNPJ.</p>
-                <button
-                  type="button"
-                  onClick={handleAbrirFicha}
-                  className="mt-2 text-xs text-blue-400 hover:underline"
-                >
-                  Tentar carregar novamente
-                </button>
               </div>
             )}
           </div>
-        )}
-      </div>
+
+          {/* Accordion 2: Quadro de Sócios e Administradores (QSA) */}
+          <div className="border border-dark-700/60 rounded-xl overflow-hidden bg-dark-900/40">
+            <button
+              type="button"
+              onClick={() => setAccordionSociosAberto(!accordionSociosAberto)}
+              className="w-full p-3.5 flex items-center justify-between text-left hover:bg-dark-800/50 transition-colors"
+            >
+              <span className="flex items-center gap-2 text-xs font-semibold text-dark-200">
+                <Users size={15} className="text-purple-400" />
+                <span>Quadro de Sócios e Administradores (QSA)</span>
+                {qsaList.length > 0 && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-purple-500/20 text-purple-300">
+                    {qsaList.length}
+                  </span>
+                )}
+              </span>
+              {accordionSociosAberto ? <ChevronUp size={16} className="text-dark-400" /> : <ChevronDown size={16} className="text-dark-400" />}
+            </button>
+
+            {accordionSociosAberto && (
+              <div className="p-4 border-t border-dark-700/60 bg-dark-900/80 text-xs space-y-2">
+                {qsaList.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {qsaList.map((socio: any, idx: number) => (
+                      <div key={idx} className="bg-dark-850 p-2.5 rounded-lg border border-dark-700/60">
+                        <p className="text-white font-medium truncate">{socio.nome_socio || socio.nome || 'Sócio'}</p>
+                        <p className="text-[11px] text-dark-400 mt-0.5">{socio.qualificacao_socio || 'Sócio / Administrador'}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-dark-400 py-1">
+                    {carregandoReceita ? 'Consultando sócios na Receita Federal...' : 'Quadro societário não encontrado ou empresa individual.'}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </form>
     </div>
   )
 }
