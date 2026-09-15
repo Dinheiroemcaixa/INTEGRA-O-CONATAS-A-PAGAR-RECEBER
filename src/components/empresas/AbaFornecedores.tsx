@@ -184,19 +184,19 @@ export function AbaFornecedores({ empresa }: AbaFornecedoresProps) {
     <div className="space-y-6">
       {/* 1. CARDS DE MÉTRICAS & INDICADORES */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="bg-dark-800/90 border border-dark-700/70 p-4 rounded-2xl flex items-center gap-3.5">
+        <div className="bg-dark-850/80 border border-dark-700/60 p-4 rounded-xl flex items-center gap-3.5">
           <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
             <Users size={20} />
           </div>
           <div>
             <span className="text-xs text-dark-400 block font-medium">Contatos no Banco</span>
-            <span className="text-xl font-bold text-white">
+            <span className="text-base font-semibold text-white">
               {totalFornecedores !== null ? totalFornecedores.toLocaleString('pt-BR') : '...'}
             </span>
           </div>
         </div>
 
-        <div className="bg-dark-800/90 border border-dark-700/70 p-4 rounded-2xl flex items-center gap-3.5">
+        <div className="bg-dark-850/80 border border-dark-700/60 p-4 rounded-xl flex items-center gap-3.5">
           <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
             <Database size={20} />
           </div>
@@ -208,7 +208,7 @@ export function AbaFornecedores({ empresa }: AbaFornecedoresProps) {
           </div>
         </div>
 
-        <div className="bg-dark-800/90 border border-dark-700/70 p-4 rounded-2xl flex items-center gap-3.5">
+        <div className="bg-dark-850/80 border border-dark-700/60 p-4 rounded-xl flex items-center gap-3.5">
           <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400">
             <RefreshCw size={20} />
           </div>
@@ -230,11 +230,11 @@ export function AbaFornecedores({ empresa }: AbaFornecedoresProps) {
       </div>
 
       {/* 2. BARRA DE AÇÕES: SINCRONIZAR, IMPORTAR, LIMPAR */}
-      <div className="bg-dark-800/80 border border-dark-700/70 rounded-2xl p-5 space-y-4">
+      <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-5 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h4 className="font-semibold text-white text-sm">Ações de Fornecedores & Catálogo</h4>
-            <p className="text-xs text-dark-400">Mantenha a lista de contatos do Conta Azul sincronizada com as duplicatas do Datacar</p>
+            <h4 className="font-semibold text-white text-base">Ações de Fornecedores & Catálogo</h4>
+            <p className="text-[13px] text-dark-400 mt-0.5">Mantenha a lista de contatos do Conta Azul sincronizada com as duplicatas do Datacar</p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -243,14 +243,14 @@ export function AbaFornecedores({ empresa }: AbaFornecedoresProps) {
               type="button"
               onClick={handleSincronizarContaAzul}
               disabled={sincronizando}
-              className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition-colors flex items-center gap-2 shadow-sm"
+              className="h-10 px-4 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
             >
               <RefreshCw size={14} className={sincronizando ? 'animate-spin' : ''} />
               <span>{sincronizando ? 'Sincronizando...' : 'Sincronizar com Conta Azul'}</span>
             </button>
 
             {/* Importar Planilha */}
-            <label className={`px-3.5 py-2 bg-dark-900 hover:bg-dark-700 text-white border border-dark-600 rounded-xl text-xs font-semibold transition-colors flex items-center gap-2 cursor-pointer ${
+            <label className={`h-10 px-4 bg-dark-900 hover:bg-dark-800 text-white border border-dark-700 hover:border-dark-600 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 cursor-pointer ${
               importando ? 'opacity-50 pointer-events-none' : ''
             }`}>
               <Upload size={14} className="text-emerald-400" />
@@ -285,7 +285,7 @@ export function AbaFornecedores({ empresa }: AbaFornecedoresProps) {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h4 className="font-semibold text-white text-sm">Regras de Inteligência De/Para</h4>
-            <p className="text-xs text-dark-400">Mapeamento automático de nomes do Datacar para contatos oficiais do Conta Azul</p>
+            <p className="text-[13px] text-dark-400 mt-0.5">Mapeamento automático de nomes do Datacar para contatos oficiais do Conta Azul</p>
           </div>
 
           <div className="relative w-full sm:w-64">
@@ -308,7 +308,7 @@ export function AbaFornecedores({ empresa }: AbaFornecedoresProps) {
         ) : regrasFiltradas.length > 0 ? (
           <div className="overflow-x-auto rounded-xl border border-dark-700/60 max-h-96 overflow-y-auto">
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-dark-900/90 text-dark-300 font-semibold uppercase tracking-wider text-[10px] sticky top-0 border-b border-dark-700/60 z-10">
+              <thead className="bg-dark-900/90 text-dark-300 font-semibold uppercase tracking-wider text-xs sticky top-0 border-b border-dark-700/60 z-10">
                 <tr>
                   <th className="py-2.5 px-3">Nome Original (Datacar)</th>
                   <th className="py-2.5 px-3">Fornecedor Mapeado (Conta Azul)</th>
@@ -326,7 +326,7 @@ export function AbaFornecedores({ empresa }: AbaFornecedoresProps) {
                       <ArrowRight size={12} className="text-dark-400 flex-shrink-0" />
                       <span className="truncate">{regra.nome_conta_azul}</span>
                     </td>
-                    <td className="py-2 px-3 text-center font-mono text-[11px] text-dark-400">
+                    <td className="py-2 px-3 text-center font-mono text-xs text-dark-400">
                       {regra.conta_azul_contato_id ? (
                         <span className="bg-dark-900/80 px-2 py-0.5 rounded border border-dark-700 text-emerald-400">
                           {regra.conta_azul_contato_id.slice(0, 10)}...
@@ -356,7 +356,7 @@ export function AbaFornecedores({ empresa }: AbaFornecedoresProps) {
             <p className="font-medium text-dark-300">
               {filtroRegra ? 'Nenhuma regra encontrada para este filtro.' : 'Nenhuma regra De-Para cadastrada para esta empresa.'}
             </p>
-            <p className="text-[11px] text-dark-500 mt-1">
+            <p className="text-xs text-dark-500 mt-1">
               As regras são aprendidas automaticamente ao associar fornecedores na tela de Contas a Pagar.
             </p>
           </div>

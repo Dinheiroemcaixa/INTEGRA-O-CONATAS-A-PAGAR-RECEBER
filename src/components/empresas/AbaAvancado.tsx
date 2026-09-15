@@ -53,14 +53,14 @@ export function AbaAvancado({
   return (
     <div className="space-y-6">
       {/* 1. STATUS OPERACIONAL NO SISTEMA & IDENTIFICADOR */}
-      <div className="bg-dark-800/80 border border-dark-700/70 rounded-2xl p-5 sm:p-6 space-y-4">
-        <div className="flex items-center gap-3 pb-3 border-b border-dark-700/60">
+      <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-5 sm:p-6 space-y-4">
+        <div className="flex items-center gap-3 pb-3 border-b border-dark-700/50">
           <div className="w-10 h-10 rounded-xl bg-primary-500/15 border border-primary-500/30 flex items-center justify-center text-primary-400">
             <Fingerprint size={20} />
           </div>
           <div>
             <h4 className="font-semibold text-white text-base">Operação & Identificação Global</h4>
-            <p className="text-xs text-dark-400">Seleção ativa e UUID único no banco de dados</p>
+            <p className="text-[13px] text-dark-400 mt-0.5">Seleção ativa e UUID único no banco de dados</p>
           </div>
         </div>
 

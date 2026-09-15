@@ -122,11 +122,11 @@ export function EmpresaCardAccordion({
   }
 
   const abasDisponiveis: Array<{ id: TipoAbaEmpresa; label: string; icon: React.ReactNode }> = [
-    { id: 'geral', label: 'Geral', icon: <Building2 size={13} /> },
-    { id: 'integracoes', label: 'Integrações', icon: <SlidersHorizontal size={13} /> },
-    { id: 'fornecedores', label: 'Fornecedores', icon: <Users size={13} /> },
-    { id: 'fiscal', label: 'Fiscal', icon: <FileText size={13} /> },
-    { id: 'avancado', label: 'Avançado', icon: <Settings size={13} /> },
+    { id: 'geral', label: 'Geral', icon: <Building2 size={15} /> },
+    { id: 'integracoes', label: 'Integrações', icon: <SlidersHorizontal size={15} /> },
+    { id: 'fornecedores', label: 'Fornecedores', icon: <Users size={15} /> },
+    { id: 'fiscal', label: 'Fiscal', icon: <FileText size={15} /> },
+    { id: 'avancado', label: 'Avançado', icon: <Settings size={15} /> },
   ]
 
   const estaExpandido = Boolean(menuAtivo)
@@ -156,18 +156,18 @@ export function EmpresaCardAccordion({
 
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-white text-sm truncate leading-snug">
+                  <h3 className="font-bold text-white text-base truncate leading-snug">
                     {empresa.nome}
                   </h3>
                   {isAtiva && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                       <Sparkles size={9} />
                       <span>Ativa</span>
                     </span>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 text-[11px] text-dark-400 font-mono mt-0.5 truncate">
+                <div className="flex items-center gap-2 text-sm text-dark-300 font-mono mt-1 truncate">
                   {empresa.cnpj && (
                     <div className="flex items-center gap-1">
                       <span>{formatCNPJ(empresa.cnpj)}</span>
@@ -185,7 +185,7 @@ export function EmpresaCardAccordion({
                   {empresa.razao_social && empresa.razao_social !== empresa.nome && (
                     <>
                       <span className="text-dark-600 font-sans">•</span>
-                      <span className="text-dark-400 truncate max-w-xs font-sans" title={empresa.razao_social}>
+                      <span className="text-dark-400 truncate max-w-xs font-sans text-[13px]" title={empresa.razao_social}>
                         {empresa.razao_social}
                       </span>
                     </>
@@ -203,7 +203,7 @@ export function EmpresaCardAccordion({
                   type="button"
                   onClick={() => setModalSemaforo('datacar')}
                   title={hasDatacar ? 'Datacar Configuração' : 'Datacar Não Configuração'}
-                  className={`px-2 py-1 rounded-md border text-[10px] font-medium flex items-center gap-1.5 transition-all cursor-pointer hover:bg-dark-700/60 ${
+                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer hover:bg-dark-700/60 ${
                     hasDatacar 
                       ? 'bg-dark-900/60 border-dark-700/50 text-dark-200' 
                       : 'bg-dark-900/40 border-dark-700/40 text-dark-400'
@@ -219,7 +219,7 @@ export function EmpresaCardAccordion({
                   type="button"
                   onClick={() => setModalSemaforo('financeiro')}
                   title={hasCaFin ? 'CA Financeiro Conectado' : 'CA Financeiro Desconectado'}
-                  className={`px-2 py-1 rounded-md border text-[10px] font-medium flex items-center gap-1.5 transition-all cursor-pointer hover:bg-dark-700/60 ${
+                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer hover:bg-dark-700/60 ${
                     hasCaFin 
                       ? 'bg-dark-900/60 border-dark-700/50 text-dark-200' 
                       : 'bg-red-950/20 border-red-900/40 text-red-300'
@@ -235,7 +235,7 @@ export function EmpresaCardAccordion({
                   type="button"
                   onClick={() => setModalSemaforo('vendas')}
                   title={hasCaVendas ? 'CA Vendas Conectado' : 'CA Vendas Desconectado'}
-                  className={`px-2 py-1 rounded-md border text-[10px] font-medium flex items-center gap-1.5 transition-all cursor-pointer hover:bg-dark-700/60 ${
+                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer hover:bg-dark-700/60 ${
                     hasCaVendas 
                       ? 'bg-dark-900/60 border-dark-700/50 text-dark-200' 
                       : 'bg-red-950/20 border-red-900/40 text-red-300'
@@ -251,7 +251,7 @@ export function EmpresaCardAccordion({
                   type="button"
                   onClick={() => setModalSemaforo('nfse')}
                   title={hasNfse ? 'NFS-e Gov.br Configurada' : 'NFS-e Gov.br Pendente'}
-                  className={`px-2 py-1 rounded-md border text-[10px] font-medium flex items-center gap-1.5 transition-all cursor-pointer hover:bg-dark-700/60 ${
+                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer hover:bg-dark-700/60 ${
                     hasNfse 
                       ? 'bg-dark-900/60 border-dark-700/50 text-dark-200' 
                       : 'bg-dark-900/40 border-dark-700/40 text-dark-400'
@@ -269,7 +269,7 @@ export function EmpresaCardAccordion({
                   type="button"
                   onClick={onDefinirComoAtiva}
                   title="Definir como empresa ativa"
-                  className="px-2 py-1 rounded-md text-[10px] font-medium text-dark-400 hover:text-white bg-dark-900/50 hover:bg-dark-800 border border-dark-700/50 transition-colors flex items-center gap-1"
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-dark-400 hover:text-white bg-dark-900/50 hover:bg-dark-800 border border-dark-700/50 transition-colors flex items-center gap-1.5"
                 >
                   <Star size={11} className="text-dark-400 hover:text-amber-400" />
                   <span>Tornar Ativa</span>
@@ -287,7 +287,7 @@ export function EmpresaCardAccordion({
                   key={aba.id}
                   type="button"
                   onClick={() => onToggleMenu(aba.id)}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+                  className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap shrink-0 ${
                     ativa
                       ? 'bg-primary-950/60 text-primary-300 border border-primary-500/40 font-semibold shadow-xs'
                       : 'text-dark-400 hover:text-dark-200 hover:bg-dark-800/60'
@@ -296,9 +296,9 @@ export function EmpresaCardAccordion({
                   {aba.icon}
                   <span>{aba.label}</span>
                   {ativa ? (
-                    <ChevronUp size={11} className="text-primary-400" />
+                    <ChevronUp size={13} className="text-primary-400" />
                   ) : (
-                    <ChevronDown size={11} className="text-dark-500" />
+                    <ChevronDown size={13} className="text-dark-500" />
                   )}
                 </button>
               )
@@ -416,7 +416,7 @@ export function EmpresaCardAccordion({
                         <button
                           type="button"
                           onClick={() => handleCopiarLinkOAuth(modalSemaforo)}
-                          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-dark-800 hover:bg-dark-700 border border-dark-700/80 hover:border-dark-600 rounded-xl text-xs font-medium text-white transition-colors"
+                          className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-dark-800 hover:bg-dark-700 border border-dark-700 hover:border-dark-600 rounded-lg text-sm font-medium text-white transition-colors"
                         >
                           {copiadoLink ? <Check size={14} className="text-emerald-400" /> : <Link size={14} className="text-blue-400" />}
                           <span>{copiadoLink ? 'Link Copiado!' : 'Copiar Link de Autorização'}</span>
@@ -453,7 +453,7 @@ export function EmpresaCardAccordion({
                           }}
                           className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-dark-800/60 hover:bg-dark-800 border border-dark-700/50 rounded-xl text-xs font-medium text-dark-300 hover:text-white transition-colors"
                         >
-                          <Settings size={13} />
+                          <Settings size={15} />
                           <span>Abrir Configurações</span>
                         </button>
                       </>
@@ -473,7 +473,7 @@ export function EmpresaCardAccordion({
                         <button
                           type="button"
                           onClick={() => handleCopiarLinkOAuth(modalSemaforo)}
-                          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-dark-800 hover:bg-dark-700 border border-dark-700/80 hover:border-dark-600 rounded-xl text-xs font-medium text-white transition-colors"
+                          className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-dark-800 hover:bg-dark-700 border border-dark-700 hover:border-dark-600 rounded-lg text-sm font-medium text-white transition-colors"
                         >
                           {copiadoLink ? <Check size={14} className="text-emerald-400" /> : <Link size={14} className="text-blue-400" />}
                           <span>{copiadoLink ? 'Link Copiado!' : 'Copiar Link'}</span>
@@ -499,7 +499,7 @@ export function EmpresaCardAccordion({
                           }}
                           className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-dark-800/60 hover:bg-dark-800 border border-dark-700/50 rounded-xl text-xs font-medium text-dark-300 hover:text-white transition-colors"
                         >
-                          <Settings size={13} />
+                          <Settings size={15} />
                           <span>Abrir Configurações</span>
                         </button>
                       </>
@@ -567,7 +567,7 @@ export function EmpresaCardAccordion({
                           setModalSemaforo(null)
                           onToggleMenu('integracoes')
                         }}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-dark-800 hover:bg-dark-700 border border-dark-700/80 hover:border-dark-600 rounded-xl text-xs font-medium text-white transition-colors"
+                        className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-dark-800 hover:bg-dark-700 border border-dark-700 hover:border-dark-600 rounded-lg text-sm font-medium text-white transition-colors"
                       >
                         <Settings size={14} className="text-primary-400" />
                         <span>Abrir Configurações</span>
@@ -580,7 +580,7 @@ export function EmpresaCardAccordion({
                         setModalSemaforo(null)
                         onToggleMenu('integracoes')
                       }}
-                      className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm"
+                      className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
                     >
                       <Settings size={14} />
                       <span>Configuraçãora</span>
@@ -637,7 +637,7 @@ export function EmpresaCardAccordion({
                         setModalSemaforo(null)
                         onToggleMenu('fiscal')
                       }}
-                      className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-dark-800 hover:bg-dark-700 border border-dark-700/80 hover:border-dark-600 rounded-xl text-xs font-medium text-white transition-colors"
+                      className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-dark-800 hover:bg-dark-700 border border-dark-700 hover:border-dark-600 rounded-lg text-sm font-medium text-white transition-colors"
                     >
                       <Settings size={14} className="text-teal-400" />
                       <span>Abrir Configuração Fiscal</span>
@@ -649,7 +649,7 @@ export function EmpresaCardAccordion({
                         setModalSemaforo(null)
                         onToggleMenu('fiscal')
                       }}
-                      className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm"
+                      className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
                     >
                       <Settings size={14} />
                       <span>Configuraçãora</span>
@@ -663,7 +663,7 @@ export function EmpresaCardAccordion({
               <button
                 type="button"
                 onClick={() => setModalSemaforo(null)}
-                className="text-xs text-dark-400 hover:text-white transition-colors"
+                className="text-sm text-dark-400 hover:text-white transition-colors"
               >
                 Fechar
               </button>

@@ -126,8 +126,8 @@ export function AbaFiscal({ empresa, onUpdated }: AbaFiscalProps) {
   return (
     <form onSubmit={handleSalvar} className="space-y-6">
       {/* 1. CARD ESPECIAL: CERTIFICADO DIGITAL A1 */}
-      <div className="bg-dark-800/80 border border-dark-700/70 rounded-2xl p-5 sm:p-6 space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-dark-700/60 flex-wrap gap-2">
+      <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-5 sm:p-6 space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-dark-700/50 flex-wrap gap-2">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
               <ShieldCheck size={20} />
@@ -135,7 +135,7 @@ export function AbaFiscal({ empresa, onUpdated }: AbaFiscalProps) {
             <div>
               <div className="flex items-center gap-2">
                 <h4 className="font-semibold text-white text-base">Certificado Digital A1 (e-CNPJ)</h4>
-                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border ${
                   temCertificadoSalvo || certificadoFile
                     ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
                     : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
@@ -144,7 +144,7 @@ export function AbaFiscal({ empresa, onUpdated }: AbaFiscalProps) {
                   {temCertificadoSalvo || certificadoFile ? 'Certificado Ativo' : 'Pendente de Upload'}
                 </span>
               </div>
-              <p className="text-xs text-dark-400">Necessário para assinatura digital e emissão automática de NFS-e no Gov.br</p>
+              <p className="text-[13px] text-dark-400 mt-0.5">Necessário para assinatura digital e emissão automática de NFS-e no Gov.br</p>
             </div>
           </div>
         </div>
@@ -152,18 +152,18 @@ export function AbaFiscal({ empresa, onUpdated }: AbaFiscalProps) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Upload de arquivo .pfx / .p12 */}
           <div>
-            <label className="block text-xs font-medium text-dark-300 mb-1">
+            <label className="block text-sm font-medium text-dark-200 mb-1.5">
               Arquivo do Certificado (.pfx ou .p12)
             </label>
             <div className="relative">
-              <label className="w-full flex items-center justify-between px-3.5 py-2.5 bg-dark-900 border border-dashed border-dark-600 hover:border-blue-500/70 rounded-xl text-xs text-dark-300 cursor-pointer transition-colors">
+              <label className="w-full h-10 flex items-center justify-between px-3.5 bg-dark-900 border border-dark-700 hover:border-primary-500/70 rounded-lg text-sm text-dark-300 cursor-pointer transition-colors">
                 <span className="truncate flex items-center gap-2">
                   <Upload size={14} className="text-blue-400 flex-shrink-0" />
                   <span className="truncate text-white font-medium">
                     {certificadoFile ? certificadoFile.name : (nomeCertificadoSalvo || 'Selecionar certificado A1...')}
                   </span>
                 </span>
-                <span className="bg-dark-800 text-dark-300 px-2 py-0.5 rounded text-[11px] border border-dark-700 flex-shrink-0">
+                <span className="bg-dark-800 text-dark-200 px-2.5 py-1 rounded text-xs border border-dark-700 flex-shrink-0 font-medium">
                   {certificadoFile ? 'Substituir' : 'Escolher'}
                 </span>
                 <input
@@ -175,7 +175,7 @@ export function AbaFiscal({ empresa, onUpdated }: AbaFiscalProps) {
               </label>
             </div>
             {temCertificadoSalvo && !certificadoFile && (
-              <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1">
+              <p className="text-[13px] text-emerald-400 mt-1 flex items-center gap-1.5">
                 <CheckCircle2 size={12} /> Certificado criptografado ativo no servidor.
               </p>
             )}
@@ -183,7 +183,7 @@ export function AbaFiscal({ empresa, onUpdated }: AbaFiscalProps) {
 
           {/* Senha do Certificado Digital */}
           <div>
-            <label className="block text-xs font-medium text-dark-300 mb-1">
+            <label className="block text-sm font-medium text-dark-200 mb-1.5">
               Senha do Certificado A1
             </label>
             <div className="relative">
@@ -195,7 +195,7 @@ export function AbaFiscal({ empresa, onUpdated }: AbaFiscalProps) {
                 value={senhaCertificado}
                 onChange={(e) => setSenhaCertificado(e.target.value)}
                 placeholder={temCertificadoSalvo ? '•••••••••••• (Senha Salva)' : 'Senha do arquivo .pfx'}
-                className="w-full bg-dark-900 border border-dark-600 rounded-xl pl-9 pr-10 py-2.5 text-white text-xs font-mono focus:ring-2 focus:ring-blue-500/50 outline-none placeholder:text-dark-500"
+                className="w-full h-10 bg-dark-900 border border-dark-700 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 rounded-lg pl-9 pr-10 text-white text-sm font-mono outline-none placeholder:text-dark-500 transition-colors"
               />
               <button
                 type="button"
@@ -205,7 +205,7 @@ export function AbaFiscal({ empresa, onUpdated }: AbaFiscalProps) {
                 {mostrarSenha ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
             </div>
-            <p className="text-[11px] text-dark-500 mt-1">
+            <p className="text-[13px] text-dark-400 mt-1">
               {temCertificadoSalvo ? 'Preencha apenas se desejar atualizar a senha.' : 'A senha é encriptada no backend.'}
             </p>
           </div>
@@ -213,8 +213,8 @@ export function AbaFiscal({ empresa, onUpdated }: AbaFiscalProps) {
       </div>
 
       {/* 2. CARD: PARÂMETROS FISCAIS DA NFS-E GOV.BR */}
-      <div className="bg-dark-800/80 border border-dark-700/70 rounded-2xl p-5 sm:p-6 space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-dark-700/60">
+      <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-5 sm:p-6 space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-dark-700/50">
           <div className="flex items-center gap-2.5">
             <FileText className="text-teal-400" size={18} />
             <h4 className="font-semibold text-white text-base">Parâmetros da NFS-e Nacional / Gov.br</h4>
@@ -228,14 +228,14 @@ export function AbaFiscal({ empresa, onUpdated }: AbaFiscalProps) {
               onChange={(e) => setEmiteNfse(e.target.checked)}
               className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500 bg-dark-900 border-dark-600"
             />
-            <span className="text-xs font-medium text-white">Habilitar Emissão nesta filial</span>
+            <span className="text-sm font-medium text-white">Habilitar Emissão nesta filial</span>
           </label>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Regime Tributário */}
           <div>
-            <label className="block text-xs font-medium text-dark-300 mb-1">Regime Tributário</label>
+            <label className="block text-sm font-medium text-dark-200 mb-1.5">Regime Tributário</label>
             <select
               value={regimeTributario}
               onChange={(e) => setRegimeTributario(e.target.value)}
@@ -249,7 +249,7 @@ export function AbaFiscal({ empresa, onUpdated }: AbaFiscalProps) {
 
           {/* Código IBGE do Município */}
           <div>
-            <label className="block text-xs font-medium text-dark-300 mb-1">
+            <label className="block text-sm font-medium text-dark-200 mb-1.5">
               Código IBGE do Município
             </label>
             <input
@@ -263,7 +263,7 @@ export function AbaFiscal({ empresa, onUpdated }: AbaFiscalProps) {
 
           {/* Código de Tributação Nacional */}
           <div>
-            <label className="block text-xs font-medium text-dark-300 mb-1">
+            <label className="block text-sm font-medium text-dark-200 mb-1.5">
               Código Tributação Nacional
             </label>
             <input
@@ -277,7 +277,7 @@ export function AbaFiscal({ empresa, onUpdated }: AbaFiscalProps) {
 
           {/* Inscrição Municipal */}
           <div>
-            <label className="block text-xs font-medium text-dark-300 mb-1">
+            <label className="block text-sm font-medium text-dark-200 mb-1.5">
               Inscrição Municipal
             </label>
             <input
@@ -291,7 +291,7 @@ export function AbaFiscal({ empresa, onUpdated }: AbaFiscalProps) {
 
           {/* Alíquota Simples Nacional */}
           <div>
-            <label className="block text-xs font-medium text-dark-300 mb-1">
+            <label className="block text-sm font-medium text-dark-200 mb-1.5">
               Alíquota Simples Nacional (%)
             </label>
             <input
@@ -305,7 +305,7 @@ export function AbaFiscal({ empresa, onUpdated }: AbaFiscalProps) {
 
           {/* Alíquota ISSQN */}
           <div>
-            <label className="block text-xs font-medium text-dark-300 mb-1">
+            <label className="block text-sm font-medium text-dark-200 mb-1.5">
               Alíquota ISSQN (%) (Opcional)
             </label>
             <input

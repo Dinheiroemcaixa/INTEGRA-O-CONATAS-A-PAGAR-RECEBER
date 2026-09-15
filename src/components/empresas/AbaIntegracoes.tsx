@@ -169,8 +169,8 @@ export function AbaIntegracoes({
   return (
     <div className="space-y-5">
       {/* 1. CARD INDEPENDENTE: DATACAR ERP */}
-      <div className="bg-dark-800/80 border border-dark-700/70 rounded-2xl p-5 sm:p-6 space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-dark-700/60 flex-wrap gap-2">
+      <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-5 sm:p-6 space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-dark-700/50 flex-wrap gap-2">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
               <Database size={20} />
@@ -178,7 +178,7 @@ export function AbaIntegracoes({
             <div>
               <div className="flex items-center gap-2">
                 <h4 className="font-semibold text-white text-base">Datacar ERP</h4>
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border ${
                   hasDatacar 
                     ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' 
                     : 'bg-red-500/15 text-red-400 border-red-500/30'
@@ -187,7 +187,7 @@ export function AbaIntegracoes({
                   {hasDatacar ? 'Configurado' : 'Pendente'}
                 </span>
               </div>
-              <p className="text-xs text-dark-400">Sincronização de Ordens de Serviço, Vendas e Títulos a Pagar</p>
+              <p className="text-[13px] text-dark-400 mt-0.5">Sincronização de Ordens de Serviço, Vendas e Títulos a Pagar</p>
             </div>
           </div>
 
@@ -212,7 +212,7 @@ export function AbaIntegracoes({
         <form onSubmit={handleSalvarDatacar} className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-3">
-              <label className="block text-xs font-medium text-dark-300 mb-1">
+              <label className="block text-sm font-medium text-dark-200 mb-1.5">
                 Token da Empresa (Datalog)
               </label>
               <input
@@ -220,12 +220,12 @@ export function AbaIntegracoes({
                 value={datacarToken}
                 onChange={(e) => setDatacarToken(e.target.value)}
                 placeholder="Ex: R4ip8lHo0X4R7wr1R3XC0f9kykW..."
-                className="w-full bg-dark-900 border border-dark-600 rounded-xl px-3.5 py-2 text-white text-xs font-mono focus:ring-2 focus:ring-blue-500/50 outline-none transition-all placeholder:text-dark-600"
+                className="w-full h-10 bg-dark-900 border border-dark-700 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 rounded-lg px-3.5 text-white text-sm font-mono outline-none transition-all placeholder:text-dark-500"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-dark-300 mb-1">
+              <label className="block text-sm font-medium text-dark-200 mb-1.5">
                 Código Empresa (codEmp)
               </label>
               <input
@@ -233,12 +233,12 @@ export function AbaIntegracoes({
                 value={datacarCodEmp}
                 onChange={(e) => setDatacarCodEmp(e.target.value)}
                 placeholder="Ex: 1162"
-                className="w-full bg-dark-900 border border-dark-600 rounded-xl px-3.5 py-2 text-white text-xs font-mono focus:ring-2 focus:ring-blue-500/50 outline-none transition-all placeholder:text-dark-600"
+                className="w-full h-10 bg-dark-900 border border-dark-700 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 rounded-lg px-3.5 text-white text-sm font-mono outline-none transition-all placeholder:text-dark-500"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-dark-300 mb-1">
+              <label className="block text-sm font-medium text-dark-200 mb-1.5">
                 ID do Operador (idOperador)
               </label>
               <input
@@ -246,7 +246,7 @@ export function AbaIntegracoes({
                 value={datacarIdOperador}
                 onChange={(e) => setDatacarIdOperador(e.target.value)}
                 placeholder="Ex: 21331"
-                className="w-full bg-dark-900 border border-dark-600 rounded-xl px-3.5 py-2 text-white text-xs font-mono focus:ring-2 focus:ring-blue-500/50 outline-none transition-all placeholder:text-dark-600"
+                className="w-full h-10 bg-dark-900 border border-dark-700 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 rounded-lg px-3.5 text-white text-sm font-mono outline-none transition-all placeholder:text-dark-500"
               />
             </div>
 
@@ -254,7 +254,7 @@ export function AbaIntegracoes({
               <button
                 type="submit"
                 disabled={salvandoDatacar}
-                className="w-full py-2 px-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                className="w-full h-10 px-4 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 shadow-sm"
               >
                 {salvandoDatacar ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                 <span>Salvar</span>
@@ -284,8 +284,8 @@ export function AbaIntegracoes({
       </div>
 
       {/* 2. CARD INDEPENDENTE: CONTA AZUL FINANCEIRO */}
-      <div className="bg-dark-800/80 border border-dark-700/70 rounded-2xl p-5 sm:p-6 space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-dark-700/60 flex-wrap gap-2">
+      <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-5 sm:p-6 space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-dark-700/50 flex-wrap gap-2">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
               <CreditCard size={20} />
@@ -293,7 +293,7 @@ export function AbaIntegracoes({
             <div>
               <div className="flex items-center gap-2">
                 <h4 className="font-semibold text-white text-base">Conta Azul — Financeiro</h4>
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border ${
                   hasCaFin 
                     ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' 
                     : 'bg-red-500/15 text-red-400 border-red-500/30'
@@ -302,7 +302,7 @@ export function AbaIntegracoes({
                   {hasCaFin ? 'Conectado' : 'Desconectado'}
                 </span>
               </div>
-              <p className="text-xs text-dark-400">Sincronização de Contas a Pagar, Fornecedores e Conciliação Bancária</p>
+              <p className="text-[13px] text-dark-400 mt-0.5">Sincronização de Contas a Pagar, Fornecedores e Conciliação Bancária</p>
             </div>
           </div>
 
@@ -322,7 +322,7 @@ export function AbaIntegracoes({
         {/* Input de E-mail de Login do CA Financeiro */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
           <div className="sm:col-span-2">
-            <label className="block text-xs font-medium text-dark-300 mb-1">
+            <label className="block text-sm font-medium text-dark-200 mb-1.5">
               E-mail da Conta no Conta Azul Financeiro
             </label>
             <input
@@ -330,7 +330,7 @@ export function AbaIntegracoes({
               value={emailLogin}
               onChange={(e) => setEmailLogin(e.target.value)}
               placeholder="financeiro@empresa.com.br"
-              className="w-full bg-dark-900 border border-dark-600 rounded-xl px-3.5 py-2 text-white text-xs focus:ring-2 focus:ring-blue-500/50 outline-none transition-all placeholder:text-dark-600"
+              className="w-full h-10 bg-dark-900 border border-dark-700 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 rounded-lg px-3.5 text-white text-sm outline-none transition-all placeholder:text-dark-500"
             />
           </div>
 
@@ -382,8 +382,8 @@ export function AbaIntegracoes({
       </div>
 
       {/* 3. CARD INDEPENDENTE: CONTA AZUL VENDAS */}
-      <div className="bg-dark-800/80 border border-dark-700/70 rounded-2xl p-5 sm:p-6 space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-dark-700/60 flex-wrap gap-2">
+      <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-5 sm:p-6 space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-dark-700/50 flex-wrap gap-2">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400">
               <ShoppingBag size={20} />
@@ -391,7 +391,7 @@ export function AbaIntegracoes({
             <div>
               <div className="flex items-center gap-2">
                 <h4 className="font-semibold text-white text-base">Conta Azul — Vendas & NF-e</h4>
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border ${
                   hasCaVendas 
                     ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' 
                     : 'bg-dark-700 text-dark-400 border-dark-600'
@@ -400,7 +400,7 @@ export function AbaIntegracoes({
                   {hasCaVendas ? 'Conectado' : 'Desconectado'}
                 </span>
               </div>
-              <p className="text-xs text-dark-400">Exportação de Pedidos de Venda de Produtos e Clientes para o Conta Azul</p>
+              <p className="text-[13px] text-dark-400 mt-0.5">Exportação de Pedidos de Venda de Produtos e Clientes para o Conta Azul</p>
             </div>
           </div>
 
@@ -420,7 +420,7 @@ export function AbaIntegracoes({
         {/* Input de E-mail de Login do CA Vendas */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
           <div className="sm:col-span-2">
-            <label className="block text-xs font-medium text-dark-300 mb-1">
+            <label className="block text-sm font-medium text-dark-200 mb-1.5">
               E-mail da Conta no Conta Azul Vendas
             </label>
             <input
@@ -488,7 +488,7 @@ export function AbaIntegracoes({
           <div>
             <div className="flex items-center gap-2">
               <h4 className="font-semibold text-white text-base">NFS-e Gov.br (Emissão Municipal)</h4>
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border ${
                 hasNfse 
                   ? 'bg-teal-500/15 text-teal-400 border-teal-500/30' 
                   : 'bg-dark-700 text-dark-400 border-dark-600'
@@ -497,7 +497,7 @@ export function AbaIntegracoes({
                 {hasNfse ? 'Emissão Habilitada' : 'Inativa'}
               </span>
             </div>
-            <p className="text-xs text-dark-400">Assinatura digital e transmissão de notas de serviço para o portal nacional Gov.br</p>
+            <p className="text-[13px] text-dark-400 mt-0.5">Assinatura digital e transmissão de notas de serviço para o portal nacional Gov.br</p>
           </div>
         </div>
 

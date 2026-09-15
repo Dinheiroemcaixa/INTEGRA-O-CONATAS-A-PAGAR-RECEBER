@@ -143,16 +143,16 @@ export function AbaGeral({ empresa, onUpdated }: AbaGeralProps) {
   return (
     <div className="space-y-5">
       {/* FORMULÁRIO DE FICHA CADASTRAL ÚNICA */}
-      <form onSubmit={handleSalvarApelido} className="bg-dark-800/80 border border-dark-700/70 rounded-2xl p-5 sm:p-6 space-y-5">
+      <form onSubmit={handleSalvarApelido} className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-5 sm:p-6 space-y-5">
         {/* Cabeçalho da Ficha */}
-        <div className="flex items-center justify-between pb-4 border-b border-dark-700/70 flex-wrap gap-3">
+        <div className="flex items-center justify-between pb-4 border-b border-dark-700/50 flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary-500/15 border border-primary-500/30 flex items-center justify-center text-primary-400">
               <Building2 size={20} />
             </div>
             <div>
               <h3 className="font-semibold text-white text-base">Ficha Cadastral Oficial</h3>
-              <p className="text-xs text-dark-400">
+              <p className="text-[13px] text-dark-400 mt-0.5">
                 Informações consolidadas da empresa e consulta à Receita Federal
               </p>
             </div>
@@ -164,7 +164,7 @@ export function AbaGeral({ empresa, onUpdated }: AbaGeralProps) {
               onClick={() => carregarDadosReceita(true)}
               disabled={carregandoReceita}
               title="Consultar e atualizar dados da Receita Federal"
-              className="px-3 py-1.5 bg-dark-700/60 hover:bg-dark-700 text-dark-300 hover:text-white rounded-xl text-xs font-medium border border-dark-600/50 transition-colors flex items-center gap-1.5"
+              className="h-10 px-4 bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white rounded-lg text-sm font-medium border border-dark-700 hover:border-dark-600 transition-colors flex items-center gap-2"
             >
               <RefreshCw size={13} className={carregandoReceita ? 'animate-spin text-primary-400' : ''} />
               <span>{carregandoReceita ? 'Consultando...' : 'Atualizar da Receita'}</span>
@@ -173,7 +173,7 @@ export function AbaGeral({ empresa, onUpdated }: AbaGeralProps) {
             <button
               type="submit"
               disabled={salvando}
-              className="px-4 py-1.5 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm shadow-primary-500/20"
+              className="h-10 px-4 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
             >
               {salvando ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
               <span>{salvando ? 'Salvando...' : 'Salvar Apelido'}</span>
@@ -182,15 +182,15 @@ export function AbaGeral({ empresa, onUpdated }: AbaGeralProps) {
         </div>
 
         {/* CAMPO EDITÁVEL: APELIDO */}
-        <div className="bg-primary-950/20 border border-primary-900/40 rounded-xl p-4 space-y-1.5">
+        <div className="bg-primary-950/20 border border-primary-900/40 rounded-xl p-4 space-y-2">
           <div className="flex items-center justify-between">
-            <label htmlFor="input-apelido" className="text-xs font-semibold text-primary-300 flex items-center gap-1.5">
+            <label htmlFor="input-apelido" className="text-sm font-semibold text-primary-300 flex items-center gap-2">
               <span>Apelido no Sistema</span>
-              <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-primary-500/20 text-primary-400 font-bold border border-primary-500/30">
+              <span className="text-xs uppercase px-2 py-0.5 rounded-md bg-primary-500/20 text-primary-400 font-bold border border-primary-500/30">
                 Editável
               </span>
             </label>
-            <span className="text-[11px] text-dark-400">Nome de exibição nos seletores e listagens</span>
+            <span className="text-[13px] text-dark-400">Nome de exibição nos seletores e listagens</span>
           </div>
           <input
             id="input-apelido"
@@ -198,7 +198,7 @@ export function AbaGeral({ empresa, onUpdated }: AbaGeralProps) {
             value={apelido}
             onChange={(e) => setApelido(e.target.value)}
             placeholder="Ex: Matriz São Paulo"
-            className="w-full bg-dark-900 border border-dark-700 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-dark-500 font-medium transition-colors"
+            className="w-full h-10 bg-dark-900 border border-dark-700 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 rounded-lg px-3.5 text-sm text-white placeholder-dark-500 font-medium transition-colors"
           />
         </div>
 
@@ -206,7 +206,7 @@ export function AbaGeral({ empresa, onUpdated }: AbaGeralProps) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
           {/* Razão Social */}
           <div className="p-3.5 bg-dark-900/70 rounded-xl border border-dark-700/60 space-y-1 sm:col-span-2">
-            <span className="text-[11px] text-dark-400 font-medium block">Razão Social (Receita Federal)</span>
+            <span className="text-sm text-dark-300 font-medium block">Razão Social (Receita Federal)</span>
             <p className="text-sm font-semibold text-white truncate" title={razaoSocialExibicao}>
               {razaoSocialExibicao}
             </p>
@@ -214,7 +214,7 @@ export function AbaGeral({ empresa, onUpdated }: AbaGeralProps) {
 
           {/* CNPJ */}
           <div className="p-3.5 bg-dark-900/70 rounded-xl border border-dark-700/60 space-y-1">
-            <span className="text-[11px] text-dark-400 font-medium block">CNPJ</span>
+            <span className="text-sm text-dark-300 font-medium block">CNPJ</span>
             <div className="flex items-center justify-between">
               <span className="text-sm font-mono font-bold text-white">
                 {empresa.cnpj ? formatCNPJ(empresa.cnpj) : 'Não informado'}
@@ -234,7 +234,7 @@ export function AbaGeral({ empresa, onUpdated }: AbaGeralProps) {
 
           {/* Situação Cadastral */}
           <div className="p-3.5 bg-dark-900/70 rounded-xl border border-dark-700/60 space-y-1">
-            <span className="text-[11px] text-dark-400 font-medium flex items-center gap-1">
+            <span className="text-sm text-dark-300 font-medium flex items-center gap-1.5">
               <ShieldCheck size={12} />
               <span>Situação Cadastral</span>
             </span>
@@ -246,7 +246,7 @@ export function AbaGeral({ empresa, onUpdated }: AbaGeralProps) {
 
           {/* Data de Abertura */}
           <div className="p-3.5 bg-dark-900/70 rounded-xl border border-dark-700/60 space-y-1">
-            <span className="text-[11px] text-dark-400 font-medium flex items-center gap-1">
+            <span className="text-sm text-dark-300 font-medium flex items-center gap-1.5">
               <Calendar size={12} />
               <span>Data de Abertura</span>
             </span>
@@ -257,7 +257,7 @@ export function AbaGeral({ empresa, onUpdated }: AbaGeralProps) {
 
           {/* Capital Social */}
           <div className="p-3.5 bg-dark-900/70 rounded-xl border border-dark-700/60 space-y-1 sm:col-span-2 lg:col-span-1">
-            <span className="text-[11px] text-dark-400 font-medium flex items-center gap-1">
+            <span className="text-sm text-dark-300 font-medium flex items-center gap-1.5">
               <DollarSign size={12} />
               <span>Capital Social Registrado</span>
             </span>
@@ -288,24 +288,24 @@ export function AbaGeral({ empresa, onUpdated }: AbaGeralProps) {
                 {dadosReceita ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-dark-300">
                     <div>
-                      <span className="text-dark-500 block text-[11px]">Logradouro / Número</span>
+                      <span className="text-dark-400 block text-xs font-medium">Logradouro / Número</span>
                       <span className="text-white font-medium">
                         {dadosReceita.descricao_tipo_de_logradouro || ''} {dadosReceita.logradouro || 'N/D'}, {dadosReceita.numero || 'S/N'}
                         {dadosReceita.complemento ? ` (${dadosReceita.complemento})` : ''}
                       </span>
                     </div>
                     <div>
-                      <span className="text-dark-500 block text-[11px]">Bairro</span>
+                      <span className="text-dark-400 block text-xs font-medium">Bairro</span>
                       <span className="text-white font-medium">{dadosReceita.bairro || 'N/D'}</span>
                     </div>
                     <div>
-                      <span className="text-dark-500 block text-[11px]">Município / UF</span>
+                      <span className="text-dark-400 block text-xs font-medium">Município / UF</span>
                       <span className="text-white font-medium">
                         {dadosReceita.municipio || 'N/D'} - {dadosReceita.uf || 'N/D'}
                       </span>
                     </div>
                     <div>
-                      <span className="text-dark-500 block text-[11px]">CEP</span>
+                      <span className="text-dark-400 block text-xs font-medium">CEP</span>
                       <span className="text-white font-mono font-medium">{dadosReceita.cep || 'N/D'}</span>
                     </div>
                   </div>
@@ -329,7 +329,7 @@ export function AbaGeral({ empresa, onUpdated }: AbaGeralProps) {
                 <Users size={15} className="text-purple-400" />
                 <span>Quadro de Sócios e Administradores (QSA)</span>
                 {qsaList.length > 0 && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-purple-500/20 text-purple-300">
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300">
                     {qsaList.length}
                   </span>
                 )}
@@ -344,7 +344,7 @@ export function AbaGeral({ empresa, onUpdated }: AbaGeralProps) {
                     {qsaList.map((socio: any, idx: number) => (
                       <div key={idx} className="bg-dark-850 p-2.5 rounded-lg border border-dark-700/60">
                         <p className="text-white font-medium truncate">{socio.nome_socio || socio.nome || 'Sócio'}</p>
-                        <p className="text-[11px] text-dark-400 mt-0.5">{socio.qualificacao_socio || 'Sócio / Administrador'}</p>
+                        <p className="text-[13px] text-dark-400 mt-0.5">{socio.qualificacao_socio || 'Sócio / Administrador'}</p>
                       </div>
                     ))}
                   </div>
