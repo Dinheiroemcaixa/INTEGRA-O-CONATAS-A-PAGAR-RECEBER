@@ -286,8 +286,13 @@ export function EmpresaCardAccordion({
                 <button
                   key={aba.id}
                   type="button"
-                  onClick={() => onToggleMenu(aba.id)}
-                  className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap shrink-0 ${
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    onToggleMenu(aba.id)
+                  }}
+                  title={ativa ? `Recolher aba ${aba.label}` : `Abrir aba ${aba.label}`}
+                  className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer select-none ${
                     ativa
                       ? 'bg-primary-950/60 text-primary-300 border border-primary-500/40 font-semibold shadow-xs'
                       : 'text-dark-400 hover:text-dark-200 hover:bg-dark-800/60'
@@ -296,9 +301,9 @@ export function EmpresaCardAccordion({
                   {aba.icon}
                   <span>{aba.label}</span>
                   {ativa ? (
-                    <ChevronUp size={13} className="text-primary-400" />
+                    <ChevronUp size={13} className="text-primary-400 transition-transform duration-150" />
                   ) : (
-                    <ChevronDown size={13} className="text-dark-500" />
+                    <ChevronDown size={13} className="text-dark-500 transition-transform duration-150" />
                   )}
                 </button>
               )

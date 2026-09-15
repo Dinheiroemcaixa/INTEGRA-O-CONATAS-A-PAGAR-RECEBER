@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo, useEffect, Suspense } from 'react'
+import React, { useState, useMemo, useEffect, useCallback, Suspense } from 'react'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import { Empresa } from '@/types'
 import { createClient } from '@/lib/supabase/client'
@@ -65,14 +65,16 @@ function EmpresasPageContent() {
   // ESTADO COORDENADO: Apenas uma empresa e um menu expandido por vez na página inteira
   const [expansaoAtiva, setExpansaoAtiva] = useState<{ empresaId: string; menu: TipoAbaEmpresa } | null>(null)
 
-  const handleToggleMenu = (empresaId: string, menu: TipoAbaEmpresa) => {
+  const handleToggleMenu = useCallback((empresaId: string, menu: TipoAbaEmpresa) => {
     setExpansaoAtiva(prev => {
-      if (prev?.empresaId === empresaId && prev?.menu === menu) {
-        return null // Fecha se clicou no mesmo
+      // Comportamento Accordion Moderno: clicar na aba já aberta recolhe totalmente
+      if (prev && prev.empresaId === empresaId && prev.menu === menu) {
+        return null
       }
-      return { empresaId, menu } // Abre este e fecha qualquer outro
+      // Clicar em aba fechada ou trocar de aba abre a nova e fecha as demais
+      return { empresaId, menu }
     })
-  }
+  }, [])
 
   // Tratamento de callbacks OAuth via URL
   useEffect(() => {
@@ -287,13 +289,13 @@ function EmpresasPageContent() {
       {/* BARRA DE BUSCA E STATUS */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
         <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400 pointer-events-none" />
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dark-400 pointer-events-none" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por nome, razão social ou CNPJ..."
-            className="w-full bg-dark-850 border border-dark-700/80 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 rounded-lg pl-8.5 pr-3 py-1.5 text-xs text-white placeholder-dark-500 transition-colors"
+            className="w-full h-10 bg-dark-900 border border-dark-700 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 rounded-lg pl-9 pr-3.5 text-sm text-white placeholder-dark-500 outline-none transition-colors font-normal"
           />
         </div>
 
