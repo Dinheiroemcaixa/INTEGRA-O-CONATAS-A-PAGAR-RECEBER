@@ -737,3 +737,13 @@ html:not(.dark) ::-webkit-scrollbar-thumb:hover {
   box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
   transform: translateY(-1px);
 }
+
+
+/* Utilitario para ocultar scrollbars preservando a rolagem */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

@@ -1,59 +1,39 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, Suspense, useMemo } from 'react'
-import { useSearchParams } from 'next/navigation'
+import React, { useState, useMemo, useEffect, Suspense } from 'react'
 import { useEmpresa } from '@/contexts/EmpresaContext'
-import { createClient } from '@/lib/supabase/client'
 import { Empresa } from '@/types'
-import { formatCNPJ } from '@/lib/utils'
-
-// Subcomponentes da arquitetura Master-Detail
-import { EmpresaCardMaster } from '@/components/empresas/EmpresaCardMaster'
-import { AbaGeral } from '@/components/empresas/AbaGeral'
-import { AbaIntegracoes } from '@/components/empresas/AbaIntegracoes'
-import { AbaFornecedores } from '@/components/empresas/AbaFornecedores'
-import { AbaFiscal } from '@/components/empresas/AbaFiscal'
-import { AbaAvancado } from '@/components/empresas/AbaAvancado'
-import { ModalNovaEmpresa } from '@/components/empresas/ModalNovaEmpresa'
-
+import { createClient } from '@/lib/supabase/client'
+import { useSearchParams } from 'next/navigation'
 import { 
   Building2, 
-  Search, 
   Plus, 
-  Zap, 
+  Search, 
   Sparkles, 
-  X, 
-  Copy, 
-  Star, 
-  CheckCircle2, 
-  AlertCircle, 
-  Database, 
-  CreditCard, 
-  FileText, 
-  Layers, 
-  ShieldCheck, 
-  Users, 
-  Loader2,
-  ArrowLeft,
-  ChevronRight
+  FileText
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { ModalNovaEmpresa } from '@/components/empresas/ModalNovaEmpresa'
+import { EmpresaCardAccordion, type TipoAbaEmpresa } from '@/components/empresas/EmpresaCardAccordion'
 
-// Gerador determinístico de gradiente para avatar
+// Função determinística para gerar gradientes de avatar por ID
 function getAvatarGradient(id: string) {
   const gradients = [
     'from-blue-600 to-indigo-700',
     'from-emerald-600 to-teal-700',
-    'from-violet-600 to-purple-700',
-    'from-amber-600 to-orange-700',
-    'from-rose-600 to-pink-700',
-    'from-cyan-600 to-blue-700',
+    'from-purple-600 to-pink-700',
+    'from-amber-500 to-orange-700',
+    'from-cyan-600 to-blue-800',
+    'from-rose-600 to-red-800',
   ]
-  const index = id ? id.charCodeAt(0) % gradients.length : 0
-  return gradients[index]
+  let sum = 0
+  for (let i = 0; i < id.length; i++) {
+    sum += id.charCodeAt(i)
+  }
+  return gradients[sum % gradients.length]
 }
 
-// Formatador de mensagem WhatsApp para autorização remota
+// Formata mensagem WhatsApp para autorização remota
 function formatarMensagemWhatsApp(empresa: Empresa, modulo: 'financeiro' | 'vendas') {
   const isVendas = modulo === 'vendas'
   const nomeModulo = isVendas ? 'VENDAS / NF-E' : 'FINANCEIRO'
@@ -73,14 +53,6 @@ ${urlAuth}
 Essa autorização é necessária para emissão e sincronização contábil automática. Qualquer dúvida estou à disposição!`
 }
 
-function handleCopiarWhatsApp(empresa: Empresa, modulo: 'financeiro' | 'vendas') {
-  const texto = formatarMensagemWhatsApp(empresa, modulo)
-  navigator.clipboard.writeText(texto)
-  toast.success(`Mensagem com link para o Conta Azul (${modulo === 'vendas' ? 'Vendas' : 'Financeiro'}) copiada!`)
-}
-
-type TipoAba = 'geral' | 'integracoes' | 'fornecedores' | 'fiscal' | 'avancado'
-
 function EmpresasPageContent() {
   const { empresas, empresaAtiva, setEmpresaAtiva, recarregar } = useEmpresa()
   const supabase = createClient()
@@ -88,10 +60,19 @@ function EmpresasPageContent() {
 
   // Estados principais
   const [searchTerm, setSearchTerm] = useState('')
-  const [empresaSelecionadaId, setEmpresaSelecionadaId] = useState<string | null>(null)
-  const [abaAtiva, setAbaAtiva] = useState<TipoAba>('geral')
   const [modalNovaAberto, setModalNovaAberto] = useState(false)
-  const [painelMobileAberto, setPainelMobileAberto] = useState(false)
+
+  // ESTADO COORDENADO: Apenas uma empresa e um menu expandido por vez na página inteira
+  const [expansaoAtiva, setExpansaoAtiva] = useState<{ empresaId: string; menu: TipoAbaEmpresa } | null>(null)
+
+  const handleToggleMenu = (empresaId: string, menu: TipoAbaEmpresa) => {
+    setExpansaoAtiva(prev => {
+      if (prev?.empresaId === empresaId && prev?.menu === menu) {
+        return null // Fecha se clicou no mesmo
+      }
+      return { empresaId, menu } // Abre este e fecha qualquer outro
+    })
+  }
 
   // Tratamento de callbacks OAuth via URL
   useEffect(() => {
@@ -116,7 +97,7 @@ function EmpresasPageContent() {
       window.history.replaceState({}, '', '/empresas')
     }
 
-    // Health-check silencioso em background para empresas que possuem token salvo
+    // Health-check silencioso em background
     if (empresas.length > 0) {
       const comToken = empresas.filter(e => !!e.access_token_conta_azul)
       if (comToken.length > 0) {
@@ -142,17 +123,6 @@ function EmpresasPageContent() {
     }
   }, [searchParams, empresas, recarregar])
 
-  // Define empresa selecionada inicial por padrão
-  useEffect(() => {
-    if (empresas.length > 0 && !empresaSelecionadaId) {
-      if (empresaAtiva && empresas.some(e => e.id === empresaAtiva.id)) {
-        setEmpresaSelecionadaId(empresaAtiva.id)
-      } else {
-        setEmpresaSelecionadaId(empresas[0].id)
-      }
-    }
-  }, [empresas, empresaAtiva, empresaSelecionadaId])
-
   // Filtragem de empresas por busca
   const empresasFiltradas = useMemo(() => {
     if (!searchTerm.trim()) return empresas
@@ -166,11 +136,6 @@ function EmpresasPageContent() {
       return nomeMatch || razaoMatch || cnpjMatch
     })
   }, [empresas, searchTerm])
-
-  // Empresa atualmente em exibição no painel da direita
-  const empresaSelecionada = useMemo(() => {
-    return empresas.find(e => e.id === empresaSelecionadaId) || empresas[0] || null
-  }, [empresas, empresaSelecionadaId])
 
   // Atualização em memória e recarga quando um subcomponente salva
   const handleEmpresaAtualizada = (empresaAtualizada: Empresa) => {
@@ -225,11 +190,20 @@ function EmpresasPageContent() {
       if (!res.ok) throw new Error(json.error || 'Erro ao excluir')
 
       toast.success('Empresa excluída com sucesso!')
-      setEmpresaSelecionadaId(null)
+      if (expansaoAtiva?.empresaId === empresaId) {
+        setExpansaoAtiva(null)
+      }
       recarregar()
     } catch (err: any) {
       toast.error(err.message || 'Erro ao excluir a empresa')
     }
+  }
+
+  // Copiar mensagem WhatsApp
+  const handleCopiarWhatsApp = (empresa: Empresa, modulo: 'financeiro' | 'vendas') => {
+    const texto = formatarMensagemWhatsApp(empresa, modulo)
+    navigator.clipboard.writeText(texto)
+    toast.success(`Mensagem de autorização do ${modulo === 'vendas' ? 'Vendas' : 'Financeiro'} copiada!`)
   }
 
   // Criação rápida em branco
@@ -261,286 +235,135 @@ function EmpresasPageContent() {
         empresa_id: nova.id,
       })
 
-      toast.success('Card em branco criado! Preencha os dados ou copie o link para o cliente.')
+      toast.success('Card em branco criado!')
       recarregar()
-      setEmpresaSelecionadaId(nova.id)
-      setAbaAtiva('geral')
-      setPainelMobileAberto(true)
+      setExpansaoAtiva({ empresaId: nova.id, menu: 'geral' })
     } catch (err: any) {
       toast.error(err.message || 'Erro ao criar card em branco')
     }
   }
 
   return (
-    <div className="space-y-5">
-      {/* 1. CABEÇALHO CORPORATIVO SUPERIOR */}
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-dark-850/60 p-5 rounded-2xl border border-dark-700/60 backdrop-blur-sm">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <Building2 className="text-blue-400" size={24} />
-            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-              Gestão de Empresas & Filiais
-            </h1>
+    <div className="max-w-5xl mx-auto px-3.5 sm:px-6 py-5 space-y-4">
+      {/* CABEÇALHO COMPACTO DA PÁGINA */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-dark-700/60">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-primary-500/15 border border-primary-500/30 flex items-center justify-center text-primary-400">
+            <Building2 size={18} />
           </div>
-          <p className="text-xs sm:text-sm text-dark-400 mt-1">
-            Controle unificado de identidades fiscais, credenciais Datacar, conexões Conta Azul e fornecedores
-          </p>
+          <div>
+            <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-tight">
+              Empresas & Configurações
+            </h1>
+            <p className="text-xs text-dark-400">
+              Gestão de filiais, credenciais e integrações
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
+        {/* Botões de Ação */}
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handleCriarVazio}
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-dark-800 hover:bg-dark-700 text-white rounded-xl text-xs font-semibold border border-dark-600 hover:border-dark-500 transition-all shadow-sm"
+            title="Criar card rápido em branco"
+            className="px-3 py-1.5 bg-dark-800 hover:bg-dark-700 text-dark-300 hover:text-white border border-dark-700 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
           >
-            <Zap size={14} className="text-amber-400" />
-            <span>Cadastro Rápido</span>
+            <FileText size={13} />
+            <span>Card Rápido</span>
           </button>
 
           <button
             type="button"
             onClick={() => setModalNovaAberto(true)}
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold transition-all shadow-lg shadow-blue-500/10"
+            className="px-3.5 py-1.5 bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5"
           >
-            <Plus size={16} />
-            <span>Adicionar Empresa</span>
+            <Plus size={14} />
+            <span>Nova Empresa</span>
           </button>
         </div>
       </div>
 
-      {/* 2. LAYOUT MASTER-DETAIL (SPLIT-VIEW RESPONSIVO) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        
-        {/* COLUNA ESQUERDA (MASTER): 5 COLUNAS NO DESKTOP (42%) */}
-        <div className="lg:col-span-5 space-y-3">
-          {/* Barra de Busca e Métricas da Lista */}
-          <div className="bg-dark-800/80 border border-dark-700/70 p-3 rounded-2xl space-y-2">
-            <div className="relative">
-              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dark-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por nome, CNPJ ou razão social..."
-                className="w-full bg-dark-900 border border-dark-600/80 rounded-xl pl-9 pr-3 py-2 text-white text-xs focus:ring-2 focus:ring-blue-500/50 outline-none placeholder:text-dark-500 transition-all"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-400 hover:text-white"
-                >
-                  <X size={13} />
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between text-[11px] text-dark-400 px-1 pt-1 border-t border-dark-700/40">
-              <span>{empresasFiltradas.length} {empresasFiltradas.length === 1 ? 'filial encontrada' : 'filiais encontradas'}</span>
-              <span className="text-dark-300">
-                Ativa no sistema: <strong className="text-emerald-400">{empresaAtiva?.nome || 'Nenhuma'}</strong>
-              </span>
-            </div>
-          </div>
-
-          {/* Lista de Filiais com Scroll Suave */}
-          <div className="space-y-2.5 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
-            {empresasFiltradas.length > 0 ? (
-              empresasFiltradas.map((emp) => (
-                <EmpresaCardMaster
-                  key={emp.id}
-                  empresa={emp}
-                  isAtiva={empresaAtiva?.id === emp.id}
-                  isSelecionada={empresaSelecionada?.id === emp.id}
-                  onSelecionarParaVer={() => {
-                    setEmpresaSelecionadaId(emp.id)
-                    setPainelMobileAberto(true)
-                  }}
-                  onDefinirComoAtiva={() => {
-                    setEmpresaAtiva(emp)
-                    toast.success(`"${emp.nome}" agora é a empresa ativa no sistema!`)
-                  }}
-                  onCopiarWhatsApp={(modulo) => handleCopiarWhatsApp(emp, modulo)}
-                  onAbrirAba={(aba) => {
-                    setEmpresaSelecionadaId(emp.id)
-                    setAbaAtiva(aba)
-                    setPainelMobileAberto(true)
-                  }}
-                  getAvatarGradient={getAvatarGradient}
-                />
-              ))
-            ) : (
-              <div className="bg-dark-800/40 border border-dark-700/60 rounded-2xl p-8 text-center text-dark-400 space-y-2">
-                <Building2 size={32} className="mx-auto text-dark-600" />
-                <p className="text-sm font-medium text-dark-300">Nenhuma empresa localizada.</p>
-                <p className="text-xs text-dark-500">Tente ajustar o termo da busca ou cadastre uma nova filial.</p>
-              </div>
-            )}
-          </div>
+      {/* BARRA DE BUSCA E STATUS */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+        <div className="relative flex-1 max-w-sm">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400 pointer-events-none" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar por nome, razão social ou CNPJ..."
+            className="w-full bg-dark-850 border border-dark-700/80 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 rounded-lg pl-8.5 pr-3 py-1.5 text-xs text-white placeholder-dark-500 transition-colors"
+          />
         </div>
 
-        {/* COLUNA DIREITA (DETAIL INSPECTOR): 7 COLUNAS NO DESKTOP (58%) */}
-        <div className={`lg:col-span-7 ${
-          painelMobileAberto ? 'fixed inset-0 z-40 p-4 bg-dark-950/95 overflow-y-auto flex flex-col lg:static lg:p-0 lg:bg-transparent' : 'hidden lg:block'
-        }`}>
-          {empresaSelecionada ? (
-            <div className="bg-dark-850/90 border border-dark-700/80 rounded-2xl p-5 sm:p-6 shadow-xl space-y-5 backdrop-blur-sm">
-              
-              {/* Topo do Inspector de Detalhes */}
-              <div className="flex items-start justify-between gap-4 pb-4 border-b border-dark-700/60">
-                <div className="flex items-start gap-3.5 min-w-0">
-                  {/* Botão Voltar (visível no mobile) */}
-                  <button
-                    type="button"
-                    onClick={() => setPainelMobileAberto(false)}
-                    className="lg:hidden p-2 rounded-xl bg-dark-800 text-dark-300 hover:text-white border border-dark-700 flex-shrink-0"
-                  >
-                    <ArrowLeft size={16} />
-                  </button>
-
-                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${getAvatarGradient(empresaSelecionada.id)} flex items-center justify-center text-white font-bold text-base shadow-md flex-shrink-0 mt-0.5`}>
-                    {(empresaSelecionada.nome || 'E').slice(0, 2).toUpperCase()}
-                  </div>
-
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="text-lg sm:text-xl font-bold text-white truncate">
-                        {empresaSelecionada.nome}
-                      </h2>
-                      {empresaAtiva?.id === empresaSelecionada.id && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                          <Sparkles size={12} /> Ativa Globalmente
-                        </span>
-                      )}
-                    </div>
-
-                    <p className="text-xs text-dark-400 truncate mt-0.5">
-                      {empresaSelecionada.razao_social || empresaSelecionada.nome_fantasia || 'Sem razão social cadastrada'}
-                    </p>
-
-                    <div className="flex items-center gap-2 mt-1.5 text-xs text-dark-300 font-mono">
-                      <span>{empresaSelecionada.cnpj ? formatCNPJ(empresaSelecionada.cnpj) : 'Sem CNPJ'}</span>
-                      
-                    </div>
-                  </div>
-                </div>
-
-                {/* Botão de Tornar Ativa / Ativa */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {empresaAtiva?.id !== empresaSelecionada.id ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEmpresaAtiva(empresaSelecionada)
-                        toast.success(`"${empresaSelecionada.nome}" selecionada como empresa ativa!`)
-                      }}
-                      className="px-3.5 py-2 bg-dark-800 hover:bg-dark-700 text-white border border-dark-600 hover:border-emerald-500/50 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm"
-                    >
-                      <Star size={13} className="text-amber-400" />
-                      <span>Tornar Ativa</span>
-                    </button>
-                  ) : (
-                    <span className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-medium flex items-center gap-1.5">
-                      <CheckCircle2 size={13} />
-                      <span>Ativa no Sistema</span>
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* BARRA DE NAVEGAÇÃO DAS 5 ABAS */}
-              <div className="flex items-center gap-1.5 border-b border-dark-700/60 overflow-x-auto pb-1 text-xs">
-                {[
-                  { id: 'geral', label: 'Geral', icon: Building2 },
-                  { id: 'integracoes', label: 'Integrações', icon: Layers },
-                  { id: 'fornecedores', label: 'Fornecedores De/Para', icon: Users },
-                  { id: 'fiscal', label: 'Fiscal & Certificado', icon: ShieldCheck },
-                  { id: 'avancado', label: 'Avançado', icon: AlertCircle },
-                ].map((tab) => {
-                  const Icon = tab.icon
-                  const ativa = abaAtiva === tab.id
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => setAbaAtiva(tab.id as TipoAba)}
-                      className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl font-medium transition-all whitespace-nowrap ${
-                        ativa
-                          ? 'bg-blue-600/20 text-blue-300 border border-blue-500/50 shadow-sm'
-                          : 'text-dark-400 hover:text-white hover:bg-dark-800'
-                      }`}
-                    >
-                      <Icon size={14} className={ativa ? 'text-blue-400' : 'text-dark-400'} />
-                      <span>{tab.label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* CONTEÚDO DA ABA SELECIONADA */}
-              <div className="pt-2 animate-fade-in">
-                {abaAtiva === 'geral' && (
-                  <AbaGeral
-                    empresa={empresaSelecionada}
-                    onUpdated={handleEmpresaAtualizada}
-                  />
-                )}
-
-                {abaAtiva === 'integracoes' && (
-                  <AbaIntegracoes
-                    empresa={empresaSelecionada}
-                    onUpdated={handleEmpresaAtualizada}
-                    onConectarContaAzul={handleConectarContaAzul}
-                    onDesconectarContaAzul={handleDesconectarContaAzul}
-                    onCopiarWhatsApp={(modulo) => handleCopiarWhatsApp(empresaSelecionada, modulo)}
-                    onIrParaAbaFiscal={() => setAbaAtiva('fiscal')}
-                  />
-                )}
-
-                {abaAtiva === 'fornecedores' && (
-                  <AbaFornecedores
-                    empresa={empresaSelecionada}
-                  />
-                )}
-
-                {abaAtiva === 'fiscal' && (
-                  <AbaFiscal
-                    empresa={empresaSelecionada}
-                    onUpdated={handleEmpresaAtualizada}
-                  />
-                )}
-
-                {abaAtiva === 'avancado' && (
-                  <AbaAvancado
-                    empresa={empresaSelecionada}
-                    isAtiva={empresaAtiva?.id === empresaSelecionada.id}
-                    onDefinirComoAtiva={() => {
-                      setEmpresaAtiva(empresaSelecionada)
-                      toast.success(`"${empresaSelecionada.nome}" agora é a empresa ativa no sistema!`)
-                    }}
-                    onExcluirEmpresa={handleExcluirEmpresa}
-                  />
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="bg-dark-800/40 border border-dark-700/60 rounded-2xl p-12 text-center text-dark-400 space-y-2">
-              <Building2 size={40} className="mx-auto text-dark-600" />
-              <p className="text-base font-semibold text-white">Nenhuma empresa selecionada</p>
-              <p className="text-xs text-dark-400">Selecione uma empresa na lista à esquerda para gerenciar seus dados e integrações.</p>
-            </div>
+        <div className="flex items-center gap-2.5 text-xs text-dark-400">
+          <span>
+            Total: <strong className="text-white">{empresas.length}</strong> {empresas.length === 1 ? 'empresa' : 'empresas'}
+          </span>
+          {empresaAtiva && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+              <Sparkles size={11} />
+              <span>Ativa: <strong>{empresaAtiva.nome}</strong></span>
+            </span>
           )}
         </div>
       </div>
 
-      {/* 3. MODAL DE CADASTRO DE NOVA EMPRESA */}
+      {/* LISTA VERTICAL DE EMPRESAS COMPACTAS */}
+      <div className="space-y-2.5">
+        {empresasFiltradas.length > 0 ? (
+          empresasFiltradas.map((emp) => (
+            <EmpresaCardAccordion
+              key={emp.id}
+              empresa={emp}
+              isAtiva={empresaAtiva?.id === emp.id}
+              menuAtivo={expansaoAtiva?.empresaId === emp.id ? expansaoAtiva.menu : null}
+              onToggleMenu={(menu) => handleToggleMenu(emp.id, menu)}
+              onDefinirComoAtiva={() => {
+                setEmpresaAtiva(emp)
+                toast.success(`"${emp.nome}" agora é a empresa ativa no sistema!`)
+              }}
+              onEmpresaAtualizada={handleEmpresaAtualizada}
+              onConectarContaAzul={handleConectarContaAzul}
+              onDesconectarContaAzul={handleDesconectarContaAzul}
+              onCopiarWhatsApp={(modulo) => handleCopiarWhatsApp(emp, modulo)}
+              onExcluirEmpresa={handleExcluirEmpresa}
+              getAvatarGradient={getAvatarGradient}
+            />
+          ))
+        ) : (
+          <div className="bg-dark-850/60 border border-dark-700/60 rounded-xl p-8 text-center space-y-2.5">
+            <Building2 size={32} className="mx-auto text-dark-500" />
+            <p className="text-sm font-semibold text-white">Nenhuma empresa encontrada</p>
+            <p className="text-xs text-dark-400 max-w-sm mx-auto">
+              {searchTerm
+                ? 'Nenhum resultado para os termos digitados.'
+                : 'Cadastre sua primeira empresa para começar.'}
+            </p>
+            {!searchTerm && (
+              <button
+                type="button"
+                onClick={() => setModalNovaAberto(true)}
+                className="mt-1.5 inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-xs font-semibold transition-colors"
+              >
+                <Plus size={13} />
+                <span>Cadastrar Empresa</span>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* MODAL NOVA EMPRESA */}
       <ModalNovaEmpresa
         aberto={modalNovaAberto}
         onFechar={() => setModalNovaAberto(false)}
         onCriada={(nova) => {
           recarregar()
-          setEmpresaSelecionadaId(nova.id)
-          setAbaAtiva('geral')
+          if (!empresaAtiva) {
+            setEmpresaAtiva(nova)
+          }
         }}
       />
     </div>
@@ -550,11 +373,8 @@ function EmpresasPageContent() {
 export default function EmpresasPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 size={32} className="animate-spin text-blue-500" />
-          <p className="text-sm font-medium text-dark-400">Carregando painel de empresas...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-[50vh] text-dark-400 text-xs">
+        Carregando central de empresas...
       </div>
     }>
       <EmpresasPageContent />
