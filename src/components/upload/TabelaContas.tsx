@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import type { ContaPagarImportada } from '@/types'
 import { formatCurrency, formatDate, visualizarAnexo } from '@/lib/utils'
-import { CheckCircle, Clock, AlertCircle, RefreshCw, Loader2, Trash2, Landmark, Paperclip, Tags, Edit2, ArrowRightLeft, Building2 } from 'lucide-react'
+import { CheckCircle, Zap, Clock, AlertCircle, RefreshCw, Loader2, Trash2, Landmark, Paperclip, Tags, Edit2, ArrowRightLeft, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import SelectorContaFinanceira, { type ContaFinanceiraOpcao } from '@/components/upload/SelectorContaFinanceira'
@@ -267,45 +267,128 @@ export default function TabelaContas({ empresaId }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Resumo rápido de KPIs (Padrão Corporativo Fase 4) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-        <div className="bg-dark-850/90 border border-dark-700/60 hover:border-amber-500/30 rounded-xl p-4 sm:p-5 shadow-xs transition-all relative overflow-hidden group">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-xs font-semibold text-dark-300 uppercase tracking-wider">Total Pendente</span>
-            <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
-              <Clock size={16} />
-            </div>
-          </div>
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="text-amber-400 text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight">
-              {formatCurrency(totalPendente)}
-            </p>
-            <span className="text-xs text-dark-400 font-medium">
-              {qtdPendente} {qtdPendente === 1 ? 'pendente' : 'pendentes'}
-            </span>
-          </div>
-        </div>
+      {/* FAIXA SUPERIOR DE 4 KPIS — ESTILO DASHBOARD */}
+      {(() => {
+        const total = contas.length
+        const totalValorGeral = totalPendente + totalEnviado
 
-        <div className="bg-dark-850/90 border border-dark-700/60 hover:border-emerald-500/30 rounded-xl p-4 sm:p-5 shadow-xs transition-all relative overflow-hidden group">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-xs font-semibold text-dark-300 uppercase tracking-wider">Total Enviado</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-              <CheckCircle size={16} />
-            </div>
+        const cards = [
+          {
+            status: 'pendente',
+            title: 'Pendentes',
+            label: 'A ENVIAR',
+            value: qtdPendente,
+            sub: formatCurrency(totalPendente),
+            icon: Clock,
+            color: 'text-amber-400',
+            bg: 'bg-amber-400/10',
+            border: 'border-amber-400/20',
+            hoverBorder: 'hover:border-amber-400/60',
+            barColor: 'bg-amber-400',
+            barWidth: total > 0 ? `${Math.round((qtdPendente / total) * 100)}%` : '0%',
+          },
+          {
+            status: 'enviado',
+            title: 'Enviados',
+            label: 'CONTA AZUL',
+            value: qtdEnviado,
+            sub: formatCurrency(totalEnviado),
+            icon: CheckCircle,
+            color: 'text-emerald-400',
+            bg: 'bg-emerald-400/10',
+            border: 'border-emerald-400/20',
+            hoverBorder: 'hover:border-emerald-400/60',
+            barColor: 'bg-emerald-400',
+            barWidth: total > 0 ? `${Math.round((qtdEnviado / total) * 100)}%` : '0%',
+          },
+          {
+            status: 'erro',
+            title: 'Com Erro',
+            label: 'FALHAS',
+            value: qtdErro,
+            sub: qtdErro > 0 ? 'Necessitam atenção' : 'Sem falhas',
+            icon: AlertCircle,
+            color: 'text-rose-400',
+            bg: 'bg-rose-400/10',
+            border: 'border-rose-400/20',
+            hoverBorder: 'hover:border-rose-400/60',
+            barColor: 'bg-rose-400',
+            barWidth: total > 0 ? `${Math.round((qtdErro / total) * 100)}%` : '0%',
+          },
+          {
+            status: 'todos',
+            title: 'Total',
+            label: 'PROCESSADOS',
+            value: total,
+            sub: formatCurrency(totalValorGeral),
+            icon: Zap,
+            color: 'text-brand-400',
+            bg: 'bg-brand-400/10',
+            border: 'border-brand-400/20',
+            hoverBorder: 'hover:border-brand-400/60',
+            barColor: 'bg-brand-400',
+            barWidth: '100%',
+          },
+        ]
+
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {cards.map((card) => {
+              const isSelected = filtro === card.status || (card.status === 'todos' && !['pendente', 'enviado', 'erro'].includes(filtro))
+              return (
+                <div
+                  key={card.title}
+                  onClick={() => {
+                    if (card.status === 'todos') {
+                      setFiltro('pendente')
+                    } else {
+                      setFiltro(card.status)
+                    }
+                  }}
+                  className={cn(
+                    'relative group rounded-2xl border p-5 flex flex-col gap-3 transition-all duration-300',
+                    'bg-white/[0.02] backdrop-blur-xl border-white/5 cursor-pointer',
+                    isSelected
+                      ? `${card.hoverBorder} bg-white/[0.05] shadow-[0_0_25px_rgba(0,0,0,0.25)] ring-1 ring-offset-0`
+                      : 'hover:bg-white/[0.04] hover:-translate-y-1 hover:shadow-xl hover:shadow-black/40'
+                  )}
+                >
+                  {/* Top row */}
+                  <div className="flex items-start justify-between">
+                    <div className={cn(card.bg, 'rounded-xl p-2.5 shadow-inner border border-white/5')}>
+                      <card.icon size={18} className={card.color} />
+                    </div>
+                    <span className={cn('text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full border border-current opacity-70', card.color)}>
+                      {card.label}
+                    </span>
+                  </div>
+
+                  {/* Value */}
+                  <div className="flex-1 mt-1">
+                    <p className="text-3xl font-bold text-white font-mono tabular-nums leading-none drop-shadow-sm tracking-tight">
+                      {card.value}
+                    </p>
+                    <p className="text-dark-300 text-xs mt-2 font-medium font-mono truncate" title={card.sub}>
+                      {card.sub}
+                    </p>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="h-1.5 bg-dark-900/50 rounded-full overflow-hidden shadow-inner mt-2">
+                    <div
+                      className={cn('h-full rounded-full transition-all duration-700', card.barColor)}
+                      style={{ width: card.barWidth }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
           </div>
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="text-emerald-400 text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight">
-              {formatCurrency(totalEnviado)}
-            </p>
-            <span className="text-xs text-dark-400 font-medium">
-              {qtdEnviado} {qtdEnviado === 1 ? 'enviado' : 'enviados'}
-            </span>
-          </div>
-        </div>
-      </div>
+        )
+      })()}
 
       {/* Filtros e Ações em Lote */}
-      <div className="flex items-center justify-between gap-3 flex-wrap bg-dark-850/80 p-3 sm:p-3.5 rounded-xl border border-dark-700/60 shadow-xs">
+      <div className="flex items-center justify-between gap-3 flex-wrap bg-white/[0.02] backdrop-blur-xl border border-white/5 p-3.5 sm:p-4 rounded-2xl shadow-xl">
         <div className="inline-flex p-1 bg-dark-900 border border-dark-700/60 rounded-xl gap-1">
           {(['pendente', 'enviado', 'erro'] as const).map((f) => {
             const isSelected = filtro === f
