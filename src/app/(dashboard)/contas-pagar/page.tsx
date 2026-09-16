@@ -12,6 +12,7 @@ import PainelAgendamento from '@/components/agendamento/PainelAgendamento'
 import type { ContaPagarPreview, ResultadoImportacao } from '@/types'
 import type { Empresa } from '@/types'
 import {
+  Sparkles,
   Upload, ArrowLeft, Loader2,
   CheckCircle, AlertCircle, FileDown, Send,
   X, ShieldCheck, ChevronDown, Database,
@@ -695,36 +696,47 @@ export default function ContasPagarPage() {
       />
     )}
 
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-white">Contas a Pagar</h1>
-            <span className="px-2.5 py-0.5 bg-emerald-500/15 text-emerald-400 text-xs font-semibold rounded-md border border-emerald-500/30">
-              PRODUÇÃO
-            </span>
+    <div className="max-w-6xl mx-auto px-3.5 sm:px-6 py-5 space-y-5 animate-fade-in">
+      {/* CABEÇALHO COMPACTO DA PÁGINA (Padrão Empresas) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-dark-700/60">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-primary-500/15 border border-primary-500/30 flex items-center justify-center text-primary-400 flex-shrink-0">
+            <FileText size={18} />
           </div>
-          <p className="text-dark-400 text-sm mt-1">
-            Importe contas a pagar do DataCar (CpRl010) ou planilha e envie diretamente ao Conta Azul.
-          </p>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-tight">
+                Contas a Pagar
+              </h1>
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                <Sparkles size={10} />
+                <span>Produção</span>
+              </span>
+            </div>
+            <p className="text-xs text-dark-400">
+              Importação DataCar (CpRl010), conciliação e envio ao Conta Azul
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
+
+        <div className="flex items-center gap-2.5 flex-wrap">
           <SelectorEmpresa />
           {subAba === 'planilha' && etapa !== 'upload' && (
             <button
               onClick={() => { setEtapa('upload'); setResultado(null) }}
-              className="flex items-center gap-2 text-dark-400 hover:text-white text-sm px-3 py-2 rounded-lg hover:bg-dark-800 transition-all"
+              className="px-3 py-1.5 bg-dark-800 hover:bg-dark-700 text-dark-300 hover:text-white border border-dark-700 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
             >
-              <ArrowLeft size={16} /> Voltar
+              <ArrowLeft size={13} />
+              <span>Voltar</span>
             </button>
           )}
           {subAba === 'datacar' && contasPreviewDados && (
             <button
               onClick={() => { setContasPreviewDados(null) }}
-              className="flex items-center gap-2 text-dark-400 hover:text-white text-sm px-3 py-2 rounded-lg hover:bg-dark-800 transition-all"
+              className="px-3 py-1.5 bg-dark-800 hover:bg-dark-700 text-dark-300 hover:text-white border border-dark-700 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
             >
-              <ArrowLeft size={16} /> Voltar à Busca
+              <ArrowLeft size={13} />
+              <span>Voltar à Busca</span>
             </button>
           )}
         </div>
@@ -788,27 +800,44 @@ export default function ContasPagarPage() {
                 />
               )}
 
-              {/* Formulário de Busca do Datacar */}
-              <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-5 sm:p-6 animate-fade-in shadow-xs">
-                <div className="flex items-center gap-2.5 mb-5">
-                  <div className="w-8 h-8 rounded-lg bg-primary-500/15 border border-primary-500/30 flex items-center justify-center text-primary-400 flex-shrink-0">
-                    <Database size={16} />
+              {/* Formulário de Busca do Datacar (Design System Fase 4) */}
+              <div className="bg-dark-850/90 border border-dark-700/60 rounded-xl p-4 sm:p-5 shadow-xs space-y-4 animate-fade-in">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-dark-700/50">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-primary-500/15 border border-primary-500/30 flex items-center justify-center text-primary-400 flex-shrink-0">
+                      <Database size={16} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white leading-tight">Buscar Contas do Datacar</h3>
+                      <p className="text-xs text-dark-400">Consulte lançamentos financeiros cadastrados no sistema Datacar</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-white leading-tight">Buscar Contas do Datacar</h3>
-                    <p className="text-[13px] text-dark-400">Consulte lançamentos financeiros cadastrados no sistema Datacar</p>
+                  <div className="flex items-center gap-2">
+                    {empresaAtiva.datacar_token ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-dark-900/60 border border-dark-700/50 text-dark-200">
+                        <Database size={11} className="text-emerald-400" />
+                        <span>Datacar Ativo</span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-glow-sm" />
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-500/10 border border-amber-500/30 text-amber-300">
+                        <AlertCircle size={11} className="text-amber-400" />
+                        <span>Não Configurado</span>
+                      </span>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-end gap-4 flex-wrap">
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 items-end">
                   <div>
-                    <label className="text-sm font-medium mb-1.5 flex items-center gap-2 text-dark-300">
+                    <label className="text-xs font-medium mb-1.5 block text-dark-300">
                       Por:
                     </label>
                     <select
                       id="tipoPeriodoContas"
                       value={tipoPeriodoContas}
                       onChange={(e) => setTipoPeriodoContas(e.target.value as any)}
-                      className="h-10 bg-dark-900 border border-dark-700 rounded-lg px-3.5 text-white text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
+                      className="w-full h-10 bg-dark-900 border border-dark-700 rounded-lg px-3 text-white text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
                     >
                       <option value="venc">Vencimento</option>
                       <option value="emis">Emissão</option>
@@ -819,11 +848,11 @@ export default function ContasPagarPage() {
 
                   {/* Filtro: Pagamento */}
                   <div>
-                    <label className="text-sm font-medium mb-1.5 block text-dark-300">Pagamento:</label>
+                    <label className="text-xs font-medium mb-1.5 block text-dark-300">Pagamento:</label>
                     <select
                       value={statusPagamento}
                       onChange={(e) => setStatusPagamento(e.target.value as any)}
-                      className="h-10 bg-dark-900 border border-dark-700 rounded-lg px-3.5 text-white text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
+                      className="w-full h-10 bg-dark-900 border border-dark-700 rounded-lg px-3 text-white text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
                     >
                       <option value="todas">A pagar e pagas</option>
                       <option value="apagar">A pagar</option>
@@ -833,11 +862,11 @@ export default function ContasPagarPage() {
 
                   {/* Filtro: Local */}
                   <div>
-                    <label className="text-sm font-medium mb-1.5 block text-dark-300">Local:</label>
+                    <label className="text-xs font-medium mb-1.5 block text-dark-300">Local:</label>
                     <select
                       value={localPagamento}
                       onChange={(e) => setLocalPagamento(e.target.value as any)}
-                      className="h-10 bg-dark-900 border border-dark-700 rounded-lg px-3.5 text-white text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
+                      className="w-full h-10 bg-dark-900 border border-dark-700 rounded-lg px-3 text-white text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
                     >
                       <option value="todos">(Todos)</option>
                       <option value="BANCO">BANCO</option>
@@ -847,43 +876,46 @@ export default function ContasPagarPage() {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium mb-1.5 block text-dark-300">Data Inicial:</label>
+                    <label className="text-xs font-medium mb-1.5 block text-dark-300">Data Inicial:</label>
                     <div className="relative">
-                      <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+                      <Calendar size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400 pointer-events-none" />
                       <input
                         type="date"
                         value={dtIni}
                         onChange={(e) => setDtIni(e.target.value)}
-                        className="h-10 bg-dark-900 border border-dark-700 rounded-lg pl-10 pr-3 text-white text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors w-40"
+                        className="w-full h-10 bg-dark-900 border border-dark-700 rounded-lg pl-9 pr-2.5 text-white text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
                       />
                     </div>
                   </div>
                   
                   <div>
-                    <label className="text-sm font-medium mb-1.5 block text-dark-300">Data Final:</label>
+                    <label className="text-xs font-medium mb-1.5 block text-dark-300">Data Final:</label>
                     <div className="relative">
-                      <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+                      <Calendar size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400 pointer-events-none" />
                       <input
                         type="date"
                         value={dtFim}
                         onChange={(e) => setDtFim(e.target.value)}
-                        className="h-10 bg-dark-900 border border-dark-700 rounded-lg pl-10 pr-3 text-white text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors w-40"
+                        className="w-full h-10 bg-dark-900 border border-dark-700 rounded-lg pl-9 pr-2.5 text-white text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
                       />
                     </div>
                   </div>
 
-                  <button
-                    onClick={handleBuscarContasDatacar}
-                    disabled={buscando || !empresaAtiva.datacar_token}
-                    className="h-10 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 text-white px-4 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors shadow-sm cursor-pointer ml-auto sm:ml-0"
-                  >
-                    {buscando ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-                    {buscando ? 'Buscando...' : 'Buscar'}
-                  </button>
+                  <div>
+                    <button
+                      onClick={handleBuscarContasDatacar}
+                      disabled={buscando || !empresaAtiva.datacar_token}
+                      className="w-full h-10 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 text-white rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer"
+                    >
+                      {buscando ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
+                      <span>{buscando ? 'Buscando...' : 'Buscar'}</span>
+                    </button>
+                  </div>
                 </div>
+
                 {!empresaAtiva.datacar_token && (
-                   <p className="text-amber-400 text-xs mt-3">
-                     ⚠️ Credenciais do Datacar não configuradas para esta empresa. Configure em "Empresas".
+                   <p className="text-amber-400 text-xs pt-1 flex items-center gap-1.5">
+                     <span>⚠️ Credenciais do Datacar não configuradas para esta empresa. Configure na aba "Empresas".</span>
                    </p>
                 )}
               </div>

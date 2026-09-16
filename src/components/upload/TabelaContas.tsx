@@ -261,38 +261,81 @@ export default function TabelaContas({ empresaId }: Props) {
 
   const totalPendente = contas.filter((c) => c.status === 'pendente').reduce((s, c) => s + Number(c.valor), 0)
   const totalEnviado = contas.filter((c) => c.status === 'enviado').reduce((s, c) => s + Number(c.valor), 0)
+  const qtdPendente = contas.filter((c) => c.status === 'pendente').length
+  const qtdEnviado = contas.filter((c) => c.status === 'enviado').length
+  const qtdErro = contas.filter((c) => c.status === 'erro').length
 
   return (
     <div className="space-y-4">
-            {/* Resumo rápido de KPIs */}
+      {/* Resumo rápido de KPIs (Padrão Corporativo Fase 4) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-        <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-4 sm:p-5 shadow-xs space-y-1">
-          <p className="text-sm font-medium text-dark-400">Total Pendente</p>
-          <p className="text-amber-400 text-2xl font-bold font-mono tabular-nums">{formatCurrency(totalPendente)}</p>
+        <div className="bg-dark-850/90 border border-dark-700/60 hover:border-amber-500/30 rounded-xl p-4 sm:p-5 shadow-xs transition-all relative overflow-hidden group">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="text-xs font-semibold text-dark-300 uppercase tracking-wider">Total Pendente</span>
+            <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <Clock size={16} />
+            </div>
+          </div>
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-amber-400 text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight">
+              {formatCurrency(totalPendente)}
+            </p>
+            <span className="text-xs text-dark-400 font-medium">
+              {qtdPendente} {qtdPendente === 1 ? 'pendente' : 'pendentes'}
+            </span>
+          </div>
         </div>
-        <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-4 sm:p-5 shadow-xs space-y-1">
-          <p className="text-sm font-medium text-dark-400">Total Enviado</p>
-          <p className="text-emerald-400 text-2xl font-bold font-mono tabular-nums">{formatCurrency(totalEnviado)}</p>
+
+        <div className="bg-dark-850/90 border border-dark-700/60 hover:border-emerald-500/30 rounded-xl p-4 sm:p-5 shadow-xs transition-all relative overflow-hidden group">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="text-xs font-semibold text-dark-300 uppercase tracking-wider">Total Enviado</span>
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+              <CheckCircle size={16} />
+            </div>
+          </div>
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-emerald-400 text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight">
+              {formatCurrency(totalEnviado)}
+            </p>
+            <span className="text-xs text-dark-400 font-medium">
+              {qtdEnviado} {qtdEnviado === 1 ? 'enviado' : 'enviados'}
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Filtros e Ações em Lote */}
       <div className="flex items-center justify-between gap-3 flex-wrap bg-dark-850/80 p-3 sm:p-3.5 rounded-xl border border-dark-700/60 shadow-xs">
-        <div className="flex items-center gap-2">
-          {['pendente', 'enviado', 'erro'].map((f) => (
-            <button
-              key={f}
-              onClick={() => setFiltro(f)}
-              className={cn(
-                'h-10 px-4 rounded-lg text-sm font-medium transition-all capitalize cursor-pointer flex items-center gap-2',
-                filtro === f
-                  ? 'bg-primary-950/60 text-primary-300 border border-primary-500/40 font-semibold shadow-xs'
-                  : 'bg-dark-900/60 text-dark-400 hover:text-white hover:bg-dark-800 border border-dark-700/60'
-              )}
-            >
-              {f.charAt(0).toUpperCase() + f.slice(1)}
-            </button>
-          ))}
+        <div className="inline-flex p-1 bg-dark-900 border border-dark-700/60 rounded-xl gap-1">
+          {(['pendente', 'enviado', 'erro'] as const).map((f) => {
+            const isSelected = filtro === f
+            const qtd = f === 'pendente' ? qtdPendente : f === 'enviado' ? qtdEnviado : qtdErro
+            const label = f.charAt(0).toUpperCase() + f.slice(1)
+            return (
+              <button
+                key={f}
+                onClick={() => setFiltro(f)}
+                className={cn(
+                  'h-9 px-3.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-2',
+                  isSelected
+                    ? 'bg-primary-950/70 text-primary-300 border border-primary-500/40 shadow-xs'
+                    : 'text-dark-400 hover:text-white hover:bg-dark-800/70 border border-transparent'
+                )}
+              >
+                <span>{label}</span>
+                <span className={cn(
+                  'px-1.5 py-0.5 rounded-md text-[11px] font-mono tabular-nums font-bold',
+                  isSelected
+                    ? 'bg-primary-500/20 text-primary-300 border border-primary-500/30'
+                    : f === 'erro' && qtd > 0
+                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                      : 'bg-dark-800 text-dark-400'
+                )}>
+                  {qtd}
+                </span>
+              </button>
+            )
+          })}
         </div>
 
         {/* Ações em Lote (Sempre Visíveis quando há contas na tabela) */}
@@ -416,14 +459,14 @@ export default function TabelaContas({ empresaId }: Props) {
           <Loader2 size={24} className="text-brand-400 animate-spin" />
         </div>
       ) : contas.length === 0 ? (
-        <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-10 sm:p-12 text-center space-y-3 shadow-xs">
-          <div className="w-12 h-12 rounded-xl bg-dark-900 border border-dark-700/60 flex items-center justify-center mx-auto text-dark-400">
-            <Clock size={24} />
+        <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-10 sm:p-12 text-center space-y-3.5 shadow-xs">
+          <div className="w-12 h-12 rounded-xl bg-dark-900 border border-dark-700/80 flex items-center justify-center mx-auto text-dark-400 shadow-inner">
+            <Clock size={22} className="text-dark-400" />
           </div>
           <div className="space-y-1">
-            <p className="text-base font-semibold text-white">Nenhuma conta encontrada</p>
-            <p className="text-sm text-dark-400 max-w-sm mx-auto">
-              Não há contas a pagar com status "{filtro}" para a empresa selecionada.
+            <p className="text-base font-semibold text-white">Nenhuma conta com status "{filtro}"</p>
+            <p className="text-xs sm:text-sm text-dark-400 max-w-md mx-auto leading-relaxed">
+              Não há lançamentos financeiros registrados nesta categoria para a empresa selecionada.
             </p>
           </div>
         </div>
