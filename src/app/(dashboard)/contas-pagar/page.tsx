@@ -789,14 +789,19 @@ export default function ContasPagarPage() {
               )}
 
               {/* Formulário de Busca do Datacar */}
-              <div className="bg-dark-800 border border-dark-700 rounded-xl p-5 animate-fade-in">
-                <div className="flex items-center gap-2 mb-4 text-white font-semibold">
-                  <Database size={18} className="text-primary-400" />
-                  <h3>Buscar Contas do Datacar</h3>
+              <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-5 sm:p-6 animate-fade-in shadow-xs">
+                <div className="flex items-center gap-2.5 mb-5">
+                  <div className="w-8 h-8 rounded-lg bg-primary-500/15 border border-primary-500/30 flex items-center justify-center text-primary-400 flex-shrink-0">
+                    <Database size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-white leading-tight">Buscar Contas do Datacar</h3>
+                    <p className="text-[13px] text-dark-400">Consulte lançamentos financeiros cadastrados no sistema Datacar</p>
+                  </div>
                 </div>
                 <div className="flex items-end gap-4 flex-wrap">
                   <div>
-                    <label className="text-xs font-medium mb-1 flex items-center gap-2 text-dark-400">
+                    <label className="text-sm font-medium mb-1.5 flex items-center gap-2 text-dark-300">
                       Por:
                     </label>
                     <select
@@ -814,7 +819,7 @@ export default function ContasPagarPage() {
 
                   {/* Filtro: Pagamento */}
                   <div>
-                    <label className="text-xs font-medium mb-1 block text-dark-400">Pagamento:</label>
+                    <label className="text-sm font-medium mb-1.5 block text-dark-300">Pagamento:</label>
                     <select
                       value={statusPagamento}
                       onChange={(e) => setStatusPagamento(e.target.value as any)}
@@ -828,7 +833,7 @@ export default function ContasPagarPage() {
 
                   {/* Filtro: Local */}
                   <div>
-                    <label className="text-xs font-medium mb-1 block text-dark-400">Local:</label>
+                    <label className="text-sm font-medium mb-1.5 block text-dark-300">Local:</label>
                     <select
                       value={localPagamento}
                       onChange={(e) => setLocalPagamento(e.target.value as any)}
@@ -842,7 +847,7 @@ export default function ContasPagarPage() {
                   </div>
 
                   <div>
-                    <label className="text-xs font-medium mb-1 block text-dark-400">Data Início</label>
+                    <label className="text-sm font-medium mb-1.5 block text-dark-300">Data Inicial:</label>
                     <div className="relative">
                       <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
                       <input
@@ -855,7 +860,7 @@ export default function ContasPagarPage() {
                   </div>
                   
                   <div>
-                    <label className="text-xs font-medium mb-1 block text-dark-400">Data Fim</label>
+                    <label className="text-sm font-medium mb-1.5 block text-dark-300">Data Final:</label>
                     <div className="relative">
                       <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
                       <input
@@ -870,7 +875,7 @@ export default function ContasPagarPage() {
                   <button
                     onClick={handleBuscarContasDatacar}
                     disabled={buscando || !empresaAtiva.datacar_token}
-                    className="h-10 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 text-white px-5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors shadow-sm ml-auto sm:ml-0"
+                    className="h-10 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 text-white px-4 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors shadow-sm cursor-pointer ml-auto sm:ml-0"
                   >
                     {buscando ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
                     {buscando ? 'Buscando...' : 'Buscar'}

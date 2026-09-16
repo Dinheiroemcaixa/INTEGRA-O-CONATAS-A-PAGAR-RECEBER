@@ -264,27 +264,27 @@ export default function TabelaContas({ empresaId }: Props) {
 
   return (
     <div className="space-y-4">
-            {/* Resumo rápido */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-4 shadow-xs space-y-1">
-          <p className="text-xs text-dark-400 mb-1 font-medium">Total Pendente</p>
-          <p className="text-amber-400 text-xl font-bold font-mono tabular-nums">{formatCurrency(totalPendente)}</p>
+            {/* Resumo rápido de KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+        <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-4 sm:p-5 shadow-xs space-y-1">
+          <p className="text-sm font-medium text-dark-400">Total Pendente</p>
+          <p className="text-amber-400 text-2xl font-bold font-mono tabular-nums">{formatCurrency(totalPendente)}</p>
         </div>
-        <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-4 shadow-xs space-y-1">
-          <p className="text-xs text-dark-400 mb-1 font-medium">Total Enviado</p>
-          <p className="text-emerald-400 text-xl font-bold font-mono tabular-nums">{formatCurrency(totalEnviado)}</p>
+        <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-4 sm:p-5 shadow-xs space-y-1">
+          <p className="text-sm font-medium text-dark-400">Total Enviado</p>
+          <p className="text-emerald-400 text-2xl font-bold font-mono tabular-nums">{formatCurrency(totalEnviado)}</p>
         </div>
       </div>
 
       {/* Filtros e Ações em Lote */}
-      <div className="flex items-center justify-between gap-2 flex-wrap bg-dark-800/80 p-3 rounded-xl border border-dark-700">
+      <div className="flex items-center justify-between gap-3 flex-wrap bg-dark-850/80 p-3 sm:p-3.5 rounded-xl border border-dark-700/60 shadow-xs">
         <div className="flex items-center gap-2">
           {['pendente', 'enviado', 'erro'].map((f) => (
             <button
               key={f}
               onClick={() => setFiltro(f)}
               className={cn(
-                'px-3 py-1.5 rounded-lg text-sm font-medium transition-all capitalize',
+                'h-10 px-4 rounded-lg text-sm font-medium transition-all capitalize cursor-pointer flex items-center gap-2',
                 filtro === f
                   ? 'bg-primary-950/60 text-primary-300 border border-primary-500/40 font-semibold shadow-xs'
                   : 'bg-dark-900/60 text-dark-400 hover:text-white hover:bg-dark-800 border border-dark-700/60'
@@ -416,12 +416,16 @@ export default function TabelaContas({ empresaId }: Props) {
           <Loader2 size={24} className="text-brand-400 animate-spin" />
         </div>
       ) : contas.length === 0 ? (
-        <div className="bg-dark-800 border border-dark-700 rounded-xl p-12 text-center">
-          <Clock size={32} className="text-dark-600 mx-auto mb-3" />
-          <p className="text-white font-medium">Nenhuma conta encontrada</p>
-          <p className="text-dark-400 text-sm mt-1">
-            Não há contas com status "{filtro}"
-          </p>
+        <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-10 sm:p-12 text-center space-y-3 shadow-xs">
+          <div className="w-12 h-12 rounded-xl bg-dark-900 border border-dark-700/60 flex items-center justify-center mx-auto text-dark-400">
+            <Clock size={24} />
+          </div>
+          <div className="space-y-1">
+            <p className="text-base font-semibold text-white">Nenhuma conta encontrada</p>
+            <p className="text-sm text-dark-400 max-w-sm mx-auto">
+              Não há contas a pagar com status "{filtro}" para a empresa selecionada.
+            </p>
+          </div>
         </div>
       ) : (
         <div className="bg-dark-850/90 border border-dark-700/70 rounded-xl overflow-hidden shadow-lg">
