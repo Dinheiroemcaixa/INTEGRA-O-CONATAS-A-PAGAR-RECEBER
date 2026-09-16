@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import type { ContaPagarImportada } from '@/types'
 import { formatCurrency, formatDate, visualizarAnexo } from '@/lib/utils'
-import { CheckCircle, Zap, Clock, AlertCircle, RefreshCw, Loader2, Trash2, Landmark, Paperclip, Tags, Edit2, ArrowRightLeft, Building2 } from 'lucide-react'
+import { CheckCircle, Clock, AlertCircle, RefreshCw, Loader2, Trash2, Landmark, Paperclip, Tags, Edit2, ArrowRightLeft, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import SelectorContaFinanceira, { type ContaFinanceiraOpcao } from '@/components/upload/SelectorContaFinanceira'
@@ -11,7 +11,6 @@ import SelectorCategoria from '@/components/upload/SelectorCategoria'
 
 interface Props {
   empresaId?: string
-  topChildren?: React.ReactNode
 }
 
 const STATUS_CONFIG = {
@@ -21,7 +20,7 @@ const STATUS_CONFIG = {
   cancelado: { label: 'Cancelado', icon: AlertCircle, color: 'text-dark-500', bg: 'bg-dark-700' },
 }
 
-export default function TabelaContas({ empresaId, topChildren }: Props) {
+export default function TabelaContas({ empresaId }: Props) {
   const { empresas, setEmpresaAtiva } = useEmpresa()
   const [contas, setContas] = useState<ContaPagarImportada[]>([])
   const [loading, setLoading] = useState(true)
@@ -268,136 +267,45 @@ export default function TabelaContas({ empresaId, topChildren }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* FAIXA SUPERIOR DE 4 KPIS — ESTILO DASHBOARD */}
-      {(() => {
-        const total = contas.length
-        const totalValorGeral = totalPendente + totalEnviado
-
-        const cards = [
-          {
-            status: 'pendente',
-            title: 'Pendentes',
-            label: 'A ENVIAR',
-            value: qtdPendente,
-            sub: formatCurrency(totalPendente),
-            icon: Clock,
-            color: 'text-amber-400',
-            colorHex: '#f59e0b',
-            bg: 'bg-amber-400/10',
-            border: 'border-amber-400/20',
-            hoverBorder: 'hover:border-amber-400/60',
-            barColor: 'bg-amber-400',
-            barWidth: total > 0 ? `${Math.round((qtdPendente / total) * 100)}%` : '0%',
-          },
-          {
-            status: 'enviado',
-            title: 'Enviados',
-            label: 'CONTA AZUL',
-            value: qtdEnviado,
-            sub: formatCurrency(totalEnviado),
-            icon: CheckCircle,
-            color: 'text-emerald-400',
-            colorHex: '#10b981',
-            bg: 'bg-emerald-400/10',
-            border: 'border-emerald-400/20',
-            hoverBorder: 'hover:border-emerald-400/60',
-            barColor: 'bg-emerald-400',
-            barWidth: total > 0 ? `${Math.round((qtdEnviado / total) * 100)}%` : '0%',
-          },
-          {
-            status: 'erro',
-            title: 'Com Erro',
-            label: 'FALHAS',
-            value: qtdErro,
-            sub: qtdErro > 0 ? 'Necessitam atenção' : 'Sem falhas',
-            icon: AlertCircle,
-            color: 'text-rose-400',
-            colorHex: '#f43f5e',
-            bg: 'bg-rose-400/10',
-            border: 'border-rose-400/20',
-            hoverBorder: 'hover:border-rose-400/60',
-            barColor: 'bg-rose-400',
-            barWidth: total > 0 ? `${Math.round((qtdErro / total) * 100)}%` : '0%',
-          },
-          {
-            status: 'todos',
-            title: 'Total',
-            label: 'PROCESSADOS',
-            value: total,
-            sub: formatCurrency(totalValorGeral),
-            icon: Zap,
-            color: 'text-brand-400',
-            colorHex: '#6366f1',
-            bg: 'bg-brand-400/10',
-            border: 'border-brand-400/20',
-            hoverBorder: 'hover:border-brand-400/60',
-            barColor: 'bg-brand-400',
-            barWidth: '100%',
-          },
-        ]
-
-        return (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {cards.map((card) => {
-              const isSelected = filtro === card.status || (card.status === 'todos' && !['pendente', 'enviado', 'erro'].includes(filtro))
-              return (
-                <div
-                  key={card.title}
-                  onClick={() => {
-                    if (card.status === 'todos') {
-                      setFiltro('pendente')
-                    } else {
-                      setFiltro(card.status)
-                    }
-                  }}
-                  className={cn(
-                    'relative group rounded-2xl border p-5 flex flex-col gap-3 transition-all duration-300',
-                    'bg-white/[0.02] backdrop-blur-xl cursor-pointer',
-                    isSelected
-                      ? `${card.hoverBorder} bg-white/[0.04] ring-1 ring-offset-0`
-                      : `border-white/5 hover:bg-white/[0.04] hover:-translate-y-0.5 hover:shadow-lg ${card.hoverBorder}`
-                  )}
-                  style={isSelected ? { '--tw-ring-color': (card as any).colorHex, boxShadow: `0 0 25px ${(card as any).colorHex}25` } as any : {}}
-                >
-                  {/* Top row */}
-                  <div className="flex items-start justify-between">
-                    <div className={cn(card.bg, 'rounded-xl p-2.5 shadow-inner border border-white/5')}>
-                      <card.icon size={18} className={card.color} />
-                    </div>
-                    <span className={cn('text-[10px] font-bold uppercase tracking-widest opacity-60 border rounded-full px-2 py-0.5 border-current', card.color)}>
-                      {card.label}
-                    </span>
-                  </div>
-
-                  {/* Value */}
-                  <div className="flex-1 mt-1">
-                    <p className="text-3xl font-bold text-white font-mono tabular-nums leading-none drop-shadow-sm tracking-tight">
-                      {card.value}
-                    </p>
-                    <p className="text-dark-300 text-xs mt-2 font-medium font-mono truncate" title={card.sub}>
-                      {card.sub}
-                    </p>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div className="h-1.5 bg-dark-900/50 rounded-full overflow-hidden shadow-inner mt-2">
-                    <div
-                      className={cn('h-full rounded-full transition-all duration-700', card.barColor)}
-                      style={{ width: card.barWidth }}
-                    />
-                  </div>
-                </div>
-              )
-            })}
+      {/* Resumo rápido de KPIs (Padrão Corporativo Fase 4) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+        <div className="bg-dark-850/90 border border-dark-700/60 hover:border-amber-500/30 rounded-xl p-4 sm:p-5 shadow-xs transition-all relative overflow-hidden group">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="text-xs font-semibold text-dark-300 uppercase tracking-wider">Total Pendente</span>
+            <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <Clock size={16} />
+            </div>
           </div>
-        )
-      })()}
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-amber-400 text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight">
+              {formatCurrency(totalPendente)}
+            </p>
+            <span className="text-xs text-dark-400 font-medium">
+              {qtdPendente} {qtdPendente === 1 ? 'pendente' : 'pendentes'}
+            </span>
+          </div>
+        </div>
 
-      {/* ELEMENTOS INSERIDOS ENTRE KPIS E TABELA */}
-      {topChildren}
+        <div className="bg-dark-850/90 border border-dark-700/60 hover:border-emerald-500/30 rounded-xl p-4 sm:p-5 shadow-xs transition-all relative overflow-hidden group">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="text-xs font-semibold text-dark-300 uppercase tracking-wider">Total Enviado</span>
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+              <CheckCircle size={16} />
+            </div>
+          </div>
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-emerald-400 text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight">
+              {formatCurrency(totalEnviado)}
+            </p>
+            <span className="text-xs text-dark-400 font-medium">
+              {qtdEnviado} {qtdEnviado === 1 ? 'enviado' : 'enviados'}
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* Filtros e Ações em Lote */}
-      <div className="flex items-center justify-between gap-3 flex-wrap bg-white/[0.02] backdrop-blur-xl border border-white/5 p-3.5 sm:p-4 rounded-2xl shadow-xl">
+      <div className="flex items-center justify-between gap-3 flex-wrap bg-dark-850/80 p-3 sm:p-3.5 rounded-xl border border-dark-700/60 shadow-xs">
         <div className="inline-flex p-1 bg-dark-900 border border-dark-700/60 rounded-xl gap-1">
           {(['pendente', 'enviado', 'erro'] as const).map((f) => {
             const isSelected = filtro === f
@@ -410,7 +318,7 @@ export default function TabelaContas({ empresaId, topChildren }: Props) {
                 className={cn(
                   'h-9 px-3.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-2',
                   isSelected
-                    ? 'bg-primary-950/70 text-primary-300 border border-primary-500/40 shadow-xs'
+                    ? 'bg-brand-950/70 text-brand-300 border border-brand-500/40 shadow-xs'
                     : 'text-dark-400 hover:text-white hover:bg-dark-800/70 border border-transparent'
                 )}
               >
@@ -418,7 +326,7 @@ export default function TabelaContas({ empresaId, topChildren }: Props) {
                 <span className={cn(
                   'px-1.5 py-0.5 rounded-md text-[11px] font-mono tabular-nums font-bold',
                   isSelected
-                    ? 'bg-primary-500/20 text-primary-300 border border-primary-500/30'
+                    ? 'bg-brand-500/20 text-brand-300 border border-brand-500/30'
                     : f === 'erro' && qtd > 0
                       ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                       : 'bg-dark-800 text-dark-400'
@@ -434,7 +342,7 @@ export default function TabelaContas({ empresaId, topChildren }: Props) {
         {contas.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap animate-fade-in">
             {selecionados.length > 0 && (
-              <span className="text-xs text-primary-300 font-semibold px-2.5 py-1 bg-primary-500/15 rounded-md border border-primary-500/30">
+              <span className="text-xs text-brand-300 font-semibold px-2.5 py-1 bg-brand-500/15 rounded-md border border-brand-500/30">
                 {selecionados.length} selecionada(s)
               </span>
             )}
@@ -594,7 +502,7 @@ export default function TabelaContas({ empresaId, topChildren }: Props) {
                   const isSelected = selecionados.includes(conta.id)
 
                   return (
-                    <tr key={conta.id} className={isSelected ? 'bg-primary-500/10' : ''}>
+                    <tr key={conta.id} className={isSelected ? 'bg-brand-500/10' : ''}>
                       <td className="text-center">
                         <input
                           type="checkbox"
@@ -655,7 +563,7 @@ export default function TabelaContas({ empresaId, topChildren }: Props) {
                             className={cn(
                               'inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-semibold transition-all',
                               conta.conta_financeira
-                                ? 'bg-primary-500/15 text-primary-300 border-primary-500/30 hover:bg-primary-500/25'
+                                ? 'bg-brand-500/15 text-brand-300 border-brand-500/30 hover:bg-primary-500/25'
                                 : 'bg-amber-400/10 text-amber-400 border-amber-400/30 hover:bg-amber-400/20'
                             )}
                             title="Clique para selecionar o banco no Conta Azul"
