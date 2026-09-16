@@ -11,6 +11,7 @@ import SelectorCategoria from '@/components/upload/SelectorCategoria'
 
 interface Props {
   empresaId?: string
+  topChildren?: React.ReactNode
 }
 
 const STATUS_CONFIG = {
@@ -20,7 +21,7 @@ const STATUS_CONFIG = {
   cancelado: { label: 'Cancelado', icon: AlertCircle, color: 'text-dark-500', bg: 'bg-dark-700' },
 }
 
-export default function TabelaContas({ empresaId }: Props) {
+export default function TabelaContas({ empresaId, topChildren }: Props) {
   const { empresas, setEmpresaAtiva } = useEmpresa()
   const [contas, setContas] = useState<ContaPagarImportada[]>([])
   const [loading, setLoading] = useState(true)
@@ -281,6 +282,7 @@ export default function TabelaContas({ empresaId }: Props) {
             sub: formatCurrency(totalPendente),
             icon: Clock,
             color: 'text-amber-400',
+            colorHex: '#f59e0b',
             bg: 'bg-amber-400/10',
             border: 'border-amber-400/20',
             hoverBorder: 'hover:border-amber-400/60',
@@ -295,6 +297,7 @@ export default function TabelaContas({ empresaId }: Props) {
             sub: formatCurrency(totalEnviado),
             icon: CheckCircle,
             color: 'text-emerald-400',
+            colorHex: '#10b981',
             bg: 'bg-emerald-400/10',
             border: 'border-emerald-400/20',
             hoverBorder: 'hover:border-emerald-400/60',
@@ -309,6 +312,7 @@ export default function TabelaContas({ empresaId }: Props) {
             sub: qtdErro > 0 ? 'Necessitam atenção' : 'Sem falhas',
             icon: AlertCircle,
             color: 'text-rose-400',
+            colorHex: '#f43f5e',
             bg: 'bg-rose-400/10',
             border: 'border-rose-400/20',
             hoverBorder: 'hover:border-rose-400/60',
@@ -323,6 +327,7 @@ export default function TabelaContas({ empresaId }: Props) {
             sub: formatCurrency(totalValorGeral),
             icon: Zap,
             color: 'text-brand-400',
+            colorHex: '#6366f1',
             bg: 'bg-brand-400/10',
             border: 'border-brand-400/20',
             hoverBorder: 'hover:border-brand-400/60',
@@ -347,18 +352,19 @@ export default function TabelaContas({ empresaId }: Props) {
                   }}
                   className={cn(
                     'relative group rounded-2xl border p-5 flex flex-col gap-3 transition-all duration-300',
-                    'bg-white/[0.02] backdrop-blur-xl border-white/5 cursor-pointer',
+                    'bg-white/[0.02] backdrop-blur-xl cursor-pointer',
                     isSelected
-                      ? `${card.hoverBorder} bg-white/[0.05] shadow-[0_0_25px_rgba(0,0,0,0.25)] ring-1 ring-offset-0`
-                      : 'hover:bg-white/[0.04] hover:-translate-y-1 hover:shadow-xl hover:shadow-black/40'
+                      ? `${card.hoverBorder} bg-white/[0.04] ring-1 ring-offset-0`
+                      : `border-white/5 hover:bg-white/[0.04] hover:-translate-y-0.5 hover:shadow-lg ${card.hoverBorder}`
                   )}
+                  style={isSelected ? { '--tw-ring-color': (card as any).colorHex, boxShadow: `0 0 25px ${(card as any).colorHex}25` } as any : {}}
                 >
                   {/* Top row */}
                   <div className="flex items-start justify-between">
                     <div className={cn(card.bg, 'rounded-xl p-2.5 shadow-inner border border-white/5')}>
                       <card.icon size={18} className={card.color} />
                     </div>
-                    <span className={cn('text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full border border-current opacity-70', card.color)}>
+                    <span className={cn('text-[10px] font-bold uppercase tracking-widest opacity-60 border rounded-full px-2 py-0.5 border-current', card.color)}>
                       {card.label}
                     </span>
                   </div>
@@ -386,6 +392,9 @@ export default function TabelaContas({ empresaId }: Props) {
           </div>
         )
       })()}
+
+      {/* ELEMENTOS INSERIDOS ENTRE KPIS E TABELA */}
+      {topChildren}
 
       {/* Filtros e Ações em Lote */}
       <div className="flex items-center justify-between gap-3 flex-wrap bg-white/[0.02] backdrop-blur-xl border border-white/5 p-3.5 sm:p-4 rounded-2xl shadow-xl">
@@ -564,7 +573,7 @@ export default function TabelaContas({ empresaId }: Props) {
                       type="checkbox"
                       checked={contas.length > 0 && selecionados.length === contas.length}
                       onChange={toggleSelectAll}
-                      className="rounded border-dark-600 bg-dark-900 text-blue-500 focus:ring-blue-500 cursor-pointer"
+                      className="rounded border-dark-600 bg-dark-900 text-brand-500 focus:ring-brand-500 cursor-pointer"
                     />
                   </th>
                   <th>Fornecedor</th>
@@ -591,7 +600,7 @@ export default function TabelaContas({ empresaId }: Props) {
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelect(conta.id)}
-                          className="rounded border-dark-600 bg-dark-900 text-blue-500 focus:ring-blue-500 cursor-pointer"
+                          className="rounded border-dark-600 bg-dark-900 text-brand-500 focus:ring-brand-500 cursor-pointer"
                         />
                       </td>
                       <td>

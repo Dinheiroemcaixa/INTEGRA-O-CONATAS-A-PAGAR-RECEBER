@@ -697,7 +697,7 @@ export default function ContasPagarPage() {
       />
     )}
 
-    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 space-y-6 animate-fade-in">
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-5 space-y-4 animate-fade-in">
       {/* CABEÇALHO COMPACTO DA PÁGINA (Padrão Empresas) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-dark-700/60">
         <div className="flex items-center gap-2.5">
@@ -752,7 +752,7 @@ export default function ContasPagarPage() {
                       className={cn(
                         'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer',
                         subAba === 'datacar'
-                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
+                          ? 'bg-brand-600 text-white shadow-lg shadow-brand-900/20'
                           : 'text-dark-400 hover:text-white hover:bg-dark-800/60'
                       )}
                     >
@@ -764,7 +764,7 @@ export default function ContasPagarPage() {
                       className={cn(
                         'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer',
                         subAba === 'planilha'
-                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
+                          ? 'bg-brand-600 text-white shadow-lg shadow-brand-900/20'
                           : 'text-dark-400 hover:text-white hover:bg-dark-800/60'
                       )}
                     >
@@ -786,7 +786,7 @@ export default function ContasPagarPage() {
                   <button
                     onClick={() => setShowModalEnvio(true)}
                     disabled={enviandoCA}
-                    className="h-10 px-5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs sm:text-sm flex items-center gap-2 transition-all shadow-lg shadow-blue-900/30 active:scale-[0.99] cursor-pointer"
+                    className="h-10 px-5 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs sm:text-sm flex items-center gap-2 transition-all shadow-lg shadow-brand-900/30 active:scale-[0.99] cursor-pointer"
                   >
                     {enviandoCA ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                     <span>{enviandoCA ? 'Enviando...' : 'Enviar ao Conta Azul'}</span>
@@ -796,7 +796,7 @@ export default function ContasPagarPage() {
               
       {/* SUB-ABA: DATACAR */}
       {subAba === 'datacar' && (
-        <div className="space-y-4 pt-2">
+        <div className="space-y-4 pt-1">
           {!empresaAtiva ? (
             <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-center gap-3">
               <AlertCircle size={18} className="text-yellow-400 flex-shrink-0" />
@@ -816,239 +816,252 @@ export default function ContasPagarPage() {
               salvando={salvando}
             />
           ) : (
-            <>
-              {/* Painel de Agendamento Automático */}
-              {empresaAtiva.datacar_token && (
-                <PainelAgendamento 
-                  tipo="contas_pagar" 
-                />
-              )}
-
-              {/* Formulário de Busca do Datacar (Design System Fase 4) */}
-              {/* CARD MESTRE DE OPERAÇÃO — ESTILO DASHBOARD */}
-              <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 hover:border-brand-500/30 hover:bg-white/[0.03] rounded-2xl p-6 sm:p-7 transition-all duration-300 relative overflow-hidden group shadow-2xl space-y-5">
-                {/* Aura Luminosa de Fundo (Dashboard Style) */}
-                <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-brand-500/5 rounded-full blur-3xl group-hover:bg-brand-500/10 pointer-events-none transition-colors" />
-
-                {/* Header do Card Mestre */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/5 relative z-10">
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-12 h-12 bg-brand-500/10 border border-brand-500/20 rounded-xl flex items-center justify-center text-brand-400 group-hover:scale-105 transition-all shadow-inner">
-                      <Database size={22} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-xl font-bold text-white group-hover:text-brand-50 transition-colors tracking-tight">
-                          Buscar Contas no DataCar
-                        </h3>
-                      </div>
-                      <p className="text-xs sm:text-sm text-dark-400 mt-0.5">
-                        Consulte e importe previsões financeiras (CpRl010) diretamente do DMS DataCar
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-dark-400 bg-dark-900/60 border border-white/5 px-3 py-1 rounded-lg font-medium backdrop-blur-sm shadow-inner">
-                      DataCar · CpRl010
-                    </span>
-                    {empresaAtiva.datacar_token ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 shadow-sm">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-glow-sm" />
-                        <span>Token Ativo</span>
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium bg-amber-500/10 border border-amber-500/30 text-amber-300">
-                        <AlertCircle size={12} className="text-amber-400" />
-                        <span>Não Configurado</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Grid de Parâmetros com Visual de Vidro (Dashboard) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5 items-end relative z-10">
-                  <div>
-                    <label className="text-xs font-semibold uppercase tracking-wider mb-1.5 block text-dark-300">
-                      Período Por:
-                    </label>
-                    <select
-                      id="tipoPeriodoContas"
-                      value={tipoPeriodoContas}
-                      onChange={(e) => setTipoPeriodoContas(e.target.value as any)}
-                      className="w-full h-10 bg-dark-900/80 border border-white/10 rounded-xl px-3 text-white text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-colors shadow-inner"
-                    >
-                      <option value="venc">Vencimento</option>
-                      <option value="emis">Emissão</option>
-                      <option value="pgto">Pagamento</option>
-                      <option value="digit">Digitação</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold uppercase tracking-wider mb-1.5 block text-dark-300">
-                      Pagamento:
-                    </label>
-                    <select
-                      value={statusPagamento}
-                      onChange={(e) => setStatusPagamento(e.target.value as any)}
-                      className="w-full h-10 bg-dark-900/80 border border-white/10 rounded-xl px-3 text-white text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-colors shadow-inner"
-                    >
-                      <option value="todas">A pagar e pagas</option>
-                      <option value="apagar">A pagar</option>
-                      <option value="pagas">Pagas</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold uppercase tracking-wider mb-1.5 block text-dark-300">
-                      Local:
-                    </label>
-                    <select
-                      value={localPagamento}
-                      onChange={(e) => setLocalPagamento(e.target.value as any)}
-                      className="w-full h-10 bg-dark-900/80 border border-white/10 rounded-xl px-3 text-white text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-colors shadow-inner"
-                    >
-                      <option value="todos">(Todos)</option>
-                      <option value="BANCO">BANCO</option>
-                      <option value="CARTEIRA">CARTEIRA</option>
-                      <option value="TRANSFERENCIA">TRANSFERENCIA</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold uppercase tracking-wider mb-1.5 block text-dark-300">
-                      Data Inicial:
-                    </label>
-                    <div className="relative">
-                      <Calendar size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400 pointer-events-none" />
-                      <input
-                        type="date"
-                        value={dtIni}
-                        onChange={(e) => setDtIni(e.target.value)}
-                        className="w-full h-10 bg-dark-900/80 border border-white/10 rounded-xl pl-9 pr-2.5 text-white text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-colors shadow-inner"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold uppercase tracking-wider mb-1.5 block text-dark-300">
-                      Data Final:
-                    </label>
-                    <div className="relative">
-                      <Calendar size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400 pointer-events-none" />
-                      <input
-                        type="date"
-                        value={dtFim}
-                        onChange={(e) => setDtFim(e.target.value)}
-                        className="w-full h-10 bg-dark-900/80 border border-white/10 rounded-xl pl-9 pr-2.5 text-white text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-colors shadow-inner"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <button
-                      onClick={handleBuscarContasDatacar}
-                      disabled={buscando || !empresaAtiva.datacar_token}
-                      className="w-full h-10 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-brand-900/30 cursor-pointer active:scale-[0.99]"
-                    >
-                      {buscando ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-                      <span>{buscando ? 'Buscando...' : 'Buscar'}</span>
-                    </button>
-                  </div>
-                </div>
-
-                {!empresaAtiva.datacar_token && (
-                  <p className="text-amber-400 text-xs pt-1 flex items-center gap-1.5 relative z-10">
-                    <span>⚠️ Credenciais do Datacar não configuradas para esta empresa. Configure na aba "Empresas".</span>
-                  </p>
-                )}
-              </div>
-
-              {/* PAINEL DE STATUS DA INTEGRAÇÃO — ESTILO DASHBOARD */}
-              <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 rounded-2xl p-4 sm:p-5 shadow-lg">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/5">
-                  <div className="flex items-center gap-2">
-                    <Zap size={16} className="text-amber-400" />
-                    <h4 className="text-sm font-bold text-white tracking-tight">Status Operacional da Integração</h4>
-                  </div>
-                  <span className="text-xs text-dark-400 font-mono">
-                    Empresa Ativa: <strong className="text-white font-sans">{empresaAtiva.nome}</strong>
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-3 text-xs">
-                  <div className="bg-dark-900/40 border border-white/5 rounded-xl p-3 flex items-center gap-2.5">
-                    <Database size={16} className={empresaAtiva.datacar_token ? "text-emerald-400" : "text-amber-400"} />
-                    <div>
-                      <p className="text-dark-400 font-medium">Datacar DMS</p>
-                      <p className={cn("font-semibold font-mono", empresaAtiva.datacar_token ? "text-emerald-400" : "text-amber-400")}>
-                        {empresaAtiva.datacar_token ? "🟢 Conectado / Token Ativo" : "🟡 Credenciais Pendentes"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="bg-dark-900/40 border border-white/5 rounded-xl p-3 flex items-center gap-2.5">
-                    <ShieldCheck size={16} className={empresaAtiva.conta_azul_connected ? "text-emerald-400" : "text-amber-400"} />
-                    <div>
-                      <p className="text-dark-400 font-medium">Conta Azul Financeiro</p>
-                      <p className={cn("font-semibold font-mono", empresaAtiva.conta_azul_connected ? "text-emerald-400" : "text-amber-400")}>
-                        {empresaAtiva.conta_azul_connected ? "🟢 Conectado via OAuth 2.0" : "🟡 Desconectado"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="bg-dark-900/40 border border-white/5 rounded-xl p-3 flex items-center gap-2.5">
-                    <Building2 size={16} className="text-brand-400" />
-                    <div>
-                      <p className="text-dark-400 font-medium">Regime Operacional</p>
-                      <p className="text-white font-semibold font-mono uppercase">
-                        {empresaAtiva.tipo_empresa || "Financeiro"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Painel de Progresso do Envio Lote */}
-              {statusProgresso && (
-                <div className="bg-dark-800 border border-dark-700 rounded-xl p-4 space-y-3 mt-4 animate-fade-in">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Loader2 size={16} className={cn("text-primary-400", statusProgresso.emExecucao && "animate-spin")} />
-                      <span className="text-white font-bold text-sm">
-                        {statusProgresso.emExecucao ? 'Enviando lotes automáticos...' : 'Integração Concluída'}
-                      </span>
-                    </div>
-                    <span className="text-xs text-dark-400">
-                      {statusProgresso.total - statusProgresso.restantes} de {statusProgresso.total} contas processadas
-                    </span>
-                  </div>
-                  
-                  {/* Barra de Progresso */}
-                  <div className="w-full bg-dark-900 rounded-full h-2.5 overflow-hidden">
-                    <div 
-                      className="bg-primary-500 h-2 rounded-full transition-all duration-500" 
-                      style={{ width: `${Math.min(100, Math.round(((statusProgresso.total - statusProgresso.restantes) / statusProgresso.total) * 100))}%` }}
+            <TabelaContas
+              key={refreshContas}
+              empresaId={empresaAtiva?.id}
+              topChildren={
+                <div className="space-y-4">
+                  {/* Painel de Agendamento Automático */}
+                  {empresaAtiva.datacar_token && (
+                    <PainelAgendamento 
+                      tipo="contas_pagar" 
                     />
+                  )}
+
+                  {/* PAINEL DE STATUS DA INTEGRAÇÃO — ESTILO DASHBOARD */}
+                  <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 rounded-2xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
+                        <Zap size={14} className="text-brand-400" />
+                        Status da Integração
+                      </h4>
+                      <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        Operacional
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                      <div className="flex items-center gap-3 bg-dark-900/60 border border-white/5 rounded-xl px-4 py-3">
+                        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0", empresaAtiva.datacar_token ? "bg-emerald-400/10 text-emerald-400" : "bg-amber-400/10 text-amber-400")}>
+                          <Database size={15} />
+                        </div>
+                        <div>
+                          <p className="text-white text-sm font-medium">Datacar DMS</p>
+                          <p className="text-dark-400 text-xs font-mono">
+                            {empresaAtiva.datacar_token ? "Token Ativo" : "Não Configurado"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 bg-dark-900/60 border border-white/5 rounded-xl px-4 py-3">
+                        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0", empresaAtiva.conta_azul_connected ? "bg-emerald-400/10 text-emerald-400" : "bg-amber-400/10 text-amber-400")}>
+                          <ShieldCheck size={15} />
+                        </div>
+                        <div>
+                          <p className="text-white text-sm font-medium">Conta Azul</p>
+                          <p className="text-dark-400 text-xs font-mono">
+                            {empresaAtiva.conta_azul_connected ? "OAuth 2.0 Conectado" : "Desconectado"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 bg-dark-900/60 border border-white/5 rounded-xl px-4 py-3">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-brand-400/10 text-brand-400">
+                          <Building2 size={15} />
+                        </div>
+                        <div>
+                          <p className="text-white text-sm font-medium">Regime</p>
+                          <p className="text-dark-400 text-xs uppercase font-mono">
+                            {empresaAtiva.tipo_empresa || "Financeiro"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-4 text-xs font-semibold">
-                    <span className="text-green-400 flex items-center gap-1">
-                      ✓ {statusProgresso.enviados} enviadas com sucesso
-                    </span>
-                    <span className="text-red-400 flex items-center gap-1">
-                      ✗ {statusProgresso.erros} com falha
-                    </span>
-                    {statusProgresso.restantes > 0 && (
-                      <span className="text-yellow-400 flex items-center gap-1 animate-pulse">
-                        ⏳ {statusProgresso.restantes} aguardando
-                      </span>
+                  {/* CARD MESTRE DE OPERAÇÃO — ESTILO DASHBOARD */}
+                  <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 hover:border-brand-500/30 hover:bg-white/[0.03] rounded-2xl p-5 sm:p-6 transition-all duration-300 relative overflow-hidden group shadow-xl space-y-4">
+                    {/* Aura Luminosa Suave (Sem ofuscar inputs) */}
+                    <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 bg-brand-500/[0.03] rounded-full blur-2xl group-hover:bg-brand-500/[0.05] pointer-events-none transition-colors" />
+
+                    {/* Header do Card Mestre */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/5 relative z-10">
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-10 h-10 bg-brand-500/10 border border-brand-500/20 rounded-xl flex items-center justify-center text-brand-400 group-hover:scale-105 transition-all shadow-inner">
+                          <Database size={20} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-lg sm:text-xl font-bold text-white group-hover:text-brand-50 transition-colors tracking-tight">
+                              Buscar Contas no DataCar
+                            </h3>
+                          </div>
+                          <p className="text-xs text-dark-400 mt-0.5">
+                            Consulte e importe previsões financeiras (CpRl010) diretamente do DMS DataCar
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-dark-400 bg-dark-900/60 border border-white/5 px-2.5 py-1 rounded-lg font-medium backdrop-blur-sm shadow-inner">
+                          DataCar · CpRl010
+                        </span>
+                        {empresaAtiva.datacar_token ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 shadow-sm">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-glow-sm" />
+                            <span>Token Ativo</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-500/10 border border-amber-500/30 text-amber-300">
+                            <AlertCircle size={12} className="text-amber-400" />
+                            <span>Não Configurado</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Grid de Parâmetros com Altura Uniforme h-10 (Dashboard) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5 items-end relative z-10">
+                      <div>
+                        <label className="text-xs font-semibold uppercase tracking-wider mb-1.5 block text-dark-300">
+                          Período Por:
+                        </label>
+                        <select
+                          id="tipoPeriodoContas"
+                          value={tipoPeriodoContas}
+                          onChange={(e) => setTipoPeriodoContas(e.target.value as any)}
+                          className="w-full h-10 bg-dark-900/80 border border-white/10 rounded-xl px-3 text-white text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-colors shadow-inner"
+                        >
+                          <option value="venc">Vencimento</option>
+                          <option value="emis">Emissão</option>
+                          <option value="pgto">Pagamento</option>
+                          <option value="digit">Digitação</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold uppercase tracking-wider mb-1.5 block text-dark-300">
+                          Pagamento:
+                        </label>
+                        <select
+                          value={statusPagamento}
+                          onChange={(e) => setStatusPagamento(e.target.value as any)}
+                          className="w-full h-10 bg-dark-900/80 border border-white/10 rounded-xl px-3 text-white text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-colors shadow-inner"
+                        >
+                          <option value="todas">A pagar e pagas</option>
+                          <option value="apagar">A pagar</option>
+                          <option value="pagas">Pagas</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold uppercase tracking-wider mb-1.5 block text-dark-300">
+                          Local:
+                        </label>
+                        <select
+                          value={localPagamento}
+                          onChange={(e) => setLocalPagamento(e.target.value as any)}
+                          className="w-full h-10 bg-dark-900/80 border border-white/10 rounded-xl px-3 text-white text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-colors shadow-inner"
+                        >
+                          <option value="todos">(Todos)</option>
+                          <option value="BANCO">BANCO</option>
+                          <option value="CARTEIRA">CARTEIRA</option>
+                          <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold uppercase tracking-wider mb-1.5 block text-dark-300">
+                          Data Inicial:
+                        </label>
+                        <div className="relative">
+                          <Calendar size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400 pointer-events-none" />
+                          <input
+                            type="date"
+                            value={dtIni}
+                            onChange={(e) => setDtIni(e.target.value)}
+                            className="w-full h-10 bg-dark-900/80 border border-white/10 rounded-xl pl-9 pr-2.5 text-white text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-colors shadow-inner"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold uppercase tracking-wider mb-1.5 block text-dark-300">
+                          Data Final:
+                        </label>
+                        <div className="relative">
+                          <Calendar size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400 pointer-events-none" />
+                          <input
+                            type="date"
+                            value={dtFim}
+                            onChange={(e) => setDtFim(e.target.value)}
+                            className="w-full h-10 bg-dark-900/80 border border-white/10 rounded-xl pl-9 pr-2.5 text-white text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-colors shadow-inner"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold uppercase tracking-wider mb-1.5 block text-transparent select-none">
+                          Ação
+                        </label>
+                        <button
+                          onClick={handleBuscarContasDatacar}
+                          disabled={buscando || !empresaAtiva.datacar_token}
+                          className="w-full h-10 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-brand-900/30 cursor-pointer active:scale-[0.99]"
+                        >
+                          {buscando ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                          <span>{buscando ? 'Buscando...' : 'Buscar'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {!empresaAtiva.datacar_token && (
+                      <p className="text-amber-400 text-xs pt-1 flex items-center gap-1.5 relative z-10">
+                        <span>⚠️ Credenciais do Datacar não configuradas para esta empresa. Configure na aba "Empresas".</span>
+                      </p>
                     )}
                   </div>
-                </div>
-              )}
 
-              <TabelaContas key={refreshContas} empresaId={empresaAtiva?.id} />
-            </>
+                  {/* Painel de Progresso do Envio Lote */}
+                  {statusProgresso && (
+                    <div className="bg-dark-800 border border-dark-700 rounded-xl p-4 space-y-3 animate-fade-in">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Loader2 size={16} className={cn("text-primary-400", statusProgresso.emExecucao && "animate-spin")} />
+                          <span className="text-white font-bold text-sm">
+                            {statusProgresso.emExecucao ? 'Enviando lotes automáticos...' : 'Integração Concluída'}
+                          </span>
+                        </div>
+                        <span className="text-xs text-dark-400">
+                          {statusProgresso.total - statusProgresso.restantes} de {statusProgresso.total} contas processadas
+                        </span>
+                      </div>
+                      
+                      {/* Barra de Progresso */}
+                      <div className="w-full bg-dark-900 rounded-full h-2.5 overflow-hidden">
+                        <div 
+                          className="bg-primary-500 h-2 rounded-full transition-all duration-500" 
+                          style={{ width: `${Math.min(100, Math.round(((statusProgresso.total - statusProgresso.restantes) / statusProgresso.total) * 100))}%` }}
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-4 text-xs font-semibold">
+                        <span className="text-green-400 flex items-center gap-1">
+                          ✓ {statusProgresso.enviados} enviadas com sucesso
+                        </span>
+                        <span className="text-red-400 flex items-center gap-1">
+                          ✗ {statusProgresso.erros} com falha
+                        </span>
+                        {statusProgresso.restantes > 0 && (
+                          <span className="text-yellow-400 flex items-center gap-1 animate-pulse">
+                            ⏳ {statusProgresso.restantes} aguardando
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              }
+            />
           )}
         </div>
       )}
