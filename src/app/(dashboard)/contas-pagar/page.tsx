@@ -73,13 +73,13 @@ function ModalEnvioContaAzul({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-dark-800 border border-dark-600 rounded-2xl w-full max-w-md shadow-2xl animate-fade-in flex flex-col max-h-[90vh]">
+      <div className="bg-dark-850 border border-dark-700/80 rounded-xl w-full max-w-md shadow-2xl animate-fade-in flex flex-col max-h-[90vh]">
 
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-dark-700 flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-blue-500/10 rounded-xl flex items-center justify-center">
-              <Send size={16} className="text-blue-400" />
+            <div className="w-9 h-9 bg-primary-500/15 border border-primary-500/30 rounded-lg flex items-center justify-center">
+              <Send size={16} className="text-primary-400" />
             </div>
             <h3 className="text-white font-bold">Enviar ao Conta Azul</h3>
           </div>
@@ -104,8 +104,8 @@ function ModalEnvioContaAzul({
                   : 'bg-dark-900 border-amber-500/30 hover:border-amber-500/60'
               )}
             >
-              <div className="w-10 h-10 bg-brand-600/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                <span className="text-brand-400 font-bold text-sm">
+              <div className="w-10 h-10 bg-primary-500/15 border border-primary-500/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                <span className="text-primary-300 font-bold text-sm">
                   {empresaSelecionada?.nome?.charAt(0).toUpperCase() || '?'}
                 </span>
               </div>
@@ -142,7 +142,7 @@ function ModalEnvioContaAzul({
                       value={busca}
                       onChange={(e) => setBusca(e.target.value)}
                       placeholder="Pesquisar loja por nome ou CNPJ..."
-                      className="w-full bg-dark-800 border border-dark-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-dark-400 focus:outline-none focus:border-blue-500"
+                      className="w-full h-10 bg-dark-900 border border-dark-700 rounded-lg pl-9 pr-3 text-sm text-white placeholder-dark-500 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
                     />
                   </div>
                 </div>
@@ -163,11 +163,11 @@ function ModalEnvioContaAzul({
                           onClick={() => { setEmpresaSelecionada(emp); setAbrirSeletor(false); setBusca('') }}
                           className={cn(
                             'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
-                            isSelected ? 'bg-brand-600/15' : 'hover:bg-dark-700'
+                            isSelected ? 'bg-primary-950/60 text-primary-300 border border-primary-500/40' : 'hover:bg-dark-800 text-dark-200'
                           )}
                         >
-                          <div className="w-8 h-8 bg-brand-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <span className="text-brand-400 font-bold text-xs">{emp.nome.charAt(0).toUpperCase()}</span>
+                          <div className="w-8 h-8 bg-primary-500/15 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <span className="text-primary-300 font-bold text-xs">{emp.nome.charAt(0).toUpperCase()}</span>
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-white text-sm font-medium truncate">{emp.nome}</p>
@@ -246,7 +246,7 @@ function ModalEnvioContaAzul({
           <button
             onClick={() => empresaSelecionada && onConfirmar(empresaSelecionada.id)}
             disabled={!conectado || enviando || !empresaSelecionada}
-            className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-900/20"
+            className="flex-1 h-10 bg-primary-600 hover:bg-primary-500 disabled:opacity-40 disabled:cursor-not-allowed text-white px-4 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm"
           >
             {enviando ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
             {enviando ? 'Enviando...' : 'Confirmar envio'}
@@ -701,7 +701,7 @@ export default function ContasPagarPage() {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-white">Contas a Pagar</h1>
-            <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-semibold rounded-full border border-emerald-500/25 tracking-wider">
+            <span className="px-2.5 py-0.5 bg-emerald-500/15 text-emerald-400 text-xs font-semibold rounded-md border border-emerald-500/30">
               PRODUÇÃO
             </span>
           </div>
@@ -730,30 +730,30 @@ export default function ContasPagarPage() {
         </div>
       </div>
 
-      {/* Segmented Control de Abas (Harmonizado com Vendas) */}
-      <div className="flex items-center justify-between border-b border-dark-700/70 pb-3">
-        <div className="inline-flex p-1 bg-dark-800/80 backdrop-blur-md rounded-2xl border border-dark-700/60 gap-1 shadow-inner">
+      {/* Barra de Abas Horizontais (Design System Fase 4) */}
+      <div className="flex items-center justify-between border-b border-dark-700/60 pb-3">
+        <div className="inline-flex p-1 bg-dark-900 border border-dark-700/60 rounded-xl gap-1">
           <button
             onClick={() => setSubAba('datacar')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
               subAba === 'datacar'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-950/40'
-                : 'text-dark-400 hover:text-white hover:bg-dark-700/50'
+                ? 'bg-primary-950/60 text-primary-300 border border-primary-500/40 font-semibold shadow-xs'
+                : 'text-dark-400 hover:text-dark-200 hover:bg-dark-800/60 border border-transparent'
             }`}
           >
-            <Database size={14} />
-            Datacar Contas
+            <Database size={15} />
+            <span>Datacar Contas</span>
           </button>
           <button
             onClick={() => setSubAba('planilha')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
               subAba === 'planilha'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/40'
-                : 'text-dark-400 hover:text-white hover:bg-dark-700/50'
+                ? 'bg-primary-950/60 text-primary-300 border border-primary-500/40 font-semibold shadow-xs'
+                : 'text-dark-400 hover:text-dark-200 hover:bg-dark-800/60 border border-transparent'
             }`}
           >
-            <FileSpreadsheet size={14} />
-            Importar Planilha
+            <FileSpreadsheet size={15} />
+            <span>Importar Planilha</span>
           </button>
         </div>
       </div>
@@ -791,7 +791,7 @@ export default function ContasPagarPage() {
               {/* Formulário de Busca do Datacar */}
               <div className="bg-dark-800 border border-dark-700 rounded-xl p-5 animate-fade-in">
                 <div className="flex items-center gap-2 mb-4 text-white font-semibold">
-                  <Database size={18} className="text-blue-400" />
+                  <Database size={18} className="text-primary-400" />
                   <h3>Buscar Contas do Datacar</h3>
                 </div>
                 <div className="flex items-end gap-4 flex-wrap">
@@ -803,7 +803,7 @@ export default function ContasPagarPage() {
                       id="tipoPeriodoContas"
                       value={tipoPeriodoContas}
                       onChange={(e) => setTipoPeriodoContas(e.target.value as any)}
-                      className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
+                      className="h-10 bg-dark-900 border border-dark-700 rounded-lg px-3.5 text-white text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
                     >
                       <option value="venc">Vencimento</option>
                       <option value="emis">Emissão</option>
@@ -818,7 +818,7 @@ export default function ContasPagarPage() {
                     <select
                       value={statusPagamento}
                       onChange={(e) => setStatusPagamento(e.target.value as any)}
-                      className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
+                      className="h-10 bg-dark-900 border border-dark-700 rounded-lg px-3.5 text-white text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
                     >
                       <option value="todas">A pagar e pagas</option>
                       <option value="apagar">A pagar</option>
@@ -832,7 +832,7 @@ export default function ContasPagarPage() {
                     <select
                       value={localPagamento}
                       onChange={(e) => setLocalPagamento(e.target.value as any)}
-                      className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
+                      className="h-10 bg-dark-900 border border-dark-700 rounded-lg px-3.5 text-white text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
                     >
                       <option value="todos">(Todos)</option>
                       <option value="BANCO">BANCO</option>
@@ -849,7 +849,7 @@ export default function ContasPagarPage() {
                         type="date"
                         value={dtIni}
                         onChange={(e) => setDtIni(e.target.value)}
-                        className="bg-dark-900 border border-dark-600 rounded-lg pl-10 pr-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-40"
+                        className="h-10 bg-dark-900 border border-dark-700 rounded-lg pl-10 pr-3 text-white text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors w-40"
                       />
                     </div>
                   </div>
@@ -862,7 +862,7 @@ export default function ContasPagarPage() {
                         type="date"
                         value={dtFim}
                         onChange={(e) => setDtFim(e.target.value)}
-                        className="bg-dark-900 border border-dark-600 rounded-lg pl-10 pr-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-40"
+                        className="h-10 bg-dark-900 border border-dark-700 rounded-lg pl-10 pr-3 text-white text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors w-40"
                       />
                     </div>
                   </div>
@@ -870,7 +870,7 @@ export default function ContasPagarPage() {
                   <button
                     onClick={handleBuscarContasDatacar}
                     disabled={buscando || !empresaAtiva.datacar_token}
-                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all ml-auto sm:ml-0"
+                    className="h-10 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 text-white px-5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors shadow-sm ml-auto sm:ml-0"
                   >
                     {buscando ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
                     {buscando ? 'Buscando...' : 'Buscar'}
@@ -890,7 +890,7 @@ export default function ContasPagarPage() {
                   <button
                     onClick={() => setShowModalEnvio(true)}
                     disabled={enviandoCA}
-                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-blue-900/20"
+                    className="h-10 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors shadow-sm"
                   >
                     {enviandoCA ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                     {enviandoCA ? 'Enviando...' : 'Enviar ao Conta Azul'}
@@ -911,7 +911,7 @@ export default function ContasPagarPage() {
                 <div className="bg-dark-800 border border-dark-700 rounded-xl p-4 space-y-3 mt-4 animate-fade-in">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Loader2 size={16} className={cn("text-blue-400", statusProgresso.emExecucao && "animate-spin")} />
+                      <Loader2 size={16} className={cn("text-primary-400", statusProgresso.emExecucao && "animate-spin")} />
                       <span className="text-white font-bold text-sm">
                         {statusProgresso.emExecucao ? 'Enviando lotes automáticos...' : 'Integração Concluída'}
                       </span>
@@ -924,7 +924,7 @@ export default function ContasPagarPage() {
                   {/* Barra de Progresso */}
                   <div className="w-full bg-dark-900 rounded-full h-2.5 overflow-hidden">
                     <div 
-                      className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" 
+                      className="bg-primary-500 h-2 rounded-full transition-all duration-500" 
                       style={{ width: `${Math.min(100, Math.round(((statusProgresso.total - statusProgresso.restantes) / statusProgresso.total) * 100))}%` }}
                     />
                   </div>
@@ -969,7 +969,7 @@ export default function ContasPagarPage() {
                       if (e === 'upload') setResultado(null)
                     }}
                     className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                      isActive ? 'bg-brand-600 text-white shadow-md shadow-brand-600/20' :
+                      isActive ? 'bg-primary-600 text-white shadow-sm' :
                       isDone ? 'bg-green-600/20 text-green-400 hover:bg-green-600/30' :
                       'bg-dark-800 text-dark-400 hover:text-white hover:bg-dark-700'
                     }`}

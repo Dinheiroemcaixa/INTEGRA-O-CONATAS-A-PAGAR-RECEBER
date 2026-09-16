@@ -98,12 +98,12 @@ export default function DropZone({ onResultado, processando }: Props) {
       <div
         {...getRootProps()}
         className={cn(
-          'border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all duration-200',
+          'border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all duration-200',
           isDragActive
-            ? 'border-brand-500 bg-brand-500/10 scale-[1.01]'
+            ? 'border-primary-500 bg-primary-500/10 scale-[1.01]'
             : arquivo
-            ? 'border-green-500/50 bg-green-500/5'
-            : 'border-dark-600 bg-dark-800/50 hover:border-brand-600 hover:bg-brand-600/5',
+            ? 'border-emerald-500/50 bg-emerald-500/5'
+            : 'border-dark-700 bg-dark-850/80 hover:border-primary-500/60 hover:bg-primary-500/5',
           (carregando || processando) && 'opacity-60 cursor-not-allowed'
         )}
       >
@@ -111,7 +111,7 @@ export default function DropZone({ onResultado, processando }: Props) {
 
         {carregando ? (
           <div className="flex flex-col items-center gap-3">
-            <Loader2 size={40} className="text-brand-400 animate-spin" />
+            <Loader2 size={40} className="text-primary-400 animate-spin" />
             <p className="text-white font-medium">Processando arquivo...</p>
             <p className="text-dark-400 text-sm">Extraindo dados do DataCar</p>
           </div>
@@ -129,22 +129,22 @@ export default function DropZone({ onResultado, processando }: Props) {
         ) : (
           <div className="flex flex-col items-center gap-4">
             <div className={cn(
-              'w-16 h-16 rounded-2xl flex items-center justify-center transition-all',
-              isDragActive ? 'bg-brand-500/20' : 'bg-dark-700'
+              'w-14 h-14 rounded-xl flex items-center justify-center transition-all',
+              isDragActive ? 'bg-primary-500/20 text-primary-400' : 'bg-dark-800 border border-dark-700 text-dark-400'
             )}>
-              <Upload size={28} className={cn(isDragActive ? 'text-brand-400' : 'text-dark-400')} />
+              <Upload size={26} />
             </div>
             <div>
               <p className="text-white font-semibold text-lg">
                 {isDragActive ? 'Solte o arquivo aqui' : 'Arraste o arquivo DataCar'}
               </p>
               <p className="text-dark-400 text-sm mt-1">
-                ou <span className="text-brand-400 font-medium">clique para selecionar</span>
+                ou <span className="text-primary-400 font-medium hover:text-primary-300">clique para selecionar</span>
               </p>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
               {['Excel .xlsx', 'CSV .csv', 'PDF .pdf', 'Imagem .png/.jpg'].map((fmt) => (
-                <span key={fmt} className="text-xs bg-dark-700 text-dark-400 px-2.5 py-1 rounded-full">
+                <span key={fmt} className="text-xs bg-dark-800 border border-dark-700 text-dark-300 px-2.5 py-1 rounded-md font-medium">
                   {fmt}
                 </span>
               ))}

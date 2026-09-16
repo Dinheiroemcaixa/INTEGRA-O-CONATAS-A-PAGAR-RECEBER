@@ -266,11 +266,11 @@ export default function TabelaContas({ empresaId }: Props) {
     <div className="space-y-4">
             {/* Resumo rápido */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-dark-800/80 backdrop-blur-md border border-amber-500/20 rounded-2xl p-4 shadow-lg">
+        <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-4 shadow-xs space-y-1">
           <p className="text-xs text-dark-400 mb-1 font-medium">Total Pendente</p>
           <p className="text-amber-400 text-xl font-bold font-mono tabular-nums">{formatCurrency(totalPendente)}</p>
         </div>
-        <div className="bg-dark-800/80 backdrop-blur-md border border-emerald-500/20 rounded-2xl p-4 shadow-lg">
+        <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-4 shadow-xs space-y-1">
           <p className="text-xs text-dark-400 mb-1 font-medium">Total Enviado</p>
           <p className="text-emerald-400 text-xl font-bold font-mono tabular-nums">{formatCurrency(totalEnviado)}</p>
         </div>
@@ -286,8 +286,8 @@ export default function TabelaContas({ empresaId }: Props) {
               className={cn(
                 'px-3 py-1.5 rounded-lg text-sm font-medium transition-all capitalize',
                 filtro === f
-                  ? 'bg-brand-600 text-white'
-                  : 'bg-dark-800 text-dark-400 hover:text-white hover:bg-dark-700'
+                  ? 'bg-primary-950/60 text-primary-300 border border-primary-500/40 font-semibold shadow-xs'
+                  : 'bg-dark-900/60 text-dark-400 hover:text-white hover:bg-dark-800 border border-dark-700/60'
               )}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -299,7 +299,7 @@ export default function TabelaContas({ empresaId }: Props) {
         {contas.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap animate-fade-in">
             {selecionados.length > 0 && (
-              <span className="text-xs text-blue-400 font-bold px-2 py-1 bg-blue-500/10 rounded border border-blue-500/20">
+              <span className="text-xs text-primary-300 font-semibold px-2.5 py-1 bg-primary-500/15 rounded-md border border-primary-500/30">
                 {selecionados.length} selecionada(s)
               </span>
             )}
@@ -316,7 +316,7 @@ export default function TabelaContas({ empresaId }: Props) {
               ) : (
                 <button
                   onClick={() => setEditandoEmMassaConta(true)}
-                  className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-all shadow-sm"
+                  className="flex items-center gap-2 bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white border border-dark-700 text-sm font-medium px-3.5 py-2 rounded-lg transition-colors shadow-xs"
                   title="Aplicar o mesmo banco a todas as contas selecionadas (ou todas da lista)"
                 >
                   <Landmark size={13} /> {selecionados.length > 0 ? `Banco (${selecionados.length})` : 'Banco em Lote'}
@@ -335,7 +335,7 @@ export default function TabelaContas({ empresaId }: Props) {
               ) : (
                 <button
                   onClick={() => setEditandoEmMassaCat(true)}
-                  className="flex items-center gap-1.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-all shadow-sm"
+                  className="flex items-center gap-2 bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white border border-dark-700 text-sm font-medium px-3.5 py-2 rounded-lg transition-colors shadow-xs"
                   title="Aplicar a mesma categoria a todas as contas selecionadas (ou todas da lista)"
                 >
                   <Tags size={13} /> {selecionados.length > 0 ? `Categoria (${selecionados.length})` : 'Categoria em Lote'}
@@ -347,7 +347,7 @@ export default function TabelaContas({ empresaId }: Props) {
             <div className="relative">
               {editandoEmMassaLoja ? (
                 <div className="absolute top-0 left-0 z-30 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl p-2.5 min-w-[240px] animate-fade-in space-y-1.5">
-                  <div className="flex items-center justify-between px-2 py-1 text-[11px] font-bold text-dark-400 border-b border-dark-700/60 mb-1">
+                  <div className="flex items-center justify-between px-2.5 py-1.5 text-xs font-bold text-dark-400 border-b border-dark-700/60 mb-1">
                     <span>Transferir para Loja:</span>
                     <button type="button" onClick={() => setEditandoEmMassaLoja(false)} className="text-dark-500 hover:text-white text-xs">✕</button>
                   </div>
@@ -424,7 +424,7 @@ export default function TabelaContas({ empresaId }: Props) {
           </p>
         </div>
       ) : (
-        <div className="bg-dark-800/90 backdrop-blur-md border border-dark-700/80 rounded-2xl overflow-hidden shadow-2xl">
+        <div className="bg-dark-850/90 border border-dark-700/70 rounded-xl overflow-hidden shadow-lg">
           <div className="overflow-x-auto">
             <table className="table-bpo">
               <thead>
@@ -455,7 +455,7 @@ export default function TabelaContas({ empresaId }: Props) {
                   const isSelected = selecionados.includes(conta.id)
 
                   return (
-                    <tr key={conta.id} className={isSelected ? 'bg-blue-500/10' : ''}>
+                    <tr key={conta.id} className={isSelected ? 'bg-primary-500/10' : ''}>
                       <td className="text-center">
                         <input
                           type="checkbox"
@@ -491,7 +491,7 @@ export default function TabelaContas({ empresaId }: Props) {
                           <button
                             type="button"
                             onClick={() => setEditandoCategoriaId(conta.id)}
-                            className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-brand-400/10 text-brand-400 border border-brand-400/20 hover:bg-brand-400/20 transition-all font-medium"
+                            className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white border border-dark-700 transition-colors font-medium"
                             title="Clique para alterar a categoria"
                           >
                             {conta.categoria || 'Materiais para Revenda'}
@@ -516,7 +516,7 @@ export default function TabelaContas({ empresaId }: Props) {
                             className={cn(
                               'inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-semibold transition-all',
                               conta.conta_financeira
-                                ? 'bg-blue-400/10 text-blue-400 border-blue-400/20 hover:bg-blue-400/20'
+                                ? 'bg-primary-500/15 text-primary-300 border-primary-500/30 hover:bg-primary-500/25'
                                 : 'bg-amber-400/10 text-amber-400 border-amber-400/30 hover:bg-amber-400/20'
                             )}
                             title="Clique para selecionar o banco no Conta Azul"
@@ -542,7 +542,7 @@ export default function TabelaContas({ empresaId }: Props) {
                           {cfg.label}
                         </span>
                         {conta.status === 'erro' && conta.erro_mensagem && (
-                          <p className="text-red-400/80 text-[10px] mt-1 max-w-[300px] break-words" title={conta.erro_mensagem}>
+                          <p className="text-red-400/90 text-xs mt-1 max-w-[300px] break-words" title={conta.erro_mensagem}>
                             {conta.erro_mensagem.substring(0, 150)}{conta.erro_mensagem.length > 150 ? '...' : ''}
                           </p>
                         )}

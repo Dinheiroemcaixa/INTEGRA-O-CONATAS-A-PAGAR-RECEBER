@@ -45,10 +45,10 @@ function BadgeMatch({
   if (origem === 'depara' || origem === 'manual' || foiCorrigido) {
     return (
       <span 
-        className="inline-flex items-center gap-1 text-[10px] text-blue-400 bg-blue-500/10 border border-blue-500/25 px-2 py-0.5 rounded-full font-medium shadow-sm whitespace-nowrap" 
+        className="inline-flex items-center gap-1 text-xs text-primary-300 bg-primary-500/15 border border-primary-500/30 px-2.5 py-0.5 rounded-md font-medium shadow-xs whitespace-nowrap" 
         title="Fornecedor corrigido por regra De-Para ou ajuste salvo"
       >
-        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+        <span className="w-1.5 h-1.5 rounded-full bg-primary-400" />
         🔄 Corrigido
       </span>
     )
@@ -58,7 +58,7 @@ function BadgeMatch({
   if (origem === 'direto' || origem === 'cnpj' || confianca === 'exato' || score === 100) {
     return (
       <span 
-        className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-full font-medium shadow-sm whitespace-nowrap" 
+        className="inline-flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 rounded-md font-medium shadow-xs whitespace-nowrap" 
         title="Nome/CNPJ corresponde exatamente ao cadastro do Conta Azul"
       >
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
@@ -71,7 +71,7 @@ function BadgeMatch({
   if (score >= 50) {
     return (
       <span 
-        className="inline-flex items-center gap-1 text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-full font-medium shadow-sm whitespace-nowrap" 
+        className="inline-flex items-center gap-1 text-xs text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-md font-medium shadow-xs whitespace-nowrap" 
         title={`Sugestão por similaridade (${score}%) — revise antes de enviar`}
       >
         <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
@@ -83,7 +83,7 @@ function BadgeMatch({
   // 4. Não encontrado (AMARELO ALERTA)
   return (
     <span 
-      className="inline-flex items-center gap-1 text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-full font-medium shadow-sm whitespace-nowrap" 
+      className="inline-flex items-center gap-1 text-xs text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-md font-medium shadow-xs whitespace-nowrap" 
       title="Fornecedor não encontrado no Conta Azul — será criado ou precisa de conferência"
     >
       <AlertCircle size={9} className="text-amber-400" />
@@ -170,7 +170,7 @@ export default function TabelaPreview({
   }, [buscaFornecedor, buscaCategoria, buscaValor, filtro, onToggleTodosLote])
 
   return (
-    <div className="bg-dark-800/90 backdrop-blur-md border border-dark-700/80 rounded-2xl overflow-hidden shadow-2xl">
+    <div className="bg-dark-850/90 border border-dark-700/70 rounded-xl overflow-hidden shadow-lg">
       {/* Header da tabela */}
       <div className="px-4 py-3 border-b border-dark-700 space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
@@ -179,19 +179,19 @@ export default function TabelaPreview({
           </p>
           <div className="flex items-center gap-3 flex-wrap">
             {exatosCount > 0 && (
-              <span className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full font-medium shadow-sm">
+              <span className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 rounded-md font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                 {exatosCount} exatos
               </span>
             )}
             {deparaCount > 0 && (
-              <span className="flex items-center gap-1.5 text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-0.5 rounded-full font-medium shadow-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+              <span className="flex items-center gap-1.5 text-xs text-primary-300 bg-primary-500/15 border border-primary-500/30 px-2.5 py-1 rounded-md font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary-400" />
                 {deparaCount} corrigidos
               </span>
             )}
             {naoEncontradosCount > 0 && (
-              <span className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full font-medium shadow-sm">
+              <span className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 rounded-md font-medium">
                 <AlertCircle size={11} />
                 {naoEncontradosCount} não encontrados
               </span>
@@ -217,7 +217,7 @@ export default function TabelaPreview({
               placeholder="Filtrar fornecedor..."
               value={buscaFornecedor}
               onChange={(e) => setBuscaFornecedor(e.target.value)}
-              className="w-full bg-dark-900/80 border border-dark-700/80 rounded-xl px-3 py-2 text-xs text-white outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500/80 transition-all shadow-inner"
+              className="h-10 w-full bg-dark-900 border border-dark-700 rounded-lg px-3 text-sm text-white placeholder-dark-500 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
             />
           </div>
           <div className="relative">
@@ -226,7 +226,7 @@ export default function TabelaPreview({
               placeholder="Filtrar categoria..."
               value={buscaCategoria}
               onChange={(e) => setBuscaCategoria(e.target.value)}
-              className="w-full bg-dark-900/80 border border-dark-700/80 rounded-xl px-3 py-2 text-xs text-white outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500/80 transition-all shadow-inner"
+              className="h-10 w-full bg-dark-900 border border-dark-700 rounded-lg px-3 text-sm text-white placeholder-dark-500 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
             />
           </div>
           <div className="relative">
@@ -235,16 +235,16 @@ export default function TabelaPreview({
               placeholder="Filtrar valor..."
               value={buscaValor}
               onChange={(e) => setBuscaValor(e.target.value)}
-              className="w-full bg-dark-900/80 border border-dark-700/80 rounded-xl px-3 py-2 text-xs text-white outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500/80 transition-all shadow-inner"
+              className="h-10 w-full bg-dark-900 border border-dark-700 rounded-lg px-3 text-sm text-white placeholder-dark-500 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
             />
           </div>
         </div>
 
         {/* Painel de Edição em Lote */}
         {selecionados.size > 0 && (
-          <div className="bg-brand-600/10 border border-brand-600/30 rounded-lg p-3 flex items-center justify-between animate-in slide-in-from-top-2">
+          <div className="bg-primary-950/60 border border-primary-500/30 rounded-lg p-3 flex items-center justify-between animate-in slide-in-from-top-2">
             <div className="flex items-center gap-3">
-              <span className="text-xs font-bold text-brand-400">{selecionados.size} selecionados</span>
+              <span className="text-xs font-semibold text-primary-300 px-2 py-0.5 rounded bg-primary-500/20">{selecionados.size} selecionados</span>
               <div className="h-4 w-px bg-dark-600" />
               {showBulkEdit ? (
                 <div className="flex items-center gap-3 flex-wrap">
@@ -265,7 +265,7 @@ export default function TabelaPreview({
                             <button
                               key={i}
                               onClick={() => { setLoteCategoria(cat); setShowBulkList(false) }}
-                              className="w-full text-left px-3 py-1.5 text-[10px] text-white hover:bg-brand-600/20 transition-colors"
+                              className="w-full text-left px-3 py-1.5 text-xs text-white hover:bg-primary-600/20 transition-colors"
                             >
                               {cat}
                             </button>
@@ -280,7 +280,7 @@ export default function TabelaPreview({
                         setLoteCategoria('')
                       }}
                       disabled={!loteCategoria}
-                      className="bg-brand-600 text-white px-2 py-1 rounded text-[10px] font-bold disabled:opacity-50"
+                      className="bg-primary-600 text-white px-2.5 py-1 rounded-md text-xs font-semibold disabled:opacity-50"
                     >
                       Aplicar
                     </button>
@@ -303,7 +303,7 @@ export default function TabelaPreview({
                             <button
                               key={c.id}
                               onClick={() => { setLoteConta(c.descricao); setShowBulkContaList(false) }}
-                              className="w-full text-left px-3 py-1.5 text-[10px] text-white hover:bg-blue-600/20 transition-colors"
+                              className="w-full text-left px-3 py-1.5 text-xs text-white hover:bg-primary-600/20 transition-colors"
                             >
                               {c.descricao}
                             </button>
@@ -318,7 +318,7 @@ export default function TabelaPreview({
                         setLoteConta('')
                       }}
                       disabled={!loteConta}
-                      className="bg-blue-600 text-white px-2 py-1 rounded text-[10px] font-bold disabled:opacity-50"
+                      className="bg-primary-600 text-white px-2.5 py-1 rounded-md text-xs font-semibold disabled:opacity-50"
                     >
                       Aplicar
                     </button>
@@ -332,18 +332,18 @@ export default function TabelaPreview({
                         onUpdateFornecedorLote(Array.from(selecionados), '')
                       }
                     }}
-                    className="bg-amber-600 hover:bg-amber-500 text-white px-2 py-1 rounded text-[10px] font-bold transition-all"
+                    className="bg-amber-600 hover:bg-amber-500 text-white px-2.5 py-1 rounded-md text-xs font-semibold transition-all"
                     title="Remove o fornecedor selecionado para enviar em branco"
                   >
                     Limpar Fornecedor
                   </button>
 
-                  <button onClick={() => { setShowBulkEdit(false); setShowBulkList(false); setShowBulkContaList(false) }} className="text-dark-400 text-[10px]">Fechar</button>
+                  <button onClick={() => { setShowBulkEdit(false); setShowBulkList(false); setShowBulkContaList(false) }} className="text-dark-400 hover:text-white text-xs">Fechar</button>
                 </div>
               ) : (
                 <button 
                   onClick={() => setShowBulkEdit(true)}
-                  className="text-xs text-brand-400 hover:text-brand-300 font-semibold flex items-center gap-1"
+                  className="text-xs text-primary-300 hover:text-primary-200 font-semibold flex items-center gap-1"
                 >
                   <Edit2 size={12} /> Alterar em Lote
                 </button>
@@ -379,7 +379,7 @@ export default function TabelaPreview({
                       onToggleTodosLote(indicesFiltradosValidos, 'marcar')
                     }
                   }}
-                  className="w-4 h-4 rounded border-dark-500 bg-dark-700 checked:bg-brand-600 cursor-pointer"
+                  className="w-4 h-4 rounded border-dark-500 bg-dark-700 checked:bg-primary-600 cursor-pointer"
                 />
               </th>
               <th>Fornecedor</th>
@@ -409,8 +409,8 @@ export default function TabelaPreview({
                   key={idx}
                   className={cn(
                     !item.valido && 'bg-red-500/5',
-                    selecionados.has(idx) && item.valido && 'bg-brand-600/5',
-                    isEditing && 'bg-brand-900/10'
+                    selecionados.has(idx) && item.valido && 'bg-primary-500/10',
+                    isEditing && 'bg-dark-800'
                   )}
                 >
                   <td>
@@ -418,7 +418,7 @@ export default function TabelaPreview({
                       type="checkbox"
                       checked={selecionados.has(idx)}
                       onChange={() => onToggle(idx)}
-                      className="w-4 h-4 rounded border-dark-500 bg-dark-700 checked:bg-brand-600 cursor-pointer"
+                      className="w-4 h-4 rounded border-dark-500 bg-dark-700 checked:bg-primary-600 cursor-pointer"
                     />
                   </td>
                   <td className="min-w-[260px]">
@@ -457,12 +457,12 @@ export default function TabelaPreview({
                           </button>
                         </div>
                         {foiCorrigido && match.nomeOriginal !== item.fornecedor && (
-                          <span className="text-[10px] text-dark-400 flex items-center gap-1 mt-0.5 font-mono">
+                          <span className="text-xs text-dark-400 flex items-center gap-1 mt-0.5 font-mono">
                             original: {match.nomeOriginal}
                           </span>
                         )}
                         {item.ca_duplicidade?.encontrado && (
-                          <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-400 bg-amber-400/10 px-2 py-1 rounded border border-amber-400/20 w-max cursor-help" title={`Possível duplicidade no Conta Azul:\nStatus: ${item.ca_duplicidade.status}\nData: ${item.ca_duplicidade.vencimento}\nValor: R$ ${item.ca_duplicidade.valor}\nFornecedor: ${item.ca_duplicidade.fornecedor}`}>
+                          <div className="mt-1 flex items-center gap-1 text-xs text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded-md border border-amber-500/30 w-max cursor-help" title={`Possível duplicidade no Conta Azul:\nStatus: ${item.ca_duplicidade.status}\nData: ${item.ca_duplicidade.vencimento}\nValor: R$ ${item.ca_duplicidade.valor}\nFornecedor: ${item.ca_duplicidade.fornecedor}`}>
                             <AlertCircle size={10} />
                             <span>Possível Duplicidade CA</span>
                           </div>
@@ -489,7 +489,7 @@ export default function TabelaPreview({
                             setEditingValorIdx(null)
                           } else if (e.key === 'Escape') setEditingValorIdx(null)
                         }}
-                        className="w-full bg-dark-900 border border-brand-500 rounded px-2 py-1 text-xs text-right outline-none"
+                        className="w-full bg-dark-900 border border-primary-500 rounded px-2 py-1 text-xs text-right outline-none"
                       />
                     ) : (
                       <div className="group flex items-center justify-end gap-2">
@@ -520,7 +520,7 @@ export default function TabelaPreview({
                             setEditingVencIdx(null)
                           } else if (e.key === 'Escape') setEditingVencIdx(null)
                         }}
-                        className="w-full bg-dark-900 border border-brand-500 rounded px-2 py-1 text-xs outline-none"
+                        className="w-full bg-dark-900 border border-primary-500 rounded px-2 py-1 text-xs outline-none"
                       />
                     ) : (
                       <div className="group flex items-center gap-2">
@@ -551,7 +551,7 @@ export default function TabelaPreview({
                             setEditingEmissaoIdx(null)
                           } else if (e.key === 'Escape') setEditingEmissaoIdx(null)
                         }}
-                        className="w-full bg-dark-900 border border-brand-500 rounded px-2 py-1 text-xs outline-none"
+                        className="w-full bg-dark-900 border border-primary-500 rounded px-2 py-1 text-xs outline-none"
                       />
                     ) : (
                       <div className="group flex items-center gap-2">
@@ -628,7 +628,7 @@ export default function TabelaPreview({
                             setEditingDescIdx(null)
                           } else if (e.key === 'Escape') setEditingDescIdx(null)
                         }}
-                        className="w-full bg-dark-900 border border-brand-500 rounded px-2 py-1 text-xs outline-none"
+                        className="w-full bg-dark-900 border border-primary-500 rounded px-2 py-1 text-xs outline-none"
                       />
                     ) : (
                       <div className="group flex items-center gap-2 truncate">
@@ -645,10 +645,10 @@ export default function TabelaPreview({
                   </td>
                   <td className="text-center">
                     {item.valido ? (
-                      <span className="text-emerald-400 text-[10px] font-bold uppercase tracking-wider">OK</span>
+                      <span className="text-emerald-400 text-xs font-semibold uppercase tracking-wider">OK</span>
                     ) : (
                       <div className="flex flex-col items-center">
-                        <span className="text-red-400 text-[10px] font-bold uppercase tracking-wider">Erro</span>
+                        <span className="text-red-400 text-xs font-semibold uppercase tracking-wider">Erro</span>
                         <p className="text-[9px] text-red-400/70 max-w-[100px] leading-tight">
                           {item.erros?.[0]}
                         </p>

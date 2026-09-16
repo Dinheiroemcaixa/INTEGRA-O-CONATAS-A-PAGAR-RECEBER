@@ -327,7 +327,7 @@ export default function ContasPreviewSection({
         <div className="flex flex-col gap-2 text-xs">
           <div>
             <span className="font-bold text-white block">Salvar regra de fornecedor?</span>
-            <span className="text-dark-300 text-[11px] block mt-0.5 leading-snug">
+            <span className="text-dark-300 text-xs block mt-0.5 leading-snug">
               Deseja que todas as contas futuras de <strong className="text-white">"{nomeOriginal}"</strong> sejam convertidas para <strong className="text-emerald-400">"{novoNome}"</strong>?
             </span>
           </div>
@@ -375,7 +375,7 @@ export default function ContasPreviewSection({
                   toast.error('Erro de conexão ao salvar regra.')
                 }
               }}
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors cursor-pointer text-xs shadow-sm"
+              className="h-9 px-3.5 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-lg transition-colors cursor-pointer text-sm shadow-sm"
             >
               Sim, salvar regra
             </button>
@@ -392,7 +392,7 @@ export default function ContasPreviewSection({
                   return item
                 }))
               }}
-              className="px-2.5 py-1.5 bg-dark-700 hover:bg-dark-600 text-dark-300 hover:text-white rounded-lg transition-colors cursor-pointer text-xs"
+              className="h-9 px-3.5 bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white border border-dark-700 rounded-lg transition-colors cursor-pointer text-sm"
             >
               Apenas nesta conta
             </button>
@@ -617,7 +617,7 @@ export default function ContasPreviewSection({
   if (loadingMatch) {
     return (
       <div className="flex flex-col items-center justify-center p-12 bg-dark-800 rounded-xl border border-dark-700">
-        <Loader2 className="w-10 h-10 animate-spin text-brand-500 mb-4" />
+        <Loader2 className="w-10 h-10 animate-spin text-primary-400 mb-4" />
         <p className="text-white font-medium">Analisando fornecedores...</p>
         <p className="text-dark-400 text-sm mt-1">Comparando nomes e sugerindo categorias</p>
       </div>
@@ -626,8 +626,8 @@ export default function ContasPreviewSection({
 
   if (dadosEditados.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 bg-dark-800/80 rounded-2xl border border-dark-700 space-y-4 animate-fade-in text-center my-4">
-        <div className="w-14 h-14 bg-brand-500/10 border border-brand-500/20 rounded-2xl flex items-center justify-center text-brand-400">
+      <div className="flex flex-col items-center justify-center p-12 bg-dark-850/80 rounded-xl border border-dark-700/60 space-y-4 animate-fade-in text-center my-4">
+        <div className="w-12 h-12 bg-primary-500/15 border border-primary-500/30 rounded-xl flex items-center justify-center text-primary-400">
           <Upload size={28} />
         </div>
         <div>
@@ -645,7 +645,7 @@ export default function ContasPreviewSection({
               else window.location.reload()
             }
           }}
-          className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-3 rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-lg shadow-brand-600/20"
+          className="h-10 bg-primary-600 hover:bg-primary-500 text-white px-5 rounded-lg font-semibold text-sm flex items-center gap-2 transition-colors shadow-sm"
         >
           <Upload size={16} /> Arraste ou Selecione Nova Planilha
         </button>
@@ -660,17 +660,17 @@ export default function ContasPreviewSection({
         <button
           onClick={() => setFiltroPreview('todos')}
           className={cn(
-            "bg-dark-800 border rounded-xl p-4 text-left transition-all",
-            filtroPreview === 'todos' ? "border-brand-500 ring-1 ring-brand-500" : "border-dark-700 hover:border-dark-500"
+            "rounded-xl p-4 text-left transition-all space-y-1 cursor-pointer",
+            filtroPreview === 'todos' ? "border border-primary-500/60 ring-1 ring-primary-500/30 bg-primary-950/20" : "border border-dark-700/60 hover:border-dark-600 bg-dark-850/80"
           )}
         >
-          <p className="text-dark-400 text-xs mb-1">Total</p>
-          <p className="text-white text-2xl font-bold">{dadosEditados.length}</p>
+          <p className="text-dark-400 text-xs font-semibold uppercase tracking-wider mb-1">Total</p>
+          <p className="text-white text-2xl font-bold font-mono tabular-nums">{dadosEditados.length}</p>
         </button>
 
-        <div className="bg-dark-800 border border-green-500/20 rounded-xl p-4">
-          <p className="text-dark-400 text-xs mb-1">Confirmados</p>
-          <p className="text-green-400 text-2xl font-bold">
+        <div className="bg-dark-850/80 border border-emerald-500/20 rounded-xl p-4 space-y-1">
+          <p className="text-dark-400 text-xs font-semibold uppercase tracking-wider mb-1">Confirmados</p>
+          <p className="text-emerald-400 text-2xl font-bold font-mono tabular-nums">
             {dadosEditados.filter(d => d.valido && (!d.matchFornecedor || d.matchFornecedor.confianca === 'exato')).length}
           </p>
         </div>
@@ -678,12 +678,12 @@ export default function ContasPreviewSection({
         <button
           onClick={() => setFiltroPreview('revisao')}
           className={cn(
-            "bg-dark-800 border rounded-xl p-4 text-left transition-all",
-            filtroPreview === 'revisao' ? "border-yellow-500 ring-1 ring-yellow-500" : "border-yellow-500/20 hover:border-yellow-500/40"
+            "rounded-xl p-4 text-left transition-all space-y-1 cursor-pointer",
+            filtroPreview === 'revisao' ? "border border-amber-500/60 ring-1 ring-amber-500/30 bg-amber-950/20" : "border border-amber-500/20 hover:border-amber-500/40 bg-dark-850/80"
           )}
         >
-          <p className="text-yellow-500/70 text-xs mb-1">Amarelas (Revisar)</p>
-          <p className="text-yellow-400 text-2xl font-bold">
+          <p className="text-amber-400/80 text-xs font-semibold uppercase tracking-wider mb-1">Amarelas (Revisar)</p>
+          <p className="text-amber-400 text-2xl font-bold font-mono tabular-nums">
             {dadosEditados.filter(d => d.valido && d.matchFornecedor && d.matchFornecedor.confianca !== 'exato').length}
           </p>
         </button>
@@ -691,19 +691,19 @@ export default function ContasPreviewSection({
         <button
           onClick={() => setFiltroPreview('erro')}
           className={cn(
-            "bg-dark-800 border rounded-xl p-4 text-left transition-all",
-            filtroPreview === 'erro' ? "border-red-500 ring-1 ring-red-500" : "border-red-500/20 hover:border-red-500/40"
+            "rounded-xl p-4 text-left transition-all space-y-1 cursor-pointer",
+            filtroPreview === 'erro' ? "border border-red-500/60 ring-1 ring-red-500/30 bg-red-950/20" : "border border-red-500/20 hover:border-red-500/40 bg-dark-850/80"
           )}
         >
-          <p className="text-red-500/70 text-xs mb-1">Vermelhas (Erro)</p>
-          <p className="text-red-400 text-2xl font-bold">
+          <p className="text-red-400/80 text-xs font-semibold uppercase tracking-wider mb-1">Vermelhas (Erro)</p>
+          <p className="text-red-400 text-2xl font-bold font-mono tabular-nums">
             {dadosEditados.filter(d => !d.valido).length}
           </p>
         </button>
 
-        <div className="bg-dark-800 border border-brand-500/20 rounded-xl p-4">
-          <p className="text-dark-400 text-xs mb-1">Valor selecionado</p>
-          <p className="text-brand-400 text-xl font-bold">{formatCurrency(valorSelecionado)}</p>
+        <div className="bg-dark-850/80 border border-primary-500/30 rounded-xl p-4 space-y-1">
+          <p className="text-dark-400 text-xs font-semibold uppercase tracking-wider mb-1">Valor selecionado</p>
+          <p className="text-primary-300 text-xl font-bold font-mono tabular-nums">{formatCurrency(valorSelecionado)}</p>
         </div>
       </div>
 
@@ -760,7 +760,7 @@ export default function ContasPreviewSection({
       />
 
       {/* Ações */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-dark-800 border border-dark-700 rounded-xl p-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-dark-850/80 border border-dark-700/60 rounded-xl p-4">
         <p className="text-sm text-dark-400">
           <span className="text-white font-semibold">{selecionados.size}</span> registros selecionados •{' '}
           <span className="text-green-400 font-semibold">{formatCurrency(valorSelecionado)}</span>
@@ -781,9 +781,8 @@ export default function ContasPreviewSection({
           <button
             onClick={handleClickSalvar}
             disabled={salvando || selecionados.size === 0 || !empresaAtiva}
-            className="bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed
-                       text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all
-                       shadow-lg shadow-brand-900/20"
+            className="h-10 px-6 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed
+                       text-white rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors shadow-sm"
           >
             {salvando ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
             Salvar e Continuar
