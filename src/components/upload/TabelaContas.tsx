@@ -539,7 +539,7 @@ export default function TabelaContas({
             <table className="w-full text-xs border-collapse table-fixed select-none">
               <colgroup>
                 <col style={{ width: '30px' }} />
-                <col style={{ minWidth: '320px' }} />
+                <col style={{ width: '38%' }} />
                 <col style={{ width: '82px' }} />
                 <col style={{ width: '72px' }} />
                 <col style={{ width: '72px' }} />
@@ -597,7 +597,7 @@ export default function TabelaContas({
                       {/* Fornecedor - Prioridade Máxima e Espaço Expandido */}
                       <td className="py-2 px-2 overflow-hidden">
                         <span
-                          className="text-white font-semibold text-xs block truncate whitespace-nowrap"
+                          className="text-white font-semibold text-xs block line-clamp-2 leading-snug break-words"
                           title={conta.fornecedor}
                         >
                           {conta.fornecedor}
