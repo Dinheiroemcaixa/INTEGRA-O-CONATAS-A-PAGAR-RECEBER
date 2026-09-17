@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import type { ContaPagarImportada } from '@/types'
 import { formatCurrency, formatDate, visualizarAnexo } from '@/lib/utils'
-import { CheckCircle, Clock, AlertCircle, RefreshCw, Loader2, Trash2, Landmark, Paperclip, Tags, Edit2, ArrowRightLeft, Building2 } from 'lucide-react'
+import { CheckCircle, Clock, AlertCircle, RefreshCw, Loader2, Trash2, Landmark, Paperclip, Tags, Edit2, ArrowRightLeft, Building2, ChevronRight, ListFilter, Send, FileDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import SelectorContaFinanceira, { type ContaFinanceiraOpcao } from '@/components/upload/SelectorContaFinanceira'
@@ -11,6 +11,10 @@ import SelectorCategoria from '@/components/upload/SelectorCategoria'
 
 interface Props {
   empresaId?: string
+  onEnviarContaAzul?: () => void
+  onExportarXls?: () => void
+  enviandoCA?: boolean
+  gerandoXls?: boolean
 }
 
 const STATUS_CONFIG = {
@@ -20,7 +24,13 @@ const STATUS_CONFIG = {
   cancelado: { label: 'Cancelado', icon: AlertCircle, color: 'text-dark-500', bg: 'bg-dark-700' },
 }
 
-export default function TabelaContas({ empresaId }: Props) {
+export default function TabelaContas({
+  empresaId,
+  onEnviarContaAzul,
+  onExportarXls,
+  enviandoCA = false,
+  gerandoXls = false,
+}: Props) {
   const { empresas, setEmpresaAtiva } = useEmpresa()
   const [contas, setContas] = useState<ContaPagarImportada[]>([])
   const [loading, setLoading] = useState(true)
@@ -32,6 +42,8 @@ export default function TabelaContas({ empresaId }: Props) {
   const [editandoEmMassaConta, setEditandoEmMassaConta] = useState(false)
   const [editandoEmMassaCat, setEditandoEmMassaCat] = useState(false)
   const [editandoEmMassaLoja, setEditandoEmMassaLoja] = useState(false)
+  const [paginaAtual, setPaginaAtual] = useState(1)
+  const ITENS_POR_PAGINA = 15
 
   const supabase = createClient()
 
@@ -265,207 +277,258 @@ export default function TabelaContas({ empresaId }: Props) {
   const qtdEnviado = contas.filter((c) => c.status === 'enviado').length
   const qtdErro = contas.filter((c) => c.status === 'erro').length
 
+  const totalPaginas = Math.ceil(contas.length / ITENS_POR_PAGINA) || 1
+  const contasExibidas = contas.slice((paginaAtual - 1) * ITENS_POR_PAGINA, paginaAtual * ITENS_POR_PAGINA)
+
   return (
     <div className="space-y-4">
-      {/* Resumo rápido de KPIs (Padrão Corporativo Fase 4) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-        <div className="bg-dark-850/90 border border-dark-700/60 hover:border-amber-500/30 rounded-xl p-4 sm:p-5 shadow-xs transition-all relative overflow-hidden group">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-xs font-semibold text-dark-300 uppercase tracking-wider">Total Pendente</span>
-            <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
-              <Clock size={16} />
-            </div>
-          </div>
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="text-amber-400 text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight">
-              {formatCurrency(totalPendente)}
-            </p>
-            <span className="text-xs text-dark-400 font-medium">
-              {qtdPendente} {qtdPendente === 1 ? 'pendente' : 'pendentes'}
-            </span>
-          </div>
-        </div>
-
-        <div className="bg-dark-850/90 border border-dark-700/60 hover:border-emerald-500/30 rounded-xl p-4 sm:p-5 shadow-xs transition-all relative overflow-hidden group">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-xs font-semibold text-dark-300 uppercase tracking-wider">Total Enviado</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-              <CheckCircle size={16} />
-            </div>
-          </div>
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="text-emerald-400 text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight">
-              {formatCurrency(totalEnviado)}
-            </p>
-            <span className="text-xs text-dark-400 font-medium">
-              {qtdEnviado} {qtdEnviado === 1 ? 'enviado' : 'enviados'}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Filtros e Ações em Lote */}
-      <div className="flex items-center justify-between gap-3 flex-wrap bg-dark-850/80 p-3 sm:p-3.5 rounded-xl border border-dark-700/60 shadow-xs">
-        <div className="inline-flex p-1 bg-dark-900 border border-dark-700/60 rounded-xl gap-1">
-          {(['pendente', 'enviado', 'erro'] as const).map((f) => {
-            const isSelected = filtro === f
-            const qtd = f === 'pendente' ? qtdPendente : f === 'enviado' ? qtdEnviado : qtdErro
-            const label = f.charAt(0).toUpperCase() + f.slice(1)
-            return (
-              <button
-                key={f}
-                onClick={() => setFiltro(f)}
-                className={cn(
-                  'h-9 px-3.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-2',
-                  isSelected
-                    ? 'bg-brand-950/70 text-brand-300 border border-brand-500/40 shadow-xs'
-                    : 'text-dark-400 hover:text-white hover:bg-dark-800/70 border border-transparent'
-                )}
-              >
-                <span>{label}</span>
-                <span className={cn(
-                  'px-1.5 py-0.5 rounded-md text-[11px] font-mono tabular-nums font-bold',
-                  isSelected
-                    ? 'bg-brand-500/20 text-brand-300 border border-brand-500/30'
-                    : f === 'erro' && qtd > 0
-                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                      : 'bg-dark-800 text-dark-400'
-                )}>
-                  {qtd}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Ações em Lote (Sempre Visíveis quando há contas na tabela) */}
-        {contas.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap animate-fade-in">
-            {selecionados.length > 0 && (
-              <span className="text-xs text-brand-300 font-semibold px-2.5 py-1 bg-brand-500/15 rounded-md border border-brand-500/30">
-                {selecionados.length} selecionada(s)
-              </span>
-            )}
-
-            {/* Atribuir Banco em Lote */}
-            <div className="relative">
-              {editandoEmMassaConta ? (
-                <SelectorContaFinanceira
-                  valorInicial=""
-                  contas={contasFinanceirasCA}
-                  onSelect={(nome, id) => handleAplicarBancoEmLote(nome, id)}
-                  onCancel={() => setEditandoEmMassaConta(false)}
-                />
-              ) : (
-                <button
-                  onClick={() => setEditandoEmMassaConta(true)}
-                  className="flex items-center gap-2 bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white border border-dark-700 text-sm font-medium px-3.5 py-2 rounded-lg transition-colors shadow-xs"
-                  title="Aplicar o mesmo banco a todas as contas selecionadas (ou todas da lista)"
-                >
-                  <Landmark size={13} /> {selecionados.length > 0 ? `Banco (${selecionados.length})` : 'Banco em Lote'}
-                </button>
-              )}
-            </div>
-
-            {/* Atribuir Categoria em Lote */}
-            <div className="relative">
-              {editandoEmMassaCat ? (
-                <SelectorCategoria
-                  valorInicial=""
-                  onSelect={(cat) => handleAplicarCategoriaEmLote(cat)}
-                  onCancel={() => setEditandoEmMassaCat(false)}
-                />
-              ) : (
-                <button
-                  onClick={() => setEditandoEmMassaCat(true)}
-                  className="flex items-center gap-2 bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white border border-dark-700 text-sm font-medium px-3.5 py-2 rounded-lg transition-colors shadow-xs"
-                  title="Aplicar a mesma categoria a todas as contas selecionadas (ou todas da lista)"
-                >
-                  <Tags size={13} /> {selecionados.length > 0 ? `Categoria (${selecionados.length})` : 'Categoria em Lote'}
-                </button>
-              )}
-            </div>
-
-            {/* Transferir para Outra Loja */}
-            <div className="relative">
-              {editandoEmMassaLoja ? (
-                <div className="absolute top-0 left-0 z-30 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl p-2.5 min-w-[240px] animate-fade-in space-y-1.5">
-                  <div className="flex items-center justify-between px-2.5 py-1.5 text-xs font-bold text-dark-400 border-b border-dark-700/60 mb-1">
-                    <span>Transferir para Loja:</span>
-                    <button type="button" onClick={() => setEditandoEmMassaLoja(false)} className="text-dark-500 hover:text-white text-xs">✕</button>
-                  </div>
-                  {empresas.filter(e => e.id !== empresaId).length === 0 ? (
-                    <p className="text-xs text-dark-500 px-2 py-2">Nenhuma outra loja cadastrada.</p>
-                  ) : (
-                    empresas.filter(e => e.id !== empresaId).map((emp) => (
-                      <button
-                        key={emp.id}
-                        type="button"
-                        onClick={() => handleMoverLoja(emp.id)}
-                        className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-semibold text-white hover:bg-emerald-600/20 hover:text-emerald-300 transition-colors text-left border border-transparent hover:border-emerald-500/30"
-                      >
-                        <span className="truncate">{emp.nome}</span>
-                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${emp.access_token_conta_azul ? 'bg-emerald-400' : 'bg-dark-600'}`} />
-                      </button>
-                    ))
-                  )}
+      {/* Faixa Executiva: 2 KPIs Compactos Financeiros + Botões de Ação na Mesma Linha (Fase 6.1) */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 animate-fade-in">
+        {/* 2 KPIs Compactos */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
+          {/* Total Pendente */}
+          <div className="bg-dark-900/90 border border-dark-700/70 hover:border-amber-500/40 rounded-xl px-4 py-2.5 shadow-xs transition-all flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8.5 h-8.5 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 flex-shrink-0">
+                <Clock size={16} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold text-dark-400 uppercase tracking-wide">
+                    Total Pendente
+                  </span>
+                  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                    {qtdPendente}
+                  </span>
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setEditandoEmMassaLoja(true)}
-                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-all shadow-sm"
-                  title="Transferir lançamentos selecionados (ou todos os pendentes) para outra empresa/loja"
-                >
-                  <ArrowRightLeft size={13} /> {selecionados.length > 0 ? `Mover Loja (${selecionados.length})` : 'Mover Loja'}
-                </button>
-              )}
+                <p className="text-lg sm:text-xl font-extrabold font-mono text-amber-400 tabular-nums leading-tight mt-0.5">
+                  {formatCurrency(totalPendente)}
+                </p>
+              </div>
             </div>
+          </div>
 
-            {selecionados.length > 0 && (
+          {/* Total Enviado */}
+          <div className="bg-dark-900/90 border border-dark-700/70 hover:border-emerald-500/40 rounded-xl px-4 py-2.5 shadow-xs transition-all flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8.5 h-8.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 flex-shrink-0">
+                <CheckCircle size={16} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold text-dark-400 uppercase tracking-wide">
+                    Total Enviado
+                  </span>
+                  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                    {qtdEnviado}
+                  </span>
+                </div>
+                <p className="text-lg sm:text-xl font-extrabold font-mono text-emerald-400 tabular-nums leading-tight mt-0.5">
+                  {formatCurrency(totalEnviado)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Botões de Ação com presença visual destacada (h-10) na mesma linha */}
+        {(onEnviarContaAzul || onExportarXls) && (
+          <div className="flex items-center gap-2.5 flex-wrap flex-shrink-0">
+            {onEnviarContaAzul && (
               <button
-                onClick={handleExcluirSelecionados}
-                className="flex items-center gap-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                onClick={onEnviarContaAzul}
+                disabled={enviandoCA}
+                className="h-10 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors shadow-sm cursor-pointer"
               >
-                <Trash2 size={13} /> Excluir ({selecionados.length})
+                {enviandoCA ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                <span>{enviandoCA ? 'Enviando...' : 'Enviar ao Conta Azul'}</span>
+              </button>
+            )}
+            {onExportarXls && (
+              <button
+                onClick={onExportarXls}
+                disabled={gerandoXls}
+                className="h-10 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 rounded-lg text-sm font-medium flex items-center gap-2 transition-all shadow-sm cursor-pointer"
+              >
+                {gerandoXls ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
+                <span>{gerandoXls ? 'Exportando...' : 'Exportar XLS'}</span>
               </button>
             )}
           </div>
         )}
-        
-        <div className="flex items-center gap-2 ml-auto">
-          {contas.some(c => c.status === 'pendente') && (
+      </div>
+
+      {/* Barra Operacional: Filtros à esquerda + Ações e Atualizar alinhados à direita */}
+      <div className="bg-dark-850/90 border border-dark-700/60 rounded-xl p-2.5 sm:p-3 shadow-xs animate-fade-in">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          {/* Esquerda: Filtros em Formato Pill */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {(['pendente', 'enviado', 'erro'] as const).map((f) => {
+              const isSelected = filtro === f
+              const qtd = f === 'pendente' ? qtdPendente : f === 'enviado' ? qtdEnviado : qtdErro
+              const label = f === 'pendente' ? 'Pendente' : f === 'enviado' ? 'Enviado' : 'Erro'
+              return (
+                <button
+                  key={f}
+                  onClick={() => {
+                    setFiltro(f)
+                    setPaginaAtual(1)
+                  }}
+                  className={cn(
+                    'h-8 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5',
+                    isSelected
+                      ? 'bg-brand-600 text-white shadow-xs'
+                      : 'bg-dark-900/90 text-dark-400 hover:text-white hover:bg-dark-800 border border-dark-700/60'
+                  )}
+                >
+                  <span>{label}</span>
+                  <span className={cn(
+                    'px-1.5 py-0.2 rounded-md text-[10px] font-mono tabular-nums font-bold',
+                    isSelected
+                      ? 'bg-white/20 text-white'
+                      : f === 'erro' && qtd > 0
+                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                        : 'bg-dark-800 text-dark-400'
+                  )}>
+                    {qtd}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Direita: Ações em Lote + Limpar + Botão Atualizar com alinhamento visual perfeito */}
+          <div className="flex items-center gap-2 flex-wrap ml-auto">
+            {contas.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap animate-fade-in">
+                {selecionados.length > 0 && (
+                  <span className="text-xs text-brand-300 font-semibold px-2.5 py-1 bg-brand-500/15 rounded-md border border-brand-500/30">
+                    {selecionados.length} selecionada(s)
+                  </span>
+                )}
+
+                {/* Atribuir Banco em Lote */}
+                <div className="relative">
+                  {editandoEmMassaConta ? (
+                    <SelectorContaFinanceira
+                      valorInicial=""
+                      contas={contasFinanceirasCA}
+                      onSelect={(nome, id) => handleAplicarBancoEmLote(nome, id)}
+                      onCancel={() => setEditandoEmMassaConta(false)}
+                    />
+                  ) : (
+                    <button
+                      onClick={() => setEditandoEmMassaConta(true)}
+                      className="flex items-center gap-1.5 bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white border border-dark-700 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors shadow-xs cursor-pointer"
+                      title="Aplicar o mesmo banco a todas as contas selecionadas"
+                    >
+                      <Landmark size={13} /> {selecionados.length > 0 ? `Banco (${selecionados.length})` : 'Banco'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Atribuir Categoria em Lote */}
+                <div className="relative">
+                  {editandoEmMassaCat ? (
+                    <SelectorCategoria
+                      valorInicial=""
+                      onSelect={(cat) => handleAplicarCategoriaEmLote(cat)}
+                      onCancel={() => setEditandoEmMassaCat(false)}
+                    />
+                  ) : (
+                    <button
+                      onClick={() => setEditandoEmMassaCat(true)}
+                      className="flex items-center gap-1.5 bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white border border-dark-700 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors shadow-xs cursor-pointer"
+                      title="Aplicar a mesma categoria a todas as contas selecionadas"
+                    >
+                      <Tags size={13} /> {selecionados.length > 0 ? `Categoria (${selecionados.length})` : 'Categoria'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Transferir para Outra Loja */}
+                <div className="relative">
+                  {editandoEmMassaLoja ? (
+                    <div className="absolute top-0 right-0 z-30 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl p-2.5 min-w-[240px] animate-fade-in space-y-1.5">
+                      <div className="flex items-center justify-between px-2.5 py-1.5 text-xs font-bold text-dark-400 border-b border-dark-700/60 mb-1">
+                        <span>Transferir para Loja:</span>
+                        <button type="button" onClick={() => setEditandoEmMassaLoja(false)} className="text-dark-500 hover:text-white text-xs">✕</button>
+                      </div>
+                      {empresas.filter(e => e.id !== empresaId).length === 0 ? (
+                        <p className="text-xs text-dark-500 px-2 py-2">Nenhuma outra loja cadastrada.</p>
+                      ) : (
+                        empresas.filter(e => e.id !== empresaId).map((emp) => (
+                          <button
+                            key={emp.id}
+                            type="button"
+                            onClick={() => handleMoverLoja(emp.id)}
+                            className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-semibold text-white hover:bg-emerald-600/20 hover:text-emerald-300 transition-colors text-left border border-transparent hover:border-emerald-500/30"
+                          >
+                            <span className="truncate">{emp.nome}</span>
+                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${emp.access_token_conta_azul ? 'bg-emerald-400' : 'bg-dark-600'}`} />
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setEditandoEmMassaLoja(true)}
+                      className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-all shadow-sm cursor-pointer"
+                      title="Transferir lançamentos para outra empresa"
+                    >
+                      <ArrowRightLeft size={13} /> {selecionados.length > 0 ? `Mover (${selecionados.length})` : 'Mover Loja'}
+                    </button>
+                  )}
+                </div>
+
+                {selecionados.length > 0 && (
+                  <button
+                    onClick={handleExcluirSelecionados}
+                    className="flex items-center gap-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Trash2 size={13} /> Excluir ({selecionados.length})
+                  </button>
+                )}
+              </div>
+            )}
+
+            {contas.some(c => c.status === 'pendente') && (
+              <button
+                onClick={limparTudo}
+                className="flex items-center gap-1.5 text-red-400 hover:text-red-300 hover:bg-red-400/10 text-xs px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
+              >
+                <Trash2 size={13} />
+                <span>Limpar Pendentes</span>
+              </button>
+            )}
+
             <button
-              onClick={limparTudo}
-              className="flex items-center gap-1.5 text-red-400 hover:text-red-300 hover:bg-red-400/10 text-xs px-3 py-1.5 rounded-lg transition-all"
+              onClick={carregar}
+              disabled={loading}
+              className="flex items-center gap-1.5 text-dark-300 hover:text-white text-xs font-medium px-3 py-1.5 rounded-lg border border-dark-700 bg-dark-900/60 hover:bg-dark-800 transition-all cursor-pointer shadow-xs"
+              title="Atualizar lista de contas"
             >
-              <Trash2 size={14} />
-              Limpar Pendentes
+              {loading ? <Loader2 size={13} className="animate-spin text-brand-400" /> : <RefreshCw size={13} className="text-brand-400" />}
+              <span>Atualizar</span>
             </button>
-          )}
-          <button
-            onClick={carregar}
-            className="flex items-center gap-1.5 text-dark-400 hover:text-white text-sm px-3 py-1.5 rounded-lg hover:bg-dark-800 transition-all"
-          >
-            {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            Atualizar
-          </button>
+          </div>
         </div>
       </div>
 
       {/* Tabela */}
       {loading ? (
-        <div className="flex items-center justify-center h-40">
-          <Loader2 size={24} className="text-brand-400 animate-spin" />
+        <div className="flex items-center justify-center h-32">
+          <Loader2 size={22} className="text-brand-400 animate-spin" />
         </div>
       ) : contas.length === 0 ? (
-        <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl p-10 sm:p-12 text-center space-y-3.5 shadow-xs">
-          <div className="w-12 h-12 rounded-xl bg-dark-900 border border-dark-700/80 flex items-center justify-center mx-auto text-dark-400 shadow-inner">
-            <Clock size={22} className="text-dark-400" />
+        <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl py-7 px-4 text-center space-y-2 shadow-xs">
+          <div className="w-9 h-9 rounded-lg bg-dark-900 border border-dark-700/80 flex items-center justify-center mx-auto text-dark-400 shadow-inner">
+            <Clock size={16} className="text-dark-400" />
           </div>
-          <div className="space-y-1">
-            <p className="text-base font-semibold text-white">Nenhuma conta com status "{filtro}"</p>
-            <p className="text-xs sm:text-sm text-dark-400 max-w-md mx-auto leading-relaxed">
+          <div className="space-y-0.5">
+            <p className="text-sm font-semibold text-white">Nenhuma conta com status "{filtro}"</p>
+            <p className="text-xs text-dark-400 max-w-sm mx-auto leading-relaxed">
               Não há lançamentos financeiros registrados nesta categoria para a empresa selecionada.
             </p>
           </div>
@@ -496,7 +559,7 @@ export default function TabelaContas({ empresaId }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {contas.map((conta) => {
+                {contasExibidas.map((conta) => {
                   const cfg = STATUS_CONFIG[conta.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pendente
                   const Icon = cfg.icon
                   const isSelected = selecionados.includes(conta.id)
@@ -621,6 +684,49 @@ export default function TabelaContas({ empresaId }: Props) {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Rodapé com paginação e contagem */}
+      {contas.length > 0 && (
+        <div className="flex items-center justify-between flex-wrap gap-3 px-1 py-1 text-xs text-dark-400">
+          <div>
+            Mostrando <span className="font-semibold text-white">{contasExibidas.length}</span> de <span className="font-semibold text-white">{contas.length}</span> registros
+          </div>
+          {totalPaginas > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
+                disabled={paginaAtual === 1}
+                className="w-7 h-7 rounded-lg border border-dark-700 bg-dark-900 text-dark-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors cursor-pointer"
+              >
+                ‹
+              </button>
+              {Array.from({ length: totalPaginas }, (_, i) => i + 1)
+                .slice(Math.max(0, paginaAtual - 3), Math.min(totalPaginas, paginaAtual + 2))
+                .map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPaginaAtual(p)}
+                    className={cn(
+                      'w-7 h-7 rounded-lg text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center',
+                      paginaAtual === p
+                        ? 'bg-brand-600 text-white shadow-xs'
+                        : 'border border-dark-700 bg-dark-900 text-dark-400 hover:text-white hover:bg-dark-800'
+                    )}
+                  >
+                    {p}
+                  </button>
+                ))}
+              <button
+                onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
+                disabled={paginaAtual === totalPaginas}
+                className="w-7 h-7 rounded-lg border border-dark-700 bg-dark-900 text-dark-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors cursor-pointer"
+              >
+                ›
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
