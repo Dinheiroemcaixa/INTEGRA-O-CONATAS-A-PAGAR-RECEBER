@@ -696,7 +696,7 @@ export default function ContasPagarPage() {
       />
     )}
 
-    <div className="max-w-6xl mx-auto px-3.5 sm:px-6 py-5 space-y-5 animate-fade-in">
+    <div className="w-full px-2 sm:px-4 py-5 space-y-5 animate-fade-in">
       {/* CABEÇALHO EXECUTIVO (Padrão Dashboard) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-dark-700/60">
         <div className="flex items-center gap-3">
