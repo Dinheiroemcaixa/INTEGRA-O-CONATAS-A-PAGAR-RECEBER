@@ -539,13 +539,13 @@ export default function TabelaContas({
             <table className="w-full text-xs border-collapse table-fixed select-none">
               <colgroup>
                 <col style={{ width: '32px' }} />
-                <col style={{ minWidth: '160px' }} />
+                <col style={{ minWidth: '215px' }} />
                 <col style={{ width: '90px' }} />
-                <col style={{ width: '82px' }} />
-                <col style={{ width: '88px' }} />
-                <col style={{ width: '115px' }} />
-                <col style={{ width: '125px' }} />
-                <col style={{ width: '85px' }} />
+                <col style={{ width: '80px' }} />
+                <col style={{ width: '80px' }} />
+                <col style={{ width: '108px' }} />
+                <col style={{ width: '108px' }} />
+                <col style={{ width: '68px' }} />
                 <col style={{ width: '85px' }} />
                 <col style={{ width: '36px' }} />
               </colgroup>
@@ -637,7 +637,7 @@ export default function TabelaContas({
                           <button
                             type="button"
                             onClick={() => setEditandoCategoriaId(conta.id)}
-                            className="inline-flex items-center justify-between w-full gap-1 text-[11px] px-1.5 py-0.5 rounded bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white border border-dark-700 transition-colors font-medium truncate"
+                            className="inline-flex items-center justify-between w-full gap-1 text-[11px] px-1.5 py-0.5 rounded bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white border border-dark-700 transition-colors font-medium max-w-[102px] truncate"
                             title="Clique para alterar a categoria"
                           >
                             <span className="truncate">{conta.categoria || 'Materiais para Revenda'}</span>
@@ -660,7 +660,7 @@ export default function TabelaContas({
                             type="button"
                             onClick={() => setEditandoContaId(conta.id)}
                             className={cn(
-                              'inline-flex items-center justify-between w-full gap-1 text-[11px] px-1.5 py-0.5 rounded-full border font-medium transition-all truncate',
+                              'inline-flex items-center justify-between w-full gap-1 text-[11px] px-1.5 py-0.5 rounded-full border font-medium transition-all max-w-[102px] truncate',
                               conta.conta_financeira
                                 ? 'bg-brand-500/15 text-brand-300 border-brand-500/30 hover:bg-primary-500/25'
                                 : 'bg-amber-400/10 text-amber-400 border-amber-400/30 hover:bg-amber-400/20'
