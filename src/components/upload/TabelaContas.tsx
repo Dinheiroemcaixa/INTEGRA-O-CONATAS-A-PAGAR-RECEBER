@@ -538,20 +538,20 @@ export default function TabelaContas({
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse table-fixed select-none">
               <colgroup>
+                <col style={{ width: '30px' }} />
+                <col style={{ minWidth: '320px' }} />
+                <col style={{ width: '82px' }} />
+                <col style={{ width: '72px' }} />
+                <col style={{ width: '72px' }} />
+                <col style={{ width: '88px' }} />
+                <col style={{ width: '84px' }} />
+                <col style={{ width: '58px' }} />
+                <col style={{ width: '72px' }} />
                 <col style={{ width: '32px' }} />
-                <col style={{ minWidth: '215px' }} />
-                <col style={{ width: '90px' }} />
-                <col style={{ width: '80px' }} />
-                <col style={{ width: '80px' }} />
-                <col style={{ width: '108px' }} />
-                <col style={{ width: '108px' }} />
-                <col style={{ width: '68px' }} />
-                <col style={{ width: '85px' }} />
-                <col style={{ width: '36px' }} />
               </colgroup>
               <thead>
                 <tr className="bg-dark-900/90 text-dark-400 uppercase text-[10px] font-semibold tracking-wide border-b border-dark-700/80">
-                  <th className="py-2.5 px-1 text-center">
+                  <th className="py-2 px-1 text-center">
                     <input
                       type="checkbox"
                       checked={contas.length > 0 && selecionados.length === contas.length}
@@ -559,15 +559,15 @@ export default function TabelaContas({
                       className="rounded border-dark-600 bg-dark-900 text-brand-500 focus:ring-brand-500 cursor-pointer w-3.5 h-3.5"
                     />
                   </th>
-                  <th className="py-2.5 px-2 text-left">Fornecedor</th>
-                  <th className="py-2.5 px-2 text-right">Valor</th>
-                  <th className="py-2.5 px-1.5 text-center">Vencimento</th>
-                  <th className="py-2.5 px-1.5 text-center">Competência</th>
-                  <th className="py-2.5 px-2 text-left">Categoria</th>
-                  <th className="py-2.5 px-2 text-left">Conta Bancária</th>
-                  <th className="py-2.5 px-1.5 text-left">Descrição</th>
-                  <th className="py-2.5 px-1 text-center">Status</th>
-                  <th className="py-2.5 px-1 text-center"></th>
+                  <th className="py-2 px-2 text-left text-white font-bold">Fornecedor</th>
+                  <th className="py-2 px-1 text-right">Valor</th>
+                  <th className="py-2 px-0.5 text-center">Venc.</th>
+                  <th className="py-2 px-0.5 text-center">Comp.</th>
+                  <th className="py-2 px-1 text-left">Categoria</th>
+                  <th className="py-2 px-1 text-left">Banco</th>
+                  <th className="py-2 px-1 text-left">Desc.</th>
+                  <th className="py-2 px-0.5 text-center">Status</th>
+                  <th className="py-2 px-0.5 text-center"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-dark-800/60">
@@ -594,10 +594,10 @@ export default function TabelaContas({
                         />
                       </td>
 
-                      {/* Fornecedor - Espaço útil ampliado e sem quebra */}
+                      {/* Fornecedor - Prioridade Máxima e Espaço Expandido */}
                       <td className="py-2 px-2 overflow-hidden">
                         <span
-                          className="text-white font-medium text-xs block truncate whitespace-nowrap"
+                          className="text-white font-semibold text-xs block truncate whitespace-nowrap"
                           title={conta.fornecedor}
                         >
                           {conta.fornecedor}
@@ -605,28 +605,28 @@ export default function TabelaContas({
                       </td>
 
                       {/* Valor */}
-                      <td className="py-2 px-2 text-right whitespace-nowrap overflow-hidden">
+                      <td className="py-2 px-1 text-right whitespace-nowrap overflow-hidden">
                         <span className="text-green-400 font-semibold tabular-nums text-xs">
                           {formatCurrency(Number(conta.valor))}
                         </span>
                       </td>
 
                       {/* Vencimento */}
-                      <td className="py-2 px-1 text-center whitespace-nowrap overflow-hidden">
+                      <td className="py-2 px-0.5 text-center whitespace-nowrap overflow-hidden">
                         <span className="text-dark-300 text-[11px] tabular-nums">
                           {formatDate(conta.vencimento)}
                         </span>
                       </td>
 
                       {/* Competência */}
-                      <td className="py-2 px-1 text-center whitespace-nowrap overflow-hidden">
-                        <span className="text-dark-300 text-[11px] tabular-nums">
+                      <td className="py-2 px-0.5 text-center whitespace-nowrap overflow-hidden">
+                        <span className="text-dark-400 text-[11px] tabular-nums">
                           {conta.emissao ? formatDate(conta.emissao) : '-'}
                         </span>
                       </td>
 
-                      {/* Categoria editável inline compacta */}
-                      <td className="py-2 px-1.5 overflow-hidden">
+                      {/* Categoria editável inline enxuta */}
+                      <td className="py-2 px-1 overflow-hidden">
                         {editandoCategoriaId === conta.id ? (
                           <SelectorCategoria
                             valorInicial={conta.categoria || ''}
@@ -637,17 +637,17 @@ export default function TabelaContas({
                           <button
                             type="button"
                             onClick={() => setEditandoCategoriaId(conta.id)}
-                            className="inline-flex items-center justify-between w-full gap-1 text-[11px] px-1.5 py-0.5 rounded bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white border border-dark-700 transition-colors font-medium max-w-[102px] truncate"
-                            title="Clique para alterar a categoria"
+                            className="inline-flex items-center justify-between w-full gap-0.5 text-[10.5px] px-1 py-0.5 rounded bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white border border-dark-700 transition-colors font-medium truncate"
+                            title={conta.categoria || 'Materiais para Revenda'}
                           >
-                            <span className="truncate">{conta.categoria || 'Materiais para Revenda'}</span>
-                            <Edit2 size={9} className="opacity-50 shrink-0" />
+                            <span className="truncate">{conta.categoria || 'Materiais'}</span>
+                            <Edit2 size={8} className="opacity-40 shrink-0" />
                           </button>
                         )}
                       </td>
 
-                      {/* Conta Financeira (Banco) editável inline compacta */}
-                      <td className="py-2 px-1.5 overflow-hidden">
+                      {/* Conta Bancária (Banco) editável inline enxuta */}
+                      <td className="py-2 px-1 overflow-hidden">
                         {editandoContaId === conta.id ? (
                           <SelectorContaFinanceira
                             valorInicial={conta.conta_financeira || ''}
@@ -660,26 +660,26 @@ export default function TabelaContas({
                             type="button"
                             onClick={() => setEditandoContaId(conta.id)}
                             className={cn(
-                              'inline-flex items-center justify-between w-full gap-1 text-[11px] px-1.5 py-0.5 rounded-full border font-medium transition-all max-w-[102px] truncate',
+                              'inline-flex items-center justify-between w-full gap-0.5 text-[10.5px] px-1 py-0.5 rounded-full border font-medium transition-all truncate',
                               conta.conta_financeira
                                 ? 'bg-brand-500/15 text-brand-300 border-brand-500/30 hover:bg-primary-500/25'
                                 : 'bg-amber-400/10 text-amber-400 border-amber-400/30 hover:bg-amber-400/20'
                             )}
-                            title="Clique para selecionar o banco no Conta Azul"
+                            title={conta.conta_financeira || 'Selecionar Banco...'}
                           >
-                            <span className="inline-flex items-center gap-1 truncate">
-                              <Landmark size={10} className="shrink-0 opacity-80" />
-                              <span className="truncate">{conta.conta_financeira || 'Banco...'}</span>
+                            <span className="inline-flex items-center gap-0.5 truncate">
+                              <Landmark size={9} className="shrink-0 opacity-80" />
+                              <span className="truncate">{conta.conta_financeira ? conta.conta_financeira.split('-')[0].trim() : 'Banco'}</span>
                             </span>
-                            <Edit2 size={9} className="opacity-50 shrink-0" />
+                            <Edit2 size={8} className="opacity-40 shrink-0" />
                           </button>
                         )}
                       </td>
 
                       {/* Descrição */}
-                      <td className="py-2 px-1.5 overflow-hidden">
+                      <td className="py-2 px-1 overflow-hidden">
                         <span
-                          className="text-dark-400 text-[11px] truncate block font-mono"
+                          className="text-dark-400 text-[10px] truncate block font-mono"
                           title={conta.descricao || ''}
                         >
                           {conta.descricao || '-'}
@@ -687,20 +687,20 @@ export default function TabelaContas({
                       </td>
 
                       {/* Status compacto */}
-                      <td className="py-2 px-1 text-center overflow-hidden">
+                      <td className="py-2 px-0.5 text-center overflow-hidden">
                         <span
                           className={cn(
-                            'inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap',
+                            'inline-flex items-center gap-0.5 text-[9.5px] px-1 py-0.5 rounded-full font-medium whitespace-nowrap',
                             cfg.color,
                             cfg.bg
                           )}
                         >
-                          <Icon size={9} className="shrink-0" />
+                          <Icon size={8} className="shrink-0" />
                           {cfg.label}
                         </span>
                         {conta.status === 'erro' && conta.erro_mensagem && (
                           <p
-                            className="text-red-400/90 text-[10px] mt-0.5 truncate"
+                            className="text-red-400/90 text-[9px] mt-0.5 truncate"
                             title={conta.erro_mensagem}
                           >
                             {conta.erro_mensagem}
@@ -709,7 +709,7 @@ export default function TabelaContas({
                       </td>
 
                       {/* Ações */}
-                      <td className="py-2 px-1 text-center overflow-hidden">
+                      <td className="py-2 px-0.5 text-center overflow-hidden">
                         <div className="flex items-center justify-center gap-0.5">
                           {(conta.metadata?.anexo_url || conta.anexo_url) && (
                             <button
@@ -718,7 +718,7 @@ export default function TabelaContas({
                               className="text-emerald-400 hover:text-emerald-300 transition-colors p-0.5 bg-emerald-500/10 rounded"
                               title="Visualizar Anexo/Comprovante"
                             >
-                              <Paperclip size={12} />
+                              <Paperclip size={11} />
                             </button>
                           )}
                           <button
@@ -726,7 +726,7 @@ export default function TabelaContas({
                             className="text-dark-500 hover:text-red-400 transition-colors p-0.5"
                             title="Excluir"
                           >
-                            <Trash2 size={12} />
+                            <Trash2 size={11} />
                           </button>
                         </div>
                       </td>
