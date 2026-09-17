@@ -364,10 +364,22 @@ export default function TabelaPreview({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="table-bpo">
+        <table className="w-full text-xs border-collapse table-fixed select-none">
+          <colgroup>
+            <col style={{ width: '30px' }} />
+            <col style={{ width: '36%' }} />
+            <col style={{ width: '84px' }} />
+            <col style={{ width: '74px' }} />
+            <col style={{ width: '74px' }} />
+            <col style={{ width: '120px' }} />
+            <col style={{ width: '110px' }} />
+            <col style={{ width: '110px' }} />
+            <col style={{ width: '65px' }} />
+            <col style={{ width: '38px' }} />
+          </colgroup>
           <thead>
-            <tr>
-              <th className="w-10">
+            <tr className="bg-dark-900/85 text-dark-400 uppercase text-[11px] font-semibold tracking-wider border-b border-dark-700/80">
+              <th className="py-2.5 px-2 text-center">
                 <input
                   type="checkbox"
                   checked={todosFiltradosSelecionados}
@@ -382,15 +394,15 @@ export default function TabelaPreview({
                   className="w-4 h-4 rounded border-dark-500 bg-dark-700 checked:bg-primary-600 cursor-pointer"
                 />
               </th>
-              <th>Fornecedor</th>
-              <th className="text-right">Valor</th>
-              <th>Vencimento</th>
-              <th>Competência</th>
-              <th>Categoria</th>
-              <th>Conta</th>
-              <th>Descrição</th>
-              <th className="text-center">Status</th>
-              <th className="w-10"></th>
+              <th className="py-2.5 px-2 text-left text-white font-bold">Fornecedor</th>
+              <th className="py-2.5 px-2 text-right">Valor</th>
+              <th className="py-2.5 px-1.5 text-center">Venc.</th>
+              <th className="py-2.5 px-1.5 text-center">Comp.</th>
+              <th className="py-2.5 px-2 text-left">Categoria</th>
+              <th className="py-2.5 px-2 text-left">Conta</th>
+              <th className="py-2.5 px-2 text-left">Desc.</th>
+              <th className="py-2.5 px-1 text-center">Status</th>
+              <th className="py-2.5 px-1 text-center"></th>
             </tr>
           </thead>
           <tbody>
@@ -413,7 +425,7 @@ export default function TabelaPreview({
                     isEditing && 'bg-dark-800'
                   )}
                 >
-                  <td>
+                  <td className="py-2 px-1 text-center">
                     <input
                       type="checkbox"
                       checked={selecionados.has(idx)}
@@ -421,7 +433,7 @@ export default function TabelaPreview({
                       className="w-4 h-4 rounded border-dark-500 bg-dark-700 checked:bg-primary-600 cursor-pointer"
                     />
                   </td>
-                  <td className="min-w-[260px]">
+                  <td className="py-2 px-2 overflow-hidden">
                     {isEditing ? (
                       <SelectorFornecedor 
                         valorInicial={item.fornecedor}
@@ -434,10 +446,13 @@ export default function TabelaPreview({
                     ) : (
                       <div className="flex flex-col group relative">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className={cn(
-                            'font-medium transition-colors text-xs sm:text-sm',
-                            item.valido ? 'text-white' : 'text-red-400'
-                          )}>
+                          <span
+                            className={cn(
+                              'font-semibold text-xs block line-clamp-2 leading-snug break-words',
+                              item.valido ? 'text-white' : 'text-red-400'
+                            )}
+                            title={item.fornecedor}
+                          >
                             {item.fornecedor}
                           </span>
                           {match && (
@@ -470,7 +485,7 @@ export default function TabelaPreview({
                       </div>
                     )}
                   </td>
-                  <td className="text-right font-mono text-white min-w-[120px]">
+                  <td className="py-2 px-2 text-right font-mono text-white text-xs whitespace-nowrap">
                     {editingValorIdx === idx ? (
                       <input
                         type="number"
@@ -504,7 +519,7 @@ export default function TabelaPreview({
                       </div>
                     )}
                   </td>
-                  <td className="text-dark-300 text-sm min-w-[140px]">
+                  <td className="py-2 px-1.5 text-dark-300 text-xs text-center whitespace-nowrap">
                     {editingVencIdx === idx ? (
                       <input
                         type="date"
@@ -535,7 +550,7 @@ export default function TabelaPreview({
                       </div>
                     )}
                   </td>
-                  <td className="text-dark-300 text-sm min-w-[140px]">
+                  <td className="py-2 px-1.5 text-dark-300 text-xs text-center whitespace-nowrap">
                     {editingEmissaoIdx === idx ? (
                       <input
                         type="date"
@@ -566,7 +581,7 @@ export default function TabelaPreview({
                       </div>
                     )}
                   </td>
-                  <td className="text-dark-300 text-xs min-w-[200px]">
+                  <td className="py-2 px-1.5 text-dark-300 text-xs overflow-hidden">
                     {editingCatIdx === idx ? (
                       <SelectorCategoria 
                         valorInicial={item.categoria || 'Materiais para Revenda'}
@@ -589,7 +604,7 @@ export default function TabelaPreview({
                       </div>
                     )}
                   </td>
-                  <td className="text-dark-300 text-xs min-w-[180px]">
+                  <td className="py-2 px-1.5 text-dark-300 text-xs overflow-hidden">
                     {editingContaIdx === idx ? (
                       <SelectorContaFinanceira 
                         valorInicial={item.conta_financeira || ''}
@@ -612,7 +627,7 @@ export default function TabelaPreview({
                       </div>
                     )}
                   </td>
-                  <td className="text-dark-400 text-xs max-w-[200px]">
+                  <td className="py-2 px-1.5 text-dark-400 text-xs overflow-hidden">
                     {editingDescIdx === idx ? (
                       <input
                         type="text"
@@ -643,7 +658,7 @@ export default function TabelaPreview({
                       </div>
                     )}
                   </td>
-                  <td className="text-center">
+                  <td className="py-2 px-1 text-center">
                     {item.valido ? (
                       <span className="text-emerald-400 text-xs font-semibold uppercase tracking-wider">OK</span>
                     ) : (
@@ -655,7 +670,7 @@ export default function TabelaPreview({
                       </div>
                     )}
                   </td>
-                  <td>
+                  <td className="py-2 px-1 text-center">
                     <div className="flex items-center gap-1">
                       {(item.anexo_url || item.metadata?.anexo_url) && (
                         <button
