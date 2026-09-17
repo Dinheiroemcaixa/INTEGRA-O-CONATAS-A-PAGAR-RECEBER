@@ -536,61 +536,97 @@ export default function TabelaContas({
       ) : (
         <div className="bg-dark-850/90 border border-dark-700/70 rounded-xl overflow-hidden shadow-lg">
           <div className="overflow-x-auto">
-            <table className="table-bpo">
+            <table className="w-full text-xs border-collapse table-fixed select-none">
+              <colgroup>
+                <col style={{ width: '32px' }} />
+                <col style={{ minWidth: '160px' }} />
+                <col style={{ width: '90px' }} />
+                <col style={{ width: '82px' }} />
+                <col style={{ width: '88px' }} />
+                <col style={{ width: '115px' }} />
+                <col style={{ width: '125px' }} />
+                <col style={{ width: '85px' }} />
+                <col style={{ width: '85px' }} />
+                <col style={{ width: '36px' }} />
+              </colgroup>
               <thead>
-                <tr>
-                  <th className="w-10 text-center">
+                <tr className="bg-dark-900/90 text-dark-400 uppercase text-[10px] font-semibold tracking-wide border-b border-dark-700/80">
+                  <th className="py-2.5 px-1 text-center">
                     <input
                       type="checkbox"
                       checked={contas.length > 0 && selecionados.length === contas.length}
                       onChange={toggleSelectAll}
-                      className="rounded border-dark-600 bg-dark-900 text-brand-500 focus:ring-brand-500 cursor-pointer"
+                      className="rounded border-dark-600 bg-dark-900 text-brand-500 focus:ring-brand-500 cursor-pointer w-3.5 h-3.5"
                     />
                   </th>
-                  <th>Fornecedor</th>
-                  <th className="text-right">Valor</th>
-                  <th>Vencimento</th>
-                  <th>Competência</th>
-                  <th>Categoria</th>
-                  <th>Conta Bancária</th>
-                  <th>Descrição</th>
-                  <th className="text-center">Status</th>
-                  <th className="w-10"></th>
+                  <th className="py-2.5 px-2 text-left">Fornecedor</th>
+                  <th className="py-2.5 px-2 text-right">Valor</th>
+                  <th className="py-2.5 px-1.5 text-center">Vencimento</th>
+                  <th className="py-2.5 px-1.5 text-center">Competência</th>
+                  <th className="py-2.5 px-2 text-left">Categoria</th>
+                  <th className="py-2.5 px-2 text-left">Conta Bancária</th>
+                  <th className="py-2.5 px-1.5 text-left">Descrição</th>
+                  <th className="py-2.5 px-1 text-center">Status</th>
+                  <th className="py-2.5 px-1 text-center"></th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-dark-800/60">
                 {contasExibidas.map((conta) => {
                   const cfg = STATUS_CONFIG[conta.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pendente
                   const Icon = cfg.icon
                   const isSelected = selecionados.includes(conta.id)
 
                   return (
-                    <tr key={conta.id} className={isSelected ? 'bg-brand-500/10' : ''}>
-                      <td className="text-center">
+                    <tr
+                      key={conta.id}
+                      className={cn(
+                        'hover:bg-dark-700/35 transition-colors duration-150',
+                        isSelected ? 'bg-brand-500/10' : 'even:bg-dark-800/20'
+                      )}
+                    >
+                      {/* Checkbox */}
+                      <td className="py-2 px-1 text-center">
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelect(conta.id)}
-                          className="rounded border-dark-600 bg-dark-900 text-brand-500 focus:ring-brand-500 cursor-pointer"
+                          className="rounded border-dark-600 bg-dark-900 text-brand-500 focus:ring-brand-500 cursor-pointer w-3.5 h-3.5"
                         />
                       </td>
-                      <td>
-                        <span className="text-white font-medium">{conta.fornecedor}</span>
+
+                      {/* Fornecedor - Espaço útil ampliado e sem quebra */}
+                      <td className="py-2 px-2 overflow-hidden">
+                        <span
+                          className="text-white font-medium text-xs block truncate whitespace-nowrap"
+                          title={conta.fornecedor}
+                        >
+                          {conta.fornecedor}
+                        </span>
                       </td>
-                      <td className="text-right">
-                        <span className="text-green-400 font-semibold tabular-nums">
+
+                      {/* Valor */}
+                      <td className="py-2 px-2 text-right whitespace-nowrap overflow-hidden">
+                        <span className="text-green-400 font-semibold tabular-nums text-xs">
                           {formatCurrency(Number(conta.valor))}
                         </span>
                       </td>
-                      <td>
-                        <span className="text-dark-300">{formatDate(conta.vencimento)}</span>
-                      </td>
-                      <td>
-                        <span className="text-dark-300">{conta.emissao ? formatDate(conta.emissao) : '-'}</span>
+
+                      {/* Vencimento */}
+                      <td className="py-2 px-1 text-center whitespace-nowrap overflow-hidden">
+                        <span className="text-dark-300 text-[11px] tabular-nums">
+                          {formatDate(conta.vencimento)}
+                        </span>
                       </td>
 
-                      {/* Categoria editável inline */}
-                      <td>
+                      {/* Competência */}
+                      <td className="py-2 px-1 text-center whitespace-nowrap overflow-hidden">
+                        <span className="text-dark-300 text-[11px] tabular-nums">
+                          {conta.emissao ? formatDate(conta.emissao) : '-'}
+                        </span>
+                      </td>
+
+                      {/* Categoria editável inline compacta */}
+                      <td className="py-2 px-1.5 overflow-hidden">
                         {editandoCategoriaId === conta.id ? (
                           <SelectorCategoria
                             valorInicial={conta.categoria || ''}
@@ -601,17 +637,17 @@ export default function TabelaContas({
                           <button
                             type="button"
                             onClick={() => setEditandoCategoriaId(conta.id)}
-                            className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white border border-dark-700 transition-colors font-medium"
+                            className="inline-flex items-center justify-between w-full gap-1 text-[11px] px-1.5 py-0.5 rounded bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white border border-dark-700 transition-colors font-medium truncate"
                             title="Clique para alterar a categoria"
                           >
-                            {conta.categoria || 'Materiais para Revenda'}
-                            <Edit2 size={10} className="opacity-60" />
+                            <span className="truncate">{conta.categoria || 'Materiais para Revenda'}</span>
+                            <Edit2 size={9} className="opacity-50 shrink-0" />
                           </button>
                         )}
                       </td>
 
-                      {/* Conta Financeira (Banco) editável inline */}
-                      <td>
+                      {/* Conta Financeira (Banco) editável inline compacta */}
+                      <td className="py-2 px-1.5 overflow-hidden">
                         {editandoContaId === conta.id ? (
                           <SelectorContaFinanceira
                             valorInicial={conta.conta_financeira || ''}
@@ -624,57 +660,73 @@ export default function TabelaContas({
                             type="button"
                             onClick={() => setEditandoContaId(conta.id)}
                             className={cn(
-                              'inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-semibold transition-all',
+                              'inline-flex items-center justify-between w-full gap-1 text-[11px] px-1.5 py-0.5 rounded-full border font-medium transition-all truncate',
                               conta.conta_financeira
                                 ? 'bg-brand-500/15 text-brand-300 border-brand-500/30 hover:bg-primary-500/25'
                                 : 'bg-amber-400/10 text-amber-400 border-amber-400/30 hover:bg-amber-400/20'
                             )}
                             title="Clique para selecionar o banco no Conta Azul"
                           >
-                            <Landmark size={11} />
-                            {conta.conta_financeira || 'Selecionar Banco...'}
-                            <Edit2 size={10} className="opacity-60" />
+                            <span className="inline-flex items-center gap-1 truncate">
+                              <Landmark size={10} className="shrink-0 opacity-80" />
+                              <span className="truncate">{conta.conta_financeira || 'Banco...'}</span>
+                            </span>
+                            <Edit2 size={9} className="opacity-50 shrink-0" />
                           </button>
                         )}
                       </td>
 
-                      <td>
-                        <span className="text-dark-400 text-xs truncate max-w-[180px] block font-mono">
+                      {/* Descrição */}
+                      <td className="py-2 px-1.5 overflow-hidden">
+                        <span
+                          className="text-dark-400 text-[11px] truncate block font-mono"
+                          title={conta.descricao || ''}
+                        >
                           {conta.descricao || '-'}
                         </span>
                       </td>
-                      <td className="text-center">
-                        <span className={cn(
-                          'inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium',
-                          cfg.color, cfg.bg
-                        )}>
-                          <Icon size={11} />
+
+                      {/* Status compacto */}
+                      <td className="py-2 px-1 text-center overflow-hidden">
+                        <span
+                          className={cn(
+                            'inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap',
+                            cfg.color,
+                            cfg.bg
+                          )}
+                        >
+                          <Icon size={9} className="shrink-0" />
                           {cfg.label}
                         </span>
                         {conta.status === 'erro' && conta.erro_mensagem && (
-                          <p className="text-red-400/90 text-xs mt-1 max-w-[300px] break-words" title={conta.erro_mensagem}>
-                            {conta.erro_mensagem.substring(0, 150)}{conta.erro_mensagem.length > 150 ? '...' : ''}
+                          <p
+                            className="text-red-400/90 text-[10px] mt-0.5 truncate"
+                            title={conta.erro_mensagem}
+                          >
+                            {conta.erro_mensagem}
                           </p>
                         )}
                       </td>
-                      <td>
-                        <div className="flex items-center gap-1">
+
+                      {/* Ações */}
+                      <td className="py-2 px-1 text-center overflow-hidden">
+                        <div className="flex items-center justify-center gap-0.5">
                           {(conta.metadata?.anexo_url || conta.anexo_url) && (
                             <button
                               type="button"
                               onClick={() => visualizarAnexo(conta.metadata?.anexo_url || conta.anexo_url)}
-                              className="text-emerald-400 hover:text-emerald-300 transition-colors p-1 bg-emerald-500/10 rounded"
+                              className="text-emerald-400 hover:text-emerald-300 transition-colors p-0.5 bg-emerald-500/10 rounded"
                               title="Visualizar Anexo/Comprovante"
                             >
-                              <Paperclip size={14} />
+                              <Paperclip size={12} />
                             </button>
                           )}
                           <button
                             onClick={() => removerConta(conta.id)}
-                            className="text-dark-500 hover:text-red-400 transition-colors p-1"
+                            className="text-dark-500 hover:text-red-400 transition-colors p-0.5"
                             title="Excluir"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       </td>
