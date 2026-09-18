@@ -411,20 +411,37 @@ export default function TabelaPreview({
                 match.origem === 'manual' || 
                 (match.nomeOriginal !== match.nomeCorrigido && (match.confianca === 'exato' || match.confianca === 'alto'))
               )
-              const isEditing = editingIdx === idx
+              const isEditing = 
+                editingIdx === idx ||
+                editingCatIdx === idx ||
+                editingContaIdx === idx ||
+                editingValorIdx === idx ||
+                editingVencIdx === idx ||
+                editingEmissaoIdx === idx ||
+                editingDescIdx === idx
 
               return (
                 <tr
                   key={idx}
                   className={cn(
-                    'border-b border-dark-700/40 transition-colors duration-150',
+                    'group/row relative border-b border-dark-700/40 transition-colors duration-150',
                     'hover:bg-dark-800/35',
                     !item.valido && 'bg-red-500/5 hover:bg-red-500/10',
                     selecionados.has(idx) && item.valido && 'bg-primary-500/10 hover:bg-primary-500/20',
-                    isEditing && 'bg-dark-800'
+                    isEditing && 'bg-dark-800/95 ring-1 ring-inset ring-primary-500/30 border-t border-b border-primary-500/40'
                   )}
                 >
-                  <td className="py-3 px-1 text-center">
+                  <td className="relative py-3 px-1 text-center">
+                    {/* Barra vertical fina na extremidade esquerda durante o hover ou em edição */}
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'absolute left-0 top-0 bottom-0 w-[3px] transition-all duration-150 rounded-r-[1px] pointer-events-none',
+                        isEditing
+                          ? 'bg-primary-400'
+                          : 'bg-transparent group-hover/row:bg-primary-500/60'
+                      )}
+                    />
                     <input
                       type="checkbox"
                       checked={selecionados.has(idx)}
