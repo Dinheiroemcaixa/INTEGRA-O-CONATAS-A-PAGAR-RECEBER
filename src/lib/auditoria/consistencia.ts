@@ -157,7 +157,7 @@ export async function executarConsistencia(
   // 3. Buscar categorias padrão oficiais em fornecedores_contaazul
   const { data: fornecedoresContaAzul } = await supabase
     .from('fornecedores_contaazul')
-    .select('nome, categoria_padrao, cnpj_cpf')
+    .select('nome, categoria_padrao, cnpj')
     .eq('empresa_id', empresa_id)
 
   const mapaCategoriasPadrao = new Map<string, string>()

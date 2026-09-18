@@ -77,7 +77,7 @@ export async function executarSemelhantes(
   // 1. Buscar cadastros no Conta Azul
   const { data: caFornecedores } = await supabase
     .from('fornecedores_contaazul')
-    .select('id, nome, cnpj_cpf')
+    .select('id, nome, cnpj')
     .eq('empresa_id', empresa_id)
 
   // 2. Buscar regras aprendidas em fornecedor_depara
@@ -124,7 +124,7 @@ export async function executarSemelhantes(
       catalogo.set(f.nome, {
         nomeOriginal: f.nome,
         nomeNormalizado: norm,
-        cnpj: f.cnpj_cpf ? f.cnpj_cpf.replace(/\D/g, '') : null,
+        cnpj: f.cnpj ? f.cnpj.replace(/\D/g, '') : null,
         totalLancamentos: vol.count,
         valorAcumulado: vol.total,
         fonte: 'CONTA_AZUL'
