@@ -361,7 +361,7 @@ export default function TabelaPreview({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-xs border-collapse table-fixed select-none">
+        <table className="w-full text-xs border-collapse table-fixed select-text">
           <colgroup>
             <col style={{ width: '32px' }} />
             <col style={{ width: 'auto' }} />
@@ -417,8 +417,10 @@ export default function TabelaPreview({
                 <tr
                   key={idx}
                   className={cn(
-                    !item.valido && 'bg-red-500/5',
-                    selecionados.has(idx) && item.valido && 'bg-primary-500/10',
+                    'border-b border-dark-700/40 transition-colors duration-150',
+                    'hover:bg-dark-800/35',
+                    !item.valido && 'bg-red-500/5 hover:bg-red-500/10',
+                    selecionados.has(idx) && item.valido && 'bg-primary-500/10 hover:bg-primary-500/20',
                     isEditing && 'bg-dark-800'
                   )}
                 >
