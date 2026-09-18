@@ -309,6 +309,8 @@ export default function ContasPagarPage() {
   const [localPagamento, setLocalPagamento] = useState<'todos' | 'BANCO' | 'CARTEIRA' | 'TRANSFERENCIA'>('todos')
   const [contasPreviewDados, setContasPreviewDados] = useState<ContaPagarPreview[] | null>(null)
 
+
+
   const supabase = createClient()
 
   useEffect(() => {
@@ -724,7 +726,7 @@ export default function ContasPagarPage() {
           {subAba === 'planilha' && etapa !== 'upload' && (
             <button
               onClick={() => { setEtapa('upload'); setResultado(null) }}
-              className="px-3 py-1.5 bg-dark-800 hover:bg-dark-700 text-dark-300 hover:text-white border border-dark-700 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 bg-dark-800 hover:bg-dark-700 hover:border-dark-600 hover:shadow-sm hover:scale-[1.02] active:scale-[0.98] text-dark-300 hover:text-white border border-dark-700 rounded-lg text-xs font-medium transition-all duration-200 flex items-center gap-1.5 cursor-pointer"
             >
               <ArrowLeft size={13} />
               <span>Voltar</span>
@@ -733,7 +735,7 @@ export default function ContasPagarPage() {
           {subAba === 'datacar' && contasPreviewDados && (
             <button
               onClick={() => { setContasPreviewDados(null) }}
-              className="px-3 py-1.5 bg-dark-800 hover:bg-dark-700 text-dark-300 hover:text-white border border-dark-700 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 bg-dark-800 hover:bg-dark-700 hover:border-dark-600 hover:shadow-sm hover:scale-[1.02] active:scale-[0.98] text-dark-300 hover:text-white border border-dark-700 rounded-lg text-xs font-medium transition-all duration-200 flex items-center gap-1.5 cursor-pointer"
             >
               <ArrowLeft size={13} />
               <span>Voltar à Busca</span>
@@ -905,7 +907,7 @@ export default function ContasPagarPage() {
                     <button
                       onClick={handleBuscarContasDatacar}
                       disabled={buscando || !empresaAtiva.datacar_token}
-                      className="w-full h-8.5 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer"
+                      className="w-full h-8.5 bg-brand-600 hover:bg-brand-500 hover:shadow-md hover:shadow-brand-950/50 hover:border-brand-400/50 border border-brand-500 active:scale-[0.98] disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer shadow-xs"
                     >
                       {buscando ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}
                       <span>{buscando ? 'Buscando...' : 'Buscar'}</span>

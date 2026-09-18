@@ -29,7 +29,7 @@ export default function SelectorContaFinanceira({ valorInicial, contas, onSelect
   )
 
   return (
-    <div className="relative w-full min-w-[200px]">
+    <div className="relative w-full min-w-[150px]">
       <div className="flex items-center gap-2 bg-dark-700 border border-blue-500/50 rounded-lg px-2 py-1 shadow-lg shadow-blue-900/20">
         <Landmark size={14} className="text-blue-400" />
         <input
@@ -51,7 +51,7 @@ export default function SelectorContaFinanceira({ valorInicial, contas, onSelect
         </button>
       </div>
 
-      <div className="absolute z-50 mt-1 w-full bg-dark-800 border border-dark-600 rounded-lg shadow-2xl overflow-hidden max-h-[220px] overflow-y-auto">
+      <div className="absolute z-50 mt-1 left-0 w-[320px] max-w-[90vw] bg-dark-800 border border-dark-600 rounded-xl shadow-2xl overflow-hidden max-h-[260px] overflow-y-auto ring-1 ring-black/50 animate-in fade-in duration-150">
         {filtrados.length === 0 && (
           <div className="p-3 text-[10px] text-dark-500 italic text-center">
             {lista.length === 0
@@ -63,7 +63,7 @@ export default function SelectorContaFinanceira({ valorInicial, contas, onSelect
           <button
             key={conta.id}
             onClick={() => onSelect(conta.descricao, conta.id)}
-            className="w-full text-left px-3 py-1.5 text-xs text-white hover:bg-blue-600/20 hover:text-blue-400 transition-colors border-b border-dark-700 last:border-none flex items-center justify-between"
+            className="w-full text-left px-3.5 py-2 text-xs text-white hover:bg-blue-600/25 hover:text-blue-300 transition-all border-b border-dark-700/60 last:border-none flex items-center justify-between cursor-pointer"
           >
             <span>{conta.descricao}</span>
             <span className="text-[9px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 font-mono">Conta Azul</span>

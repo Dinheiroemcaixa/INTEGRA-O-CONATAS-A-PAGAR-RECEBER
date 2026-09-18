@@ -33,7 +33,7 @@ export default function SelectorCategoria({ valorInicial, categorias = [], onSel
   }, [busca, categorias])
 
   return (
-    <div className="relative w-full min-w-[220px]">
+    <div className="relative w-full min-w-[170px]">
       <div className="flex items-center gap-2 bg-dark-700 border border-brand-500/50 rounded-lg px-2 py-1 shadow-lg shadow-brand-900/20">
         <Search size={14} className="text-brand-400" />
         <input
@@ -56,7 +56,7 @@ export default function SelectorCategoria({ valorInicial, categorias = [], onSel
       </div>
 
       {aberto && (
-        <div className="absolute z-50 mt-1 w-full bg-dark-800 border border-dark-600 rounded-lg shadow-2xl overflow-hidden max-h-[250px] overflow-y-auto">
+        <div className="absolute z-50 mt-1 left-0 w-[340px] max-w-[90vw] bg-dark-800 border border-dark-600 rounded-xl shadow-2xl overflow-hidden max-h-[260px] overflow-y-auto ring-1 ring-black/50 animate-in fade-in duration-150">
           {resultados.length === 0 && busca.length > 0 && (
             <div className="p-3 text-[10px] text-dark-500 italic text-center">
               Nenhuma categoria encontrada na lista padrão
@@ -67,7 +67,7 @@ export default function SelectorCategoria({ valorInicial, categorias = [], onSel
             <button
               key={i}
               onClick={() => onSelect(cat)}
-              className="w-full text-left px-3 py-1.5 text-xs text-white hover:bg-brand-600/20 hover:text-brand-400 transition-colors border-b border-dark-700 last:border-none"
+              className="w-full text-left px-3.5 py-2 text-xs text-white hover:bg-brand-600/25 hover:text-brand-300 transition-all border-b border-dark-700/60 last:border-none cursor-pointer flex items-center justify-between"
             >
               {cat}
             </button>

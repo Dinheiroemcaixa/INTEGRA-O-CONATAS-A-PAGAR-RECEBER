@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { formatCurrency, formatDate, visualizarAnexo } from '@/lib/utils'
 import type { ContaPagarPreview } from '@/types'
-import { CheckCircle, AlertCircle, Trash2, Edit2, ChevronDown, Paperclip } from 'lucide-react'
+import { CheckCircle, AlertCircle, Trash2, Edit2, ChevronDown, Paperclip, Check, RefreshCw, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import SelectorFornecedor from './SelectorFornecedor'
 import SelectorCategoria from './SelectorCategoria'
@@ -45,11 +45,10 @@ function BadgeMatch({
   if (origem === 'depara' || origem === 'manual' || foiCorrigido) {
     return (
       <span 
-        className="inline-flex items-center gap-1 text-xs text-primary-300 bg-primary-500/15 border border-primary-500/30 px-2.5 py-0.5 rounded-md font-medium shadow-xs whitespace-nowrap" 
-        title="Fornecedor corrigido por regra De-Para ou ajuste salvo"
+        className="inline-flex items-center justify-center p-1 rounded-md text-primary-300 bg-primary-500/15 border border-primary-500/30 hover:bg-primary-500/25 hover:border-primary-500/50 shadow-xs cursor-help transition-all duration-150 flex-shrink-0" 
+        title="Fornecedor conciliado por regra De-Para"
       >
-        <span className="w-1.5 h-1.5 rounded-full bg-primary-400" />
-        🔄 Corrigido
+        <RefreshCw size={12} className="stroke-[2.2]" />
       </span>
     )
   }
@@ -58,11 +57,10 @@ function BadgeMatch({
   if (origem === 'direto' || origem === 'cnpj' || confianca === 'exato' || score === 100) {
     return (
       <span 
-        className="inline-flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 rounded-md font-medium shadow-xs whitespace-nowrap" 
-        title="Nome/CNPJ corresponde exatamente ao cadastro do Conta Azul"
+        className="inline-flex items-center justify-center p-1 rounded-md text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 hover:bg-emerald-500/25 hover:border-emerald-500/50 shadow-xs cursor-help transition-all duration-150 flex-shrink-0" 
+        title="Correspondência exata encontrada"
       >
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-        ✓ Exato
+        <Check size={12} className="stroke-[2.5]" />
       </span>
     )
   }
@@ -71,7 +69,7 @@ function BadgeMatch({
   if (score >= 50) {
     return (
       <span 
-        className="inline-flex items-center gap-1 text-xs text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-md font-medium shadow-xs whitespace-nowrap" 
+        className="inline-flex items-center gap-1 text-xs text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-md font-medium shadow-xs whitespace-nowrap cursor-help flex-shrink-0" 
         title={`Sugestão por similaridade (${score}%) — revise antes de enviar`}
       >
         <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
@@ -83,11 +81,10 @@ function BadgeMatch({
   // 4. Não encontrado (AMARELO ALERTA)
   return (
     <span 
-      className="inline-flex items-center gap-1 text-xs text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-md font-medium shadow-xs whitespace-nowrap" 
-      title="Fornecedor não encontrado no Conta Azul — será criado ou precisa de conferência"
+      className="inline-flex items-center justify-center p-1 rounded-md text-amber-400 bg-amber-500/15 border border-amber-500/30 hover:bg-amber-500/25 hover:border-amber-500/50 shadow-xs cursor-help transition-all duration-150 flex-shrink-0" 
+      title="Fornecedor sem correspondência"
     >
-      <AlertCircle size={9} className="text-amber-400" />
-      Não Encontrado
+      <AlertTriangle size={12} className="stroke-[2.2]" />
     </span>
   )
 }
@@ -280,7 +277,7 @@ export default function TabelaPreview({
                         setLoteCategoria('')
                       }}
                       disabled={!loteCategoria}
-                      className="bg-primary-600 text-white px-2.5 py-1 rounded-md text-xs font-semibold disabled:opacity-50"
+                      className="bg-primary-600 hover:bg-primary-500 hover:shadow-md hover:shadow-primary-600/30 active:scale-[0.98] text-white px-3 py-1 rounded-md text-xs font-semibold disabled:opacity-50 transition-all duration-200 cursor-pointer"
                     >
                       Aplicar
                     </button>
@@ -318,7 +315,7 @@ export default function TabelaPreview({
                         setLoteConta('')
                       }}
                       disabled={!loteConta}
-                      className="bg-primary-600 text-white px-2.5 py-1 rounded-md text-xs font-semibold disabled:opacity-50"
+                      className="bg-primary-600 hover:bg-primary-500 hover:shadow-md hover:shadow-primary-600/30 active:scale-[0.98] text-white px-3 py-1 rounded-md text-xs font-semibold disabled:opacity-50 transition-all duration-200 cursor-pointer"
                     >
                       Aplicar
                     </button>
@@ -332,18 +329,18 @@ export default function TabelaPreview({
                         onUpdateFornecedorLote(Array.from(selecionados), '')
                       }
                     }}
-                    className="bg-amber-600 hover:bg-amber-500 text-white px-2.5 py-1 rounded-md text-xs font-semibold transition-all"
+                    className="bg-amber-600 hover:bg-amber-500 hover:shadow-md hover:shadow-amber-600/30 hover:border-amber-400/50 border border-amber-500 active:scale-[0.98] text-white px-2.5 py-1 rounded-md text-xs font-semibold transition-all duration-200 cursor-pointer"
                     title="Remove o fornecedor selecionado para enviar em branco"
                   >
                     Limpar Fornecedor
                   </button>
 
-                  <button onClick={() => { setShowBulkEdit(false); setShowBulkList(false); setShowBulkContaList(false) }} className="text-dark-400 hover:text-white text-xs">Fechar</button>
+                  <button onClick={() => { setShowBulkEdit(false); setShowBulkList(false); setShowBulkContaList(false) }} className="text-dark-400 hover:text-white hover:bg-dark-700/60 px-2 py-1 rounded text-xs transition-all duration-150 cursor-pointer">Fechar</button>
                 </div>
               ) : (
                 <button 
                   onClick={() => setShowBulkEdit(true)}
-                  className="text-xs text-primary-300 hover:text-primary-200 font-semibold flex items-center gap-1"
+                  className="text-xs text-primary-300 hover:text-white hover:bg-primary-600/30 px-2.5 py-1 rounded-md border border-primary-500/30 hover:border-primary-400/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] font-semibold flex items-center gap-1.5 transition-all duration-200 cursor-pointer"
                 >
                   <Edit2 size={12} /> Alterar em Lote
                 </button>
@@ -355,7 +352,7 @@ export default function TabelaPreview({
                   onRemoverLote(Array.from(selecionados))
                 }
               }}
-              className="text-xs text-red-400 hover:text-red-300 font-semibold flex items-center gap-1"
+              className="text-xs text-red-400 hover:text-white hover:bg-red-600/25 px-2.5 py-1 rounded-md border border-red-500/30 hover:border-red-400/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] font-semibold flex items-center gap-1.5 transition-all duration-200 cursor-pointer"
             >
               <Trash2 size={12} /> Excluir selecionados
             </button>
@@ -371,8 +368,8 @@ export default function TabelaPreview({
             <col style={{ width: '86px' }} />
             <col style={{ width: '82px' }} />
             <col style={{ width: '86px' }} />
-            <col style={{ width: '126px' }} />
-            <col style={{ width: '112px' }} />
+            <col style={{ width: '168px' }} />
+            <col style={{ width: '152px' }} />
             <col style={{ width: '110px' }} />
             <col style={{ width: '52px' }} />
             <col style={{ width: '34px' }} />
@@ -465,7 +462,7 @@ export default function TabelaPreview({
                           )}
                           <button 
                             onClick={() => setEditingIdx(idx)}
-                            className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 rounded hover:bg-dark-700"
+                            className="opacity-50 group-hover:opacity-100 transition-all text-dark-400 hover:text-brand-300 hover:bg-dark-700/80 hover:scale-110 p-1 rounded cursor-pointer"
                             title="Editar ou corrigir fornecedor"
                           >
                             <Edit2 size={12} />
@@ -510,7 +507,7 @@ export default function TabelaPreview({
                       <div className="group flex items-center justify-end gap-2">
                         <button
                           onClick={() => setEditingValorIdx(idx)}
-                          className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 flex-shrink-0"
+                          className="opacity-50 group-hover:opacity-100 transition-all text-dark-400 hover:text-brand-300 hover:bg-dark-800/80 hover:scale-110 p-1 rounded flex-shrink-0 cursor-pointer"
                           title="Editar valor"
                         >
                           <Edit2 size={12} />
@@ -542,7 +539,7 @@ export default function TabelaPreview({
                         <span>{item.vencimento ? formatDate(item.vencimento) : '---'}</span>
                         <button
                           onClick={() => setEditingVencIdx(idx)}
-                          className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 flex-shrink-0"
+                          className="opacity-50 group-hover:opacity-100 transition-all text-dark-400 hover:text-brand-300 hover:bg-dark-800/80 hover:scale-110 p-1 rounded flex-shrink-0 cursor-pointer"
                           title="Editar vencimento"
                         >
                           <Edit2 size={12} />
@@ -573,7 +570,7 @@ export default function TabelaPreview({
                         <span>{item.emissao ? formatDate(item.emissao) : '---'}</span>
                         <button
                           onClick={() => setEditingEmissaoIdx(idx)}
-                          className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 flex-shrink-0"
+                          className="opacity-50 group-hover:opacity-100 transition-all text-dark-400 hover:text-brand-300 hover:bg-dark-800/80 hover:scale-110 p-1 rounded flex-shrink-0 cursor-pointer"
                           title="Editar competência (emissão)"
                         >
                           <Edit2 size={12} />
@@ -581,7 +578,7 @@ export default function TabelaPreview({
                       </div>
                     )}
                   </td>
-                  <td className="py-3 px-1.5 text-dark-200 text-xs sm:text-[13px] overflow-hidden">
+                  <td className={cn("py-3 px-1.5 text-dark-200 text-xs sm:text-[13px]", editingCatIdx === idx ? "overflow-visible relative" : "overflow-hidden")}>
                     {editingCatIdx === idx ? (
                       <SelectorCategoria 
                         valorInicial={item.categoria || 'Materiais para Revenda'}
@@ -594,7 +591,7 @@ export default function TabelaPreview({
                       />
                     ) : (
                       <div 
-                        className="group flex items-center justify-between gap-2 bg-dark-900/50 border border-dark-700/50 hover:border-dark-600 rounded px-2 py-1 cursor-pointer transition-all"
+                        className="group flex items-center justify-between gap-1.5 bg-dark-900/60 border border-dark-700/60 hover:border-brand-500/60 hover:bg-dark-800 hover:shadow-sm rounded px-2.5 py-1.5 cursor-pointer transition-all duration-200"
                         onClick={() => setEditingCatIdx(idx)}
                       >
                         <span className="truncate">
@@ -604,7 +601,7 @@ export default function TabelaPreview({
                       </div>
                     )}
                   </td>
-                  <td className="py-3 px-1.5 text-blue-300 text-xs sm:text-[13px] overflow-hidden">
+                  <td className={cn("py-3 px-1.5 text-blue-300 text-xs sm:text-[13px]", editingContaIdx === idx ? "overflow-visible relative" : "overflow-hidden")}>
                     {editingContaIdx === idx ? (
                       <SelectorContaFinanceira 
                         valorInicial={item.conta_financeira || ''}
@@ -617,7 +614,7 @@ export default function TabelaPreview({
                       />
                     ) : (
                       <div 
-                        className="group flex items-center justify-between gap-2 bg-blue-900/10 border border-blue-500/20 hover:border-blue-500/40 rounded px-2 py-1 cursor-pointer transition-all"
+                        className="group flex items-center justify-between gap-1.5 bg-blue-950/20 border border-blue-500/25 hover:border-blue-400/60 hover:bg-blue-900/30 hover:shadow-sm rounded px-2.5 py-1.5 cursor-pointer transition-all duration-200"
                         onClick={() => setEditingContaIdx(idx)}
                       >
                         <span className="truncate text-blue-300">
@@ -650,7 +647,7 @@ export default function TabelaPreview({
                         <span className="truncate" title={item.descricao}>{item.descricao || '---'}</span>
                         <button
                           onClick={() => setEditingDescIdx(idx)}
-                          className="opacity-40 group-hover:opacity-100 transition-opacity text-dark-500 hover:text-brand-400 p-1 flex-shrink-0"
+                          className="opacity-50 group-hover:opacity-100 transition-all text-dark-400 hover:text-brand-300 hover:bg-dark-800/80 hover:scale-110 p-1 rounded flex-shrink-0 cursor-pointer"
                           title="Editar descrição"
                         >
                           <Edit2 size={12} />
@@ -676,7 +673,7 @@ export default function TabelaPreview({
                         <button
                           type="button"
                           onClick={() => visualizarAnexo(item.anexo_url || item.metadata?.anexo_url)}
-                          className="text-emerald-400 hover:text-emerald-300 transition-colors p-1 bg-emerald-500/10 rounded"
+                          className="text-emerald-400 hover:text-white hover:bg-emerald-600/30 border border-emerald-500/20 hover:border-emerald-400/50 hover:shadow-sm hover:scale-110 active:scale-95 transition-all duration-200 p-1.5 bg-emerald-500/10 rounded-md cursor-pointer"
                           title="Visualizar Anexo/Comprovante"
                         >
                           <Paperclip size={14} />
@@ -684,7 +681,7 @@ export default function TabelaPreview({
                       )}
                       <button
                         onClick={() => onRemover(idx)}
-                        className="text-dark-500 hover:text-red-400 transition-colors p-1"
+                        className="text-dark-400 hover:text-red-400 hover:bg-red-500/15 border border-transparent hover:border-red-500/30 hover:shadow-sm hover:scale-110 active:scale-95 transition-all duration-200 p-1.5 rounded-md cursor-pointer"
                         title="Excluir"
                       >
                         <Trash2 size={14} />

@@ -661,7 +661,7 @@ export default function ContasPreviewSection({
           onClick={() => setFiltroPreview('todos')}
           className={cn(
             "rounded-xl p-4 text-left transition-all space-y-1 cursor-pointer",
-            filtroPreview === 'todos' ? "border border-primary-500/60 ring-1 ring-primary-500/30 bg-primary-950/20" : "border border-dark-700/60 hover:border-dark-600 bg-dark-850/80"
+            filtroPreview === 'todos' ? "border border-primary-500/70 ring-1 ring-primary-500/40 bg-primary-950/30 shadow-md shadow-primary-950/40 scale-[1.01]" : "border border-dark-700/60 hover:border-dark-500 hover:bg-dark-800/80 hover:shadow-md hover:scale-[1.01] bg-dark-850/80"
           )}
         >
           <p className="text-dark-400 text-xs font-semibold uppercase tracking-wider mb-1">Total</p>
@@ -679,7 +679,7 @@ export default function ContasPreviewSection({
           onClick={() => setFiltroPreview('revisao')}
           className={cn(
             "rounded-xl p-4 text-left transition-all space-y-1 cursor-pointer",
-            filtroPreview === 'revisao' ? "border border-amber-500/60 ring-1 ring-amber-500/30 bg-amber-950/20" : "border border-amber-500/20 hover:border-amber-500/40 bg-dark-850/80"
+            filtroPreview === 'revisao' ? "border border-amber-500/70 ring-1 ring-amber-500/40 bg-amber-950/30 shadow-md shadow-amber-950/40 scale-[1.01]" : "border border-amber-500/25 hover:border-amber-500/60 hover:bg-amber-950/15 hover:shadow-md hover:scale-[1.01] bg-dark-850/80"
           )}
         >
           <p className="text-amber-400/80 text-xs font-semibold uppercase tracking-wider mb-1">Amarelas (Revisar)</p>
@@ -692,7 +692,7 @@ export default function ContasPreviewSection({
           onClick={() => setFiltroPreview('erro')}
           className={cn(
             "rounded-xl p-4 text-left transition-all space-y-1 cursor-pointer",
-            filtroPreview === 'erro' ? "border border-red-500/60 ring-1 ring-red-500/30 bg-red-950/20" : "border border-red-500/20 hover:border-red-500/40 bg-dark-850/80"
+            filtroPreview === 'erro' ? "border border-red-500/70 ring-1 ring-red-500/40 bg-red-950/30 shadow-md shadow-red-950/40 scale-[1.01]" : "border border-red-500/25 hover:border-red-500/60 hover:bg-red-950/15 hover:shadow-md hover:scale-[1.01] bg-dark-850/80"
           )}
         >
           <p className="text-red-400/80 text-xs font-semibold uppercase tracking-wider mb-1">Vermelhas (Erro)</p>
@@ -722,13 +722,13 @@ export default function ContasPreviewSection({
           <div className="flex items-center gap-3">
             <button 
               onClick={excluirTudoFiltrado}
-              className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 font-medium"
+              className="text-xs text-red-400 hover:text-white hover:bg-red-600/20 hover:border-red-500/40 border border-transparent px-2 py-1 rounded-md flex items-center gap-1.5 font-medium transition-all duration-200 cursor-pointer hover:shadow-sm"
             >
               <Trash2 size={14} /> Excluir tudo do filtro
             </button>
             <button 
               onClick={() => setFiltroPreview('todos')}
-              className="text-xs text-dark-400 hover:text-white"
+              className="text-xs text-dark-400 hover:text-white hover:bg-dark-700/60 px-2 py-1 rounded-md transition-all duration-150 cursor-pointer"
             >
               Limpar filtro
             </button>
