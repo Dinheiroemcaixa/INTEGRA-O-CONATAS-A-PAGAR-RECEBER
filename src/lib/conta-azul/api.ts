@@ -38,6 +38,20 @@ async function fetchCA(url: string | URL | Request, options?: RequestInit): Prom
   return res!;
 }
 
+export class OAuthError extends Error {
+  statusCode: number
+  errorCode?: string
+  errorDescription?: string
+
+  constructor(message: string, statusCode: number, errorCode?: string, errorDescription?: string) {
+    super(message)
+    this.name = 'OAuthError'
+    this.statusCode = statusCode
+    this.errorCode = errorCode
+    this.errorDescription = errorDescription
+  }
+}
+
 export interface TokenResponse {
   access_token: string
   refresh_token: string
@@ -119,7 +133,17 @@ export async function refreshToken(
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': `Basic ${credenciais}` },
     body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshTokenStr }),
   })
-  if (!res.ok) { const err = await res.text(); throw new Error(`Erro ao renovar token: ${res.status} - ${err}`) }
+  if (!res.ok) {
+    const err = await res.text()
+    let errorCode: string | undefined
+    let errorDescription: string | undefined
+    try {
+      const parsed = JSON.parse(err)
+      errorCode = parsed.error || parsed.code
+      errorDescription = parsed.error_description || parsed.message || parsed.descricao
+    } catch {}
+    throw new OAuthError(`Erro ao renovar token: ${res.status} - ${err}`, res.status, errorCode, errorDescription)
+  }
   return res.json()
 }
 

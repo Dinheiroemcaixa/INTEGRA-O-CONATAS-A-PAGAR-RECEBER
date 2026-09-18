@@ -11,7 +11,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
-import { refreshToken } from './api'
+import { refreshToken, OAuthError } from './api'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -131,11 +131,23 @@ async function executeGetValidToken(
   // 4. Renovar se necessário ou se solicitado (forceRefresh)
   const currentRefreshToken = targetEmpresa[refreshKey]
   if ((tokenExpirado || forceRefresh) && currentRefreshToken) {
+    const clientId = process.env.CONTA_AZUL_CLIENT_ID
+    const clientSecret = process.env.CONTA_AZUL_CLIENT_SECRET
+
+    // Pre-flight check: Não tenta renovar sem credenciais no ambiente, protegendo os tokens existentes
+    if (!clientId || !clientSecret) {
+      console.warn(`[token-manager] Renovação ignorada: CONTA_AZUL_CLIENT_ID ou CLIENT_SECRET ausentes no ambiente. Tokens PRESERVADOS para empresa ${targetEmpresa.nome || targetEmpresa.id}.`)
+      throw new TokenError(
+        `Configurações da integração Conta Azul ausentes no ambiente. A renovação não pôde ser executada, mas seus tokens foram preservados.`,
+        500
+      )
+    }
+
     try {
       const novosTokens = await refreshToken(
         currentRefreshToken,
-        process.env.CONTA_AZUL_CLIENT_ID!,
-        process.env.CONTA_AZUL_CLIENT_SECRET!
+        clientId,
+        clientSecret
       )
       accessToken = novosTokens.access_token
 
@@ -162,25 +174,50 @@ async function executeGetValidToken(
 
       console.log(`[token-manager] Token (${modulo}) renovado com sucesso para empresa ${targetEmpresa.nome || targetEmpresa.id}`)
       targetEmpresa = { ...targetEmpresa, ...updateData }
-    } catch (errRefresh) {
+    } catch (errRefresh: any) {
       console.error('[token-manager] Falha ao renovar token:', errRefresh)
-      // Limpa os tokens expirados/inválidos no Supabase para que a interface reflita o status real (Vermelho)
-      const updateDataClear: Record<string, any> = isVendas ? {
-        access_token_conta_azul_vendas: null,
-        refresh_token_conta_azul_vendas: null,
-        data_expiracao_token_vendas: null,
-        conta_azul_vendas_connected: false,
-      } : {
-        access_token_conta_azul: null,
-        refresh_token_conta_azul: null,
-        data_expiracao_token: null,
-        conta_azul_connected: false,
+
+      // Limpa tokens no Supabase SOMENTE se a Conta Azul declarar explicitamente 'invalid_grant' (RFC 6749)
+      // (isto é: quando o usuário de fato revogou a autorização no painel do ERP ou o refresh token é inválido)
+      const isInvalidGrant = 
+        (errRefresh instanceof OAuthError && errRefresh.errorCode === 'invalid_grant') ||
+        (typeof errRefresh?.message === 'string' && errRefresh.message.includes('invalid_grant'))
+
+      if (isInvalidGrant) {
+        // Guard-rail para ambiente de desenvolvimento local: não executar limpeza automática no banco de produção
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(`[token-manager] [DEV GUARD-RAIL] 'invalid_grant' detectado em ambiente local. Limpeza automática suprimida no Supabase para empresa ${targetEmpresa.nome || targetEmpresa.id}.`)
+        } else {
+          const updateDataClear: Record<string, any> = isVendas ? {
+            access_token_conta_azul_vendas: null,
+            refresh_token_conta_azul_vendas: null,
+            data_expiracao_token_vendas: null,
+            conta_azul_vendas_connected: false,
+          } : {
+            access_token_conta_azul: null,
+            refresh_token_conta_azul: null,
+            data_expiracao_token: null,
+            conta_azul_connected: false,
+          }
+          await supabaseAdmin.from('empresas').update(updateDataClear).eq('id', targetEmpresa.id)
+        }
+
+        throw new TokenError(
+          `Sua conexão com a Conta Azul (${modulo}) expirou ou foi revogada. Por favor, acesse Empresas e reconecte a Conta Azul.`,
+          401
+        )
       }
-      await supabaseAdmin.from('empresas').update(updateDataClear).eq('id', targetEmpresa.id)
+
+      // Para QUALQUER outro erro (invalid_client, timeout, ECONNRESET, HTTP 500, 502, 503, 429, etc.):
+      // NÃO apaga tokens, NÃO grava NULL. Retorna erro operacional preservando a conexão.
+      const status = errRefresh instanceof OAuthError ? (errRefresh.statusCode || 502) : 502
+      const errorMsg = errRefresh instanceof Error ? errRefresh.message : String(errRefresh)
+
+      console.warn(`[token-manager] Falha transitória/configuração ao renovar token (${modulo}) para ${targetEmpresa.nome || targetEmpresa.id}. Tokens PRESERVADOS no banco. Detalhe:`, errorMsg)
 
       throw new TokenError(
-        `Sua conexão com a Conta Azul (${modulo}) expirou. Por favor, acesse Empresas e reconecte a Conta Azul.`,
-        401
+        `Não foi possível renovar a conexão com o Conta Azul (${modulo}): ${errorMsg}. Seus dados de conexão foram preservados. Tente novamente mais tarde.`,
+        status
       )
     }
   }
