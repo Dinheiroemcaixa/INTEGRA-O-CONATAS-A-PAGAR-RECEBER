@@ -765,27 +765,26 @@ export default function ContasPreviewSection({
           <span className="text-white font-semibold">{selecionados.size}</span> registros selecionados •{' '}
           <span className="text-green-400 font-semibold">{formatCurrency(valorSelecionado)}</span>
         </p>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           {onBaixarXls && (
             <button
               onClick={handleClickBaixarXls}
               disabled={selecionados.size === 0}
-              className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed
-                         text-white px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 transition-all"
+              className="h-10 px-5 py-2.5 bg-emerald-600/90 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold flex items-center gap-2 border border-emerald-500/30 hover:border-emerald-400/60 shadow-sm hover:shadow-md hover:shadow-emerald-950/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer"
               title="Gera o arquivo .xls no modelo do ContaAzul sem salvar no banco"
             >
-              <FileDown size={16} /> Baixar XLS ContaAzul
+              <FileDown size={16} className="flex-shrink-0" />
+              <span>Baixar XLS ContaAzul</span>
             </button>
           )}
 
           <button
             onClick={handleClickSalvar}
             disabled={salvando || selecionados.size === 0 || !empresaAtiva}
-            className="h-10 px-6 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed
-                       text-white rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors shadow-sm"
+            className="h-10 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold flex items-center gap-2 border border-blue-400/40 hover:border-blue-300 shadow-md shadow-blue-950/40 hover:shadow-blue-600/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer"
           >
-            {salvando ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-            Salvar e Continuar
+            {salvando ? <Loader2 size={16} className="animate-spin flex-shrink-0" /> : <Save size={16} className="flex-shrink-0" />}
+            <span>Salvar e Continuar</span>
           </button>
         </div>
       </div>

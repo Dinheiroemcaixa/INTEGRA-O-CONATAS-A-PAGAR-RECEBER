@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { formatCurrency, formatDate, visualizarAnexo } from '@/lib/utils'
 import type { ContaPagarPreview } from '@/types'
-import { CheckCircle, AlertCircle, Trash2, Edit2, ChevronDown, Paperclip, Check, RefreshCw, AlertTriangle } from 'lucide-react'
+import { CheckCircle, AlertCircle, Trash2, Edit2, ChevronDown, Paperclip, Check, RefreshCw, AlertTriangle, Landmark } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import SelectorFornecedor from './SelectorFornecedor'
 import SelectorCategoria from './SelectorCategoria'
@@ -368,9 +368,9 @@ export default function TabelaPreview({
             <col style={{ width: '86px' }} />
             <col style={{ width: '82px' }} />
             <col style={{ width: '86px' }} />
-            <col style={{ width: '168px' }} />
-            <col style={{ width: '152px' }} />
-            <col style={{ width: '110px' }} />
+            <col style={{ width: '178px' }} />
+            <col style={{ width: '160px' }} />
+            <col style={{ width: '92px' }} />
             <col style={{ width: '52px' }} />
             <col style={{ width: '34px' }} />
           </colgroup>
@@ -593,11 +593,12 @@ export default function TabelaPreview({
                       <div 
                         className="group flex items-center justify-between gap-1.5 bg-dark-900/60 border border-dark-700/60 hover:border-brand-500/60 hover:bg-dark-800 hover:shadow-sm rounded px-2.5 py-1.5 cursor-pointer transition-all duration-200"
                         onClick={() => setEditingCatIdx(idx)}
+                        title={item.categoria || 'Materiais para Revenda'}
                       >
-                        <span className="truncate">
+                        <span className="truncate" title={item.categoria || 'Materiais para Revenda'}>
                           {item.categoria || 'Materiais para Revenda'}
                         </span>
-                        <ChevronDown size={12} className="text-dark-500 group-hover:text-dark-300" />
+                        <ChevronDown size={12} className="text-dark-500 group-hover:text-dark-300 flex-shrink-0" />
                       </div>
                     )}
                   </td>
@@ -616,11 +617,15 @@ export default function TabelaPreview({
                       <div 
                         className="group flex items-center justify-between gap-1.5 bg-blue-950/20 border border-blue-500/25 hover:border-blue-400/60 hover:bg-blue-900/30 hover:shadow-sm rounded px-2.5 py-1.5 cursor-pointer transition-all duration-200"
                         onClick={() => setEditingContaIdx(idx)}
+                        title={item.conta_financeira || 'Selecionar conta...'}
                       >
-                        <span className="truncate text-blue-300">
-                          {item.conta_financeira || 'Selecionar conta...'}
-                        </span>
-                        <ChevronDown size={12} className="text-blue-500 group-hover:text-blue-300" />
+                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                          <Landmark size={12} className="text-blue-400/80 group-hover:text-blue-300 flex-shrink-0" />
+                          <span className="truncate text-blue-300" title={item.conta_financeira || 'Selecionar conta...'}>
+                            {item.conta_financeira || 'Selecionar conta...'}
+                          </span>
+                        </div>
+                        <ChevronDown size={12} className="text-blue-500 group-hover:text-blue-300 flex-shrink-0 ml-1" />
                       </div>
                     )}
                   </td>
