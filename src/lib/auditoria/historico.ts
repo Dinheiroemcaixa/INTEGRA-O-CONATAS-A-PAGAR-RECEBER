@@ -16,6 +16,7 @@ export interface MesHistoricoAudit {
 }
 
 export interface HistoricoResult {
+  fonte_dados: 'CONTA_AZUL_ESPELHO' | 'IMPORTADAS_LOCAL'
   resumo_geral: {
     total_lancamentos_empresa: number
     valor_total_historico: number
@@ -44,14 +45,49 @@ export async function executarHistorico(
 ): Promise<HistoricoResult> {
   const { empresa_id } = options
 
-  // 1. Buscar todos os lançamentos da empresa
-  const { data: lancamentos, error: errLancamentos } = await supabase
-    .from('contas_pagar_importadas')
-    .select('vencimento, valor, status, fornecedor, categoria')
+  // 1. Consulta prioritária na tabela espelho
+  let fonteUtilizada: 'CONTA_AZUL_ESPELHO' | 'IMPORTADAS_LOCAL' = 'CONTA_AZUL_ESPELHO'
+  let itens: Array<{
+    vencimento: string | null
+    valor: number
+    status: string | null
+    fornecedor: string | null
+    categoria: string | null
+  }> = []
+
+  const { data: dadosEspelho, error: errEspelho } = await supabase
+    .from('contas_pagar_contaazul_espelho')
+    .select('data_vencimento, valor, status, fornecedor_nome, categoria_nome')
     .eq('empresa_id', empresa_id)
 
-  if (errLancamentos) {
-    throw new Error(`Erro ao buscar histórico de auditoria: ${errLancamentos.message}`)
+  if (!errEspelho && dadosEspelho && dadosEspelho.length > 0) {
+    fonteUtilizada = 'CONTA_AZUL_ESPELHO'
+    itens = dadosEspelho.map((d) => ({
+      vencimento: d.data_vencimento,
+      valor: Number(d.valor || 0),
+      status: d.status,
+      fornecedor: d.fornecedor_nome,
+      categoria: d.categoria_nome
+    }))
+  } else {
+    // Fallback para contas_pagar_importadas
+    fonteUtilizada = 'IMPORTADAS_LOCAL'
+    const { data: dadosImportadas, error: errImportadas } = await supabase
+      .from('contas_pagar_importadas')
+      .select('vencimento, valor, status, fornecedor, categoria')
+      .eq('empresa_id', empresa_id)
+
+    if (errImportadas) {
+      throw new Error(`Erro ao buscar histórico de auditoria: ${errImportadas.message}`)
+    }
+
+    itens = (dadosImportadas || []).map((d) => ({
+      vencimento: d.vencimento,
+      valor: Number(d.valor || 0),
+      status: d.status,
+      fornecedor: d.fornecedor,
+      categoria: d.categoria
+    }))
   }
 
   // 2. Buscar contagem de depara cadastrados
@@ -68,11 +104,9 @@ export async function executarHistorico(
 
   const comCatPadrao = (caFornecedores || []).filter((f) => !!f.categoria_padrao).length
 
-  const itens = lancamentos || []
   let valorTotal = 0
   const fornecedoresUnicos = new Set<string>()
 
-  // Agrupamento mensal (últimos 12 meses)
   const mapaMensal = new Map<
     string,
     {
@@ -86,27 +120,24 @@ export async function executarHistorico(
     }
   >()
 
-  // Agrupamento por status
   const mapaStatus = new Map<string, { count: number; valor: number }>()
 
   for (const item of itens) {
-    const val = Number(item.valor || 0)
+    const val = item.valor
     valorTotal += val
 
     if (item.fornecedor) {
       fornecedoresUnicos.add(item.fornecedor.trim().toUpperCase())
     }
 
-    // Status
     const st = (item.status || 'pendente').toLowerCase()
     const prevSt = mapaStatus.get(st) || { count: 0, valor: 0 }
     prevSt.count++
     prevSt.valor += val
     mapaStatus.set(st, prevSt)
 
-    // Mês
     if (item.vencimento) {
-      const ym = item.vencimento.substring(0, 7) // 'YYYY-MM'
+      const ym = item.vencimento.substring(0, 7)
       if (ym.length === 7) {
         let mData = mapaMensal.get(ym)
         if (!mData) {
@@ -126,9 +157,9 @@ export async function executarHistorico(
         }
         mData.total++
         mData.valor += val
-        if (st === 'enviado' || st === 'concluido' || st === 'pago') {
+        if (st === 'pago' || st === 'concluido' || st === 'enviado') {
           mData.enviados++
-        } else if (st === 'pendente') {
+        } else if (st === 'pendente' || st === 'aberto') {
           mData.pendentes++
         } else {
           mData.outros++
@@ -137,7 +168,6 @@ export async function executarHistorico(
     }
   }
 
-  // Ordenar meses cronologicamente e pegar os últimos 12
   const chavesMeses = Array.from(mapaMensal.keys()).sort()
   const ultimosMeses = chavesMeses.slice(-12).map((k) => {
     const m = mapaMensal.get(k)!
@@ -154,7 +184,6 @@ export async function executarHistorico(
     }
   })
 
-  // Distribuição por status
   const distStatus = Array.from(mapaStatus.entries()).map(([status, d]) => ({
     status: status.toUpperCase(),
     quantidade: d.count,
@@ -163,11 +192,9 @@ export async function executarHistorico(
   }))
   distStatus.sort((a, b) => b.quantidade - a.quantidade)
 
-  // Cálculo de índice de maturidade cadastral (0 a 100)
-  // Baseado na proporção de enviados, regras de-para e categorias padrão
   const pctEnviados =
     itens.length > 0
-      ? ((mapaStatus.get('enviado')?.count || 0) / itens.length) * 50
+      ? (((mapaStatus.get('pago')?.count || 0) + (mapaStatus.get('enviado')?.count || 0)) / itens.length) * 50
       : 0
   const pctCatPadrao =
     (caFornecedores || []).length > 0
@@ -177,6 +204,7 @@ export async function executarHistorico(
   const indiceMaturidade = Math.min(Math.round(pctEnviados + pctCatPadrao + pctDepara), 100)
 
   return {
+    fonte_dados: fonteUtilizada,
     resumo_geral: {
       total_lancamentos_empresa: itens.length,
       valor_total_historico: valorTotal,

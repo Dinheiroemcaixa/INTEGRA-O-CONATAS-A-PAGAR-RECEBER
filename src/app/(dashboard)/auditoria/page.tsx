@@ -22,7 +22,9 @@ import {
   DollarSign,
   ArrowRight,
   Info,
-  HelpCircle,
+  RefreshCw,
+  Clock,
+  Database,
   FileText
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -46,7 +48,12 @@ export default function AuditoriaPage() {
   const [confiancaMinima, setConfiancaMinima] = useState<number>(80)
 
   const [loading, setLoading] = useState<boolean>(false)
+  const [sincronizando, setSincronizando] = useState<boolean>(false)
   const [executado, setExecutado] = useState<boolean>(false)
+
+  // Status da sincronização
+  const [totalEspelhados, setTotalEspelhados] = useState<number>(0)
+  const [ultimaSincronizacao, setUltimaSincronizacao] = useState<string | null>(null)
 
   // Estados com os resultados dos módulos
   const [dadosConsistencia, setDadosConsistencia] = useState<ConsistenciaResult | null>(null)
@@ -60,6 +67,63 @@ export default function AuditoriaPage() {
 
   const toggleExpand = (fornecedorKey: string) => {
     setExpandedRow((prev) => (prev === fornecedorKey ? null : fornecedorKey))
+  }
+
+  // Buscar status atual da tabela espelho
+  const carregarStatusSincronizacao = async () => {
+    if (!empresaAtiva?.id) return
+    try {
+      const res = await fetch(`/api/conta-azul/contas-pagar/sincronizar?empresa_id=${empresaAtiva.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        setTotalEspelhados(data.total_espelhados || 0)
+        setUltimaSincronizacao(data.ultima_sincronizacao || null)
+      }
+    } catch (err) {
+      console.error('Erro ao consultar status da sincronização:', err)
+    }
+  }
+
+  // Disparar sincronização com o Conta Azul
+  const sincronizarContaAzul = async () => {
+    if (!empresaAtiva?.id) {
+      toast.error('Selecione uma empresa antes de sincronizar.')
+      return
+    }
+
+    setSincronizando(true)
+    const toastId = toast.loading('Buscando contas a pagar no Conta Azul (ERP)...')
+
+    try {
+      const res = await fetch('/api/conta-azul/contas-pagar/sincronizar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresa_id: empresaAtiva.id,
+          meses: periodo === '3m' ? 3 : periodo === '6m' ? 6 : 12
+        })
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro ao sincronizar com o Conta Azul.')
+      }
+
+      toast.success(
+        `Sincronização concluída! ${data.total_sincronizados} lançamentos espelhados.`,
+        { id: toastId }
+      )
+
+      await carregarStatusSincronizacao()
+      // Dispara a auditoria automaticamente sobre a nova base
+      await executarAuditoria(activeTab)
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err.message || 'Falha ao sincronizar com o ERP.', { id: toastId })
+    } finally {
+      setSincronizando(false)
+    }
   }
 
   // Executar auditoria sob demanda via POST /api/auditoria
@@ -111,7 +175,6 @@ export default function AuditoriaPage() {
     }
   }
 
-  // Quando o usuário clica em trocar de aba, se ainda não houver dados, dispara sob demanda
   const handleTabChange = (tab: TabAuditoria) => {
     setActiveTab(tab)
     if (tab === 'consistencia' && !dadosConsistencia && empresaAtiva?.id) {
@@ -125,14 +188,13 @@ export default function AuditoriaPage() {
     }
   }
 
-  // Auto-executar na primeira carga quando a empresa estiver definida
   useEffect(() => {
-    if (empresaAtiva?.id && !executado) {
+    if (empresaAtiva?.id) {
+      carregarStatusSincronizacao()
       executarAuditoria('consistencia')
     }
   }, [empresaAtiva?.id])
 
-  // Filtragem de fornecedores na aba de consistência
   const fornecedoresFiltrados = (dadosConsistencia?.fornecedores_divergentes || []).filter((f) =>
     f.fornecedor_original.toLowerCase().includes(buscaFornecedor.toLowerCase())
   )
@@ -140,6 +202,8 @@ export default function AuditoriaPage() {
   const multiescopoFiltrados = (dadosConsistencia?.fornecedores_multiescopo || []).filter((f) =>
     f.fornecedor_original.toLowerCase().includes(buscaFornecedor.toLowerCase())
   )
+
+  const fonteAtual = dadosConsistencia?.fonte_dados || 'CONTA_AZUL_ESPELHO'
 
   return (
     <div className="min-h-screen bg-[#0a0f1d] text-slate-100 p-4 md:p-8 space-y-6">
@@ -151,29 +215,39 @@ export default function AuditoriaPage() {
               <ShieldCheck className="w-7 h-7" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
                   Auditoria Financeira
                 </h1>
+                <span
+                  className={cn(
+                    'text-[11px] font-semibold tracking-wider px-2.5 py-0.5 rounded-full border',
+                    fonteAtual === 'CONTA_AZUL_ESPELHO'
+                      ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                      : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                  )}
+                >
+                  {fonteAtual === 'CONTA_AZUL_ESPELHO' ? 'FONTE: CONTA AZUL (ERP)' : 'FONTE: LOCAL'}
+                </span>
                 <span className="text-[11px] font-semibold tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-                  FASE 1 (READ-ONLY)
+                  FASE 2
                 </span>
               </div>
               <p className="text-sm text-slate-400 mt-0.5">
-                Diagnóstico de integridade cadastral, coerência contábil e detecção de riscos financeiros
+                Diagnóstico de integridade cadastral e consistência dos lançamentos do Conta Azul
               </p>
             </div>
           </div>
         </div>
 
-        {/* Seletor de Loja / Tenant */}
+        {/* Seletor de Loja */}
         <div className="flex items-center gap-3">
           <SelectorEmpresa />
         </div>
       </div>
 
-      {/* Painel de Controles & Filtros */}
-      <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 shadow-xl backdrop-blur-md">
+      {/* Painel de Controles & Sincronização */}
+      <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 shadow-xl backdrop-blur-md space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
             {/* Seletor de Período */}
@@ -215,7 +289,7 @@ export default function AuditoriaPage() {
             {/* Confiança Mínima */}
             {activeTab === 'consistencia' && (
               <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-white/5 text-xs text-slate-300">
-                <span className="text-slate-400">Confiança Mínima:</span>
+                <span className="text-slate-400">Confiança:</span>
                 <select
                   value={confiancaMinima}
                   onChange={(e) => setConfiancaMinima(Number(e.target.value))}
@@ -229,28 +303,59 @@ export default function AuditoriaPage() {
             )}
           </div>
 
-          {/* Botão de Disparo Analítico */}
-          <button
-            onClick={() => executarAuditoria(activeTab)}
-            disabled={loading || !empresaAtiva}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold text-xs tracking-wide shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Analisando...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4" />
-                <span>Analisar Auditoria</span>
-              </>
-            )}
-          </button>
+          {/* Botões de Ação */}
+          <div className="flex items-center gap-2.5">
+            {/* Botão Sincronizar ERP */}
+            <button
+              onClick={sincronizarContaAzul}
+              disabled={sincronizando || !empresaAtiva}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 font-semibold text-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Baixar lançamentos de contas a pagar diretamente do Conta Azul para a base espelho"
+            >
+              <RefreshCw className={cn('w-3.5 h-3.5 text-cyan-400', sincronizando && 'animate-spin')} />
+              <span>{sincronizando ? 'Sincronizando ERP...' : 'Sincronizar ERP'}</span>
+            </button>
+
+            {/* Botão Analisar Auditoria */}
+            <button
+              onClick={() => executarAuditoria(activeTab)}
+              disabled={loading || !empresaAtiva}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold text-xs tracking-wide shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Analisando...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  <span>Analisar Auditoria</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Indicador de Status da Tabela Espelho */}
+        <div className="pt-2 border-t border-white/5 flex flex-wrap items-center justify-between text-[11px] text-slate-400 gap-2">
+          <div className="flex items-center gap-2">
+            <Database className="w-3.5 h-3.5 text-cyan-400" />
+            <span>
+              Base Espelho do Conta Azul:{' '}
+              <strong className="text-white">{totalEspelhados.toLocaleString('pt-BR')}</strong> lançamentos armazenados
+            </span>
+          </div>
+          {ultimaSincronizacao && (
+            <div className="flex items-center gap-1.5 text-slate-400">
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
+              <span>Última sincronização: {new Date(ultimaSincronizacao).toLocaleString('pt-BR')}</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Cards de Risco Financeiro e Indicadores Executivos */}
+      {/* Cards de Risco Financeiro */}
       {dadosConsistencia && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-4 shadow-lg flex flex-col justify-between">
@@ -427,7 +532,6 @@ export default function AuditoriaPage() {
                 key={forn.fornecedor_normalizado}
                 className="bg-slate-900/80 border border-white/10 rounded-2xl overflow-hidden shadow-lg transition-all"
               >
-                {/* Linha Resumo do Fornecedor */}
                 <div
                   onClick={() => toggleExpand(forn.fornecedor_normalizado)}
                   className="p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 cursor-pointer hover:bg-slate-800/40 select-none"
@@ -438,7 +542,7 @@ export default function AuditoriaPage() {
                         {forn.fornecedor_original}
                       </span>
                       {forn.categoria_padrao_oficial && (
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20" title="Cadastrada oficialmente no Conta Azul">
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
                           Oficial: {forn.categoria_padrao_oficial}
                         </span>
                       )}
@@ -480,10 +584,8 @@ export default function AuditoriaPage() {
                   </div>
                 </div>
 
-                {/* Detalhes Expansíveis */}
                 {isExpanded && (
                   <div className="border-t border-white/5 bg-slate-950/50 p-4 space-y-4">
-                    {/* Resumo da Distribuição Histórica */}
                     <div className="bg-slate-900/60 p-3 rounded-xl border border-white/5">
                       <div className="text-xs font-semibold text-slate-300 mb-2">
                         Distribuição Histórica das Categorias:
@@ -507,7 +609,6 @@ export default function AuditoriaPage() {
                       </div>
                     </div>
 
-                    {/* Tabela dos Lançamentos Divergentes */}
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs">
                         <thead className="bg-slate-900/80 text-slate-400 border-b border-white/10 uppercase tracking-wider text-[10px]">
@@ -565,7 +666,6 @@ export default function AuditoriaPage() {
             )
           })}
 
-          {/* Grupo de Fornecedores Multiescopo (Grandes Varejistas / Postos) */}
           {multiescopoFiltrados.length > 0 && (
             <div className="mt-8 space-y-3">
               <div className="flex items-center gap-2 text-slate-300 text-xs font-semibold">
@@ -586,7 +686,7 @@ export default function AuditoriaPage() {
                       </span>
                     </div>
                     <div className="text-[11px] text-slate-400">
-                      Disperso em {m.distribuicao_categorias.length} categorias diferentes (ex: itens de escritório, alimentação, conveniência). Não gera divergência cega.
+                      Disperso em {m.distribuicao_categorias.length} categorias diferentes no Conta Azul. Não gera falso positivo.
                     </div>
                   </div>
                 ))}
@@ -616,7 +716,7 @@ export default function AuditoriaPage() {
               <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3 opacity-80" />
               <h3 className="text-lg font-semibold text-white">Nenhum fornecedor duplicado detectado!</h3>
               <p className="text-xs text-slate-400 mt-1">
-                A base de fornecedores está completamente saneada e normalizada.
+                A base de fornecedores do Conta Azul está completamente saneada e normalizada.
               </p>
             </div>
           ) : (
@@ -726,7 +826,6 @@ export default function AuditoriaPage() {
                     </div>
                   </div>
 
-                  {/* Lançamentos do grupo */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                     {grupo.itens.map((item) => (
                       <div
@@ -761,7 +860,6 @@ export default function AuditoriaPage() {
       {/* CONTEÚDO DA ABA 4: HISTÓRICO & CONFORMIDADE */}
       {activeTab === 'historico' && dadosHistorico && (
         <div className="space-y-6">
-          {/* Métricas de Maturidade */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-4 shadow-lg">
               <div className="text-xs text-slate-400">Índice de Maturidade Cadastral</div>
@@ -769,7 +867,7 @@ export default function AuditoriaPage() {
                 {dadosHistorico.resumo_geral.indice_maturidade_cadastral} / 100
               </div>
               <p className="text-[11px] text-slate-400 mt-1">
-                Baseado em proporção de enviados, regras De-Para e categorias padrão
+                Baseado em pagamentos confirmados, regras De-Para e categorias padrão
               </p>
             </div>
 
@@ -779,7 +877,7 @@ export default function AuditoriaPage() {
                 {dadosHistorico.resumo_geral.total_regras_depara_ativas}
               </div>
               <p className="text-[11px] text-slate-400 mt-1">
-                Equivalências aprendidas entre Datacar e Conta Azul
+                Equivalências aprendidas cadastradas no sistema
               </p>
             </div>
 
@@ -794,7 +892,6 @@ export default function AuditoriaPage() {
             </div>
           </div>
 
-          {/* Tabela de Evolução Mensal */}
           <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-4 shadow-lg space-y-3">
             <div className="text-xs font-semibold text-slate-300">
               Evolução Histórica Mensal dos Lançamentos:
@@ -806,7 +903,7 @@ export default function AuditoriaPage() {
                     <th className="py-2.5 px-3">Mês/Ano</th>
                     <th className="py-2.5 px-3 text-right">Lançamentos</th>
                     <th className="py-2.5 px-3 text-right">Valor Total</th>
-                    <th className="py-2.5 px-3 text-right text-emerald-400">Enviados</th>
+                    <th className="py-2.5 px-3 text-right text-emerald-400">Quitados</th>
                     <th className="py-2.5 px-3 text-right text-amber-400">Pendentes</th>
                     <th className="py-2.5 px-3 text-right">Taxa de Conclusão</th>
                   </tr>

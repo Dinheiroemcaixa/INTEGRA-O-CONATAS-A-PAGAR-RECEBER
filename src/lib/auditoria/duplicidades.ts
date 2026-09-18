@@ -29,6 +29,7 @@ export interface GrupoDuplicidade {
 }
 
 export interface DuplicidadesResult {
+  fonte_dados: 'CONTA_AZUL_ESPELHO' | 'IMPORTADAS_LOCAL'
   resumo: {
     total_lancamentos_avaliados: number
     total_grupos_duplicidade: number
@@ -65,23 +66,74 @@ export async function executarDuplicidades(
     dataInicio.setMonth(hoje.getMonth() - 12)
   }
 
-  let query = supabase
-    .from('contas_pagar_importadas')
-    .select('id, fornecedor, doc, descricao, vencimento, valor, categoria, status')
+  // 1. Consulta prioritária na tabela espelho
+  let fonteUtilizada: 'CONTA_AZUL_ESPELHO' | 'IMPORTADAS_LOCAL' = 'CONTA_AZUL_ESPELHO'
+  let lancamentos: Array<{
+    id: string
+    fornecedor: string
+    doc: string | null
+    descricao: string | null
+    vencimento: string | null
+    valor: number
+    categoria: string | null
+    status: string | null
+  }> = []
+
+  let qEspelho = supabase
+    .from('contas_pagar_contaazul_espelho')
+    .select('id, fornecedor_nome, numero_documento, descricao, data_vencimento, valor, categoria_nome, status')
     .eq('empresa_id', empresa_id)
 
   if (dataInicio) {
-    query = query.gte('vencimento', dataInicio.toISOString().split('T')[0])
+    qEspelho = qEspelho.gte('data_vencimento', dataInicio.toISOString().split('T')[0])
   }
 
-  const { data: lancamentosRaw, error } = await query
-  if (error) {
-    throw new Error(`Erro ao buscar lançamentos para duplicidades: ${error.message}`)
-  }
+  const { data: dadosEspelho, error: errEspelho } = await qEspelho
 
-  const lancamentos = (lancamentosRaw || []).filter(
-    (l) => l.fornecedor && Number(l.valor) > 0
-  )
+  if (!errEspelho && dadosEspelho && dadosEspelho.length > 0) {
+    fonteUtilizada = 'CONTA_AZUL_ESPELHO'
+    lancamentos = dadosEspelho
+      .filter((l) => l.fornecedor_nome && Number(l.valor) > 0)
+      .map((l) => ({
+        id: l.id,
+        fornecedor: l.fornecedor_nome,
+        doc: l.numero_documento,
+        descricao: l.descricao,
+        vencimento: l.data_vencimento,
+        valor: Number(l.valor),
+        categoria: l.categoria_nome,
+        status: l.status
+      }))
+  } else {
+    // Fallback gracioso para contas_pagar_importadas
+    fonteUtilizada = 'IMPORTADAS_LOCAL'
+    let qImportadas = supabase
+      .from('contas_pagar_importadas')
+      .select('id, fornecedor, doc, descricao, vencimento, valor, categoria, status')
+      .eq('empresa_id', empresa_id)
+
+    if (dataInicio) {
+      qImportadas = qImportadas.gte('vencimento', dataInicio.toISOString().split('T')[0])
+    }
+
+    const { data: dadosImportadas, error: errImportadas } = await qImportadas
+    if (errImportadas) {
+      throw new Error(`Erro ao buscar lançamentos para duplicidades: ${errImportadas.message}`)
+    }
+
+    lancamentos = (dadosImportadas || [])
+      .filter((l) => l.fornecedor && Number(l.valor) > 0)
+      .map((l) => ({
+        id: l.id,
+        fornecedor: l.fornecedor,
+        doc: l.doc,
+        descricao: l.descricao,
+        vencimento: l.vencimento,
+        valor: Number(l.valor),
+        categoria: l.categoria,
+        status: l.status
+      }))
+  }
 
   // Agrupar primeiro por fornecedor normalizado
   const porFornecedor = new Map<string, typeof lancamentos>()
@@ -157,7 +209,6 @@ export async function executarDuplicidades(
         if (idsJaAgrupados.has(b.id)) continue
 
         const diffVal = Math.abs(Number(a.valor) - Number(b.valor))
-        // Tolerância de centavos
         if (diffVal <= 0.05) {
           const dias = diffDias(a.vencimento, b.vencimento)
           if (dias <= tolerancia_dias) {
@@ -183,7 +234,7 @@ export async function executarDuplicidades(
           criticidade: mesmoVencimento ? 'ALTA' : 'ATENCAO',
           motivo: mesmoVencimento
             ? `Mesmo Fornecedor, mesmo Vencimento e valor idêntico (R$ ${valRef.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}).`
-            : `Mesmo Fornecedor, mesmo valor e vencimentos próximos (intervalo $\le$ ${tolerancia_dias} dias).`,
+            : `Mesmo Fornecedor, mesmo valor e vencimentos próximos (intervalo ≤ ${tolerancia_dias} dias).`,
           valor_referencia: valRef,
           valor_excedente_risco: excedente,
           itens: grupoProximo.map((g) => ({
@@ -202,7 +253,6 @@ export async function executarDuplicidades(
     }
   }
 
-  // Ordenar grupos por criticidade (CRITICA > ALTA > ATENCAO) e valor excedente
   const ordemCrit: Record<string, number> = { CRITICA: 3, ALTA: 2, ATENCAO: 1 }
   gruposDuplicados.sort((a, b) => {
     const dCrit = ordemCrit[b.criticidade] - ordemCrit[a.criticidade]
@@ -211,6 +261,7 @@ export async function executarDuplicidades(
   })
 
   return {
+    fonte_dados: fonteUtilizada,
     resumo: {
       total_lancamentos_avaliados: lancamentos.length,
       total_grupos_duplicidade: gruposDuplicados.length,

@@ -1167,7 +1167,16 @@ export interface ContaPagarResumo {
   valor: number;
   status: string;
   fornecedor_id?: string;
+  fornecedor_nome?: string;
+  fornecedor_cnpj_cpf?: string;
   descricao?: string;
+  numero_documento?: string;
+  data_competencia?: string;
+  data_pagamento?: string;
+  categoria_id?: string;
+  categoria_nome?: string;
+  centro_custo_nome?: string;
+  raw_data?: any;
 }
 
 export async function buscarContasPagarPorPeriodo(
@@ -1196,8 +1205,6 @@ export async function buscarContasPagarPorPeriodo(
       if (lista.length === 0) break;
       
       for (const item of lista) {
-        // A API v2 retorna a parcela. O valor total da parcela pode estar em valor_total_liquido
-        // ou ser a soma de valor_pago + nao_pago.
         let valorDaConta = 0;
         if (typeof item.valor === 'number') valorDaConta = item.valor;
         else if (typeof item.valor_total_liquido === 'number') valorDaConta = item.valor_total_liquido;
@@ -1207,20 +1214,49 @@ export async function buscarContasPagarPorPeriodo(
            valorDaConta = item.evento.valor;
         }
 
-        // Tentar obter o fornecedor de várias formas (evento.fornecedor, evento.contato, etc)
         let fornecedorNome = item.descricao || item.observacao || '';
+        let fornecedorId = item.fornecedor?.id || item.contato?.id || item.evento?.contato?.id;
+        let cnpjCpf = item.evento?.contato?.cpf_cnpj || item.evento?.fornecedor?.cpf_cnpj || item.contato?.cpf_cnpj || null;
+
         if (item.evento) {
            const contato = item.evento.contato || item.evento.fornecedor || item.evento.cliente;
-           if (contato && contato.nome) fornecedorNome = contato.nome;
+           if (contato && contato.nome) {
+             fornecedorNome = contato.nome;
+             if (!fornecedorId && contato.id) fornecedorId = contato.id;
+             if (!cnpjCpf && (contato.cpf_cnpj || contato.cnpj || contato.cpf)) {
+               cnpjCpf = contato.cpf_cnpj || contato.cnpj || contato.cpf;
+             }
+           }
         }
+
+        // Categoria
+        const catObj = item.categoria || item.evento?.categoria || (item.rateios && item.rateios[0]);
+        const catId = catObj?.id || catObj?.id_categoria || null;
+        const catNome = catObj?.nome || catObj?.nome_categoria || null;
+
+        // Documento
+        const numDoc = item.numero_documento || item.documento || item.evento?.numero_documento || item.nota || null;
+
+        // Centro de custo
+        const ccObj = item.centro_custo || item.evento?.centro_custo || (item.rateios && item.rateios[0]?.centro_custo);
+        const ccNome = ccObj?.nome || ccObj?.descricao || null;
 
         todasContas.push({
           id: item.id || item.uuid,
           data_vencimento: item.data_vencimento || item.vencimento,
           valor: valorDaConta,
           status: item.status || 'DESCONHECIDO',
-          fornecedor_id: item.fornecedor?.id || item.contato?.id || item.evento?.contato?.id,
-          descricao: fornecedorNome,
+          fornecedor_id: fornecedorId,
+          fornecedor_nome: fornecedorNome,
+          fornecedor_cnpj_cpf: cnpjCpf,
+          descricao: item.descricao || item.observacao || fornecedorNome,
+          numero_documento: numDoc,
+          data_competencia: item.data_competencia || item.evento?.data_competencia || null,
+          data_pagamento: item.data_pagamento || item.pagamento || null,
+          categoria_id: catId,
+          categoria_nome: catNome,
+          centro_custo_nome: ccNome,
+          raw_data: item
         });
       }
       
@@ -1233,3 +1269,4 @@ export async function buscarContasPagarPorPeriodo(
   
   return todasContas;
 }
+

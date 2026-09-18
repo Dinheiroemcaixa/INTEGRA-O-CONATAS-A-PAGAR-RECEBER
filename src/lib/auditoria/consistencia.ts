@@ -44,6 +44,7 @@ export interface FornecedorConsistenciaAudit {
 }
 
 export interface ConsistenciaResult {
+  fonte_dados: 'CONTA_AZUL_ESPELHO' | 'IMPORTADAS_LOCAL'
   resumo: {
     total_lancamentos_auditados: number
     total_fornecedores_auditados: number
@@ -130,29 +131,80 @@ export async function executarConsistencia(
     dataInicio.setMonth(hoje.getMonth() - 12)
   }
 
-  // 2. Query de lançamentos históricos na tabela contas_pagar_importadas
-  let query = supabase
-    .from('contas_pagar_importadas')
-    .select('id, doc, descricao, vencimento, valor, categoria, status, fornecedor')
+  // 2. Query prioritária: tabela espelho contas_pagar_contaazul_espelho
+  let fonteUtilizada: 'CONTA_AZUL_ESPELHO' | 'IMPORTADAS_LOCAL' = 'CONTA_AZUL_ESPELHO'
+  let lancamentosNormalizados: Array<{
+    id: string
+    doc: string | null
+    descricao: string | null
+    vencimento: string | null
+    valor: number
+    categoria: string
+    status: string
+    fornecedor: string
+  }> = []
+
+  let qEspelho = supabase
+    .from('contas_pagar_contaazul_espelho')
+    .select('id, numero_documento, descricao, data_vencimento, valor, categoria_nome, status, fornecedor_nome')
     .eq('empresa_id', empresa_id)
 
   if (marco_zero) {
-    query = query.gte('vencimento', marco_zero)
+    qEspelho = qEspelho.gte('data_vencimento', marco_zero)
   }
   if (dataInicio) {
-    const dataIso = dataInicio.toISOString().split('T')[0]
-    query = query.gte('vencimento', dataIso)
+    qEspelho = qEspelho.gte('data_vencimento', dataInicio.toISOString().split('T')[0])
   }
 
-  const { data: lancamentosRaw, error: errLancamentos } = await query
+  const { data: dadosEspelho, error: errEspelho } = await qEspelho
 
-  if (errLancamentos) {
-    throw new Error(`Erro ao buscar lançamentos: ${errLancamentos.message}`)
+  if (!errEspelho && dadosEspelho && dadosEspelho.length > 0) {
+    fonteUtilizada = 'CONTA_AZUL_ESPELHO'
+    lancamentosNormalizados = dadosEspelho
+      .filter((l) => l.fornecedor_nome && l.categoria_nome && Number(l.valor) > 0)
+      .map((l) => ({
+        id: l.id,
+        doc: l.numero_documento,
+        descricao: l.descricao,
+        vencimento: l.data_vencimento,
+        valor: Number(l.valor),
+        categoria: l.categoria_nome,
+        status: l.status,
+        fornecedor: l.fornecedor_nome
+      }))
+  } else {
+    // Fallback gracioso para contas_pagar_importadas caso o espelho ainda não tenha registros
+    fonteUtilizada = 'IMPORTADAS_LOCAL'
+    let qImportadas = supabase
+      .from('contas_pagar_importadas')
+      .select('id, doc, descricao, vencimento, valor, categoria, status, fornecedor')
+      .eq('empresa_id', empresa_id)
+
+    if (marco_zero) {
+      qImportadas = qImportadas.gte('vencimento', marco_zero)
+    }
+    if (dataInicio) {
+      qImportadas = qImportadas.gte('vencimento', dataInicio.toISOString().split('T')[0])
+    }
+
+    const { data: dadosImportadas, error: errImportadas } = await qImportadas
+    if (errImportadas) {
+      throw new Error(`Erro ao consultar lançamentos: ${errImportadas.message}`)
+    }
+
+    lancamentosNormalizados = (dadosImportadas || [])
+      .filter((l) => l.fornecedor && l.categoria && Number(l.valor) > 0)
+      .map((l) => ({
+        id: l.id,
+        doc: l.doc,
+        descricao: l.descricao,
+        vencimento: l.vencimento,
+        valor: Number(l.valor),
+        categoria: l.categoria,
+        status: l.status,
+        fornecedor: l.fornecedor
+      }))
   }
-
-  const lancamentos = (lancamentosRaw || []).filter(
-    (l) => l.fornecedor && l.categoria && Number(l.valor) > 0
-  )
 
   // 3. Buscar categorias padrão oficiais em fornecedores_contaazul
   const { data: fornecedoresContaAzul } = await supabase
@@ -175,11 +227,11 @@ export async function executarConsistencia(
     {
       nomeOriginal: string
       nomeNormalizado: string
-      items: typeof lancamentos
+      items: typeof lancamentosNormalizados
     }
   >()
 
-  for (const l of lancamentos) {
+  for (const l of lancamentosNormalizados) {
     const norm = normalizarTexto(l.fornecedor)
     if (!norm) continue
 
@@ -208,13 +260,12 @@ export async function executarConsistencia(
 
   for (const [normKey, grupo] of gruposFornecedor.entries()) {
     const countItems = grupo.items.length
-    const valorSomaGrupo = grupo.items.reduce((acc, item) => acc + Number(item.valor || 0), 0)
+    const valorSomaGrupo = grupo.items.reduce((acc, item) => acc + item.valor, 0)
 
     totalLancamentosAuditados += countItems
     totalFornecedoresAuditados++
     valorTotalAuditado += valorSomaGrupo
 
-    // Se não atinge a amostra mínima, não gera divergência estatística confiável
     if (countItems < amostra_minima) {
       fornecedoresConsistentesCount++
       continue
@@ -222,7 +273,6 @@ export async function executarConsistencia(
 
     const catPadraoOficial = mapaCategoriasPadrao.get(normKey) || null
 
-    // Verificar se fornecedor ou lançamentos pertencem à macrofamília DESPESAS_COM_PESSOAL
     const isPessoalRh =
       PALAVRAS_CHAVE_PESSOAL.some((kw) => normKey.includes(kw)) ||
       grupo.items.some((item) =>
@@ -233,7 +283,6 @@ export async function executarConsistencia(
         )
       )
 
-    // Agrupar categorias com score ponderado
     const statsPorCategoria = new Map<
       string,
       {
@@ -261,11 +310,10 @@ export async function executarConsistencia(
         statsPorCategoria.set(cat, stat)
       }
       stat.quantidade++
-      stat.valorTotal += Number(item.valor || 0)
+      stat.valorTotal += item.valor
       stat.scorePonderado += pesoItem
     }
 
-    // Aplicar bônus da Categoria Padrão Oficial do Conta Azul (+20% se houver)
     let scoreTotalPonderado = 0
     for (const stat of statsPorCategoria.values()) {
       if (catPadraoOficial && normalizarTexto(stat.categoria) === normalizarTexto(catPadraoOficial)) {
@@ -274,7 +322,6 @@ export async function executarConsistencia(
       scoreTotalPonderado += stat.scorePonderado
     }
 
-    // Ordenar categorias por score ponderado
     const distribuicao = Array.from(statsPorCategoria.values()).map((stat) => ({
       categoria: stat.categoria,
       quantidade: stat.quantidade,
@@ -286,8 +333,6 @@ export async function executarConsistencia(
 
     const catPredominanteObj = distribuicao[0]
     const confiancaPredominante = catPredominanteObj ? catPredominanteObj.percentual : 0
-
-    // Detecção de Multiescopo: 3 ou mais categorias e nenhuma atinge 75%
     const isMultiescopo = distribuicao.length >= 3 && confiancaPredominante < 75
 
     const auditData: FornecedorConsistenciaAudit = {
@@ -309,12 +354,10 @@ export async function executarConsistencia(
       continue
     }
 
-    // Se a confiança atinge o mínimo (default 80%), detectar lançamentos divergentes
     if (confiancaPredominante >= confianca_minima) {
       for (const item of grupo.items) {
         const catItem = item.categoria.trim()
         if (catItem !== catPredominanteObj.categoria) {
-          // Macrofamília de Pessoal: se for folha/benefícios/salário, não considerar divergência
           if (isPessoalRh) {
             const descNorm = normalizarTexto(item.descricao)
             const isDescRh = PALAVRAS_CHAVE_PESSOAL.some((kw) => descNorm.includes(kw))
@@ -325,13 +368,13 @@ export async function executarConsistencia(
           if (confiancaPredominante > 97) criticidade = 'CRITICA'
           else if (confiancaPredominante >= 90) criticidade = 'ALTA'
 
-          const faixa = classificarFaixaValor(Number(item.valor || 0))
+          const faixa = classificarFaixaValor(item.valor)
           const divergencia: LancamentoDivergente = {
             id: item.id,
             doc: item.doc,
             descricao: item.descricao,
             vencimento: item.vencimento,
-            valor: Number(item.valor || 0),
+            valor: item.valor,
             categoria_atual: catItem,
             categoria_esperada: catPredominanteObj.categoria,
             confianca: confiancaPredominante,
@@ -357,7 +400,6 @@ export async function executarConsistencia(
     }
   }
 
-  // Ordenar divergentes por valor total divergente decrescente
   divergentes.sort((a, b) => {
     const somaA = a.divergencias.reduce((acc, d) => acc + d.valor, 0)
     const somaB = b.divergencias.reduce((acc, d) => acc + d.valor, 0)
@@ -372,6 +414,7 @@ export async function executarConsistencia(
       : 100
 
   return {
+    fonte_dados: fonteUtilizada,
     resumo: {
       total_lancamentos_auditados: totalLancamentosAuditados,
       total_fornecedores_auditados: totalFornecedoresAuditados,

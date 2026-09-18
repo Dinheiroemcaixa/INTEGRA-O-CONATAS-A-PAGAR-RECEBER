@@ -22,6 +22,7 @@ export interface GrupoFornecedorSemelhante {
 }
 
 export interface SemelhantesResult {
+  fonte_dados: 'CONTA_AZUL_ESPELHO' | 'IMPORTADAS_LOCAL'
   resumo: {
     total_fornecedores_analisados: number
     total_grupos_duplicidade_encontrados: number
@@ -30,7 +31,6 @@ export interface SemelhantesResult {
   grupos: GrupoFornecedorSemelhante[]
 }
 
-/** Calcula a distância de Levenshtein entre duas strings */
 function levenshtein(a: string, b: string): number {
   const an = a ? a.length : 0
   const bn = b ? b.length : 0
@@ -48,9 +48,9 @@ function levenshtein(a: string, b: string): number {
         matrix[j][i] = matrix[j - 1][i - 1]
       } else {
         matrix[j][i] = Math.min(
-          matrix[j - 1][i - 1] + 1, // substituição
-          matrix[j][i - 1] + 1,     // inserção
-          matrix[j - 1][i] + 1      // deleção
+          matrix[j - 1][i - 1] + 1,
+          matrix[j][i - 1] + 1,
+          matrix[j - 1][i] + 1
         )
       }
     }
@@ -59,7 +59,6 @@ function levenshtein(a: string, b: string): number {
   return matrix[bn][an]
 }
 
-/** Calcula o percentual de similaridade (0 a 100) */
 function calcularSimilaridade(s1: string, s2: string): number {
   if (s1 === s2) return 100
   const maxLen = Math.max(s1.length, s2.length)
@@ -77,7 +76,7 @@ export async function executarSemelhantes(
   // 1. Buscar cadastros no Conta Azul
   const { data: caFornecedores } = await supabase
     .from('fornecedores_contaazul')
-    .select('id, nome, cnpj')
+    .select('id, nome, cnpj, nome_normalizado')
     .eq('empresa_id', empresa_id)
 
   // 2. Buscar regras aprendidas em fornecedor_depara
@@ -86,25 +85,46 @@ export async function executarSemelhantes(
     .select('nome_original, nome_original_normalizado, nome_corrigido')
     .eq('empresa_id', empresa_id)
 
-  // 3. Buscar nomes presentes em contas_pagar_importadas com contagens e volumes
-  const { data: lancamentos } = await supabase
-    .from('contas_pagar_importadas')
-    .select('fornecedor, valor')
+  // 3. Buscar nomes presentes nos lançamentos (tabela espelho prioritária)
+  let fonteUtilizada: 'CONTA_AZUL_ESPELHO' | 'IMPORTADAS_LOCAL' = 'CONTA_AZUL_ESPELHO'
+  const mapaVolumeFornecedor = new Map<string, { count: number; total: number; cnpj?: string | null }>()
+
+  const { data: dadosEspelho, error: errEspelho } = await supabase
+    .from('contas_pagar_contaazul_espelho')
+    .select('fornecedor_nome, valor, fornecedor_cnpj_cpf')
     .eq('empresa_id', empresa_id)
 
-  const mapaVolumeFornecedor = new Map<string, { count: number; total: number }>()
-  if (lancamentos) {
-    for (const l of lancamentos) {
-      if (!l.fornecedor) continue
-      const nome = l.fornecedor.trim()
-      const prev = mapaVolumeFornecedor.get(nome) || { count: 0, total: 0 }
+  if (!errEspelho && dadosEspelho && dadosEspelho.length > 0) {
+    fonteUtilizada = 'CONTA_AZUL_ESPELHO'
+    for (const l of dadosEspelho) {
+      if (!l.fornecedor_nome) continue
+      const nome = l.fornecedor_nome.trim()
+      const prev = mapaVolumeFornecedor.get(nome) || { count: 0, total: 0, cnpj: l.fornecedor_cnpj_cpf }
       prev.count++
       prev.total += Number(l.valor || 0)
+      if (!prev.cnpj && l.fornecedor_cnpj_cpf) prev.cnpj = l.fornecedor_cnpj_cpf
       mapaVolumeFornecedor.set(nome, prev)
+    }
+  } else {
+    // Fallback para contas_pagar_importadas
+    fonteUtilizada = 'IMPORTADAS_LOCAL'
+    const { data: lancamentos } = await supabase
+      .from('contas_pagar_importadas')
+      .select('fornecedor, valor')
+      .eq('empresa_id', empresa_id)
+
+    if (lancamentos) {
+      for (const l of lancamentos) {
+        if (!l.fornecedor) continue
+        const nome = l.fornecedor.trim()
+        const prev = mapaVolumeFornecedor.get(nome) || { count: 0, total: 0 }
+        prev.count++
+        prev.total += Number(l.valor || 0)
+        mapaVolumeFornecedor.set(nome, prev)
+      }
     }
   }
 
-  // Mapa global de fornecedores únicos a avaliar
   interface ItemCatalogo {
     nomeOriginal: string
     nomeNormalizado: string
@@ -121,10 +141,11 @@ export async function executarSemelhantes(
       if (!f.nome) continue
       const norm = normalizarTexto(f.nome)
       const vol = mapaVolumeFornecedor.get(f.nome) || { count: 0, total: 0 }
+      const cnpjLimpado = (f.cnpj || '').replace(/\D/g, '') || null
       catalogo.set(f.nome, {
         nomeOriginal: f.nome,
         nomeNormalizado: norm,
-        cnpj: f.cnpj ? f.cnpj.replace(/\D/g, '') : null,
+        cnpj: cnpjLimpado,
         totalLancamentos: vol.count,
         valorAcumulado: vol.total,
         fonte: 'CONTA_AZUL'
@@ -132,13 +153,13 @@ export async function executarSemelhantes(
     }
   }
 
-  // Adicionar também fornecedores de lançamentos que não estão no Conta Azul
   for (const [nome, vol] of mapaVolumeFornecedor.entries()) {
     if (!catalogo.has(nome)) {
+      const cnpjLimpado = vol.cnpj ? vol.cnpj.replace(/\D/g, '') : null
       catalogo.set(nome, {
         nomeOriginal: nome,
         nomeNormalizado: normalizarTexto(nome),
-        cnpj: null,
+        cnpj: cnpjLimpado,
         totalLancamentos: vol.count,
         valorAcumulado: vol.total,
         fonte: 'LANCAMENTOS'
@@ -150,7 +171,7 @@ export async function executarSemelhantes(
   const gruposEncontrados: GrupoFornecedorSemelhante[] = []
   const jaAgrupados = new Set<string>()
 
-  // ETAPA 1: Match por CNPJ idêntico (quando há CNPJ válido > 10 dígitos)
+  // ETAPA 1: Match por CNPJ idêntico
   const mapaPorCnpj = new Map<string, ItemCatalogo[]>()
   for (const item of itens) {
     if (item.cnpj && item.cnpj.length >= 11) {
@@ -250,10 +271,9 @@ export async function executarSemelhantes(
     }
   }
 
-  // ETAPA 4: Similaridade Textual (Levenshtein >= limiar_similaridade, default 85%)
+  // ETAPA 4: Similaridade Textual (Levenshtein >= limiar_similaridade)
   const restantes = itens.filter((i) => !jaAgrupados.has(i.nomeOriginal) && i.nomeNormalizado.length >= 4)
 
-  // Comparar apenas pares elegíveis
   for (let i = 0; i < restantes.length; i++) {
     const itemA = restantes[i]
     if (jaAgrupados.has(itemA.nomeOriginal)) continue
@@ -264,7 +284,6 @@ export async function executarSemelhantes(
       const itemB = restantes[j]
       if (jaAgrupados.has(itemB.nomeOriginal)) continue
 
-      // Filtro prévio de comprimento para evitar Levenshtein desnecessário
       const diffLen = Math.abs(itemA.nomeNormalizado.length - itemB.nomeNormalizado.length)
       if (diffLen > 6) continue
 
@@ -299,12 +318,11 @@ export async function executarSemelhantes(
     }
   }
 
-  // Ordenar grupos por similaridade decrescente e quantidade de variações
   gruposEncontrados.sort((a, b) => b.variacoes.length - a.variacoes.length)
-
   const unificacaoPotencial = gruposEncontrados.reduce((acc, g) => acc + (g.variacoes.length - 1), 0)
 
   return {
+    fonte_dados: fonteUtilizada,
     resumo: {
       total_fornecedores_analisados: itens.length,
       total_grupos_duplicidade_encontrados: gruposEncontrados.length,
