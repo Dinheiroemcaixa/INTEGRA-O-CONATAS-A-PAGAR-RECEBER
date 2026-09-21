@@ -467,7 +467,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-3 bg-dark-900 border border-dark-700 rounded-xl px-4 py-3">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${empresaAtiva?.access_token_conta_azul ? 'bg-emerald-400/10' : 'bg-amber-400/10'}`}>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${Boolean(empresaAtiva?.access_token_conta_azul || empresaAtiva?.conta_azul_connected || empresaAtiva?.access_token_conta_azul_vendas || empresaAtiva?.conta_azul_vendas_connected) ? 'bg-emerald-400/10' : 'bg-amber-400/10'}`}>
               {empresaAtiva?.access_token_conta_azul
                 ? <CheckCircle size={14} className="text-emerald-400" />
                 : <AlertCircle size={14} className="text-amber-400" />}
@@ -475,7 +475,7 @@ export default function DashboardPage() {
             <div>
               <p className="text-white text-sm font-medium">Conta Azul</p>
               <p className="text-dark-500 text-xs">
-                {empresaAtiva?.access_token_conta_azul ? 'API conectada' : 'Configurar em Empresas'}
+                {Boolean(empresaAtiva?.access_token_conta_azul || empresaAtiva?.conta_azul_connected || empresaAtiva?.access_token_conta_azul_vendas || empresaAtiva?.conta_azul_vendas_connected) ? 'API conectada' : 'Configurar em Empresas'}
               </p>
             </div>
           </div>

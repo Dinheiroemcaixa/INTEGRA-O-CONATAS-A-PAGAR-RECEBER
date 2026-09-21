@@ -40,7 +40,6 @@ const navSections: NavSection[] = [
       { label: 'Vendas Serviços', href: '/vendas-servicos', icon: Receipt, badge: 'NOVO', badgeColor: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30' },
       { label: 'Notas Emitidas', href: '/notas-emitidas', icon: FileCheck2 },
       { label: 'Contas a Pagar', href: '/contas-pagar', icon: ArrowDownCircle, badge: 'ATIVO', badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' },
-      { label: 'Auditoria Financeira', href: '/auditoria', icon: ShieldCheck, badge: 'NOVO', badgeColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30' },
       { label: 'Gestão Pagamentos', href: '/gestao-pagamentos', icon: Layers, badge: 'NOVO', badgeColor: 'bg-purple-500/10 text-purple-400 border-purple-500/30' },
       { label: 'Contas a Receber', href: '/contas-receber', icon: ArrowUpCircle, badge: 'EM BREVE', disabled: true },
     ]

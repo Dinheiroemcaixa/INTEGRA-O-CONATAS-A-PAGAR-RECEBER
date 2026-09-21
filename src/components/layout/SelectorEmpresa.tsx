@@ -123,11 +123,39 @@ export default function SelectorEmpresa() {
   const isVendasModulo = pathname.startsWith('/vendas') || pathname.startsWith('/notas-emitidas')
   const isFinanceiroModulo = pathname.startsWith('/contas-pagar') || pathname.startsWith('/gestao-pagamentos') || pathname.startsWith('/contas-receber') || pathname.startsWith('/boletos') || pathname.startsWith('/pagamentos') || pathname.startsWith('/receber')
 
-  const caFinanceiroConectado = Boolean(empresaAtiva?.access_token_conta_azul)
-  const caVendasConectado = Boolean(empresaAtiva?.access_token_conta_azul_vendas)
-  const datacarConectado = !!empresaAtiva?.datacar_token
+  // Fonte Única de Verdade para o status de conexão Conta Azul
+  const getStatusCA = (emp: any) => {
+    if (!emp) return { conectado: false, label: 'Não Conectado' }
+    const hasFin = Boolean(emp.access_token_conta_azul || emp.conta_azul_connected)
+    const hasVen = Boolean(emp.access_token_conta_azul_vendas || emp.conta_azul_vendas_connected)
 
-  const caModuloConectado = isVendasModulo ? caVendasConectado : caFinanceiroConectado
+    if (isVendasModulo) {
+      return {
+        conectado: hasVen,
+        label: hasVen ? 'API Vendas Conectada' : 'Não Conectado'
+      }
+    }
+
+    if (isFinanceiroModulo) {
+      return {
+        conectado: hasFin,
+        label: hasFin ? 'API Financeiro Conectada' : 'Não Conectado'
+      }
+    }
+
+    // Em rotas gerais (Dashboard, Empresas, etc.):
+    const conectado = hasFin || hasVen
+    let label = 'Não Conectado'
+    if (hasFin && hasVen) label = 'Financeiro & Vendas OK'
+    else if (hasFin) label = 'API Financeiro OK'
+    else if (hasVen) label = 'API Vendas OK'
+
+    return { conectado, label }
+  }
+
+  const statusAtivaCA = getStatusCA(empresaAtiva)
+  const caModuloConectado = statusAtivaCA.conectado
+  const datacarConectado = !!empresaAtiva?.datacar_token
 
   return (
     <div ref={refEmpresa} className="relative w-full sm:w-auto">
@@ -203,7 +231,8 @@ export default function SelectorEmpresa() {
                 const temCaFin = Boolean(emp.access_token_conta_azul)
                 const temCaVen = Boolean(emp.access_token_conta_azul_vendas)
 
-                const empCaModuloConectado = isVendasModulo ? temCaVen : (isFinanceiroModulo ? temCaFin : (temCaFin || temCaVen))
+                const statusEmpCA = getStatusCA(emp)
+                const empCaModuloConectado = statusEmpCA.conectado
 
                 return (
                   <button
@@ -282,7 +311,7 @@ export default function SelectorEmpresa() {
               <div className="flex items-center justify-between bg-dark-800 border border-dark-700 rounded-xl px-3 py-2">
                 <div className="flex items-center gap-2">
                   {caModuloConectado ? (
-                    <><CheckCircle size={13} className="text-emerald-400" /><span className="text-xs text-emerald-400 font-medium">API Conectada</span></>
+                    <><CheckCircle size={13} className="text-emerald-400" /><span className="text-xs text-emerald-400 font-medium">{statusAtivaCA.label}</span></>
                   ) : (
                     <><AlertCircle size={13} className="text-red-400" /><span className="text-xs text-red-400 font-medium">Não Conectado</span></>
                   )}
