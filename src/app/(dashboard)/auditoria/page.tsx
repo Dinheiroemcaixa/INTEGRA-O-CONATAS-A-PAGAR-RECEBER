@@ -41,6 +41,10 @@ import {
   History,
   Target,
   Zap,
+  Wand2,
+  Flame,
+  AlertOctagon,
+  Settings2,
   Clock,
   Database,
   X
@@ -54,7 +58,8 @@ import type {
   SemelhantesResult,
   DuplicidadesResult,
   HistoricoResult,
-  FornecedorConsistenciaAudit
+  FornecedorConsistenciaAudit,
+  LancamentoDivergente
 } from '@/lib/auditoria'
 
 type TabAuditoria = 'consistencia' | 'semelhantes' | 'duplicidades' | 'historico'
@@ -171,6 +176,20 @@ export default function AuditoriaPage() {
   const [modalLogsAberto, setModalLogsAberto] = useState<boolean>(false)
   const [logsGovernanca, setLogsGovernanca] = useState<any[]>([])
   const [carregandoLogs, setCarregandoLogs] = useState<boolean>(false)
+
+  // Estados da Fase 9: Automação e Central de Exceções
+  const [filtroScoreRisco, setFiltroScoreRisco] = useState<'todos' | 'alto' | 'medio' | 'baixo'>('todos')
+  const [modalAutoHomologarAberto, setModalAutoHomologarAberto] = useState<boolean>(false)
+  const [configAutoConfianca, setConfigAutoConfianca] = useState<number>(98)
+  const [configAutoAmostra, setConfigAutoAmostra] = useState<number>(50)
+  const [executandoAutoHomologacao, setExecutandoAutoHomologacao] = useState<boolean>(false)
+
+  // Estado do Modal de Correção Assistida
+  const [modalCorrecaoAssistida, setModalCorrecaoAssistida] = useState<{
+    aberto: boolean
+    fornecedor?: FornecedorConsistenciaAudit
+    divergencia?: LancamentoDivergente
+  }>({ aberto: false })
 
   const [formRegra, setFormRegra] = useState<{
     fornecedor_nome: string
@@ -432,6 +451,54 @@ export default function AuditoriaPage() {
       prioridade: regra.prioridade
     })
     setModalRegraAberto(true)
+  }
+
+    // Executar homologação automática por critérios de segurança
+  const dispararHomologacaoAutomatica = async () => {
+    if (!empresaAtiva?.id) return
+    setExecutandoAutoHomologacao(true)
+    const toastId = toast.loading('Executando homologação automática por critérios de segurança...')
+
+    try {
+      const res = await fetch('/api/auditoria/regras/auto-homologar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresa_id: empresaAtiva.id,
+          confianca_minima: configAutoConfianca,
+          amostra_minima: configAutoAmostra,
+          periodo: historicoAprendizagem
+        })
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Falha ao executar homologação automática')
+
+      if (data.total_homologados === 0) {
+        toast('Nenhum fornecedor elegível encontrado para os critérios selecionados.', { icon: 'ℹ️', id: toastId })
+      } else {
+        toast.success(
+          `Sucesso! ${data.total_homologados} fornecedores homologados automaticamente (R$ ${data.valor_total_homologado?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} coberto).`,
+          { id: toastId, duration: 6000 }
+        )
+        await carregarRegrasContabeis()
+        await executarAuditoria(activeTab)
+      }
+      setModalAutoHomologarAberto(false)
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao executar homologação automática.', { id: toastId })
+    } finally {
+      setExecutandoAutoHomologacao(false)
+    }
+  }
+
+  // Abrir modal de correção assistida
+  const abrirCorrecaoAssistida = (forn: FornecedorConsistenciaAudit, div: LancamentoDivergente) => {
+    setModalCorrecaoAssistida({
+      aberto: true,
+      fornecedor: forn,
+      divergencia: div
+    })
   }
 
     // Carregar histórico de logs de governança
@@ -964,17 +1031,25 @@ export default function AuditoriaPage() {
 
       {/* CONTEÚDO DA ABA 1: CONSISTÊNCIA DE CATEGORIAS (GOVERNANÇA + ESTATÍSTICA) */}
       {activeTab === 'consistencia' && dadosConsistencia && (
-        <div className="space-y-4">
-          {/* BARRA DE EXPORTAÇÃO E HISTÓRICO OPERACIONAL (FASE 8) */}
+        <div className="space-y-4">{/* BARRA DE EXPORTAÇÃO, HISTÓRICO E AUTOMAÇÃO (FASE 9) */}
           <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-3 rounded-2xl border border-white/10 shadow-lg">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                 <BarChart3 className="w-4 h-4 text-cyan-400" />
-                Painel Operacional de Governança
+                Central de Tratamento por Exceção
               </span>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setModalAutoHomologarAberto(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-emerald-500/20 hover:from-cyan-500/30 hover:to-emerald-500/30 text-cyan-300 border border-cyan-500/30 text-xs font-bold transition-all shadow-md"
+                title="Configurar e executar homologação automática de fornecedores elegíveis"
+              >
+                <Wand2 className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Homologação Automática</span>
+              </button>
+
               <button
                 onClick={handleExportarExcel}
                 disabled={exportando}
@@ -1014,88 +1089,88 @@ export default function AuditoriaPage() {
             </div>
           </div>
 
-          {/* DASHBOARD EXECUTIVO DE KPIS FINANCEIROS (FASE 8) */}
+          {/* DASHBOARD POR EXCEÇÃO: 5 KPIS DE GOVERNANÇA (FASE 9) */}
           {(() => {
-            const valorTotal = dadosConsistencia.resumo.valor_total_auditado || 0
-            const valorDivergente = dadosConsistencia.resumo.valor_total_divergente || 0
-            const valorHomologado = Math.max(0, valorTotal - valorDivergente)
-            const percentualConforme = valorTotal > 0 ? Number(((valorHomologado / valorTotal) * 100).toFixed(1)) : 100
-            const percentualRisco = valorTotal > 0 ? Number(((valorDivergente / valorTotal) * 100).toFixed(1)) : 0
+            const totalAuditado = dadosConsistencia.resumo.total_lancamentos_auditados || 0
+            const divergentesForn = dadosConsistencia.fornecedores_divergentes || []
+            const totalDivergentes = divergentesForn.reduce((acc, f) => acc + f.divergencias.length, 0)
+            const totalConforme = Math.max(0, totalAuditado - totalDivergentes)
+            const totalRegrasHomologadas = regrasCadastradas.length
+            const totalAutoHomologadas = regrasCadastradas.filter(
+              (r) => r.observacao && r.observacao.includes('Homologação Automática')
+            ).length
 
             return (
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between">
                   <span className="text-[11px] text-slate-400 uppercase font-semibold flex items-center gap-1.5">
-                    <BarChart3 className="w-3.5 h-3.5 text-slate-400" />
-                    Valor Total Auditado
+                    <Layers className="w-3.5 h-3.5 text-slate-400" />
+                    Total Auditado
                   </span>
                   <div className="text-xl font-bold text-white mt-1">
-                    R$ {valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {totalAuditado.toLocaleString('pt-BR')} contas
                   </div>
                   <span className="text-[10px] text-slate-400 mt-0.5 font-mono">
-                    {dadosConsistencia.resumo.total_lancamentos_auditados} contas analisadas
+                    R$ {dadosConsistencia.resumo.valor_total_auditado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
 
                 <div className="bg-slate-900/80 border border-emerald-500/20 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between">
                   <span className="text-[11px] text-emerald-400 uppercase font-semibold flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                    Valor Conforme
+                    Total Conforme
                   </span>
                   <div className="text-xl font-bold text-emerald-300 mt-1">
-                    R$ {valorHomologado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {totalConforme.toLocaleString('pt-BR')} contas
                   </div>
                   <span className="text-[10px] text-emerald-400/80 mt-0.5 font-semibold">
-                    {percentualConforme}% do volume financeiro
+                    {dadosConsistencia.resumo.taxa_conformidade_cadastral}% do volume total
                   </span>
                 </div>
 
                 <div className="bg-slate-900/80 border border-rose-500/20 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between">
                   <span className="text-[11px] text-rose-400 uppercase font-semibold flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
-                    Valor em Risco
+                    <AlertOctagon className="w-3.5 h-3.5 text-rose-400" />
+                    Total Divergente (Exceções)
                   </span>
                   <div className="text-xl font-bold text-rose-300 mt-1">
-                    R$ {valorDivergente.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {totalDivergentes} contas
                   </div>
                   <span className="text-[10px] text-rose-400/80 mt-0.5 font-semibold">
-                    {percentualRisco}% sob inconformidade
+                    R$ {dadosConsistencia.resumo.valor_total_divergente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} sob risco
                   </span>
                 </div>
 
-                <div className="bg-slate-900/80 border border-amber-500/20 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between">
-                  <span className="text-[11px] text-amber-400 uppercase font-semibold flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-amber-400" />
-                    Pendentes de Validação
-                  </span>
-                  <div className="text-xl font-bold text-amber-300 mt-1">
-                    {dadosConsistencia.resumo.fornecedores_pendentes || 0}
-                  </div>
-                  <span className="text-[10px] text-amber-400/80 mt-0.5">
-                    Aguardam homologação
-                  </span>
-                </div>
-
-                <div className="bg-slate-900/80 border border-cyan-500/20 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between col-span-2 md:col-span-1">
+                <div className="bg-slate-900/80 border border-cyan-500/20 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between">
                   <span className="text-[11px] text-cyan-400 uppercase font-semibold flex items-center gap-1.5">
-                    <Award className="w-3.5 h-3.5 text-cyan-400" />
-                    Validados / Regras
+                    <BookmarkCheck className="w-3.5 h-3.5 text-cyan-400" />
+                    Regras Homologadas
                   </span>
                   <div className="text-xl font-bold text-cyan-300 mt-1">
-                    {regrasCadastradas.length} regras ativas
+                    {totalRegrasHomologadas} regras
                   </div>
-                  <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1.5">
-                    <div
-                      className="bg-cyan-400 h-full rounded-full transition-all duration-500"
-                      style={{ width: `${dadosConsistencia.resumo.taxa_conformidade_cadastral}%` }}
-                    />
+                  <span className="text-[10px] text-cyan-400/80 mt-0.5">
+                    Base de memória contábil
+                  </span>
+                </div>
+
+                <div className="bg-slate-900/80 border border-emerald-500/20 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between col-span-2 md:col-span-1">
+                  <span className="text-[11px] text-emerald-400 uppercase font-semibold flex items-center gap-1.5">
+                    <Wand2 className="w-3.5 h-3.5 text-emerald-400" />
+                    Auto Homologadas (IA)
+                  </span>
+                  <div className="text-xl font-bold text-emerald-300 mt-1">
+                    {totalAutoHomologadas} regras
                   </div>
+                  <span className="text-[10px] text-emerald-400/80 mt-0.5">
+                    Criadas por automação
+                  </span>
                 </div>
               </div>
             )
           })()}
 
-          {/* SUB-ABAS DE GOVERNANÇA: Divergências vs Pendentes vs Validados vs Regras */}
+          {/* SUB-ABAS DE GOVERNANÇA: Exceções vs Central vs Validados vs Regras */}
           <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-2 rounded-2xl border border-white/10 shadow-lg">
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -1108,7 +1183,7 @@ export default function AuditoriaPage() {
                 )}
               >
                 <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
-                <span>Inconsistências</span>
+                <span>Central de Exceções</span>
                 <span className="px-1.5 py-0.2 rounded-full bg-rose-500/20 text-[10px] font-mono">
                   {dadosConsistencia.resumo.fornecedores_com_divergencia}
                 </span>
@@ -1173,160 +1248,257 @@ export default function AuditoriaPage() {
           </div>
 
           {/* ========================================================= */}
-          {/* SUB-ABA: INCONSISTÊNCIAS DETECTADAS                       */}
+          {/* SUB-ABA: CENTRAL DE EXCEÇÕES (COM SCORE DE RISCO) (FASE 9)*/}
           {/* ========================================================= */}
           {subTabConsistencia === 'divergencias' && (
             <div className="space-y-4">
-              {/* FILTRO RÁPIDO */}
-              <div className="relative w-full sm:w-80">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={buscaFornecedor}
-                  onChange={(e) => setBuscaFornecedor(e.target.value)}
-                  placeholder="Filtrar por nome do fornecedor..."
-                  className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-800/80 border border-white/10 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500"
-                />
+              {/* FILTRO POR SCORE DE RISCO E BUSCA */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900/60 p-3 rounded-2xl border border-white/10 shadow-lg">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-400 mr-1">Score de Risco:</span>
+                  <button
+                    onClick={() => setFiltroScoreRisco('todos')}
+                    className={cn(
+                      'px-3 py-1 rounded-xl text-xs font-semibold transition-all',
+                      filtroScoreRisco === 'todos' ? 'bg-slate-700 text-white' : 'bg-slate-800/80 text-slate-400 hover:text-white'
+                    )}
+                  >
+                    Todos
+                  </button>
+                  <button
+                    onClick={() => setFiltroScoreRisco('alto')}
+                    className={cn(
+                      'px-3 py-1 rounded-xl text-xs font-semibold transition-all flex items-center gap-1',
+                      filtroScoreRisco === 'alto' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-slate-800/80 text-rose-400 hover:bg-slate-700'
+                    )}
+                  >
+                    <Flame className="w-3 h-3 text-rose-400" />
+                    <span>Risco Alto</span>
+                  </button>
+                  <button
+                    onClick={() => setFiltroScoreRisco('medio')}
+                    className={cn(
+                      'px-3 py-1 rounded-xl text-xs font-semibold transition-all flex items-center gap-1',
+                      filtroScoreRisco === 'medio' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-slate-800/80 text-amber-400 hover:bg-slate-700'
+                    )}
+                  >
+                    <span>Risco Médio</span>
+                  </button>
+                  <button
+                    onClick={() => setFiltroScoreRisco('baixo')}
+                    className={cn(
+                      'px-3 py-1 rounded-xl text-xs font-semibold transition-all flex items-center gap-1',
+                      filtroScoreRisco === 'baixo' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' : 'bg-slate-800/80 text-blue-400 hover:bg-slate-700'
+                    )}
+                  >
+                    <span>Risco Baixo</span>
+                  </button>
+                </div>
+
+                <div className="relative w-full sm:w-72">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={buscaFornecedor}
+                    onChange={(e) => setBuscaFornecedor(e.target.value)}
+                    placeholder="Filtrar fornecedor..."
+                    className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-800/80 border border-white/10 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
               </div>
 
-              {fornecedoresFiltrados.length === 0 && !loading && (
-                <div className="text-center py-12 bg-slate-900/30 border border-white/5 rounded-2xl">
-                  <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3 opacity-80" />
-                  <h3 className="text-lg font-semibold text-white">Nenhuma inconsistência encontrada no período!</h3>
-                  <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-                    Todos os lançamentos analisados estão em conformidade com as regras homologadas e padrões contábeis.
-                  </p>
-                </div>
-              )}
+              {(() => {
+                let listaDivergentes = (dadosConsistencia.fornecedores_divergentes || []).map((forn) => {
+                  const valorDivergenteForn = forn.divergencias.reduce((acc, d) => acc + d.valor, 0)
+                  const temRegra = Boolean(forn.regra_ativa)
+                  let score: 'alto' | 'medio' | 'baixo' = 'baixo'
 
-              {fornecedoresFiltrados.map((forn) => {
-                const isExpanded = expandedRow === forn.fornecedor_normalizado
-                const valorTotalDivergenteForn = forn.divergencias.reduce((acc, d) => acc + d.valor, 0)
-                const possuiRegra = forn.status_governanca === 'DIVERGENTE' && forn.regra_ativa
+                  if (temRegra || valorDivergenteForn >= 5000 || forn.confianca_percentual >= 95) {
+                    score = 'alto'
+                  } else if (valorDivergenteForn >= 1000 || forn.confianca_percentual >= 80) {
+                    score = 'medio'
+                  } else {
+                    score = 'baixo'
+                  }
+
+                  return {
+                    ...forn,
+                    valorDivergenteForn,
+                    score
+                  }
+                })
+
+                if (buscaFornecedor) {
+                  listaDivergentes = listaDivergentes.filter((f) =>
+                    f.fornecedor_original.toLowerCase().includes(buscaFornecedor.toLowerCase())
+                  )
+                }
+
+                if (filtroScoreRisco !== 'todos') {
+                  listaDivergentes = listaDivergentes.filter((f) => f.score === filtroScoreRisco)
+                }
+
+                listaDivergentes.sort((a, b) => b.valorDivergenteForn - a.valorDivergenteForn)
+
+                if (listaDivergentes.length === 0 && !loading) {
+                  return (
+                    <div className="text-center py-12 bg-slate-900/30 border border-white/5 rounded-2xl">
+                      <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3 opacity-80" />
+                      <h3 className="text-lg font-semibold text-white">Nenhuma inconsistência encontrada para o filtro!</h3>
+                      <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                        Todos os lançamentos analisados estão em conformidade com as regras homologadas e padrões contábeis.
+                      </p>
+                    </div>
+                  )
+                }
 
                 return (
-                  <div
-                    key={forn.fornecedor_normalizado}
-                    className="bg-slate-900/80 border border-white/10 rounded-2xl overflow-hidden shadow-lg transition-all"
-                  >
-                    <div
-                      onClick={() => toggleExpand(forn.fornecedor_normalizado)}
-                      className="p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 cursor-pointer hover:bg-slate-800/40 select-none"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2.5">
-                          <span className="font-semibold text-white text-sm">
-                            {forn.fornecedor_original}
-                          </span>
-                          {possuiRegra ? (
-                            <span className="text-[10px] px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/30 font-medium">
-                              Regra Homologada Violada
-                            </span>
-                          ) : (
-                            <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 font-medium">
-                              Inferência Histórica ({forn.confianca_percentual}%)
-                            </span>
+                  <div className="space-y-3">
+                    {listaDivergentes.map((forn) => {
+                      const isExpanded = expandedRow === forn.fornecedor_normalizado
+
+                      return (
+                        <div
+                          key={forn.fornecedor_normalizado}
+                          className={cn(
+                            'bg-slate-900/80 border rounded-2xl overflow-hidden shadow-lg transition-all',
+                            forn.score === 'alto' ? 'border-rose-500/30' : forn.score === 'medio' ? 'border-amber-500/30' : 'border-white/10'
+                          )}
+                        >
+                          <div
+                            onClick={() => toggleExpand(forn.fornecedor_normalizado)}
+                            className="p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 cursor-pointer hover:bg-slate-800/40 select-none"
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2.5">
+                                <span className="font-semibold text-white text-sm">
+                                  {forn.fornecedor_original}
+                                </span>
+
+                                {forn.score === 'alto' && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold flex items-center gap-1">
+                                    <Flame className="w-3 h-3 text-rose-400" />
+                                    <span>RISCO ALTO</span>
+                                  </span>
+                                )}
+
+                                {forn.score === 'medio' && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">
+                                    RISCO MÉDIO
+                                  </span>
+                                )}
+
+                                {forn.score === 'baixo' && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40 font-bold">
+                                    RISCO BAIXO
+                                  </span>
+                                )}
+
+                                {forn.regra_ativa ? (
+                                  <span className="text-[10px] px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/30 font-medium">
+                                    Regra Homologada Violada
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 font-medium">
+                                    Inferência Histórica ({forn.confianca_percentual}%)
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-slate-400 flex items-center gap-2">
+                                <span>Categoria esperada:</span>
+                                <strong className="text-cyan-300 font-medium">
+                                  {forn.categoria_predominante}
+                                </strong>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between lg:justify-end gap-6">
+                              <div className="text-right">
+                                <div className="text-xs text-slate-400">Divergências</div>
+                                <div className="text-sm font-bold text-amber-400">
+                                  {forn.divergencias.length} lançamentos
+                                </div>
+                              </div>
+
+                              <div className="text-right">
+                                <div className="text-xs text-slate-400">Impacto em Risco</div>
+                                <div className="text-sm font-bold text-rose-400">
+                                  R$ {forn.valorDivergenteForn.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </div>
+                              </div>
+
+                              <div className="p-1 rounded-lg bg-slate-800 text-slate-300">
+                                {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                              </div>
+                            </div>
+                          </div>
+
+                          {isExpanded && (
+                            <div className="border-t border-white/5 bg-slate-950/40 p-4 space-y-3">
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs text-left">
+                                  <thead className="bg-slate-800/40 text-slate-400 font-semibold uppercase text-[10px]">
+                                    <tr>
+                                      <th className="p-2.5">Documento / Venc.</th>
+                                      <th className="p-2.5">Descrição</th>
+                                      <th className="p-2.5">Valor</th>
+                                      <th className="p-2.5">Categoria Atual</th>
+                                      <th className="p-2.5">Categoria Esperada</th>
+                                      <th className="p-2.5">Motivo Técnico</th>
+                                      <th className="p-2.5 text-right">Ação Assistida</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-white/5">
+                                    {forn.divergencias.map((div) => (
+                                      <tr key={div.id} className="hover:bg-slate-800/20">
+                                        <td className="p-2.5 text-slate-300 whitespace-nowrap">
+                                          <div className="font-semibold text-white">{div.doc || 'S/N'}</div>
+                                          <div className="text-[10px] text-slate-400">{div.vencimento || 'Sem data'}</div>
+                                        </td>
+                                        <td className="p-2.5 text-slate-300 max-w-[180px] truncate" title={div.descricao || ''}>
+                                          {div.descricao || 'Sem descrição'}
+                                        </td>
+                                        <td className="p-2.5 text-slate-200 font-mono font-semibold whitespace-nowrap">
+                                          R$ {div.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        </td>
+                                        <td className="p-2.5 whitespace-nowrap">
+                                          <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                                            {div.categoria_atual}
+                                          </span>
+                                        </td>
+                                        <td className="p-2.5 whitespace-nowrap">
+                                          <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                            {div.categoria_esperada}
+                                          </span>
+                                        </td>
+                                        <td className="p-2.5 text-[11px] text-slate-300 max-w-[260px]">
+                                          {div.motivo}
+                                        </td>
+                                        <td className="p-2.5 text-right whitespace-nowrap">
+                                          <button
+                                            onClick={() => abrirCorrecaoAssistida(forn, div)}
+                                            className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-emerald-500/20 hover:from-cyan-500/30 hover:to-emerald-500/30 text-cyan-300 border border-cyan-500/30 text-xs font-bold transition-all shadow-sm inline-flex items-center gap-1.5"
+                                          >
+                                            <Wand2 className="w-3.5 h-3.5 text-cyan-400" />
+                                            <span>Correção Assistida</span>
+                                          </button>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
                           )}
                         </div>
-                        <div className="text-xs text-slate-400 flex items-center gap-2">
-                          <span>Categoria esperada:</span>
-                          <strong className="text-cyan-300 font-medium">
-                            {forn.categoria_predominante}
-                          </strong>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between lg:justify-end gap-6">
-                        <div className="text-right">
-                          <div className="text-xs text-slate-400">Divergências</div>
-                          <div className="text-sm font-bold text-amber-400">
-                            {forn.divergencias.length} lançamentos
-                          </div>
-                        </div>
-
-                        <div className="text-right">
-                          <div className="text-xs text-slate-400">Impacto Financeiro</div>
-                          <div className="text-sm font-bold text-rose-400">
-                            R$ {valorTotalDivergenteForn.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </div>
-                        </div>
-
-                        <div className="p-1 rounded-lg bg-slate-800 text-slate-300">
-                          {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                        </div>
-                      </div>
-                    </div>
-
-                    {isExpanded && (
-                      <div className="border-t border-white/5 bg-slate-950/40 p-4 space-y-3">
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-xs text-left">
-                            <thead className="bg-slate-800/40 text-slate-400 font-semibold uppercase text-[10px]">
-                              <tr>
-                                <th className="p-2.5">Documento / Venc.</th>
-                                <th className="p-2.5">Descrição</th>
-                                <th className="p-2.5">Valor</th>
-                                <th className="p-2.5">Categoria Atual</th>
-                                <th className="p-2.5">Categoria Esperada</th>
-                                <th className="p-2.5">Motivo Técnico</th>
-                                <th className="p-2.5 text-right">Ações de Governança</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/5">
-                              {forn.divergencias.map((div) => (
-                                <tr key={div.id} className="hover:bg-slate-800/20">
-                                  <td className="p-2.5 text-slate-300 whitespace-nowrap">
-                                    <div className="font-semibold text-white">{div.doc || 'S/N'}</div>
-                                    <div className="text-[10px] text-slate-400">{div.vencimento || 'Sem data'}</div>
-                                  </td>
-                                  <td className="p-2.5 text-slate-300 max-w-[200px] truncate" title={div.descricao || ''}>
-                                    {div.descricao || 'Sem descrição'}
-                                  </td>
-                                  <td className="p-2.5 text-slate-200 font-mono font-semibold whitespace-nowrap">
-                                    R$ {div.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                  </td>
-                                  <td className="p-2.5 whitespace-nowrap">
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                                      {div.categoria_atual}
-                                    </span>
-                                  </td>
-                                  <td className="p-2.5 whitespace-nowrap">
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                                      {div.categoria_esperada}
-                                    </span>
-                                  </td>
-                                  <td className="p-2.5 text-[11px] text-slate-300 max-w-[280px]">
-                                    {div.motivo}
-                                  </td>
-                                  <td className="p-2.5 text-right whitespace-nowrap space-x-1.5">
-                                    <button
-                                      onClick={() => aprovarCategoriaPadrao(forn.fornecedor_original, div.categoria_atual, forn.fornecedor_id_conta_azul)}
-                                      className="px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold transition-all"
-                                    >
-                                      Oficializar "{div.categoria_atual}"
-                                    </button>
-                                    <button
-                                      onClick={() => abrirModalCriarRegra(forn.fornecedor_original, div.categoria_atual, forn.fornecedor_id_conta_azul, 'DIA_DO_MES', '01-08')}
-                                      className="px-2 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-[10px] font-semibold transition-all"
-                                    >
-                                      Regra Contextual
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
+                      )
+                    })}
                   </div>
                 )
-              })}
+              })()}
             </div>
           )}
-
-          {/* ========================================================= */}
-          {/* SUB-ABA: CENTRAL DE HOMOLOGAÇÃO INTELIGENTE (FASE 8)       */}
+                    {/* SUB-ABA: CENTRAL DE HOMOLOGAÇÃO INTELIGENTE (FASE 8)       */}
           {/* ========================================================= */}
           {subTabConsistencia === 'pendentes' && (
             <div className="space-y-4">
@@ -1828,8 +2000,218 @@ export default function AuditoriaPage() {
           )}
         </div>
       )}
+{/* MODAL DE HOMOLOGAÇÃO AUTOMÁTICA (FASE 9) */}
+      {modalAutoHomologarAberto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-slate-900 border border-cyan-500/30 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-slate-800/50">
+              <div className="flex items-center gap-2 text-white font-bold text-sm">
+                <Wand2 className="w-4 h-4 text-cyan-400" />
+                <span>Automação da Governança Contábil</span>
+              </div>
+              <button
+                onClick={() => setModalAutoHomologarAberto(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-      {/* MODAL DE HISTÓRICO DE GOVERNANÇA (FASE 8) */}
+            <div className="p-5 space-y-4">
+              <p className="text-xs text-slate-300">
+                Configure os limites de segurança estatística para que o sistema homologue automaticamente os fornecedores pendentes que cumprirem os requisitos:
+              </p>
+
+              <div className="space-y-3 bg-slate-800/40 p-4 rounded-xl border border-white/5 text-xs">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Confiança Estatística Mínima: <strong className="text-cyan-400 font-mono">{configAutoConfianca}%</strong>
+                  </label>
+                  <input
+                    type="range"
+                    min={90}
+                    max={100}
+                    step={1}
+                    value={configAutoConfianca}
+                    onChange={(e) => setConfigAutoConfianca(Number(e.target.value))}
+                    className="w-full accent-cyan-400 cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-500 mt-1">
+                    <span>90% (Mais flexível)</span>
+                    <span>95% (Recomendado)</span>
+                    <span>98%+ (Ultra seguro)</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Amostra Mínima de Lançamentos: <strong className="text-cyan-400 font-mono">{configAutoAmostra} contas</strong>
+                  </label>
+                  <select
+                    value={configAutoAmostra}
+                    onChange={(e) => setConfigAutoAmostra(Number(e.target.value))}
+                    className="w-full px-3 py-1.5 rounded-xl bg-slate-800 border border-white/10 text-xs text-white focus:outline-none focus:border-cyan-500"
+                  >
+                    <option value={10}>Mínimo 10 lançamentos</option>
+                    <option value={20}>Mínimo 20 lançamentos</option>
+                    <option value={50}>Mínimo 50 lançamentos (Altíssima fidelidade)</option>
+                    <option value={100}>Mínimo 100 lançamentos</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* ESTIMATIVA */}
+              {(() => {
+                const elegiveis = (dadosConsistencia?.fornecedores_pendentes || []).filter(
+                  (p) => p.confianca_percentual >= configAutoConfianca && p.total_lancamentos >= configAutoAmostra
+                )
+                const valorCob = elegiveis.reduce((acc, p) => acc + p.total_valor, 0)
+
+                return (
+                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs space-y-1">
+                    <div className="text-emerald-300 font-semibold flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span>{elegiveis.length} fornecedores prontos para homologação</span>
+                    </div>
+                    <div className="text-[11px] text-slate-400">
+                      Volume financeiro coberto: <strong className="text-white font-mono">R$ {valorCob.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+
+            <div className="p-4 border-t border-white/10 bg-slate-800/40 flex justify-end gap-2">
+              <button
+                onClick={() => setModalAutoHomologarAberto(false)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={dispararHomologacaoAutomatica}
+                disabled={executandoAutoHomologacao}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-bold text-xs transition-all shadow-lg flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <Wand2 className="w-4 h-4" />
+                <span>{executandoAutoHomologacao ? 'Homologando...' : 'Homologar Fornecedores Elegíveis'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CORREÇÃO ASSISTIDA (FASE 9) */}
+      {modalCorrecaoAssistida.aberto && modalCorrecaoAssistida.fornecedor && modalCorrecaoAssistida.divergencia && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-slate-800/50">
+              <div className="flex items-center gap-2 text-white font-bold text-sm">
+                <Wand2 className="w-4 h-4 text-cyan-400" />
+                <span>Correção Assistida de Inconsistência Contábil</span>
+              </div>
+              <button
+                onClick={() => setModalCorrecaoAssistida({ aberto: false })}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs">
+              <div className="bg-slate-800/60 p-3.5 rounded-xl border border-white/5 space-y-1.5">
+                <div className="text-slate-400 text-[10px] uppercase font-semibold">Fornecedor Analisado</div>
+                <div className="text-white font-bold text-sm">
+                  {modalCorrecaoAssistida.fornecedor.fornecedor_original}
+                </div>
+                <div className="text-slate-400 text-[11px] flex items-center gap-4 pt-1">
+                  <span>Documento: <strong className="text-slate-200">{modalCorrecaoAssistida.divergencia.doc || 'S/N'}</strong></span>
+                  <span>Vencimento: <strong className="text-slate-200">{modalCorrecaoAssistida.divergencia.vencimento}</strong></span>
+                  <span>Valor: <strong className="text-white font-mono">R$ {modalCorrecaoAssistida.divergencia.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></span>
+                </div>
+              </div>
+
+              {/* COMPARAÇÃO LADO A LADO */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-rose-950/20 border border-rose-500/30 p-3 rounded-xl space-y-1">
+                  <span className="text-[10px] uppercase font-bold text-rose-400">Categoria Atual no ERP</span>
+                  <div className="text-rose-200 font-bold text-sm truncate" title={modalCorrecaoAssistida.divergencia.categoria_atual}>
+                    {modalCorrecaoAssistida.divergencia.categoria_atual}
+                  </div>
+                  <span className="text-[10px] text-rose-400/80">Classificada incorretamente ou fora da regra</span>
+                </div>
+
+                <div className="bg-emerald-950/20 border border-emerald-500/30 p-3 rounded-xl space-y-1">
+                  <span className="text-[10px] uppercase font-bold text-emerald-400">Categoria Esperada</span>
+                  <div className="text-emerald-200 font-bold text-sm truncate" title={modalCorrecaoAssistida.divergencia.categoria_esperada}>
+                    {modalCorrecaoAssistida.divergencia.categoria_esperada}
+                  </div>
+                  <span className="text-[10px] text-emerald-400/80">Histórico ou Regra Homologada Oficial</span>
+                </div>
+              </div>
+
+              {/* HISTÓRICO DO FORNECEDOR */}
+              <div className="bg-slate-800/40 p-3.5 rounded-xl border border-white/5 space-y-2">
+                <span className="text-[10px] uppercase font-semibold text-slate-400">Distribuição Histórica do Fornecedor</span>
+                <div className="space-y-1.5">
+                  {modalCorrecaoAssistida.fornecedor.distribuicao_categorias.map((d) => (
+                    <div key={d.categoria} className="space-y-0.5">
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-slate-200 truncate">{d.categoria}</span>
+                        <span className="font-mono text-cyan-300">{d.percentual}% ({d.quantidade} contas)</span>
+                      </div>
+                      <div className="w-full bg-slate-800 h-1 rounded-full overflow-hidden">
+                        <div
+                          className="bg-cyan-400 h-full rounded-full"
+                          style={{ width: `${d.percentual}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px]">
+                💡 <strong>Orientação da IA:</strong> {modalCorrecaoAssistida.divergencia.motivo}
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-white/10 bg-slate-800/40 flex flex-wrap justify-end gap-2">
+              <button
+                onClick={() => setModalCorrecaoAssistida({ aberto: false })}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-all"
+              >
+                Fechar
+              </button>
+
+              <button
+                onClick={() => {
+                  const forn = modalCorrecaoAssistida.fornecedor!
+                  const div = modalCorrecaoAssistida.divergencia!
+                  setModalCorrecaoAssistida({ aberto: false })
+                  abrirModalCriarRegra(forn.fornecedor_original, div.categoria_atual, forn.fornecedor_id_conta_azul, 'DIA_DO_MES', '01-08')
+                }}
+                className="px-3 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-xs font-semibold transition-all"
+              >
+                Criar Regra Contextual
+              </button>
+
+              <button
+                onClick={() => {
+                  const forn = modalCorrecaoAssistida.fornecedor!
+                  const div = modalCorrecaoAssistida.divergencia!
+                  setModalCorrecaoAssistida({ aberto: false })
+                  aprovarCategoriaPadrao(forn.fornecedor_original, div.categoria_atual, forn.fornecedor_id_conta_azul)
+                }}
+                className="px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition-all shadow-md"
+              >
+                Homologar Categoria "{modalCorrecaoAssistida.divergencia.categoria_atual}"
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+            {/* MODAL DE HISTÓRICO DE GOVERNANÇA (FASE 8) */}
       {modalLogsAberto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
           <div className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden">
