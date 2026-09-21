@@ -27,6 +27,13 @@ import {
   PlusCircle,
   Check,
   Sliders,
+  Edit,
+  CheckSquare,
+  Square,
+  ToggleLeft,
+  ToggleRight,
+  BarChart3,
+  Award,
   Clock,
   Database,
   FileText
@@ -132,11 +139,16 @@ export default function AuditoriaPage() {
   const [buscaFornecedor, setBuscaFornecedor] = useState<string>('')
   
   // Governança Contábil (Fase 5A: Memória e Regras)
-  const [subTabConsistencia, setSubTabConsistencia] = useState<'divergencias' | 'pendentes' | 'regras'>('divergencias')
+  const [subTabConsistencia, setSubTabConsistencia] = useState<'divergencias' | 'pendentes' | 'validados' | 'regras'>('divergencias')
   const [regrasCadastradas, setRegrasCadastradas] = useState<FornecedorRegra[]>([])
   const [carregandoRegras, setCarregandoRegras] = useState<boolean>(false)
   const [modalRegraAberto, setModalRegraAberto] = useState<boolean>(false)
   const [salvandoRegra, setSalvandoRegra] = useState<boolean>(false)
+  // Estados de Seleção em Massa e Edição (Fase 7)
+  const [selecionadosPendentes, setSelecionadosPendentes] = useState<string[]>([])
+  const [regraEmEdicaoId, setRegraEmEdicaoId] = useState<string | null>(null)
+  const [aprovandoEmMassa, setAprovandoEmMassa] = useState<boolean>(false)
+
   const [formRegra, setFormRegra] = useState<{
     fornecedor_nome: string
     fornecedor_id_conta_azul?: string | null
@@ -237,13 +249,12 @@ export default function AuditoriaPage() {
     setSalvandoRegra(true)
     const toastId = toast.loading('Salvando regra contábil...')
     try {
+      const method = regraEmEdicaoId ? 'PUT' : 'POST'
+      const payload = regraEmEdicaoId ? { id: regraEmEdicaoId, ...formRegra } : { empresa_id: empresaAtiva.id, ...formRegra }
       const res = await fetch('/api/auditoria/regras', {
-        method: 'POST',
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          empresa_id: empresaAtiva.id,
-          ...formRegra
-        })
+        body: JSON.stringify(payload)
       })
 
       if (!res.ok) {
@@ -252,7 +263,7 @@ export default function AuditoriaPage() {
       }
 
       toast.success('Regra de auditoria criada com sucesso!', { id: toastId })
-      setModalRegraAberto(false)
+      setModalRegraAberto(false); setRegraEmEdicaoId(null)
       await carregarRegrasContabeis()
       await executarAuditoria(activeTab)
     } catch (e: any) {
@@ -285,6 +296,7 @@ export default function AuditoriaPage() {
     tipo: 'PADRAO' | 'DIA_DO_MES' | 'MES_DO_ANO' | 'FAIXA_VALOR' = 'DIA_DO_MES',
     valor_sugerido = ''
   ) => {
+    setRegraEmEdicaoId(null);
     setFormRegra({
       fornecedor_nome,
       categoria_nome,
@@ -302,6 +314,102 @@ export default function AuditoriaPage() {
       carregarRegrasContabeis()
     }
   }, [empresaAtiva?.id])
+
+    // Toggle seleção individual de fornecedor pendente
+  const toggleSelecionarPendente = (fornecedorNome: string) => {
+    setSelecionadosPendentes((prev) =>
+      prev.includes(fornecedorNome) ? prev.filter((n) => n !== fornecedorNome) : [...prev, fornecedorNome]
+    )
+  }
+
+  // Selecionar ou desselecionar todos os pendentes visíveis
+  const toggleSelecionarTodosPendentes = (todosNomes: string[]) => {
+    if (selecionadosPendentes.length === todosNomes.length) {
+      setSelecionadosPendentes([])
+    } else {
+      setSelecionadosPendentes(todosNomes)
+    }
+  }
+
+  // Aprovação em massa de fornecedores selecionados
+  const aprovarEmMassa = async () => {
+    if (!empresaAtiva?.id || selecionadosPendentes.length === 0) return
+    if (!dadosConsistencia?.fornecedores_pendentes) return
+
+    setAprovandoEmMassa(true)
+    const toastId = toast.loading(`Aprovando ${selecionadosPendentes.length} fornecedores em lote...`)
+
+    try {
+      const regrasParaGravar = dadosConsistencia.fornecedores_pendentes
+        .filter((p) => selecionadosPendentes.includes(p.fornecedor_original))
+        .map((p) => ({
+          empresa_id: empresaAtiva.id,
+          fornecedor_id_conta_azul: p.fornecedor_id_conta_azul || null,
+          fornecedor_nome: p.fornecedor_original,
+          categoria_nome: p.categoria_predominante,
+          tipo_regra: 'PADRAO',
+          prioridade: 10,
+          observacao: 'Aprovação em lote pelo usuário'
+        }))
+
+      const res = await fetch('/api/auditoria/regras', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ regras: regrasParaGravar })
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Falha na aprovação em lote.')
+      }
+
+      toast.success(`${selecionadosPendentes.length} fornecedores homologados com sucesso!`, { id: toastId })
+      setSelecionadosPendentes([])
+      await carregarRegrasContabeis()
+      await executarAuditoria(activeTab)
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao aprovar em massa.', { id: toastId })
+    } finally {
+      setAprovandoEmMassa(false)
+    }
+  }
+
+  // Ativar ou desativar regra
+  const toggleAtivarRegra = async (regra: FornecedorRegra) => {
+    const toastId = toast.loading(regra.ativo ? 'Desativando regra...' : 'Ativando regra...')
+    try {
+      const res = await fetch('/api/auditoria/regras', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: regra.id,
+          ativo: !regra.ativo
+        })
+      })
+
+      if (!res.ok) throw new Error('Erro ao alterar status da regra')
+
+      toast.success(regra.ativo ? 'Regra desativada.' : 'Regra ativada com sucesso!', { id: toastId })
+      await carregarRegrasContabeis()
+      await executarAuditoria(activeTab)
+    } catch (e: any) {
+      toast.error(e.message || 'Falha ao atualizar regra.', { id: toastId })
+    }
+  }
+
+  // Abrir modal para edição de regra existente
+  const abrirModalEditarRegra = (regra: FornecedorRegra) => {
+    setRegraEmEdicaoId(regra.id)
+    setFormRegra({
+      fornecedor_nome: regra.fornecedor_nome,
+      categoria_nome: regra.categoria_nome,
+      fornecedor_id_conta_azul: regra.fornecedor_id_conta_azul || null,
+      tipo_regra: regra.tipo_regra,
+      valor_regra: regra.valor_regra || '',
+      prioridade: regra.prioridade
+    })
+    setModalRegraAberto(true)
+  }
 
     // Disparar sincronização com o Conta Azul
   const sincronizarContaAzul = async () => {
@@ -744,7 +852,78 @@ export default function AuditoriaPage() {
       {/* CONTEÚDO DA ABA 1: CONSISTÊNCIA DE CATEGORIAS (GOVERNANÇA + ESTATÍSTICA) */}
       {activeTab === 'consistencia' && dadosConsistencia && (
         <div className="space-y-4">
-          {/* SUB-ABAS DE GOVERNANÇA: Divergências vs Pendentes vs Regras */}
+          {/* DASHBOARD EXECUTIVO DE GOVERNANÇA (KPIs) */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between">
+              <span className="text-[11px] text-slate-400 uppercase font-semibold flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-slate-400" />
+                Total Fornecedores
+              </span>
+              <div className="text-xl font-bold text-white mt-1">
+                {dadosConsistencia.resumo.total_fornecedores_auditados}
+              </div>
+              <span className="text-[10px] text-slate-400 mt-0.5">
+                {dadosConsistencia.resumo.total_lancamentos_auditados} lançamentos no período
+              </span>
+            </div>
+
+            <div className="bg-slate-900/80 border border-amber-500/20 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between">
+              <span className="text-[11px] text-amber-400 uppercase font-semibold flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-amber-400" />
+                Pendentes
+              </span>
+              <div className="text-xl font-bold text-amber-300 mt-1">
+                {dadosConsistencia.resumo.fornecedores_pendentes || 0}
+              </div>
+              <span className="text-[10px] text-amber-400/80 mt-0.5">
+                Aguardam homologação humana
+              </span>
+            </div>
+
+            <div className="bg-slate-900/80 border border-emerald-500/20 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between">
+              <span className="text-[11px] text-emerald-400 uppercase font-semibold flex items-center gap-1.5">
+                <Award className="w-3.5 h-3.5 text-emerald-400" />
+                Validados
+              </span>
+              <div className="text-xl font-bold text-emerald-300 mt-1">
+                {dadosConsistencia.fornecedores_validados?.length || 0}
+              </div>
+              <span className="text-[10px] text-emerald-400/80 mt-0.5">
+                100% de conformidade com regras
+              </span>
+            </div>
+
+            <div className="bg-slate-900/80 border border-rose-500/20 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between">
+              <span className="text-[11px] text-rose-400 uppercase font-semibold flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                Divergentes
+              </span>
+              <div className="text-xl font-bold text-rose-300 mt-1">
+                {dadosConsistencia.resumo.fornecedores_com_divergencia}
+              </div>
+              <span className="text-[10px] text-rose-400/80 mt-0.5">
+                R$ {dadosConsistencia.resumo.valor_total_divergente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em risco
+              </span>
+            </div>
+
+            <div className="bg-slate-900/80 border border-cyan-500/20 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between col-span-2 md:col-span-1">
+              <span className="text-[11px] text-cyan-400 uppercase font-semibold flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+                Conformidade
+              </span>
+              <div className="text-xl font-bold text-cyan-300 mt-1">
+                {dadosConsistencia.resumo.taxa_conformidade_cadastral}%
+              </div>
+              <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1.5">
+                <div
+                  className="bg-cyan-400 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${dadosConsistencia.resumo.taxa_conformidade_cadastral}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* SUB-ABAS DE GOVERNANÇA: Divergências vs Pendentes vs Validados vs Regras */}
           <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-2 rounded-2xl border border-white/10 shadow-lg">
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -757,7 +936,7 @@ export default function AuditoriaPage() {
                 )}
               >
                 <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
-                <span>Inconsistências Detectadas</span>
+                <span>Inconsistências</span>
                 <span className="px-1.5 py-0.2 rounded-full bg-rose-500/20 text-[10px] font-mono">
                   {dadosConsistencia.resumo.fornecedores_com_divergencia}
                 </span>
@@ -780,6 +959,22 @@ export default function AuditoriaPage() {
               </button>
 
               <button
+                onClick={() => setSubTabConsistencia('validados')}
+                className={cn(
+                  'flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all',
+                  subTabConsistencia === 'validados'
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                )}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Validados (Homologados)</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-[10px] font-mono">
+                  {dadosConsistencia.fornecedores_validados?.length || 0}
+                </span>
+              </button>
+
+              <button
                 onClick={() => setSubTabConsistencia('regras')}
                 className={cn(
                   'flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all',
@@ -789,9 +984,9 @@ export default function AuditoriaPage() {
                 )}
               >
                 <BookmarkCheck className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Regras Homologadas (Memória)</span>
+                <span>Memória de Regras</span>
                 <span className="px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-[10px] font-mono">
-                  {dadosConsistencia.resumo.total_regras_ativas || regrasCadastradas.length}
+                  {regrasCadastradas.length}
                 </span>
               </button>
             </div>
@@ -801,7 +996,7 @@ export default function AuditoriaPage() {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-xs font-semibold transition-all shadow-md"
             >
               <PlusCircle className="w-3.5 h-3.5" />
-              <span>Nova Regra de Fornecedor</span>
+              <span>Nova Regra</span>
             </button>
           </div>
 
@@ -822,8 +1017,9 @@ export default function AuditoriaPage() {
               <Info className="w-4 h-4 text-cyan-400" />
               <span>
                 {subTabConsistencia === 'divergencias' && 'Exibindo violações de regras homologadas e anomalias estatísticas.'}
-                {subTabConsistencia === 'pendentes' && 'Fornecedores sem regra homologada aguardando validação do usuário.'}
-                {subTabConsistencia === 'regras' && 'Base de conhecimento contábil validada pelo usuário.'}
+                {subTabConsistencia === 'pendentes' && 'Selecione em lote ou aprove unitariamente a categoria sugerida pela IA.'}
+                {subTabConsistencia === 'validados' && 'Fornecedores com categoria contábil 100% homologada e auditada.'}
+                {subTabConsistencia === 'regras' && 'Base de regras ativas com prioridade e parâmetros.'}
               </span>
             </div>
           </div>
@@ -838,7 +1034,7 @@ export default function AuditoriaPage() {
                   <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3 opacity-80" />
                   <h3 className="text-lg font-semibold text-white">Nenhuma inconsistência encontrada no período!</h3>
                   <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-                    Todos os lançamentos analisados estão em perfeita conformidade com as regras homologadas e histórico contábil.
+                    Todos os lançamentos analisados estão em conformidade com as regras homologadas e padrões contábeis.
                   </p>
                 </div>
               )}
@@ -869,11 +1065,6 @@ export default function AuditoriaPage() {
                           ) : (
                             <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 font-medium">
                               Inferência Histórica ({forn.confianca_percentual}%)
-                            </span>
-                          )}
-                          {forn.is_pessoal_rh && (
-                            <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                              RH / Folha
                             </span>
                           )}
                         </div>
@@ -951,16 +1142,14 @@ export default function AuditoriaPage() {
                                     <button
                                       onClick={() => aprovarCategoriaPadrao(forn.fornecedor_original, div.categoria_atual, forn.fornecedor_id_conta_azul)}
                                       className="px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold transition-all"
-                                      title="Oficializar esta categoria atual como a nova regra PADRÃO para o fornecedor"
                                     >
                                       Oficializar "{div.categoria_atual}"
                                     </button>
                                     <button
                                       onClick={() => abrirModalCriarRegra(forn.fornecedor_original, div.categoria_atual, forn.fornecedor_id_conta_azul, 'DIA_DO_MES', '01-08')}
                                       className="px-2 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-[10px] font-semibold transition-all"
-                                      title="Criar regra baseada no dia do vencimento ou faixa de valor"
                                     >
-                                      Criar Regra Contextual
+                                      Regra Contextual
                                     </button>
                                   </td>
                                 </tr>
@@ -977,7 +1166,7 @@ export default function AuditoriaPage() {
           )}
 
           {/* ========================================================= */}
-          {/* SUB-ABA: PENDENTES DE HOMOLOGAÇÃO                         */}
+          {/* SUB-ABA: PENDENTES DE HOMOLOGAÇÃO (COM APROVAÇÃO EM MASSA)*/}
           {/* ========================================================= */}
           {subTabConsistencia === 'pendentes' && (
             <div className="space-y-4">
@@ -990,79 +1179,203 @@ export default function AuditoriaPage() {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {dadosConsistencia.fornecedores_pendentes
-                    .filter((p) => p.fornecedor_original.toLowerCase().includes(buscaFornecedor.toLowerCase()))
-                    .map((pend) => (
-                      <div
-                        key={pend.fornecedor_normalizado}
-                        className="bg-slate-900/80 border border-white/10 rounded-2xl p-4 shadow-lg flex flex-col justify-between space-y-3"
-                      >
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between gap-2">
-                            <h4 className="font-semibold text-white text-sm truncate" title={pend.fornecedor_original}>
-                              {pend.fornecedor_original}
-                            </h4>
-                            <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono">
-                              {pend.total_lancamentos} lanç.
-                            </span>
-                          </div>
+                <>
+                  {/* BARRA DE APROVAÇÃO EM MASSA */}
+                  {(() => {
+                    const pendentesFiltrados = dadosConsistencia.fornecedores_pendentes.filter((p) =>
+                      p.fornecedor_original.toLowerCase().includes(buscaFornecedor.toLowerCase())
+                    )
+                    const todosNomes = pendentesFiltrados.map((p) => p.fornecedor_original)
+                    const todosSelecionados = todosNomes.length > 0 && selecionadosPendentes.length === todosNomes.length
 
-                          <div className="text-xs text-slate-400">
-                            Total movimentado:{' '}
-                            <strong className="text-slate-200">
-                              R$ {pend.total_valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </strong>
-                          </div>
+                    return (
+                      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/80 p-3 rounded-2xl border border-white/10 shadow-lg">
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => toggleSelecionarTodosPendentes(todosNomes)}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-all"
+                          >
+                            {todosSelecionados ? (
+                              <CheckSquare className="w-4 h-4 text-cyan-400" />
+                            ) : (
+                              <Square className="w-4 h-4 text-slate-400" />
+                            )}
+                            <span>{todosSelecionados ? 'Desselecionar Todos' : 'Selecionar Todos'}</span>
+                          </button>
 
-                          <div className="p-2.5 rounded-xl bg-slate-800/60 border border-white/5 text-xs space-y-1">
-                            <div className="text-slate-400 text-[10px] uppercase font-semibold flex items-center gap-1">
-                              <Sparkles className="w-3 h-3 text-cyan-400" />
-                              <span>Sugestão da IA / Histórico:</span>
-                            </div>
-                            <div className="text-cyan-300 font-bold text-sm">
-                              {pend.categoria_predominante}
-                            </div>
-                            <div className="text-[11px] text-slate-400">
-                              Confiança estatística: {pend.confianca_percentual}%
-                            </div>
-                          </div>
+                          <span className="text-xs text-slate-400">
+                            <strong className="text-cyan-300 font-mono">{selecionadosPendentes.length}</strong> de {pendentesFiltrados.length} selecionados
+                          </span>
                         </div>
 
-                        <div className="pt-2 border-t border-white/5 flex items-center gap-2">
+                        {selecionadosPendentes.length > 0 && (
                           <button
-                            onClick={() => aprovarCategoriaPadrao(pend.fornecedor_original, pend.categoria_predominante, pend.fornecedor_id_conta_azul)}
-                            className="flex-1 py-1.5 px-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition-all shadow-md flex items-center justify-center gap-1.5"
+                            onClick={aprovarEmMassa}
+                            disabled={aprovandoEmMassa}
+                            className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition-all shadow-md animate-pulse disabled:opacity-50"
                           >
-                            <Check className="w-3.5 h-3.5" />
-                            <span>Aprovar Categoria</span>
+                            <Check className="w-4 h-4" />
+                            <span>Aprovar Selecionados em Lote ({selecionadosPendentes.length})</span>
                           </button>
-                          <button
-                            onClick={() => abrirModalCriarRegra(pend.fornecedor_original, pend.categoria_predominante, pend.fornecedor_id_conta_azul)}
-                            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 text-xs transition-all"
-                            title="Criar regra personalizada"
-                          >
-                            <Sliders className="w-4 h-4" />
-                          </button>
-                        </div>
+                        )}
                       </div>
-                    ))}
+                    )
+                  })()}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {dadosConsistencia.fornecedores_pendentes
+                      .filter((p) => p.fornecedor_original.toLowerCase().includes(buscaFornecedor.toLowerCase()))
+                      .map((pend) => {
+                        const isSelecionado = selecionadosPendentes.includes(pend.fornecedor_original)
+
+                        return (
+                          <div
+                            key={pend.fornecedor_normalizado}
+                            className={cn(
+                              'bg-slate-900/80 border rounded-2xl p-4 shadow-lg flex flex-col justify-between space-y-3 transition-all',
+                              isSelecionado ? 'border-cyan-500/50 ring-1 ring-cyan-500/30' : 'border-white/10'
+                            )}
+                          >
+                            <div className="space-y-2">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-start gap-2.5">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelecionado}
+                                    onChange={() => toggleSelecionarPendente(pend.fornecedor_original)}
+                                    className="mt-1 w-4 h-4 rounded bg-slate-800 border-white/20 text-cyan-500 focus:ring-cyan-500 cursor-pointer"
+                                  />
+                                  <div>
+                                    <h4 className="font-semibold text-white text-sm leading-tight line-clamp-1" title={pend.fornecedor_original}>
+                                      {pend.fornecedor_original}
+                                    </h4>
+                                    <span className="text-[10px] text-slate-400 font-mono">
+                                      {pend.total_lancamentos} lançamentos
+                                    </span>
+                                  </div>
+                                </div>
+                                <span className="text-xs font-bold text-slate-200 whitespace-nowrap">
+                                  R$ {pend.total_valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+
+                              <div className="p-2.5 rounded-xl bg-slate-800/60 border border-white/5 text-xs space-y-1">
+                                <div className="text-slate-400 text-[10px] uppercase font-semibold flex items-center gap-1">
+                                  <Sparkles className="w-3 h-3 text-cyan-400" />
+                                  <span>Sugestão da IA / Histórico:</span>
+                                </div>
+                                <div className="text-cyan-300 font-bold text-sm truncate" title={pend.categoria_predominante}>
+                                  {pend.categoria_predominante}
+                                </div>
+                                <div className="text-[11px] text-slate-400">
+                                  Confiança estatística: {pend.confianca_percentual}%
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="pt-2 border-t border-white/5 flex items-center gap-2">
+                              <button
+                                onClick={() => aprovarCategoriaPadrao(pend.fornecedor_original, pend.categoria_predominante, pend.fornecedor_id_conta_azul)}
+                                className="flex-1 py-1.5 px-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition-all shadow-md flex items-center justify-center gap-1.5"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Aprovar Categoria</span>
+                              </button>
+                              <button
+                                onClick={() => abrirModalCriarRegra(pend.fornecedor_original, pend.categoria_predominante, pend.fornecedor_id_conta_azul)}
+                                className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 text-xs transition-all"
+                                title="Criar regra personalizada"
+                              >
+                                <Sliders className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* SUB-ABA: FORNECEDORES VALIDADOS (HOMOLOGADOS)             */}
+          {/* ========================================================= */}
+          {subTabConsistencia === 'validados' && (
+            <div className="space-y-4">
+              {(!dadosConsistencia.fornecedores_validados || dadosConsistencia.fornecedores_validados.length === 0) ? (
+                <div className="text-center py-12 bg-slate-900/30 border border-white/5 rounded-2xl">
+                  <Award className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold text-white">Nenhum fornecedor validado com regra ainda</h3>
+                  <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                    Aprove os fornecedores na aba "Pendentes de Homologação" para que passem a constar aqui como 100% homologados.
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-slate-900/80 border border-white/10 rounded-2xl overflow-hidden shadow-lg">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-800/60 text-slate-400 font-semibold uppercase text-[10px]">
+                        <tr>
+                          <th className="p-3">Fornecedor</th>
+                          <th className="p-3">Categoria Homologada</th>
+                          <th className="p-3">Tipo da Regra</th>
+                          <th className="p-3">Lançamentos Auditados</th>
+                          <th className="p-3">Valor Total no Período</th>
+                          <th className="p-3 text-right">Status de Governança</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {dadosConsistencia.fornecedores_validados
+                          .filter((v) => v.fornecedor_original.toLowerCase().includes(buscaFornecedor.toLowerCase()))
+                          .map((val) => (
+                            <tr key={val.fornecedor_normalizado} className="hover:bg-slate-800/20">
+                              <td className="p-3 font-semibold text-white">
+                                {val.fornecedor_original}
+                              </td>
+                              <td className="p-3">
+                                <span className="px-2.5 py-0.5 rounded-full text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-medium">
+                                  {val.categoria_predominante}
+                                </span>
+                              </td>
+                              <td className="p-3">
+                                <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-white/10 text-[11px] font-mono">
+                                  {val.regra_ativa?.tipo_regra || 'PADRAO'}
+                                </span>
+                              </td>
+                              <td className="p-3 font-mono text-slate-200">
+                                {val.total_lancamentos} contas
+                              </td>
+                              <td className="p-3 font-mono font-semibold text-white">
+                                R$ {val.total_valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </td>
+                              <td className="p-3 text-right">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold">
+                                  <Check className="w-3 h-3" />
+                                  HOMOLOGADO (100%)
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
           )}
 
           {/* ========================================================= */}
-          {/* SUB-ABA: REGRAS HOMOLOGADAS (BASE DE CONHECIMENTO)        */}
+          {/* SUB-ABA: REGRAS HOMOLOGADAS (EDIÇÃO E ATIVAÇÃO/DESATIVAÇÃO)*/}
           {/* ========================================================= */}
           {subTabConsistencia === 'regras' && (
             <div className="space-y-4">
               {regrasCadastradas.length === 0 ? (
                 <div className="text-center py-12 bg-slate-900/30 border border-white/5 rounded-2xl">
                   <BookmarkCheck className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                  <h3 className="text-lg font-semibold text-white">Nenhuma regra homologada ainda</h3>
+                  <h3 className="text-lg font-semibold text-white">Nenhuma regra cadastrada ainda</h3>
                   <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-                    Aprove fornecedores ou crie regras personalizadas para construir a memória contábil da sua empresa.
+                    Crie sua primeira regra para construir a base de conhecimento contábil da sua empresa.
                   </p>
                   <button
                     onClick={() => abrirModalCriarRegra()}
@@ -1080,9 +1393,10 @@ export default function AuditoriaPage() {
                           <th className="p-3">Fornecedor</th>
                           <th className="p-3">Categoria Oficial</th>
                           <th className="p-3">Tipo de Regra</th>
-                          <th className="p-3">Critério / Valor</th>
+                          <th className="p-3">Critério / Parâmetro</th>
                           <th className="p-3">Prioridade</th>
-                          <th className="p-3 text-right">Ação</th>
+                          <th className="p-3">Status</th>
+                          <th className="p-3 text-right">Ações</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5">
@@ -1109,12 +1423,43 @@ export default function AuditoriaPage() {
                               <td className="p-3 text-slate-400 font-mono">
                                 {regra.prioridade}
                               </td>
-                              <td className="p-3 text-right">
+                              <td className="p-3">
+                                <button
+                                  onClick={() => toggleAtivarRegra(regra)}
+                                  className={cn(
+                                    'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all',
+                                    regra.ativo
+                                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'
+                                      : 'bg-slate-800 text-slate-400 border border-white/10 hover:bg-slate-700'
+                                  )}
+                                  title={regra.ativo ? 'Clique para desativar' : 'Clique para ativar'}
+                                >
+                                  {regra.ativo ? (
+                                    <>
+                                      <ToggleRight className="w-4 h-4 text-emerald-400" />
+                                      <span>Ativa</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ToggleLeft className="w-4 h-4 text-slate-500" />
+                                      <span>Inativa</span>
+                                    </>
+                                  )}
+                                </button>
+                              </td>
+                              <td className="p-3 text-right space-x-1.5">
+                                <button
+                                  onClick={() => abrirModalEditarRegra(regra)}
+                                  className="px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 text-[11px] font-semibold transition-all inline-flex items-center gap-1"
+                                >
+                                  <Edit className="w-3 h-3" />
+                                  <span>Editar</span>
+                                </button>
                                 <button
                                   onClick={() => excluirRegra(regra.id)}
                                   className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-[11px] transition-all"
                                 >
-                                  Remover
+                                  Excluir
                                 </button>
                               </td>
                             </tr>
