@@ -1210,10 +1210,13 @@ export async function buscarContasPagarPorPeriodo(
 ): Promise<ContaPagarResumo[]> {
   const todasContas: ContaPagarResumo[] = [];
   const endpoint = `${BASE_URL}/financeiro/eventos-financeiros/contas-a-pagar/buscar`;
-  
+  const TAMANHO_PAGINA = 100;
+  const MAX_PAGINAS = 500; // Salvaguarda contra loop infinito (suporta até 50.000 lançamentos)
+  let page = 1;
+
   try {
-    for (let page = 1; page <= 50; page++) {
-      const url = `${endpoint}?pagina=${page}&tamanho_pagina=100&data_vencimento_de=${dtIni}&data_vencimento_ate=${dtFim}`;
+    while (page <= MAX_PAGINAS) {
+      const url = `${endpoint}?pagina=${page}&tamanho_pagina=${TAMANHO_PAGINA}&data_vencimento_de=${dtIni}&data_vencimento_ate=${dtFim}`;
       
       const res = await fetchCA(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
       
@@ -1226,23 +1229,34 @@ export async function buscarContasPagarPorPeriodo(
       const data = await res.json();
       const lista: any[] = data.itens || data.items || [];
       
-      if (lista.length === 0) break;
+      console.log(`[buscarContasPagarPorPeriodo] Página ${page}: ${lista.length} registros retornados. Total acumulado: ${todasContas.length}`);
+
+      if (lista.length === 0) {
+        break;
+      }
       
       for (const item of lista) {
+        // Parser resiliente de valor (API v2 utiliza total / pago ou valor)
         let valorDaConta = 0;
-        if (typeof item.valor === 'number') valorDaConta = item.valor;
+        if (typeof item.total === 'number') valorDaConta = item.total;
+        else if (typeof item.valor === 'number') valorDaConta = item.valor;
         else if (typeof item.valor_total_liquido === 'number') valorDaConta = item.valor_total_liquido;
-        else if (typeof item.valor_pago === 'number' || typeof item.nao_pago === 'number') {
-           valorDaConta = (item.valor_pago || 0) + (item.nao_pago || 0);
+        else if (typeof item.pago === 'number' || typeof item.nao_pago === 'number') {
+           valorDaConta = (item.pago || 0) + (item.nao_pago || 0);
+        } else if (typeof item.valor_pago === 'number') {
+           valorDaConta = item.valor_pago;
         } else if (item.evento && typeof item.evento.valor === 'number') {
            valorDaConta = item.evento.valor;
         }
 
+        // Parser resiliente de fornecedor
         let fornecedorNome = item.descricao || item.observacao || '';
         let fornecedorId = item.fornecedor?.id || item.contato?.id || item.evento?.contato?.id;
         let cnpjCpf = item.evento?.contato?.cpf_cnpj || item.evento?.fornecedor?.cpf_cnpj || item.contato?.cpf_cnpj || null;
 
-        if (item.evento) {
+        if (item.fornecedor && item.fornecedor.nome) {
+          fornecedorNome = item.fornecedor.nome;
+        } else if (item.evento) {
            const contato = item.evento.contato || item.evento.fornecedor || item.evento.cliente;
            if (contato && contato.nome) {
              fornecedorNome = contato.nome;
@@ -1253,8 +1267,8 @@ export async function buscarContasPagarPorPeriodo(
            }
         }
 
-        // Categoria
-        const catObj = item.categoria || item.evento?.categoria || (item.rateios && item.rateios[0]);
+        // Parser resiliente de categoria (API v2 utiliza array categorias: [{ id, nome }])
+        const catObj = (Array.isArray(item.categorias) && item.categorias[0]) || item.categoria || item.evento?.categoria || (item.rateios && item.rateios[0]);
         const catId = catObj?.id || catObj?.id_categoria || null;
         const catNome = catObj?.nome || catObj?.nome_categoria || null;
 
@@ -1284,8 +1298,14 @@ export async function buscarContasPagarPorPeriodo(
         });
       }
       
-      if (lista.length < 100) break;
+      if (lista.length < TAMANHO_PAGINA) {
+        break;
+      }
+
+      page++;
     }
+
+    console.log(`[buscarContasPagarPorPeriodo] Concluído: ${page} páginas processadas. Total: ${todasContas.length} contas.`);
   } catch (e: any) {
     if (e.message === 'TOKEN_EXPIRADO') throw e;
     console.error(`[buscarContasPagarPorPeriodo] Erro fatal:`, e);

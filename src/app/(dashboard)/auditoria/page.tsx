@@ -23,6 +23,10 @@ import {
   ArrowRight,
   Info,
   RefreshCw,
+  BookmarkCheck,
+  PlusCircle,
+  Check,
+  Sliders,
   Clock,
   Database,
   FileText
@@ -30,6 +34,7 @@ import {
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 import type {
+  FornecedorRegra,
   ConsistenciaResult,
   SemelhantesResult,
   DuplicidadesResult,
@@ -43,9 +48,71 @@ export default function AuditoriaPage() {
   const { empresaAtiva, loading: loadingEmpresa } = useEmpresa()
 
   const [activeTab, setActiveTab] = useState<TabAuditoria>('consistencia')
-  const [periodo, setPeriodo] = useState<'3m' | '6m' | '12m' | 'todos'>('12m')
-  const [marcoZero, setMarcoZero] = useState<string>('')
+
+  // A) Base Histórica de Aprendizagem (para aprender o padrão dos fornecedores)
+  const [historicoAprendizagem, setHistoricoAprendizagem] = useState<'3m' | '6m' | '12m' | 'todos'>('12m')
+
+  // B) Período a Auditar (quais lançamentos serão auditados para divergências)
+  type PresetPeriodoAuditado = 'todos' | 'hoje' | 'ontem' | '7d' | '15d' | '30d' | 'mes_atual' | 'mes_anterior' | 'personalizado'
+  const [presetAuditado, setPresetAuditado] = useState<PresetPeriodoAuditado>('todos')
+  const [dataInicioAudit, setDataInicioAudit] = useState<string>('')
+  const [dataFimAudit, setDataFimAudit] = useState<string>('')
+
   const [confiancaMinima, setConfiancaMinima] = useState<number>(80)
+
+  // Helper para calcular o intervalo de datas do período auditado
+  const calcularRangeAuditado = (): string | null => {
+    if (presetAuditado === 'todos') return null
+
+    const formatYMD = (d: Date) => d.toISOString().split('T')[0]
+    const hoje = new Date()
+
+    if (presetAuditado === 'hoje') {
+      const d = formatYMD(hoje)
+      return `${d}:${d}`
+    }
+    if (presetAuditado === 'ontem') {
+      const ontem = new Date()
+      ontem.setDate(hoje.getDate() - 1)
+      const d = formatYMD(ontem)
+      return `${d}:${d}`
+    }
+    if (presetAuditado === '7d') {
+      const dIni = new Date()
+      dIni.setDate(hoje.getDate() - 7)
+      return `${formatYMD(dIni)}:${formatYMD(hoje)}`
+    }
+    if (presetAuditado === '15d') {
+      const dIni = new Date()
+      dIni.setDate(hoje.getDate() - 15)
+      return `${formatYMD(dIni)}:${formatYMD(hoje)}`
+    }
+    if (presetAuditado === '30d') {
+      const dIni = new Date()
+      dIni.setDate(hoje.getDate() - 30)
+      return `${formatYMD(dIni)}:${formatYMD(hoje)}`
+    }
+    if (presetAuditado === 'mes_atual') {
+      const dIni = new Date(hoje.getFullYear(), hoje.getMonth(), 1)
+      const dFim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0)
+      return `${formatYMD(dIni)}:${formatYMD(dFim)}`
+    }
+    if (presetAuditado === 'mes_anterior') {
+      const dIni = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1)
+      const dFim = new Date(hoje.getFullYear(), hoje.getMonth(), 0)
+      return `${formatYMD(dIni)}:${formatYMD(dFim)}`
+    }
+    if (presetAuditado === 'personalizado') {
+      if (dataInicioAudit && dataFimAudit) {
+        return `${dataInicioAudit}:${dataFimAudit}`
+      }
+      if (dataInicioAudit) {
+        return dataInicioAudit
+      }
+      return null
+    }
+    return null
+  }
 
   const [loading, setLoading] = useState<boolean>(false)
   const [sincronizando, setSincronizando] = useState<boolean>(false)
@@ -63,6 +130,28 @@ export default function AuditoriaPage() {
 
   // Filtros de busca no cliente
   const [buscaFornecedor, setBuscaFornecedor] = useState<string>('')
+  
+  // Governança Contábil (Fase 5A: Memória e Regras)
+  const [subTabConsistencia, setSubTabConsistencia] = useState<'divergencias' | 'pendentes' | 'regras'>('divergencias')
+  const [regrasCadastradas, setRegrasCadastradas] = useState<FornecedorRegra[]>([])
+  const [carregandoRegras, setCarregandoRegras] = useState<boolean>(false)
+  const [modalRegraAberto, setModalRegraAberto] = useState<boolean>(false)
+  const [salvandoRegra, setSalvandoRegra] = useState<boolean>(false)
+  const [formRegra, setFormRegra] = useState<{
+    fornecedor_nome: string
+    fornecedor_id_conta_azul?: string | null
+    categoria_nome: string
+    tipo_regra: 'PADRAO' | 'DIA_DO_MES' | 'MES_DO_ANO' | 'FAIXA_VALOR'
+    valor_regra: string
+    prioridade: number
+  }>({
+    fornecedor_nome: '',
+    fornecedor_id_conta_azul: null,
+    categoria_nome: '',
+    tipo_regra: 'PADRAO',
+    valor_regra: '',
+    prioridade: 10
+  })
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
 
   const toggleExpand = (fornecedorKey: string) => {
@@ -84,7 +173,137 @@ export default function AuditoriaPage() {
     }
   }
 
-  // Disparar sincronização com o Conta Azul
+  // Carregar regras contábeis da empresa
+  const carregarRegrasContabeis = async () => {
+    if (!empresaAtiva?.id) return
+    setCarregandoRegras(true)
+    try {
+      const res = await fetch(`/api/auditoria/regras?empresa_id=${empresaAtiva.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        setRegrasCadastradas(data.regras || [])
+      }
+    } catch (e) {
+      console.error('Erro ao carregar regras:', e)
+    } finally {
+      setCarregandoRegras(false)
+    }
+  }
+
+  // Aprovar categoria diretamente como regra PADRAO (Governança com 1 clique)
+  const aprovarCategoriaPadrao = async (
+    fornecedor_nome: string,
+    categoria_nome: string,
+    fornecedor_id_conta_azul?: string | null
+  ) => {
+    if (!empresaAtiva?.id) return
+    const toastId = toast.loading(`Aprovando "${categoria_nome}" para ${fornecedor_nome}...`)
+    try {
+      const res = await fetch('/api/auditoria/regras', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresa_id: empresaAtiva.id,
+          fornecedor_nome,
+          fornecedor_id_conta_azul: fornecedor_id_conta_azul || null,
+          categoria_nome,
+          tipo_regra: 'PADRAO',
+          prioridade: 10
+        })
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Erro ao homologar categoria.')
+      }
+
+      toast.success(`Categoria "${categoria_nome}" oficializada com sucesso!`, { id: toastId })
+      await carregarRegrasContabeis()
+      await executarAuditoria(activeTab)
+    } catch (e: any) {
+      toast.error(e.message || 'Falha ao salvar regra.', { id: toastId })
+    }
+  }
+
+  // Salvar regra avançada (Dia do Mês, Mês do Ano, Faixa de Valor)
+  const salvarRegraAvancada = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!empresaAtiva?.id) return
+    if (!formRegra.fornecedor_nome || !formRegra.categoria_nome) {
+      toast.error('Preencha o fornecedor e a categoria.')
+      return
+    }
+
+    setSalvandoRegra(true)
+    const toastId = toast.loading('Salvando regra contábil...')
+    try {
+      const res = await fetch('/api/auditoria/regras', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresa_id: empresaAtiva.id,
+          ...formRegra
+        })
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Falha ao cadastrar regra.')
+      }
+
+      toast.success('Regra de auditoria criada com sucesso!', { id: toastId })
+      setModalRegraAberto(false)
+      await carregarRegrasContabeis()
+      await executarAuditoria(activeTab)
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao salvar.', { id: toastId })
+    } finally {
+      setSalvandoRegra(false)
+    }
+  }
+
+  // Excluir ou desativar regra
+  const excluirRegra = async (id: string) => {
+    if (!confirm('Deseja realmente remover esta regra de auditoria?')) return
+    try {
+      const res = await fetch(`/api/auditoria/regras?id=${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        toast.success('Regra removida.')
+        await carregarRegrasContabeis()
+        await executarAuditoria(activeTab)
+      }
+    } catch (e) {
+      toast.error('Falha ao remover regra.')
+    }
+  }
+
+  // Abrir modal configurado
+  const abrirModalCriarRegra = (
+    fornecedor_nome = '',
+    categoria_nome = '',
+    fornecedor_id_conta_azul: string | null = null,
+    tipo: 'PADRAO' | 'DIA_DO_MES' | 'MES_DO_ANO' | 'FAIXA_VALOR' = 'DIA_DO_MES',
+    valor_sugerido = ''
+  ) => {
+    setFormRegra({
+      fornecedor_nome,
+      categoria_nome,
+      fornecedor_id_conta_azul,
+      tipo_regra: tipo,
+      valor_regra: valor_sugerido,
+      prioridade: tipo === 'PADRAO' ? 10 : 20
+    })
+    setModalRegraAberto(true)
+  }
+
+  // Carregar regras ao selecionar empresa
+  useEffect(() => {
+    if (empresaAtiva?.id) {
+      carregarRegrasContabeis()
+    }
+  }, [empresaAtiva?.id])
+
+    // Disparar sincronização com o Conta Azul
   const sincronizarContaAzul = async () => {
     if (!empresaAtiva?.id) {
       toast.error('Selecione uma empresa antes de sincronizar.')
@@ -100,7 +319,7 @@ export default function AuditoriaPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           empresa_id: empresaAtiva.id,
-          meses: periodo === '3m' ? 3 : periodo === '6m' ? 6 : 12
+          meses: historicoAprendizagem === '3m' ? 3 : historicoAprendizagem === '6m' ? 6 : 12
         })
       })
 
@@ -135,11 +354,12 @@ export default function AuditoriaPage() {
 
     setLoading(true)
     try {
+      const rangeAuditado = calcularRangeAuditado()
       const payload: Record<string, any> = {
         modulo: moduloAlvo,
         empresa_id: empresaAtiva.id,
-        periodo,
-        marco_zero: marcoZero || null,
+        periodo: historicoAprendizagem,
+        marco_zero: rangeAuditado,
         confianca_minima: confiancaMinima
       }
 
@@ -250,43 +470,74 @@ export default function AuditoriaPage() {
       <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 shadow-xl backdrop-blur-md space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            {/* Seletor de Período */}
-            <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-white/5 text-xs text-slate-300">
-              <Calendar className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="text-slate-400">Período:</span>
+            {/* 1. Período a Auditar */}
+            <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-cyan-500/20 text-xs text-slate-300">
+              <Filter className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="text-cyan-300 font-medium">Auditar:</span>
               <select
-                value={periodo}
-                onChange={(e) => setPeriodo(e.target.value as any)}
-                className="bg-transparent text-white font-medium focus:outline-none cursor-pointer"
+                value={presetAuditado}
+                onChange={(e) => setPresetAuditado(e.target.value as any)}
+                className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"
               >
-                <option value="3m" className="bg-slate-900">Últimos 3 meses</option>
+                <option value="todos" className="bg-slate-900">Todo o Período Histórico</option>
+                <option value="hoje" className="bg-slate-900">Hoje</option>
+                <option value="ontem" className="bg-slate-900">Ontem</option>
+                <option value="7d" className="bg-slate-900">Últimos 7 dias</option>
+                <option value="15d" className="bg-slate-900">Últimos 15 dias</option>
+                <option value="30d" className="bg-slate-900">Últimos 30 dias</option>
+                <option value="mes_atual" className="bg-slate-900">Este Mês</option>
+                <option value="mes_anterior" className="bg-slate-900">Mês Anterior</option>
+                <option value="personalizado" className="bg-slate-900">Personalizado (De / Até)</option>
+              </select>
+            </div>
+
+            {/* Inputs de Data para Período Personalizado */}
+            {presetAuditado === 'personalizado' && (
+              <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-white/10 text-xs text-slate-300">
+                <span className="text-slate-400">De:</span>
+                <input
+                  type="date"
+                  value={dataInicioAudit}
+                  onChange={(e) => setDataInicioAudit(e.target.value)}
+                  className="bg-transparent text-white focus:outline-none cursor-pointer"
+                />
+                <span className="text-slate-400 ml-1">Até:</span>
+                <input
+                  type="date"
+                  value={dataFimAudit}
+                  onChange={(e) => setDataFimAudit(e.target.value)}
+                  className="bg-transparent text-white focus:outline-none cursor-pointer"
+                />
+                {(dataInicioAudit || dataFimAudit) && (
+                  <button
+                    onClick={() => { setDataInicioAudit(''); setDataFimAudit(''); }}
+                    className="text-slate-400 hover:text-white text-[10px] ml-1"
+                    title="Limpar datas"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* 2. Base Histórica de Aprendizagem */}
+            <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-white/5 text-xs text-slate-300">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-slate-400">Aprendizagem:</span>
+              <select
+                value={historicoAprendizagem}
+                onChange={(e) => setHistoricoAprendizagem(e.target.value as any)}
+                className="bg-transparent text-white font-medium focus:outline-none cursor-pointer"
+                title="Janela histórica utilizada para aprender a categoria padrão de cada fornecedor"
+              >
+                <option value="12m" className="bg-slate-900">Últimos 12 meses (Recomendado)</option>
                 <option value="6m" className="bg-slate-900">Últimos 6 meses</option>
-                <option value="12m" className="bg-slate-900">Últimos 12 meses</option>
+                <option value="3m" className="bg-slate-900">Últimos 3 meses</option>
                 <option value="todos" className="bg-slate-900">Todo o Histórico</option>
               </select>
             </div>
 
-            {/* Marco Zero */}
-            <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-white/5 text-xs text-slate-300">
-              <span className="text-slate-400">Marco Zero:</span>
-              <input
-                type="date"
-                value={marcoZero}
-                onChange={(e) => setMarcoZero(e.target.value)}
-                className="bg-transparent text-white focus:outline-none cursor-pointer"
-                title="Ignorar lançamentos com vencimento anterior a esta data"
-              />
-              {marcoZero && (
-                <button
-                  onClick={() => setMarcoZero('')}
-                  className="text-slate-400 hover:text-white text-[10px]"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
-            {/* Confiança Mínima */}
+            {/* 3. Confiança Mínima */}
             {activeTab === 'consistencia' && (
               <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-white/5 text-xs text-slate-300">
                 <span className="text-slate-400">Confiança:</span>
@@ -490,9 +741,71 @@ export default function AuditoriaPage() {
         </button>
       </div>
 
-      {/* CONTEÚDO DA ABA 1: CONSISTÊNCIA DE CATEGORIAS */}
-      {activeTab === 'consistencia' && (
+      {/* CONTEÚDO DA ABA 1: CONSISTÊNCIA DE CATEGORIAS (GOVERNANÇA + ESTATÍSTICA) */}
+      {activeTab === 'consistencia' && dadosConsistencia && (
         <div className="space-y-4">
+          {/* SUB-ABAS DE GOVERNANÇA: Divergências vs Pendentes vs Regras */}
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-2 rounded-2xl border border-white/10 shadow-lg">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setSubTabConsistencia('divergencias')}
+                className={cn(
+                  'flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all',
+                  subTabConsistencia === 'divergencias'
+                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                )}
+              >
+                <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                <span>Inconsistências Detectadas</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-rose-500/20 text-[10px] font-mono">
+                  {dadosConsistencia.resumo.fornecedores_com_divergencia}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setSubTabConsistencia('pendentes')}
+                className={cn(
+                  'flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all',
+                  subTabConsistencia === 'pendentes'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                )}
+              >
+                <Clock className="w-3.5 h-3.5 text-amber-400" />
+                <span>Pendentes de Homologação</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-amber-500/20 text-[10px] font-mono">
+                  {dadosConsistencia.resumo.fornecedores_pendentes || 0}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setSubTabConsistencia('regras')}
+                className={cn(
+                  'flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all',
+                  subTabConsistencia === 'regras'
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                )}
+              >
+                <BookmarkCheck className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Regras Homologadas (Memória)</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-[10px] font-mono">
+                  {dadosConsistencia.resumo.total_regras_ativas || regrasCadastradas.length}
+                </span>
+              </button>
+            </div>
+
+            <button
+              onClick={() => abrirModalCriarRegra()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-xs font-semibold transition-all shadow-md"
+            >
+              <PlusCircle className="w-3.5 h-3.5" />
+              <span>Nova Regra de Fornecedor</span>
+            </button>
+          </div>
+
+          {/* BARRA DE FILTRO POR NOME */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900/40 p-3 rounded-xl border border-white/5">
             <div className="relative w-full sm:w-80">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -508,191 +821,410 @@ export default function AuditoriaPage() {
             <div className="text-xs text-slate-400 flex items-center gap-2">
               <Info className="w-4 h-4 text-cyan-400" />
               <span>
-                Calculado com recência ponderada (60d/180d), status e bônus oficial Conta Azul.
+                {subTabConsistencia === 'divergencias' && 'Exibindo violações de regras homologadas e anomalias estatísticas.'}
+                {subTabConsistencia === 'pendentes' && 'Fornecedores sem regra homologada aguardando validação do usuário.'}
+                {subTabConsistencia === 'regras' && 'Base de conhecimento contábil validada pelo usuário.'}
               </span>
             </div>
           </div>
 
-          {fornecedoresFiltrados.length === 0 && !loading && (
-            <div className="text-center py-12 bg-slate-900/30 border border-white/5 rounded-2xl">
-              <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3 opacity-80" />
-              <h3 className="text-lg font-semibold text-white">Nenhuma inconsistência crítica encontrada!</h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-                Todos os lançamentos analisados estão em conformidade com as categorias históricas e padrões cadastrais.
-              </p>
+          {/* ========================================================= */}
+          {/* SUB-ABA: INCONSISTÊNCIAS DETECTADAS                       */}
+          {/* ========================================================= */}
+          {subTabConsistencia === 'divergencias' && (
+            <div className="space-y-4">
+              {fornecedoresFiltrados.length === 0 && !loading && (
+                <div className="text-center py-12 bg-slate-900/30 border border-white/5 rounded-2xl">
+                  <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3 opacity-80" />
+                  <h3 className="text-lg font-semibold text-white">Nenhuma inconsistência encontrada no período!</h3>
+                  <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                    Todos os lançamentos analisados estão em perfeita conformidade com as regras homologadas e histórico contábil.
+                  </p>
+                </div>
+              )}
+
+              {fornecedoresFiltrados.map((forn) => {
+                const isExpanded = expandedRow === forn.fornecedor_normalizado
+                const valorTotalDivergenteForn = forn.divergencias.reduce((acc, d) => acc + d.valor, 0)
+                const possuiRegra = forn.status_governanca === 'DIVERGENTE' && forn.regra_ativa
+
+                return (
+                  <div
+                    key={forn.fornecedor_normalizado}
+                    className="bg-slate-900/80 border border-white/10 rounded-2xl overflow-hidden shadow-lg transition-all"
+                  >
+                    <div
+                      onClick={() => toggleExpand(forn.fornecedor_normalizado)}
+                      className="p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 cursor-pointer hover:bg-slate-800/40 select-none"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2.5">
+                          <span className="font-semibold text-white text-sm">
+                            {forn.fornecedor_original}
+                          </span>
+                          {possuiRegra ? (
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/30 font-medium">
+                              Regra Homologada Violada
+                            </span>
+                          ) : (
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 font-medium">
+                              Inferência Histórica ({forn.confianca_percentual}%)
+                            </span>
+                          )}
+                          {forn.is_pessoal_rh && (
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                              RH / Folha
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-400 flex items-center gap-2">
+                          <span>Categoria esperada:</span>
+                          <strong className="text-cyan-300 font-medium">
+                            {forn.categoria_predominante}
+                          </strong>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between lg:justify-end gap-6">
+                        <div className="text-right">
+                          <div className="text-xs text-slate-400">Divergências</div>
+                          <div className="text-sm font-bold text-amber-400">
+                            {forn.divergencias.length} lançamentos
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <div className="text-xs text-slate-400">Impacto Financeiro</div>
+                          <div className="text-sm font-bold text-rose-400">
+                            R$ {valorTotalDivergenteForn.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </div>
+                        </div>
+
+                        <div className="p-1 rounded-lg bg-slate-800 text-slate-300">
+                          {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                        </div>
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="border-t border-white/5 bg-slate-950/40 p-4 space-y-3">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs text-left">
+                            <thead className="bg-slate-800/40 text-slate-400 font-semibold uppercase text-[10px]">
+                              <tr>
+                                <th className="p-2.5">Documento / Venc.</th>
+                                <th className="p-2.5">Descrição</th>
+                                <th className="p-2.5">Valor</th>
+                                <th className="p-2.5">Categoria Atual</th>
+                                <th className="p-2.5">Categoria Esperada</th>
+                                <th className="p-2.5">Motivo Técnico</th>
+                                <th className="p-2.5 text-right">Ações de Governança</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                              {forn.divergencias.map((div) => (
+                                <tr key={div.id} className="hover:bg-slate-800/20">
+                                  <td className="p-2.5 text-slate-300 whitespace-nowrap">
+                                    <div className="font-semibold text-white">{div.doc || 'S/N'}</div>
+                                    <div className="text-[10px] text-slate-400">{div.vencimento || 'Sem data'}</div>
+                                  </td>
+                                  <td className="p-2.5 text-slate-300 max-w-[200px] truncate" title={div.descricao || ''}>
+                                    {div.descricao || 'Sem descrição'}
+                                  </td>
+                                  <td className="p-2.5 text-slate-200 font-mono font-semibold whitespace-nowrap">
+                                    R$ {div.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="p-2.5 whitespace-nowrap">
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                                      {div.categoria_atual}
+                                    </span>
+                                  </td>
+                                  <td className="p-2.5 whitespace-nowrap">
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                      {div.categoria_esperada}
+                                    </span>
+                                  </td>
+                                  <td className="p-2.5 text-[11px] text-slate-300 max-w-[280px]">
+                                    {div.motivo}
+                                  </td>
+                                  <td className="p-2.5 text-right whitespace-nowrap space-x-1.5">
+                                    <button
+                                      onClick={() => aprovarCategoriaPadrao(forn.fornecedor_original, div.categoria_atual, forn.fornecedor_id_conta_azul)}
+                                      className="px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold transition-all"
+                                      title="Oficializar esta categoria atual como a nova regra PADRÃO para o fornecedor"
+                                    >
+                                      Oficializar "{div.categoria_atual}"
+                                    </button>
+                                    <button
+                                      onClick={() => abrirModalCriarRegra(forn.fornecedor_original, div.categoria_atual, forn.fornecedor_id_conta_azul, 'DIA_DO_MES', '01-08')}
+                                      className="px-2 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-[10px] font-semibold transition-all"
+                                      title="Criar regra baseada no dia do vencimento ou faixa de valor"
+                                    >
+                                      Criar Regra Contextual
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
 
-          {fornecedoresFiltrados.map((forn) => {
-            const isExpanded = expandedRow === forn.fornecedor_normalizado
-            const valorTotalDivergenteForn = forn.divergencias.reduce((acc, d) => acc + d.valor, 0)
-
-            return (
-              <div
-                key={forn.fornecedor_normalizado}
-                className="bg-slate-900/80 border border-white/10 rounded-2xl overflow-hidden shadow-lg transition-all"
-              >
-                <div
-                  onClick={() => toggleExpand(forn.fornecedor_normalizado)}
-                  className="p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 cursor-pointer hover:bg-slate-800/40 select-none"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2.5">
-                      <span className="font-semibold text-white text-sm">
-                        {forn.fornecedor_original}
-                      </span>
-                      {forn.categoria_padrao_oficial && (
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                          Oficial: {forn.categoria_padrao_oficial}
-                        </span>
-                      )}
-                      {forn.is_pessoal_rh && (
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                          RH / Pessoal
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-xs text-slate-400 flex items-center gap-2">
-                      <span>Categoria esperada:</span>
-                      <strong className="text-cyan-300 font-medium">
-                        {forn.categoria_predominante}
-                      </strong>
-                      <span className="text-[11px] text-cyan-400/80 font-mono">
-                        ({forn.confianca_percentual}% de confiança ponderada)
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between lg:justify-end gap-6">
-                    <div className="text-right">
-                      <div className="text-xs text-slate-400">Divergências</div>
-                      <div className="text-sm font-bold text-amber-400">
-                        {forn.divergencias.length} lançamentos
-                      </div>
-                    </div>
-
-                    <div className="text-right">
-                      <div className="text-xs text-slate-400">Impacto Financeiro</div>
-                      <div className="text-sm font-bold text-rose-400">
-                        R$ {valorTotalDivergenteForn.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </div>
-                    </div>
-
-                    <div className="p-1 rounded-lg bg-slate-800 text-slate-300">
-                      {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                    </div>
-                  </div>
+          {/* ========================================================= */}
+          {/* SUB-ABA: PENDENTES DE HOMOLOGAÇÃO                         */}
+          {/* ========================================================= */}
+          {subTabConsistencia === 'pendentes' && (
+            <div className="space-y-4">
+              {(!dadosConsistencia.fornecedores_pendentes || dadosConsistencia.fornecedores_pendentes.length === 0) ? (
+                <div className="text-center py-12 bg-slate-900/30 border border-white/5 rounded-2xl">
+                  <BookmarkCheck className="w-12 h-12 text-emerald-400 mx-auto mb-3 opacity-80" />
+                  <h3 className="text-lg font-semibold text-white">Todos os fornecedores estão homologados!</h3>
+                  <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                    Não existem fornecedores pendentes de validação no período selecionado.
+                  </p>
                 </div>
-
-                {isExpanded && (
-                  <div className="border-t border-white/5 bg-slate-950/50 p-4 space-y-4">
-                    <div className="bg-slate-900/60 p-3 rounded-xl border border-white/5">
-                      <div className="text-xs font-semibold text-slate-300 mb-2">
-                        Distribuição Histórica das Categorias:
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {forn.distribuicao_categorias.map((dist) => (
-                          <div
-                            key={dist.categoria}
-                            className={cn(
-                              'px-2.5 py-1 rounded-lg text-xs flex items-center gap-2 border',
-                              dist.categoria === forn.categoria_predominante
-                                ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30'
-                                : 'bg-slate-800/80 text-slate-400 border-white/5'
-                            )}
-                          >
-                            <span>{dist.categoria}</span>
-                            <span className="font-bold">{dist.percentual}%</span>
-                            <span className="text-[10px] text-slate-400">({dist.quantidade}x)</span>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {dadosConsistencia.fornecedores_pendentes
+                    .filter((p) => p.fornecedor_original.toLowerCase().includes(buscaFornecedor.toLowerCase()))
+                    .map((pend) => (
+                      <div
+                        key={pend.fornecedor_normalizado}
+                        className="bg-slate-900/80 border border-white/10 rounded-2xl p-4 shadow-lg flex flex-col justify-between space-y-3"
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <h4 className="font-semibold text-white text-sm truncate" title={pend.fornecedor_original}>
+                              {pend.fornecedor_original}
+                            </h4>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono">
+                              {pend.total_lancamentos} lanç.
+                            </span>
                           </div>
-                        ))}
-                      </div>
-                    </div>
 
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-slate-900/80 text-slate-400 border-b border-white/10 uppercase tracking-wider text-[10px]">
-                          <tr>
-                            <th className="py-2.5 px-3">Vencimento</th>
-                            <th className="py-2.5 px-3">Doc / NF</th>
-                            <th className="py-2.5 px-3">Descrição</th>
-                            <th className="py-2.5 px-3">Categoria Atual</th>
-                            <th className="py-2.5 px-3">Categoria Esperada</th>
-                            <th className="py-2.5 px-3 text-right">Valor</th>
-                            <th className="py-2.5 px-3 text-center">Criticidade</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                          {forn.divergencias.map((div) => (
-                            <tr key={div.id} className="hover:bg-slate-800/30">
-                              <td className="py-2 px-3 text-slate-300 font-mono">
-                                {div.vencimento ? new Date(div.vencimento).toLocaleDateString('pt-BR') : '-'}
+                          <div className="text-xs text-slate-400">
+                            Total movimentado:{' '}
+                            <strong className="text-slate-200">
+                              R$ {pend.total_valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </strong>
+                          </div>
+
+                          <div className="p-2.5 rounded-xl bg-slate-800/60 border border-white/5 text-xs space-y-1">
+                            <div className="text-slate-400 text-[10px] uppercase font-semibold flex items-center gap-1">
+                              <Sparkles className="w-3 h-3 text-cyan-400" />
+                              <span>Sugestão da IA / Histórico:</span>
+                            </div>
+                            <div className="text-cyan-300 font-bold text-sm">
+                              {pend.categoria_predominante}
+                            </div>
+                            <div className="text-[11px] text-slate-400">
+                              Confiança estatística: {pend.confianca_percentual}%
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-white/5 flex items-center gap-2">
+                          <button
+                            onClick={() => aprovarCategoriaPadrao(pend.fornecedor_original, pend.categoria_predominante, pend.fornecedor_id_conta_azul)}
+                            className="flex-1 py-1.5 px-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition-all shadow-md flex items-center justify-center gap-1.5"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Aprovar Categoria</span>
+                          </button>
+                          <button
+                            onClick={() => abrirModalCriarRegra(pend.fornecedor_original, pend.categoria_predominante, pend.fornecedor_id_conta_azul)}
+                            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 text-xs transition-all"
+                            title="Criar regra personalizada"
+                          >
+                            <Sliders className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* SUB-ABA: REGRAS HOMOLOGADAS (BASE DE CONHECIMENTO)        */}
+          {/* ========================================================= */}
+          {subTabConsistencia === 'regras' && (
+            <div className="space-y-4">
+              {regrasCadastradas.length === 0 ? (
+                <div className="text-center py-12 bg-slate-900/30 border border-white/5 rounded-2xl">
+                  <BookmarkCheck className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold text-white">Nenhuma regra homologada ainda</h3>
+                  <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                    Aprove fornecedores ou crie regras personalizadas para construir a memória contábil da sua empresa.
+                  </p>
+                  <button
+                    onClick={() => abrirModalCriarRegra()}
+                    className="mt-4 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold text-xs transition-all"
+                  >
+                    Cadastrar Primeira Regra
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-slate-900/80 border border-white/10 rounded-2xl overflow-hidden shadow-lg">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-800/60 text-slate-400 font-semibold uppercase text-[10px]">
+                        <tr>
+                          <th className="p-3">Fornecedor</th>
+                          <th className="p-3">Categoria Oficial</th>
+                          <th className="p-3">Tipo de Regra</th>
+                          <th className="p-3">Critério / Valor</th>
+                          <th className="p-3">Prioridade</th>
+                          <th className="p-3 text-right">Ação</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {regrasCadastradas
+                          .filter((r) => r.fornecedor_nome.toLowerCase().includes(buscaFornecedor.toLowerCase()))
+                          .map((regra) => (
+                            <tr key={regra.id} className="hover:bg-slate-800/20">
+                              <td className="p-3 font-semibold text-white">
+                                {regra.fornecedor_nome}
                               </td>
-                              <td className="py-2 px-3 text-slate-300 font-mono">
-                                {div.doc || '-'}
-                              </td>
-                              <td className="py-2 px-3 text-slate-300 max-w-xs truncate" title={div.descricao || ''}>
-                                {div.descricao || '-'}
-                              </td>
-                              <td className="py-2 px-3 text-rose-400 font-medium">
-                                {div.categoria_atual}
-                              </td>
-                              <td className="py-2 px-3 text-cyan-400 font-medium">
-                                {div.categoria_esperada}
-                              </td>
-                              <td className="py-2 px-3 text-right font-bold text-white font-mono">
-                                R$ {div.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                              </td>
-                              <td className="py-2 px-3 text-center">
-                                <span
-                                  className={cn(
-                                    'px-2 py-0.5 rounded text-[10px] font-bold border',
-                                    div.criticidade === 'CRITICA' && 'bg-rose-500/10 text-rose-400 border-rose-500/30',
-                                    div.criticidade === 'ALTA' && 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-                                    div.criticidade === 'ATENCAO' && 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'
-                                  )}
-                                >
-                                  {div.criticidade}
+                              <td className="p-3">
+                                <span className="px-2.5 py-0.5 rounded-full text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-medium">
+                                  {regra.categoria_nome}
                                 </span>
+                              </td>
+                              <td className="p-3">
+                                <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-white/10 text-[11px] font-mono">
+                                  {regra.tipo_regra}
+                                </span>
+                              </td>
+                              <td className="p-3 text-slate-300 font-mono">
+                                {regra.valor_regra || 'Todas as contas'}
+                              </td>
+                              <td className="p-3 text-slate-400 font-mono">
+                                {regra.prioridade}
+                              </td>
+                              <td className="p-3 text-right">
+                                <button
+                                  onClick={() => excluirRegra(regra.id)}
+                                  className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-[11px] transition-all"
+                                >
+                                  Remover
+                                </button>
                               </td>
                             </tr>
                           ))}
-                        </tbody>
-                      </table>
-                    </div>
+                      </tbody>
+                    </table>
                   </div>
-                )}
-              </div>
-            )
-          })}
-
-          {multiescopoFiltrados.length > 0 && (
-            <div className="mt-8 space-y-3">
-              <div className="flex items-center gap-2 text-slate-300 text-xs font-semibold">
-                <Layers className="w-4 h-4 text-purple-400" />
-                <span>Fornecedores Multiescopo Identificados (Várias Categorias Legítimas)</span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {multiescopoFiltrados.map((m) => (
-                  <div
-                    key={m.fornecedor_normalizado}
-                    className="p-3 bg-purple-950/20 border border-purple-500/20 rounded-xl space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-white">{m.fornecedor_original}</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-300">
-                        {m.total_lancamentos} lançamentos
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-slate-400">
-                      Disperso em {m.distribuicao_categorias.length} categorias diferentes no Conta Azul. Não gera falso positivo.
-                    </div>
-                  </div>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* MODAL DE CRIAÇÃO / EDIÇÃO DE REGRA CONTÁBIL */}
+      {modalRegraAberto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-lg bg-slate-900 border border-white/10 rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <BookmarkCheck className="w-5 h-5 text-cyan-400" />
+                <h3 className="text-base font-semibold text-white">Regra Contábil de Fornecedor</h3>
+              </div>
+              <button
+                onClick={() => setModalRegraAberto(false)}
+                className="text-slate-400 hover:text-white text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={salvarRegraAvancada} className="space-y-3.5">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Nome do Fornecedor:</label>
+                <input
+                  type="text"
+                  value={formRegra.fornecedor_nome}
+                  onChange={(e) => setFormRegra({ ...formRegra, fornecedor_nome: e.target.value })}
+                  required
+                  placeholder="Ex: GOMMA PNEUS LTDA"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-white/10 text-white text-xs focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Categoria Contábil Oficial:</label>
+                <input
+                  type="text"
+                  value={formRegra.categoria_nome}
+                  onChange={(e) => setFormRegra({ ...formRegra, categoria_nome: e.target.value })}
+                  required
+                  placeholder="Ex: Materiais para Revenda ou Salários"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-white/10 text-white text-xs focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Tipo da Regra:</label>
+                  <select
+                    value={formRegra.tipo_regra}
+                    onChange={(e) => setFormRegra({ ...formRegra, tipo_regra: e.target.value as any })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-white/10 text-white text-xs focus:outline-none focus:border-cyan-500 cursor-pointer"
+                  >
+                    <option value="PADRAO">Padrão Geral</option>
+                    <option value="DIA_DO_MES">Dia do Mês (Vencimento)</option>
+                    <option value="MES_DO_ANO">Mês do Ano (ex: 13º)</option>
+                    <option value="FAIXA_VALOR">Faixa de Valor</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Critério / Parâmetro:</label>
+                  <input
+                    type="text"
+                    value={formRegra.valor_regra}
+                    onChange={(e) => setFormRegra({ ...formRegra, valor_regra: e.target.value })}
+                    placeholder={
+                      formRegra.tipo_regra === 'DIA_DO_MES'
+                        ? 'Ex: 01-08 ou 18-22'
+                        : formRegra.tipo_regra === 'MES_DO_ANO'
+                        ? 'Ex: 11,12'
+                        : formRegra.tipo_regra === 'FAIXA_VALOR'
+                        ? 'Ex: >=500 ou <500'
+                        : 'Não aplicável'
+                    }
+                    disabled={formRegra.tipo_regra === 'PADRAO'}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-white/10 text-white text-xs focus:outline-none focus:border-cyan-500 disabled:opacity-50"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-white/10 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setModalRegraAberto(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={salvandoRegra}
+                  className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold text-xs transition-all shadow-md disabled:opacity-50"
+                >
+                  {salvandoRegra ? 'Salvando...' : 'Salvar Regra'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
