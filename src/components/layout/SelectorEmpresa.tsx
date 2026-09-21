@@ -228,8 +228,6 @@ export default function SelectorEmpresa() {
                 const isSelected = empresaAtiva?.id === emp.id
                 const ehSomenteBanco = emp.datacar_cod_emp === 'SOMENTE_BANCO' || (emp as any).tipo_empresa === 'somente_banco' || (emp as any).somente_banco === true
                 const temDatacar = Boolean(emp.datacar_token)
-                const temCaFin = Boolean(emp.access_token_conta_azul)
-                const temCaVen = Boolean(emp.access_token_conta_azul_vendas)
 
                 const statusEmpCA = getStatusCA(emp)
                 const empCaModuloConectado = statusEmpCA.conectado

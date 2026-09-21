@@ -7,7 +7,7 @@ import {
   LayoutDashboard, ArrowDownCircle, ArrowUpCircle,
   Building2, Settings, ChevronRight, User, LogOut,
   ShoppingBag, Receipt, FileCheck2, Link2, Layers,
-  Sun, Moon, ShieldCheck
+  Sun, Moon
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useAppConfig } from '@/contexts/AppConfigContext'
