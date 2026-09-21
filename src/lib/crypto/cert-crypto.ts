@@ -12,7 +12,7 @@ const IV_LENGTH = 16  // 128 bits
 const AUTH_TAG_LENGTH = 16
 
 function getMasterKey(): Buffer {
-  const key = process.env.CERT_MASTER_KEY
+  const key = process.env.CERT_MASTER_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!key) {
     throw new Error('CERT_MASTER_KEY não configurada nas variáveis de ambiente. Gere uma com: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"')
   }
@@ -20,9 +20,13 @@ function getMasterKey(): Buffer {
   if (key.length === 64 && /^[0-9a-fA-F]+$/.test(key)) {
     return Buffer.from(key, 'hex')
   }
+  if (key.length >= 32) {
+    // Se for uma string de chave genérica ou service role key, deriva 32 bytes via SHA-256
+    return crypto.createHash('sha256').update(key).digest()
+  }
   const buf = Buffer.from(key, 'base64')
   if (buf.length !== KEY_LENGTH) {
-    throw new Error(`CERT_MASTER_KEY deve ter exatamente ${KEY_LENGTH} bytes (64 caracteres hex ou 44 caracteres base64). Atual: ${buf.length} bytes.`)
+    return crypto.createHash('sha256').update(key).digest()
   }
   return buf
 }

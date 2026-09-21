@@ -3,6 +3,9 @@ import { createClient } from '@supabase/supabase-js'
 import { buildDPSXml, type DadosDPS } from '@/lib/nfse/xml-builder'
 import { extrairCertificadoPfx, assinarXmlNfse } from '@/lib/nfse/xml-signer'
 import { decryptPasswordCompact } from '@/lib/crypto/cert-crypto'
+import { transmitirDpsAdn } from '@/lib/nfse/adn-client'
+
+export const maxDuration = 60 // Extensão de timeout para transmissão fiscal segura
 
 function getSupabaseAdmin() {
   return createClient(
@@ -68,20 +71,22 @@ export async function POST(req: NextRequest) {
       try {
         const f = item._fiscal || {}
         const osNum = String(item.os_numero || Date.now().toString())
-        const numeroNfse = osNum
-        const chaveAcesso = `NFS3106200${(configFiscal.cnpj || '00000000000000').replace(/\D/g, '')}${Date.now()}`
+        const ambienteEmissao = (configFiscal.ambiente_nfse as any) || 'homologacao'
         
         const dadosDps: DadosDPS = {
           numeroOS: osNum,
-          dataCompetencia: new Date().toISOString(), // Emissão sempre será data atual
+          numeroDPS: item.dados_datacar?.numero_dps || osNum,
+          serie: '900',
+          ambiente: ambienteEmissao,
+          dataCompetencia: new Date().toISOString(), // Emissão na data atual
           valorServico: Number(item.valor_total) || 0,
           descricao: Array.isArray(item.itens) 
             ? item.itens.map((i: any) => `${i.quantidade || 1}x ${i.descricao}`).join(' | ') 
             : (f.descricaoServico || 'Serviços automotivos e mão de obra'),
           cliente: {
             documento: f.clienteCpfCnpj || item.cliente_cpf_cnpj || '00000000000', 
-            nome: f.clienteNome || item.cliente || 'Cliente Padrão',
-            cidade: configFiscal.cidade_ibge || '3106200',
+            nome: f.clienteNome || item.cliente || 'Consumidor Final',
+            cidade: configFiscal.cidade_ibge || '3106200', // Padrão Belo Horizonte
             cep: f.clienteCep || item.cliente_endereco_cep,
             logradouro: f.clienteLogradouro || item.cliente_endereco_logradouro,
             numero: f.clienteNumero || item.cliente_endereco_numero,
@@ -99,59 +104,117 @@ export async function POST(req: NextRequest) {
           aliquotaIssqn: f.aliquotaIssqn ? parseFloat(f.aliquotaIssqn) : (configFiscal.aliquota_issqn || undefined),
         }
 
-        // 6. Constrói o XML da DPS
+        // 6. Constrói o XML oficial da DPS
         const xmlBase = buildDPSXml(dadosDps)
-        const referenceId = `DPS${dadosDps.numeroOS}`
+        
+        // Identifica o Id oficial gerado na tag infDPS para a assinatura digital
+        const matchId = xmlBase.match(/infDPS\s+[^>]*@?_?Id="([^"]+)"/) || xmlBase.match(/Id="([^"]+)"/)
+        const referenceId = matchId ? matchId[1] : `DPS${osNum}`
 
-        // 7. Assina digitalmente o XML usando o certificado
+        // 7. Assina digitalmente o XML usando o Certificado ICP-Brasil
         const xmlAssinado = assinarXmlNfse(xmlBase, certData, referenceId)
 
-        // 8. SIMULAÇÃO DO ENVIO (MOCK)
-        console.log(`[gov-br] Simulando envio da DPS ${referenceId} para a Receita (Homologação). Tamanho XML: ${xmlAssinado.length} bytes.`)
-        await new Promise(r => setTimeout(r, 600))
+        // 8. TRANSMISSÃO REAL PARA O AMBIENTE NACIONAL DA NFS-E (ADN)
+        console.log(`[gov-br] Transmitindo DPS ${referenceId} via mTLS para o ADN (${ambienteEmissao})...`)
+        const adnResultado = await transmitirDpsAdn({
+          dpsXmlAssinado: xmlAssinado,
+          certPem: certData.certPem,
+          keyPem: certData.keyPem,
+          ambiente: ambienteEmissao,
+          timeoutMs: 25000
+        })
 
-        const dadosSalvar = {
-          empresa_id: empresa_id,
-          cliente: dadosDps.cliente.nome,
-          os_numero: osNum,
-          data_venda: item.data_venda || new Date().toISOString().split('T')[0],
-          valor_total: dadosDps.valorServico,
-          forma_pagamento: item.forma_pagamento || 'Boleto',
-          itens: Array.isArray(item.itens) ? item.itens : [],
-          status: 'enviado',
-          conta_azul_id: numeroNfse,
-          erro_mensagem: `NFS-e #${numeroNfse} autorizada via Gov.br`,
-          dados_datacar: {
-            ...(item.dados_datacar || {}),
+        if (adnResultado.sucesso) {
+          const numeroNfse = adnResultado.numeroNfse || osNum
+          const chaveAcesso = adnResultado.chaveAcesso || referenceId
+
+          const dadosSalvar = {
+            empresa_id: empresa_id,
+            cliente: dadosDps.cliente.nome,
+            os_numero: osNum,
+            data_venda: item.data_venda || new Date().toISOString().split('T')[0],
+            valor_total: dadosDps.valorServico,
+            forma_pagamento: item.forma_pagamento || 'Boleto',
+            itens: Array.isArray(item.itens) ? item.itens : [],
+            status: 'enviado',
+            conta_azul_id: numeroNfse,
+            erro_mensagem: adnResultado.mensagem || `NFS-e #${numeroNfse} autorizada via ADN`,
+            dados_datacar: {
+              ...(item.dados_datacar || {}),
+              numero_nfse: numeroNfse,
+              chave_acesso: chaveAcesso,
+              codigo_verificacao: adnResultado.codigoVerificacao,
+              xml_assinado: xmlAssinado,
+              xml_autorizado: adnResultado.xmlNfse,
+              dados_dps: dadosDps,
+              fiscal: f,
+              cliente_cpf_cnpj: dadosDps.cliente.documento
+            },
+            updated_at: new Date().toISOString()
+          }
+
+          if (item.id && typeof item.id === 'string' && item.id.length > 20) {
+            await supabase
+              .from('vendas_importadas')
+              .update(dadosSalvar)
+              .eq('id', item.id)
+          } else {
+            await supabase
+              .from('vendas_importadas')
+              .upsert(dadosSalvar, { onConflict: 'empresa_id,os_numero' })
+          }
+
+          resultados.push({
+            id: item.id || osNum,
+            sucesso: true,
+            os_numero: osNum,
             numero_nfse: numeroNfse,
             chave_acesso: chaveAcesso,
-            xml_assinado: xmlAssinado,
-            dados_dps: dadosDps,
-            fiscal: f,
-            cliente_cpf_cnpj: dadosDps.cliente.documento
-          },
-          updated_at: new Date().toISOString()
-        }
-
-        // Se tem ID no Supabase, atualiza. Se não, faz upsert pela chave única (empresa_id, os_numero)
-        if (item.id && typeof item.id === 'string' && item.id.length > 20) {
-          await supabase
-            .from('vendas_importadas')
-            .update(dadosSalvar)
-            .eq('id', item.id)
+            mensagem: adnResultado.mensagem || `NFS-e #${numeroNfse} autorizada com sucesso via ADN`
+          })
         } else {
-          await supabase
-            .from('vendas_importadas')
-            .upsert(dadosSalvar, { onConflict: 'empresa_id,os_numero' })
-        }
+          // Rejeição formal retornada pela Receita Federal
+          console.warn(`[gov-br] Rejeição do ADN para OS ${osNum}:`, adnResultado.mensagem)
+          const dadosErro = {
+            empresa_id: empresa_id,
+            cliente: dadosDps.cliente.nome,
+            os_numero: osNum,
+            data_venda: item.data_venda || new Date().toISOString().split('T')[0],
+            valor_total: dadosDps.valorServico,
+            forma_pagamento: item.forma_pagamento || 'Boleto',
+            itens: Array.isArray(item.itens) ? item.itens : [],
+            status: 'erro',
+            erro_mensagem: adnResultado.mensagem || 'Rejeição do Ambiente Nacional da NFS-e',
+            dados_datacar: {
+              ...(item.dados_datacar || {}),
+              xml_assinado: xmlAssinado,
+              dados_dps: dadosDps,
+              fiscal: f,
+              erros_adn: adnResultado.erros || [],
+              raw_response: adnResultado.rawResponse,
+              cliente_cpf_cnpj: dadosDps.cliente.documento
+            },
+            updated_at: new Date().toISOString()
+          }
 
-        resultados.push({
-          id: item.id || osNum,
-          sucesso: true,
-          os_numero: osNum,
-          numero_nfse: numeroNfse,
-          mensagem: `NFS-e #${numeroNfse} autorizada com sucesso via Gov.br`
-        })
+          if (item.id && typeof item.id === 'string' && item.id.length > 20) {
+            await supabase
+              .from('vendas_importadas')
+              .update(dadosErro)
+              .eq('id', item.id)
+          } else {
+            await supabase
+              .from('vendas_importadas')
+              .upsert(dadosErro, { onConflict: 'empresa_id,os_numero' })
+          }
+
+          resultados.push({
+            id: item.id || osNum,
+            sucesso: false,
+            os_numero: osNum,
+            erro: adnResultado.mensagem || 'Rejeição do Ambiente Nacional da NFS-e'
+          })
+        }
 
       } catch (itemErr: any) {
         console.error(`[gov-br] Falha ao processar a venda ${item.id || item.os_numero}: `, itemErr)
@@ -159,7 +222,7 @@ export async function POST(req: NextRequest) {
           id: item.id || item.os_numero,
           sucesso: false,
           os_numero: item.os_numero,
-          erro: itemErr.message || 'Erro desconhecido ao gerar/assinar o XML'
+          erro: itemErr.message || 'Erro desconhecido ao gerar/assinar/transmitir o XML'
         })
       }
     }
@@ -169,8 +232,8 @@ export async function POST(req: NextRequest) {
     const detalhesErros = resultados.filter(r => !r.sucesso).map(r => `OS ${r.os_numero}: ${r.erro}`)
 
     return NextResponse.json({
-      success: true,
-      mensagem: 'Lote de NFS-e processado.',
+      success: sucessos > 0,
+      mensagem: `Processamento de NFS-e concluído: ${sucessos} autorizada(s), ${errosCount} com rejeição/erro.`,
       sucessos,
       erros: errosCount,
       detalhesErros,
