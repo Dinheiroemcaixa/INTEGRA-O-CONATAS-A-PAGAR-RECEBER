@@ -9,17 +9,60 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+/** Helper para registrar log de governança com fallback seguro */
+async function registrarLogGovernanca(log: {
+  empresa_id: string
+  regra_id?: string | null
+  fornecedor_nome: string
+  acao: string
+  categoria_antiga?: string | null
+  categoria_nova: string
+  usuario_email?: string | null
+  detalhes?: string | null
+}) {
+  try {
+    await supabaseAdmin.from('fornecedor_regras_log').insert({
+      empresa_id: log.empresa_id,
+      regra_id: log.regra_id || null,
+      fornecedor_nome: log.fornecedor_nome,
+      acao: log.acao,
+      categoria_antiga: log.categoria_antiga || null,
+      categoria_nova: log.categoria_nova,
+      usuario_email: log.usuario_email || 'Operador Contábil',
+      detalhes: log.detalhes || null,
+      created_at: new Date().toISOString()
+    })
+  } catch (e) {
+    // Fallback silencioso se a tabela ainda não tiver sido criada no banco
+  }
+}
+
 /**
- * GET: Lista as regras cadastradas da empresa
+ * GET: Lista as regras cadastradas ou histórico de logs de governança
  */
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const empresa_id = searchParams.get('empresa_id')
+    const tipo = searchParams.get('tipo') // 'regras' ou 'log'
     const apenasAtivas = searchParams.get('apenas_ativas') !== 'false'
 
     if (!empresa_id) {
       return NextResponse.json({ error: 'empresa_id é obrigatório' }, { status: 400 })
+    }
+
+    if (tipo === 'log') {
+      const { data: logs, error: errLog } = await supabaseAdmin
+        .from('fornecedor_regras_log')
+        .select('*')
+        .eq('empresa_id', empresa_id)
+        .order('created_at', { ascending: false })
+        .limit(50)
+
+      if (errLog) {
+        return NextResponse.json({ success: true, logs: [], total: 0 })
+      }
+      return NextResponse.json({ success: true, logs: logs || [], total: logs?.length || 0 })
     }
 
     let query = supabaseAdmin
@@ -96,6 +139,17 @@ export async function POST(req: NextRequest) {
         throw new Error(`Falha na inserção em lote: ${error.message}`)
       }
 
+      // Registrar logs de governança em background
+      for (const item of novosRegistros) {
+        registrarLogGovernanca({
+          empresa_id,
+          fornecedor_nome: item.fornecedor_nome,
+          acao: 'HOMOLOGACAO_MASSA',
+          categoria_nova: item.categoria_nome,
+          detalhes: `Aprovação em lote (${item.tipo_regra})`
+        }).catch(() => {})
+      }
+
       return NextResponse.json({ success: true, total: data?.length || 0, regras: data })
     }
 
@@ -108,7 +162,8 @@ export async function POST(req: NextRequest) {
       tipo_regra = 'PADRAO',
       valor_regra = null,
       prioridade = 10,
-      observacao = null
+      observacao = null,
+      categoria_antiga = null
     } = body
 
     if (!empresa_id || !fornecedor_nome || !categoria_nome) {
@@ -157,6 +212,16 @@ export async function POST(req: NextRequest) {
       throw new Error(`Falha ao salvar regra contábil: ${error.message}`)
     }
 
+    registrarLogGovernanca({
+      empresa_id,
+      regra_id: data.id,
+      fornecedor_nome: data.fornecedor_nome,
+      acao: 'CRIACAO',
+      categoria_antiga,
+      categoria_nova: data.categoria_nome,
+      detalhes: `Criada regra do tipo ${data.tipo_regra}`
+    }).catch(() => {})
+
     return NextResponse.json({ success: true, regra: data })
   } catch (err: any) {
     console.error('Erro na criação de regra de fornecedor:', err)
@@ -173,7 +238,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json()
-    const { id, categoria_nome, prioridade, tipo_regra, valor_regra, ativo } = body
+    const { id, categoria_nome, prioridade, tipo_regra, valor_regra, ativo, categoria_antiga } = body
 
     if (!id) {
       return NextResponse.json({ error: 'id da regra é obrigatório' }, { status: 400 })
@@ -200,6 +265,17 @@ export async function PUT(req: NextRequest) {
       throw new Error(`Erro ao atualizar regra: ${error.message}`)
     }
 
+    const acao = ativo !== undefined ? (ativo ? 'ATIVACAO' : 'DESATIVACAO') : 'EDICAO'
+    registrarLogGovernanca({
+      empresa_id: data.empresa_id,
+      regra_id: data.id,
+      fornecedor_nome: data.fornecedor_nome,
+      acao,
+      categoria_antiga,
+      categoria_nova: data.categoria_nome,
+      detalhes: `Regra ${acao.toLowerCase()} pelo operador`
+    }).catch(() => {})
+
     return NextResponse.json({ success: true, regra: data })
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Erro ao atualizar regra' }, { status: 500 })
@@ -218,6 +294,12 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'id da regra é obrigatório' }, { status: 400 })
     }
 
+    const { data: regraExcluida } = await supabaseAdmin
+      .from('fornecedor_regras')
+      .select('empresa_id, fornecedor_nome, categoria_nome')
+      .eq('id', id)
+      .maybeSingle()
+
     const { error } = await supabaseAdmin
       .from('fornecedor_regras')
       .delete()
@@ -225,6 +307,17 @@ export async function DELETE(req: NextRequest) {
 
     if (error) {
       throw new Error(`Erro ao excluir regra: ${error.message}`)
+    }
+
+    if (regraExcluida) {
+      registrarLogGovernanca({
+        empresa_id: regraExcluida.empresa_id,
+        regra_id: id,
+        fornecedor_nome: regraExcluida.fornecedor_nome,
+        acao: 'EXCLUSAO',
+        categoria_nova: regraExcluida.categoria_nome,
+        detalhes: 'Regra excluída pelo operador'
+      }).catch(() => {})
     }
 
     return NextResponse.json({ success: true, message: 'Regra excluída com sucesso' })

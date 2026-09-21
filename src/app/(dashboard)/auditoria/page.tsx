@@ -34,11 +34,19 @@ import {
   ToggleRight,
   BarChart3,
   Award,
+  FileSpreadsheet,
+  FileText,
+  Printer,
+  ArrowUpDown,
+  History,
+  Target,
+  Zap,
   Clock,
   Database,
-  FileText
+  X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { exportarAuditoriaExcel, exportarAuditoriaCSV, baixarArquivo } from '@/lib/exporters/auditoria-exporter'
 import { cn } from '@/lib/utils'
 import type {
   FornecedorRegra,
@@ -148,6 +156,21 @@ export default function AuditoriaPage() {
   const [selecionadosPendentes, setSelecionadosPendentes] = useState<string[]>([])
   const [regraEmEdicaoId, setRegraEmEdicaoId] = useState<string | null>(null)
   const [aprovandoEmMassa, setAprovandoEmMassa] = useState<boolean>(false)
+
+  // Estados de Filtros e Central de Homologação (Fase 8)
+  const [filtroConfianca, setFiltroConfianca] = useState<string>('todos')
+  const [filtroValor, setFiltroValor] = useState<string>('todos')
+  const [filtroLancamentos, setFiltroLancamentos] = useState<string>('todos')
+  const [filtroCategoriaSugerida, setFiltroCategoriaSugerida] = useState<string>('todas')
+  const [ordenacao, setOrdenacao] = useState<string>('valor_desc')
+  const [paginaAtual, setPaginaAtual] = useState<number>(1)
+  const [itensPorPagina, setItensPorPagina] = useState<number>(15)
+
+  // Estados de Exportação e Histórico de Governança
+  const [exportando, setExportando] = useState<boolean>(false)
+  const [modalLogsAberto, setModalLogsAberto] = useState<boolean>(false)
+  const [logsGovernanca, setLogsGovernanca] = useState<any[]>([])
+  const [carregandoLogs, setCarregandoLogs] = useState<boolean>(false)
 
   const [formRegra, setFormRegra] = useState<{
     fornecedor_nome: string
@@ -409,6 +432,96 @@ export default function AuditoriaPage() {
       prioridade: regra.prioridade
     })
     setModalRegraAberto(true)
+  }
+
+    // Carregar histórico de logs de governança
+  const carregarLogsGovernanca = async () => {
+    if (!empresaAtiva?.id) return
+    setCarregandoLogs(true)
+    try {
+      const res = await fetch(`/api/auditoria/regras?empresa_id=${empresaAtiva.id}&tipo=log`)
+      const data = await res.json()
+      if (data.success) {
+        setLogsGovernanca(data.logs || [])
+      }
+    } catch (e) {
+      console.error('Erro ao carregar logs:', e)
+    } finally {
+      setCarregandoLogs(false)
+    }
+  }
+
+  const abrirModalHistoricoGovernanca = async () => {
+    setModalLogsAberto(true)
+    await carregarLogsGovernanca()
+  }
+
+  // Exportar Excel (.xlsx)
+  const handleExportarExcel = async () => {
+    if (!dadosConsistencia) return
+    setExportando(true)
+    const toastId = toast.loading('Gerando relatório consolidado em Excel...')
+    try {
+      const blob = await exportarAuditoriaExcel(dadosConsistencia, empresaAtiva?.nome || 'Empresa')
+      baixarArquivo(blob, `Auditoria_Financeira_${empresaAtiva?.nome?.replace(/\s+/g, '_') || 'Empresa'}_${new Date().toISOString().split('T')[0]}.xlsx`)
+      toast.success('Relatório Excel exportado com sucesso!', { id: toastId })
+    } catch (e: any) {
+      toast.error('Erro ao gerar Excel: ' + (e.message || ''), { id: toastId })
+    } finally {
+      setExportando(false)
+    }
+  }
+
+  // Exportar CSV
+  const handleExportarCSV = () => {
+    if (!dadosConsistencia) return
+    const toastId = toast.loading('Gerando arquivo CSV...')
+    try {
+      const blob = exportarAuditoriaCSV(dadosConsistencia, empresaAtiva?.nome || 'Empresa')
+      baixarArquivo(blob, `Auditoria_Inconsistencias_${new Date().toISOString().split('T')[0]}.csv`)
+      toast.success('Arquivo CSV exportado com sucesso!', { id: toastId })
+    } catch (e: any) {
+      toast.error('Erro ao gerar CSV: ' + (e.message || ''), { id: toastId })
+    }
+  }
+
+  // Homologação Inteligente de Alta Fidelidade (>=98% confiança, >=50 lançamentos)
+  const aprovarAltaFidelidade = async (fornecedoresAltaFidelidade: FornecedorConsistenciaAudit[]) => {
+    if (!empresaAtiva?.id || fornecedoresAltaFidelidade.length === 0) return
+    setAprovandoEmMassa(true)
+    const toastId = toast.loading(`Homologando ${fornecedoresAltaFidelidade.length} fornecedores de alta fidelidade...`)
+
+    try {
+      const regrasParaGravar = fornecedoresAltaFidelidade.map((p) => ({
+        empresa_id: empresaAtiva.id,
+        fornecedor_id_conta_azul: p.fornecedor_id_conta_azul || null,
+        fornecedor_nome: p.fornecedor_original,
+        categoria_nome: p.categoria_predominante,
+        tipo_regra: 'PADRAO',
+        prioridade: 10,
+        observacao: 'Homologação Inteligente (Alta Fidelidade)'
+      }))
+
+      const res = await fetch('/api/auditoria/regras', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ regras: regrasParaGravar })
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Falha na homologação inteligente.')
+      }
+
+      toast.success(`${fornecedoresAltaFidelidade.length} fornecedores de alta fidelidade homologados com sucesso!`, { id: toastId })
+      setSelecionadosPendentes([])
+      await carregarRegrasContabeis()
+      await executarAuditoria(activeTab)
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao homologar fornecedores.', { id: toastId })
+    } finally {
+      setAprovandoEmMassa(false)
+    }
   }
 
     // Disparar sincronização com o Conta Azul
@@ -852,82 +965,141 @@ export default function AuditoriaPage() {
       {/* CONTEÚDO DA ABA 1: CONSISTÊNCIA DE CATEGORIAS (GOVERNANÇA + ESTATÍSTICA) */}
       {activeTab === 'consistencia' && dadosConsistencia && (
         <div className="space-y-4">
-          {/* DASHBOARD EXECUTIVO DE GOVERNANÇA (KPIs) */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between">
-              <span className="text-[11px] text-slate-400 uppercase font-semibold flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-slate-400" />
-                Total Fornecedores
-              </span>
-              <div className="text-xl font-bold text-white mt-1">
-                {dadosConsistencia.resumo.total_fornecedores_auditados}
-              </div>
-              <span className="text-[10px] text-slate-400 mt-0.5">
-                {dadosConsistencia.resumo.total_lancamentos_auditados} lançamentos no período
+          {/* BARRA DE EXPORTAÇÃO E HISTÓRICO OPERACIONAL (FASE 8) */}
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-3 rounded-2xl border border-white/10 shadow-lg">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <BarChart3 className="w-4 h-4 text-cyan-400" />
+                Painel Operacional de Governança
               </span>
             </div>
 
-            <div className="bg-slate-900/80 border border-amber-500/20 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between">
-              <span className="text-[11px] text-amber-400 uppercase font-semibold flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-amber-400" />
-                Pendentes
-              </span>
-              <div className="text-xl font-bold text-amber-300 mt-1">
-                {dadosConsistencia.resumo.fornecedores_pendentes || 0}
-              </div>
-              <span className="text-[10px] text-amber-400/80 mt-0.5">
-                Aguardam homologação humana
-              </span>
-            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={handleExportarExcel}
+                disabled={exportando}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-xs font-semibold transition-all disabled:opacity-50"
+                title="Exportar auditoria consolidada para Excel (.xlsx)"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Exportar Excel</span>
+              </button>
 
-            <div className="bg-slate-900/80 border border-emerald-500/20 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between">
-              <span className="text-[11px] text-emerald-400 uppercase font-semibold flex items-center gap-1.5">
-                <Award className="w-3.5 h-3.5 text-emerald-400" />
-                Validados
-              </span>
-              <div className="text-xl font-bold text-emerald-300 mt-1">
-                {dadosConsistencia.fornecedores_validados?.length || 0}
-              </div>
-              <span className="text-[10px] text-emerald-400/80 mt-0.5">
-                100% de conformidade com regras
-              </span>
-            </div>
+              <button
+                onClick={handleExportarCSV}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 text-xs font-semibold transition-all"
+                title="Exportar lista de inconsistências para CSV"
+              >
+                <FileText className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Exportar CSV</span>
+              </button>
 
-            <div className="bg-slate-900/80 border border-rose-500/20 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between">
-              <span className="text-[11px] text-rose-400 uppercase font-semibold flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
-                Divergentes
-              </span>
-              <div className="text-xl font-bold text-rose-300 mt-1">
-                {dadosConsistencia.resumo.fornecedores_com_divergencia}
-              </div>
-              <span className="text-[10px] text-rose-400/80 mt-0.5">
-                R$ {dadosConsistencia.resumo.valor_total_divergente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em risco
-              </span>
-            </div>
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 text-xs font-semibold transition-all"
+                title="Imprimir relatório executivo ou salvar em PDF"
+              >
+                <Printer className="w-3.5 h-3.5 text-amber-400" />
+                <span>Imprimir / PDF</span>
+              </button>
 
-            <div className="bg-slate-900/80 border border-cyan-500/20 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between col-span-2 md:col-span-1">
-              <span className="text-[11px] text-cyan-400 uppercase font-semibold flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
-                Conformidade
-              </span>
-              <div className="text-xl font-bold text-cyan-300 mt-1">
-                {dadosConsistencia.resumo.taxa_conformidade_cadastral}%
-              </div>
-              <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1.5">
-                <div
-                  className="bg-cyan-400 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${dadosConsistencia.resumo.taxa_conformidade_cadastral}%` }}
-                />
-              </div>
+              <button
+                onClick={abrirModalHistoricoGovernanca}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/20 text-xs font-semibold transition-all"
+                title="Visualizar histórico cronológico de ações contábeis"
+              >
+                <History className="w-3.5 h-3.5" />
+                <span>Histórico de Ações</span>
+              </button>
             </div>
           </div>
+
+          {/* DASHBOARD EXECUTIVO DE KPIS FINANCEIROS (FASE 8) */}
+          {(() => {
+            const valorTotal = dadosConsistencia.resumo.valor_total_auditado || 0
+            const valorDivergente = dadosConsistencia.resumo.valor_total_divergente || 0
+            const valorHomologado = Math.max(0, valorTotal - valorDivergente)
+            const percentualConforme = valorTotal > 0 ? Number(((valorHomologado / valorTotal) * 100).toFixed(1)) : 100
+            const percentualRisco = valorTotal > 0 ? Number(((valorDivergente / valorTotal) * 100).toFixed(1)) : 0
+
+            return (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between">
+                  <span className="text-[11px] text-slate-400 uppercase font-semibold flex items-center gap-1.5">
+                    <BarChart3 className="w-3.5 h-3.5 text-slate-400" />
+                    Valor Total Auditado
+                  </span>
+                  <div className="text-xl font-bold text-white mt-1">
+                    R$ {valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <span className="text-[10px] text-slate-400 mt-0.5 font-mono">
+                    {dadosConsistencia.resumo.total_lancamentos_auditados} contas analisadas
+                  </span>
+                </div>
+
+                <div className="bg-slate-900/80 border border-emerald-500/20 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between">
+                  <span className="text-[11px] text-emerald-400 uppercase font-semibold flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    Valor Conforme
+                  </span>
+                  <div className="text-xl font-bold text-emerald-300 mt-1">
+                    R$ {valorHomologado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <span className="text-[10px] text-emerald-400/80 mt-0.5 font-semibold">
+                    {percentualConforme}% do volume financeiro
+                  </span>
+                </div>
+
+                <div className="bg-slate-900/80 border border-rose-500/20 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between">
+                  <span className="text-[11px] text-rose-400 uppercase font-semibold flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                    Valor em Risco
+                  </span>
+                  <div className="text-xl font-bold text-rose-300 mt-1">
+                    R$ {valorDivergente.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <span className="text-[10px] text-rose-400/80 mt-0.5 font-semibold">
+                    {percentualRisco}% sob inconformidade
+                  </span>
+                </div>
+
+                <div className="bg-slate-900/80 border border-amber-500/20 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between">
+                  <span className="text-[11px] text-amber-400 uppercase font-semibold flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-amber-400" />
+                    Pendentes de Validação
+                  </span>
+                  <div className="text-xl font-bold text-amber-300 mt-1">
+                    {dadosConsistencia.resumo.fornecedores_pendentes || 0}
+                  </div>
+                  <span className="text-[10px] text-amber-400/80 mt-0.5">
+                    Aguardam homologação
+                  </span>
+                </div>
+
+                <div className="bg-slate-900/80 border border-cyan-500/20 rounded-2xl p-3.5 shadow-lg flex flex-col justify-between col-span-2 md:col-span-1">
+                  <span className="text-[11px] text-cyan-400 uppercase font-semibold flex items-center gap-1.5">
+                    <Award className="w-3.5 h-3.5 text-cyan-400" />
+                    Validados / Regras
+                  </span>
+                  <div className="text-xl font-bold text-cyan-300 mt-1">
+                    {regrasCadastradas.length} regras ativas
+                  </div>
+                  <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1.5">
+                    <div
+                      className="bg-cyan-400 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${dadosConsistencia.resumo.taxa_conformidade_cadastral}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* SUB-ABAS DE GOVERNANÇA: Divergências vs Pendentes vs Validados vs Regras */}
           <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-2 rounded-2xl border border-white/10 shadow-lg">
             <div className="flex flex-wrap items-center gap-2">
               <button
-                onClick={() => setSubTabConsistencia('divergencias')}
+                onClick={() => { setSubTabConsistencia('divergencias'); setPaginaAtual(1); }}
                 className={cn(
                   'flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all',
                   subTabConsistencia === 'divergencias'
@@ -943,7 +1115,7 @@ export default function AuditoriaPage() {
               </button>
 
               <button
-                onClick={() => setSubTabConsistencia('pendentes')}
+                onClick={() => { setSubTabConsistencia('pendentes'); setPaginaAtual(1); }}
                 className={cn(
                   'flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all',
                   subTabConsistencia === 'pendentes'
@@ -952,14 +1124,14 @@ export default function AuditoriaPage() {
                 )}
               >
                 <Clock className="w-3.5 h-3.5 text-amber-400" />
-                <span>Pendentes de Homologação</span>
+                <span>Central de Homologação</span>
                 <span className="px-1.5 py-0.2 rounded-full bg-amber-500/20 text-[10px] font-mono">
                   {dadosConsistencia.resumo.fornecedores_pendentes || 0}
                 </span>
               </button>
 
               <button
-                onClick={() => setSubTabConsistencia('validados')}
+                onClick={() => { setSubTabConsistencia('validados'); setPaginaAtual(1); }}
                 className={cn(
                   'flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all',
                   subTabConsistencia === 'validados'
@@ -975,7 +1147,7 @@ export default function AuditoriaPage() {
               </button>
 
               <button
-                onClick={() => setSubTabConsistencia('regras')}
+                onClick={() => { setSubTabConsistencia('regras'); setPaginaAtual(1); }}
                 className={cn(
                   'flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all',
                   subTabConsistencia === 'regras'
@@ -1000,35 +1172,23 @@ export default function AuditoriaPage() {
             </button>
           </div>
 
-          {/* BARRA DE FILTRO POR NOME */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900/40 p-3 rounded-xl border border-white/5">
-            <div className="relative w-full sm:w-80">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={buscaFornecedor}
-                onChange={(e) => setBuscaFornecedor(e.target.value)}
-                placeholder="Filtrar por nome do fornecedor..."
-                className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-800/80 border border-white/10 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500"
-              />
-            </div>
-
-            <div className="text-xs text-slate-400 flex items-center gap-2">
-              <Info className="w-4 h-4 text-cyan-400" />
-              <span>
-                {subTabConsistencia === 'divergencias' && 'Exibindo violações de regras homologadas e anomalias estatísticas.'}
-                {subTabConsistencia === 'pendentes' && 'Selecione em lote ou aprove unitariamente a categoria sugerida pela IA.'}
-                {subTabConsistencia === 'validados' && 'Fornecedores com categoria contábil 100% homologada e auditada.'}
-                {subTabConsistencia === 'regras' && 'Base de regras ativas com prioridade e parâmetros.'}
-              </span>
-            </div>
-          </div>
-
           {/* ========================================================= */}
           {/* SUB-ABA: INCONSISTÊNCIAS DETECTADAS                       */}
           {/* ========================================================= */}
           {subTabConsistencia === 'divergencias' && (
             <div className="space-y-4">
+              {/* FILTRO RÁPIDO */}
+              <div className="relative w-full sm:w-80">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={buscaFornecedor}
+                  onChange={(e) => setBuscaFornecedor(e.target.value)}
+                  placeholder="Filtrar por nome do fornecedor..."
+                  className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-800/80 border border-white/10 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+
               {fornecedoresFiltrados.length === 0 && !loading && (
                 <div className="text-center py-12 bg-slate-900/30 border border-white/5 rounded-2xl">
                   <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3 opacity-80" />
@@ -1166,7 +1326,7 @@ export default function AuditoriaPage() {
           )}
 
           {/* ========================================================= */}
-          {/* SUB-ABA: PENDENTES DE HOMOLOGAÇÃO (COM APROVAÇÃO EM MASSA)*/}
+          {/* SUB-ABA: CENTRAL DE HOMOLOGAÇÃO INTELIGENTE (FASE 8)       */}
           {/* ========================================================= */}
           {subTabConsistencia === 'pendentes' && (
             <div className="space-y-4">
@@ -1180,119 +1340,314 @@ export default function AuditoriaPage() {
                 </div>
               ) : (
                 <>
-                  {/* BARRA DE APROVAÇÃO EM MASSA */}
+                  {/* FILTROS AVANÇADOS DA CENTRAL DE HOMOLOGAÇÃO */}
                   {(() => {
-                    const pendentesFiltrados = dadosConsistencia.fornecedores_pendentes.filter((p) =>
-                      p.fornecedor_original.toLowerCase().includes(buscaFornecedor.toLowerCase())
+                    const todosPendentes = dadosConsistencia.fornecedores_pendentes || []
+
+                    // Categorias únicas presentes
+                    const categoriasUnicas = Array.from(new Set(todosPendentes.map((p) => p.categoria_predominante))).sort()
+
+                    // Filtragem
+                    let filtrados = todosPendentes.filter((p) => {
+                      if (buscaFornecedor && !p.fornecedor_original.toLowerCase().includes(buscaFornecedor.toLowerCase())) return false
+                      if (filtroConfianca === '80' && p.confianca_percentual < 80) return false
+                      if (filtroConfianca === '90' && p.confianca_percentual < 90) return false
+                      if (filtroConfianca === '95' && p.confianca_percentual < 95) return false
+                      if (filtroConfianca === '98' && p.confianca_percentual < 98) return false
+
+                      if (filtroValor === '1k' && p.total_valor < 1000) return false
+                      if (filtroValor === '5k' && p.total_valor < 5000) return false
+                      if (filtroValor === '10k' && p.total_valor < 10000) return false
+                      if (filtroValor === '50k' && p.total_valor < 50000) return false
+
+                      if (filtroLancamentos === '5' && p.total_lancamentos < 5) return false
+                      if (filtroLancamentos === '20' && p.total_lancamentos < 20) return false
+                      if (filtroLancamentos === '50' && p.total_lancamentos < 50) return false
+
+                      if (filtroCategoriaSugerida !== 'todas' && p.categoria_predominante !== filtroCategoriaSugerida) return false
+
+                      return true
+                    })
+
+                    // Ordenação
+                    filtrados.sort((a, b) => {
+                      if (ordenacao === 'valor_desc') return b.total_valor - a.total_valor
+                      if (ordenacao === 'valor_asc') return a.total_valor - b.total_valor
+                      if (ordenacao === 'confianca_desc') return b.confianca_percentual - a.confianca_percentual
+                      if (ordenacao === 'lancamentos_desc') return b.total_lancamentos - a.total_lancamentos
+                      if (ordenacao === 'nome_asc') return a.fornecedor_original.localeCompare(b.fornecedor_original)
+                      return 0
+                    })
+
+                    // Fornecedores de Alta Fidelidade (>=98% confiança, >=50 lançamentos)
+                    const altaFidelidade = todosPendentes.filter(
+                      (p) => p.confianca_percentual >= 98 && p.total_lancamentos >= 50
                     )
-                    const todosNomes = pendentesFiltrados.map((p) => p.fornecedor_original)
-                    const todosSelecionados = todosNomes.length > 0 && selecionadosPendentes.length === todosNomes.length
+                    const valorAltaFidelidade = altaFidelidade.reduce((acc, p) => acc + p.total_valor, 0)
+
+                    // Paginação
+                    const totalItens = filtrados.length
+                    const totalPaginas = Math.ceil(totalItens / itensPorPagina) || 1
+                    const inicio = (paginaAtual - 1) * itensPorPagina
+                    const itensPaginados = filtrados.slice(inicio, inicio + itensPorPagina)
+
+                    const todosNomesVisiveis = itensPaginados.map((p) => p.fornecedor_original)
+                    const todosVisiveisSelecionados = todosNomesVisiveis.length > 0 && todosNomesVisiveis.every((n) => selecionadosPendentes.includes(n))
 
                     return (
-                      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/80 p-3 rounded-2xl border border-white/10 shadow-lg">
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => toggleSelecionarTodosPendentes(todosNomes)}
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-all"
-                          >
-                            {todosSelecionados ? (
-                              <CheckSquare className="w-4 h-4 text-cyan-400" />
-                            ) : (
-                              <Square className="w-4 h-4 text-slate-400" />
-                            )}
-                            <span>{todosSelecionados ? 'Desselecionar Todos' : 'Selecionar Todos'}</span>
-                          </button>
+                      <div className="space-y-4">
+                        {/* DESTAQUE: HOMOLOGAÇÃO INTELIGENTE DE ALTA FIDELIDADE */}
+                        {altaFidelidade.length > 0 && (
+                          <div className="bg-gradient-to-r from-cyan-950/40 via-slate-900/80 to-emerald-950/40 border border-cyan-500/30 rounded-2xl p-4 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2.5 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                                <Zap className="w-5 h-5 text-cyan-400" />
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                                  <span>Homologação Inteligente Sugerida</span>
+                                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-mono">
+                                    {altaFidelidade.length} fornecedores 100% seguros
+                                  </span>
+                                </h4>
+                                <p className="text-xs text-slate-300 mt-0.5">
+                                  Fornecedores com <strong className="text-cyan-300">&gt;=98% de confiança</strong> e mais de <strong className="text-cyan-300">50 lançamentos</strong> contínuos (Total: R$ {valorAltaFidelidade.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}).
+                                </p>
+                              </div>
+                            </div>
 
-                          <span className="text-xs text-slate-400">
-                            <strong className="text-cyan-300 font-mono">{selecionadosPendentes.length}</strong> de {pendentesFiltrados.length} selecionados
-                          </span>
+                            <button
+                              onClick={() => aprovarAltaFidelidade(altaFidelidade)}
+                              disabled={aprovandoEmMassa}
+                              className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-bold text-xs transition-all shadow-lg whitespace-nowrap disabled:opacity-50"
+                            >
+                              Homologar Todos de Alta Fidelidade ({altaFidelidade.length})
+                            </button>
+                          </div>
+                        )}
+
+                        {/* FILTROS CONFIGURÁVEIS DA CENTRAL */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5 bg-slate-900/70 p-3 rounded-2xl border border-white/10 shadow-lg">
+                          {/* Busca */}
+                          <div className="relative lg:col-span-2">
+                            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                              type="text"
+                              value={buscaFornecedor}
+                              onChange={(e) => { setBuscaFornecedor(e.target.value); setPaginaAtual(1); }}
+                              placeholder="Buscar fornecedor..."
+                              className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-800/80 border border-white/10 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500"
+                            />
+                          </div>
+
+                          {/* Confiança */}
+                          <div>
+                            <select
+                              value={filtroConfianca}
+                              onChange={(e) => { setFiltroConfianca(e.target.value); setPaginaAtual(1); }}
+                              className="w-full px-2.5 py-1.5 rounded-xl bg-slate-800/80 border border-white/10 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+                            >
+                              <option value="todos">Confiança: Todas</option>
+                              <option value="80">&gt;= 80% Confiança</option>
+                              <option value="90">&gt;= 90% Confiança</option>
+                              <option value="95">&gt;= 95% Confiança</option>
+                              <option value="98">&gt;= 98% (Alta)</option>
+                            </select>
+                          </div>
+
+                          {/* Valor */}
+                          <div>
+                            <select
+                              value={filtroValor}
+                              onChange={(e) => { setFiltroValor(e.target.value); setPaginaAtual(1); }}
+                              className="w-full px-2.5 py-1.5 rounded-xl bg-slate-800/80 border border-white/10 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+                            >
+                              <option value="todos">Valor: Qualquer</option>
+                              <option value="1k">&gt; R$ 1.000</option>
+                              <option value="5k">&gt; R$ 5.000</option>
+                              <option value="10k">&gt; R$ 10.000</option>
+                              <option value="50k">&gt; R$ 50.000</option>
+                            </select>
+                          </div>
+
+                          {/* Categoria Sugerida */}
+                          <div>
+                            <select
+                              value={filtroCategoriaSugerida}
+                              onChange={(e) => { setFiltroCategoriaSugerida(e.target.value); setPaginaAtual(1); }}
+                              className="w-full px-2.5 py-1.5 rounded-xl bg-slate-800/80 border border-white/10 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+                            >
+                              <option value="todas">Categoria: Todas</option>
+                              {categoriasUnicas.map((c) => (
+                                <option key={c} value={c}>{c}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Ordenação */}
+                          <div>
+                            <select
+                              value={ordenacao}
+                              onChange={(e) => setOrdenacao(e.target.value)}
+                              className="w-full px-2.5 py-1.5 rounded-xl bg-slate-800/80 border border-white/10 text-xs text-cyan-300 font-semibold focus:outline-none focus:border-cyan-500"
+                            >
+                              <option value="valor_desc">Maior Valor</option>
+                              <option value="valor_asc">Menor Valor</option>
+                              <option value="confianca_desc">Maior Confiança</option>
+                              <option value="lancamentos_desc">Mais Lançamentos</option>
+                              <option value="nome_asc">Nome (A-Z)</option>
+                            </select>
+                          </div>
                         </div>
 
-                        {selecionadosPendentes.length > 0 && (
-                          <button
-                            onClick={aprovarEmMassa}
-                            disabled={aprovandoEmMassa}
-                            className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition-all shadow-md animate-pulse disabled:opacity-50"
-                          >
-                            <Check className="w-4 h-4" />
-                            <span>Aprovar Selecionados em Lote ({selecionadosPendentes.length})</span>
-                          </button>
+                        {/* BARRA DE AÇÕES EM LOTE E SELEÇÃO */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/80 p-3 rounded-2xl border border-white/10 shadow-lg">
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => toggleSelecionarTodosPendentes(todosNomesVisiveis)}
+                              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-all"
+                            >
+                              {todosVisiveisSelecionados ? (
+                                <CheckSquare className="w-4 h-4 text-cyan-400" />
+                              ) : (
+                                <Square className="w-4 h-4 text-slate-400" />
+                              )}
+                              <span>{todosVisiveisSelecionados ? 'Desselecionar Página' : 'Selecionar Página'}</span>
+                            </button>
+
+                            <span className="text-xs text-slate-400">
+                              <strong className="text-cyan-300 font-mono">{selecionadosPendentes.length}</strong> selecionados de <strong className="text-white font-mono">{totalItens}</strong> filtrados
+                            </span>
+                          </div>
+
+                          {selecionadosPendentes.length > 0 && (
+                            <button
+                              onClick={aprovarEmMassa}
+                              disabled={aprovandoEmMassa}
+                              className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition-all shadow-md animate-pulse disabled:opacity-50"
+                            >
+                              <Check className="w-4 h-4" />
+                              <span>Aprovar Selecionados em Lote ({selecionadosPendentes.length})</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* GRID DE FORNECEDORES PENDENTES PAGINADOS */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {itensPaginados.map((pend) => {
+                            const isSelecionado = selecionadosPendentes.includes(pend.fornecedor_original)
+                            const isAltaFidelidade = pend.confianca_percentual >= 98 && pend.total_lancamentos >= 50
+
+                            return (
+                              <div
+                                key={pend.fornecedor_normalizado}
+                                className={cn(
+                                  'bg-slate-900/80 border rounded-2xl p-4 shadow-lg flex flex-col justify-between space-y-3 transition-all',
+                                  isSelecionado
+                                    ? 'border-cyan-500/60 ring-1 ring-cyan-500/40 bg-cyan-950/10'
+                                    : isAltaFidelidade
+                                    ? 'border-cyan-500/30'
+                                    : 'border-white/10'
+                                )}
+                              >
+                                <div className="space-y-2">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex items-start gap-2.5">
+                                      <input
+                                        type="checkbox"
+                                        checked={isSelecionado}
+                                        onChange={() => toggleSelecionarPendente(pend.fornecedor_original)}
+                                        className="mt-1 w-4 h-4 rounded bg-slate-800 border-white/20 text-cyan-500 focus:ring-cyan-500 cursor-pointer"
+                                      />
+                                      <div>
+                                        <div className="flex items-center gap-1.5">
+                                          <h4 className="font-semibold text-white text-sm leading-tight line-clamp-1" title={pend.fornecedor_original}>
+                                            {pend.fornecedor_original}
+                                          </h4>
+                                          {isAltaFidelidade && (
+                                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold whitespace-nowrap">
+                                              ALTA FIDELIDADE
+                                            </span>
+                                          )}
+                                        </div>
+                                        <span className="text-[10px] text-slate-400 font-mono">
+                                          {pend.total_lancamentos} lançamentos
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-200 whitespace-nowrap">
+                                      R$ {pend.total_valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+
+                                  <div className="p-2.5 rounded-xl bg-slate-800/60 border border-white/5 text-xs space-y-1">
+                                    <div className="text-slate-400 text-[10px] uppercase font-semibold flex items-center gap-1">
+                                      <Sparkles className="w-3 h-3 text-cyan-400" />
+                                      <span>Sugestão da IA / Histórico:</span>
+                                    </div>
+                                    <div className="text-cyan-300 font-bold text-sm truncate" title={pend.categoria_predominante}>
+                                      {pend.categoria_predominante}
+                                    </div>
+                                    <div className="text-[11px] text-slate-400">
+                                      Confiança estatística: {pend.confianca_percentual}%
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="pt-2 border-t border-white/5 flex items-center gap-2">
+                                  <button
+                                    onClick={() => aprovarCategoriaPadrao(pend.fornecedor_original, pend.categoria_predominante, pend.fornecedor_id_conta_azul)}
+                                    className="flex-1 py-1.5 px-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition-all shadow-md flex items-center justify-center gap-1.5"
+                                  >
+                                    <Check className="w-3.5 h-3.5" />
+                                    <span>Aprovar Categoria</span>
+                                  </button>
+                                  <button
+                                    onClick={() => abrirModalCriarRegra(pend.fornecedor_original, pend.categoria_predominante, pend.fornecedor_id_conta_azul)}
+                                    className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 text-xs transition-all"
+                                    title="Criar regra personalizada"
+                                  >
+                                    <Sliders className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+
+                        {/* BARRA DE PAGINAÇÃO DA CENTRAL */}
+                        {totalPaginas > 1 && (
+                          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-3 rounded-2xl border border-white/10 text-xs text-slate-300">
+                            <div className="flex items-center gap-2">
+                              <span>Exibindo {inicio + 1} a {Math.min(inicio + itensPorPagina, totalItens)} de {totalItens} fornecedores</span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setPaginaAtual((p) => Math.max(1, p - 1))}
+                                disabled={paginaAtual === 1}
+                                className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 transition-all"
+                              >
+                                Anterior
+                              </button>
+
+                              <span className="font-mono text-cyan-300 px-2">
+                                Página {paginaAtual} de {totalPaginas}
+                              </span>
+
+                              <button
+                                onClick={() => setPaginaAtual((p) => Math.min(totalPaginas, p + 1))}
+                                disabled={paginaAtual === totalPaginas}
+                                className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 transition-all"
+                              >
+                                Próxima
+                              </button>
+                            </div>
+                          </div>
                         )}
                       </div>
                     )
                   })()}
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {dadosConsistencia.fornecedores_pendentes
-                      .filter((p) => p.fornecedor_original.toLowerCase().includes(buscaFornecedor.toLowerCase()))
-                      .map((pend) => {
-                        const isSelecionado = selecionadosPendentes.includes(pend.fornecedor_original)
-
-                        return (
-                          <div
-                            key={pend.fornecedor_normalizado}
-                            className={cn(
-                              'bg-slate-900/80 border rounded-2xl p-4 shadow-lg flex flex-col justify-between space-y-3 transition-all',
-                              isSelecionado ? 'border-cyan-500/50 ring-1 ring-cyan-500/30' : 'border-white/10'
-                            )}
-                          >
-                            <div className="space-y-2">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex items-start gap-2.5">
-                                  <input
-                                    type="checkbox"
-                                    checked={isSelecionado}
-                                    onChange={() => toggleSelecionarPendente(pend.fornecedor_original)}
-                                    className="mt-1 w-4 h-4 rounded bg-slate-800 border-white/20 text-cyan-500 focus:ring-cyan-500 cursor-pointer"
-                                  />
-                                  <div>
-                                    <h4 className="font-semibold text-white text-sm leading-tight line-clamp-1" title={pend.fornecedor_original}>
-                                      {pend.fornecedor_original}
-                                    </h4>
-                                    <span className="text-[10px] text-slate-400 font-mono">
-                                      {pend.total_lancamentos} lançamentos
-                                    </span>
-                                  </div>
-                                </div>
-                                <span className="text-xs font-bold text-slate-200 whitespace-nowrap">
-                                  R$ {pend.total_valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                </span>
-                              </div>
-
-                              <div className="p-2.5 rounded-xl bg-slate-800/60 border border-white/5 text-xs space-y-1">
-                                <div className="text-slate-400 text-[10px] uppercase font-semibold flex items-center gap-1">
-                                  <Sparkles className="w-3 h-3 text-cyan-400" />
-                                  <span>Sugestão da IA / Histórico:</span>
-                                </div>
-                                <div className="text-cyan-300 font-bold text-sm truncate" title={pend.categoria_predominante}>
-                                  {pend.categoria_predominante}
-                                </div>
-                                <div className="text-[11px] text-slate-400">
-                                  Confiança estatística: {pend.confianca_percentual}%
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="pt-2 border-t border-white/5 flex items-center gap-2">
-                              <button
-                                onClick={() => aprovarCategoriaPadrao(pend.fornecedor_original, pend.categoria_predominante, pend.fornecedor_id_conta_azul)}
-                                className="flex-1 py-1.5 px-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition-all shadow-md flex items-center justify-center gap-1.5"
-                              >
-                                <Check className="w-3.5 h-3.5" />
-                                <span>Aprovar Categoria</span>
-                              </button>
-                              <button
-                                onClick={() => abrirModalCriarRegra(pend.fornecedor_original, pend.categoria_predominante, pend.fornecedor_id_conta_azul)}
-                                className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 text-xs transition-all"
-                                title="Criar regra personalizada"
-                              >
-                                <Sliders className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                        )
-                      })}
-                  </div>
                 </>
               )}
             </div>
@@ -1308,7 +1663,7 @@ export default function AuditoriaPage() {
                   <Award className="w-12 h-12 text-slate-600 mx-auto mb-3" />
                   <h3 className="text-lg font-semibold text-white">Nenhum fornecedor validado com regra ainda</h3>
                   <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-                    Aprove os fornecedores na aba "Pendentes de Homologação" para que passem a constar aqui como 100% homologados.
+                    Aprove os fornecedores na aba "Central de Homologação" para que passem a constar aqui como 100% homologados.
                   </p>
                 </div>
               ) : (
@@ -1471,6 +1826,71 @@ export default function AuditoriaPage() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* MODAL DE HISTÓRICO DE GOVERNANÇA (FASE 8) */}
+      {modalLogsAberto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-slate-800/40">
+              <div className="flex items-center gap-2 text-white font-bold text-sm">
+                <History className="w-4 h-4 text-cyan-400" />
+                <span>Histórico de Ações de Governança Contábil</span>
+              </div>
+              <button
+                onClick={() => setModalLogsAberto(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3">
+              {carregandoLogs ? (
+                <div className="text-center py-8 text-slate-400 text-xs flex items-center justify-center gap-2">
+                  <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
+                  <span>Carregando logs de auditoria...</span>
+                </div>
+              ) : logsGovernanca.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 text-xs">
+                  Nenhuma ação registrada recentemente nesta empresa.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {logsGovernanca.map((log) => (
+                    <div key={log.id} className="p-3 rounded-xl bg-slate-800/60 border border-white/5 text-xs flex items-center justify-between gap-3">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <strong className="text-white font-semibold">{log.fornecedor_nome}</strong>
+                          <span className="px-2 py-0.2 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                            {log.acao}
+                          </span>
+                        </div>
+                        <div className="text-slate-300 text-[11px]">
+                          Categoria: <span className="text-emerald-400 font-medium">{log.categoria_nova}</span>
+                          {log.detalhes && <span className="text-slate-400 text-[10px] ml-2">({log.detalhes})</span>}
+                        </div>
+                      </div>
+                      <div className="text-right text-[10px] text-slate-400 font-mono whitespace-nowrap">
+                        <div>{new Date(log.created_at).toLocaleDateString('pt-BR')}</div>
+                        <div>{new Date(log.created_at).toLocaleTimeString('pt-BR')}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-3 border-t border-white/10 bg-slate-800/40 flex justify-end">
+              <button
+                onClick={() => setModalLogsAberto(false)}
+                className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-all"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
