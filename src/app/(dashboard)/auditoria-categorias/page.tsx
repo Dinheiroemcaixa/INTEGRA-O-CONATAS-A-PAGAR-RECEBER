@@ -63,6 +63,56 @@ export default function AuditoriaCategoriasPage() {
   const [filtroStatus, setFiltroStatus] = useState<'todos' | 'divergente' | 'consistente' | 'novo_fornecedor'>('todos')
   const [buscaFornecedor, setBuscaFornecedor] = useState<string>('')
   const [modalFase2Aberto, setModalFase2Aberto] = useState<boolean>(false)
+  const [itemSelecionado, setItemSelecionado] = useState<ItemAuditoria | null>(null)
+  const [dadosHistorico, setDadosHistorico] = useState<{
+    fornecedor: string
+    totalHistorico: number
+    distribuicaoCategorias: Array<{ categoria: string; quantidade: number; valorTotal: number; percentual: number }>
+    ultimosLancamentos: Array<{
+      id: string
+      contaAzulId?: string | null
+      categoria: string
+      valor: number
+      dataCompetencia: string
+      dataVencimento?: string | null
+      descricao?: string | null
+      status?: string | null
+    }>
+  } | null>(null)
+  const [carregandoHistorico, setCarregandoHistorico] = useState<boolean>(false)
+
+  // Fechar gaveta/modal com tecla ESC
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (itemSelecionado) setItemSelecionado(null)
+        if (modalFase2Aberto) setModalFase2Aberto(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [itemSelecionado, modalFase2Aberto])
+
+  const abrirDetalhesFornecedor = async (item: ItemAuditoria) => {
+    setItemSelecionado(item)
+    setDadosHistorico(null)
+    if (!empresaAtiva?.id) return
+
+    setCarregandoHistorico(true)
+    try {
+      const res = await fetch(`/api/auditoria-categorias?empresa_id=${empresaAtiva.id}&fornecedor=${encodeURIComponent(item.fornecedor)}`)
+      if (res.ok) {
+        const data = await res.json()
+        setDadosHistorico(data)
+      } else {
+        console.warn('Não foi possível carregar histórico do fornecedor')
+      }
+    } catch (err) {
+      console.error('Erro ao buscar histórico do fornecedor:', err)
+    } finally {
+      setCarregandoHistorico(false)
+    }
+  }
 
   // Presets de data
   const aplicarPreset = (tipo: 'mes_atual' | 'mes_anterior' | 'ultimos_30d' | 'ano_atual') => {
@@ -523,12 +573,13 @@ export default function AuditoriaCategoriasPage() {
                   <th className="py-3 px-4 text-center">Confiança</th>
                   <th className="py-3 px-4 text-right">Valor</th>
                   <th className="py-3 px-4 text-center">Status</th>
+                  <th className="py-3 px-3 text-center w-10"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-dark-800/60 font-medium">
                 {itensFiltrados.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-dark-400">
+                    <td colSpan={7} className="py-8 text-center text-dark-400">
                       Nenhum lançamento encontrado para os filtros selecionados.
                     </td>
                   </tr>
@@ -540,9 +591,11 @@ export default function AuditoriaCategoriasPage() {
                     return (
                       <tr
                         key={item.id}
-                        className={`transition-colors hover:bg-dark-800/50 ${
-                          isDivergente ? 'bg-rose-500/[0.04]' : ''
+                        onClick={() => abrirDetalhesFornecedor(item)}
+                        className={`transition-colors hover:bg-dark-800/80 cursor-pointer group ${
+                          isDivergente ? 'bg-rose-500/[0.06]' : ''
                         }`}
+                        title="Clique para visualizar o histórico completo deste fornecedor"
                       >
                         <td className="py-3.5 px-4">
                           <div className="font-bold text-white max-w-[240px] truncate" title={item.fornecedor}>
@@ -625,12 +678,326 @@ export default function AuditoriaCategoriasPage() {
                             </span>
                           )}
                         </td>
+                        <td className="py-3.5 px-3 text-center">
+                          <ChevronRight size={16} className="text-dark-500 group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all inline-block" />
+                        </td>
                       </tr>
                     )
                   })
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      
+      {/* DRAWER LATERAL: Detalhes e Histórico Completo do Fornecedor */}
+      {itemSelecionado && (
+        <div 
+          className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-xs transition-opacity duration-300 animate-fadeIn"
+          onClick={() => setItemSelecionado(null)}
+        >
+          <div 
+            className="w-full max-w-2xl bg-dark-900 border-l border-dark-700/80 h-full flex flex-col shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header do Drawer */}
+            <div className="p-5 sm:p-6 border-b border-dark-700/80 bg-dark-950/60 flex items-start justify-between gap-4">
+              <div className="space-y-1.5 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-dark-800 border border-dark-700 text-amber-400">
+                    <Building2 size={16} />
+                  </div>
+                  <h3 className="text-base sm:text-lg font-bold text-white truncate max-w-[360px] sm:max-w-[440px]" title={itemSelecionado.fornecedor}>
+                    {itemSelecionado.fornecedor}
+                  </h3>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  {itemSelecionado.status === 'divergente' && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                      <AlertTriangle size={12} />
+                      Classificação Divergente
+                    </span>
+                  )}
+                  {itemSelecionado.status === 'consistente' && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      <CheckCircle2 size={12} />
+                      Classificação Consistente
+                    </span>
+                  )}
+                  {itemSelecionado.status === 'novo_fornecedor' && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                      <Info size={12} />
+                      Novo Fornecedor / Sem Histórico
+                    </span>
+                  )}
+                  <span className="text-dark-400 text-xs">
+                    Competência: <strong className="text-slate-300">{formatDate(itemSelecionado.dataCompetencia)}</strong>
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setItemSelecionado(null)}
+                className="p-2 rounded-xl bg-dark-800 border border-dark-700 text-dark-400 hover:text-white hover:bg-dark-700 transition-colors"
+                title="Fechar painel"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Conteúdo com Scroll */}
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
+              {/* Explicação Visual do Motivo da Classificação */}
+              <div className={`p-4 rounded-2xl border text-xs leading-relaxed space-y-2 ${
+                itemSelecionado.status === 'divergente'
+                  ? 'bg-rose-500/10 border-rose-500/30 text-rose-200'
+                  : itemSelecionado.status === 'consistente'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
+                  : 'bg-sky-500/10 border-sky-500/30 text-sky-200'
+              }`}>
+                <div className="flex items-center gap-2 font-bold text-sm">
+                  {itemSelecionado.status === 'divergente' && (
+                    <>
+                      <AlertTriangle size={18} className="text-rose-400 shrink-0" />
+                      <span>Motivo da Inconsistência: Quebra do Padrão Histórico</span>
+                    </>
+                  )}
+                  {itemSelecionado.status === 'consistente' && (
+                    <>
+                      <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+                      <span>Classificação Validada: Padrão Histórico Confirmado</span>
+                    </>
+                  )}
+                  {itemSelecionado.status === 'novo_fornecedor' && (
+                    <>
+                      <Info size={18} className="text-sky-400 shrink-0" />
+                      <span>Primeira Ocorrência / Fornecedor Recente</span>
+                    </>
+                  )}
+                </div>
+
+                <p className="text-slate-300 text-xs leading-relaxed">
+                  {itemSelecionado.status === 'divergente' && (
+                    <>
+                      Este fornecedor utiliza predominantemente a categoria <strong className="text-white font-bold underline">{itemSelecionado.categoriaEsperada}</strong> com <strong className="text-white font-bold">{itemSelecionado.percentualConfianca}% de confiança</strong> (base de {itemSelecionado.totalHistoricoFornecedor} lançamentos analisados nos últimos 6 meses). O lançamento atual foi categorizado no Conta Azul como <strong className="text-rose-400 font-bold underline">{itemSelecionado.categoriaAtual}</strong>, caracterizando um desvio contábil.
+                    </>
+                  )}
+                  {itemSelecionado.status === 'consistente' && (
+                    <>
+                      A categoria <strong className="text-white font-bold underline">{itemSelecionado.categoriaAtual}</strong> coincide perfeitamente com a categoria predominante no histórico deste fornecedor (<strong className="text-white font-bold">{itemSelecionado.percentualConfianca}%</strong> de aderência estatística em {itemSelecionado.totalHistoricoFornecedor} lançamentos prévios).
+                    </>
+                  )}
+                  {itemSelecionado.status === 'novo_fornecedor' && (
+                    <>
+                      Não foram identificados lançamentos deste fornecedor nos últimos 6 meses anteriores ao período auditado. A categoria atual <strong className="text-white font-bold">&quot;{itemSelecionado.categoriaAtual}&quot;</strong> servirá como base de aprendizado para futuras auditorias.
+                    </>
+                  )}
+                </p>
+              </div>
+
+              {/* Cards de Métricas Comparativas */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3.5 bg-dark-800/80 border border-dark-700/80 rounded-xl space-y-1">
+                  <span className="text-[10px] font-bold text-dark-400 uppercase tracking-wider block">
+                    Categoria Atual
+                  </span>
+                  <p className={`text-xs font-bold truncate ${
+                    itemSelecionado.status === 'divergente' ? 'text-rose-400' : 'text-slate-200'
+                  }`} title={itemSelecionado.categoriaAtual}>
+                    {itemSelecionado.categoriaAtual}
+                  </p>
+                </div>
+
+                <div className="p-3.5 bg-dark-800/80 border border-dark-700/80 rounded-xl space-y-1">
+                  <span className="text-[10px] font-bold text-dark-400 uppercase tracking-wider block">
+                    Histórica Esperada
+                  </span>
+                  <p className="text-xs font-bold text-emerald-400 truncate" title={itemSelecionado.categoriaEsperada}>
+                    {itemSelecionado.categoriaEsperada}
+                  </p>
+                </div>
+
+                <div className="p-3.5 bg-dark-800/80 border border-dark-700/80 rounded-xl space-y-1">
+                  <span className="text-[10px] font-bold text-dark-400 uppercase tracking-wider block">
+                    Confiança
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-black text-amber-400 font-mono">
+                      {itemSelecionado.percentualConfianca}%
+                    </span>
+                    <div className="flex-1 h-1.5 bg-dark-700 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-amber-400 rounded-full" 
+                        style={{ width: `${itemSelecionado.percentualConfianca}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-dark-800/80 border border-dark-700/80 rounded-xl space-y-1">
+                  <span className="text-[10px] font-bold text-dark-400 uppercase tracking-wider block">
+                    Base Histórica
+                  </span>
+                  <p className="text-xs font-black text-sky-400 font-mono">
+                    {itemSelecionado.totalHistoricoFornecedor} lançamentos
+                  </p>
+                </div>
+              </div>
+
+              {/* Detalhes do Lançamento Auditado */}
+              <div className="p-4 bg-dark-800/50 border border-dark-700/60 rounded-2xl space-y-3">
+                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                  <Database size={14} className="text-amber-400" />
+                  Dados do Lançamento Auditado
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                  <div>
+                    <span className="text-dark-400 text-[11px] block">Valor:</span>
+                    <strong className="text-white font-mono text-sm">{formatCurrency(itemSelecionado.valor)}</strong>
+                  </div>
+                  <div>
+                    <span className="text-dark-400 text-[11px] block">Data de Competência:</span>
+                    <strong className="text-slate-200">{formatDate(itemSelecionado.dataCompetencia)}</strong>
+                  </div>
+                  <div>
+                    <span className="text-dark-400 text-[11px] block">Vencimento:</span>
+                    <span className="text-slate-300">{formatDate(itemSelecionado.dataVencimento)}</span>
+                  </div>
+                  {itemSelecionado.descricao && (
+                    <div className="col-span-2 sm:col-span-3">
+                      <span className="text-dark-400 text-[11px] block">Descrição / Observação:</span>
+                      <p className="text-slate-300 bg-dark-900/60 p-2 rounded-lg border border-dark-700/50 text-[11px] mt-0.5">
+                        {itemSelecionado.descricao}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Distribuição Histórica de Categorias */}
+              {dadosHistorico && dadosHistorico.distribuicaoCategorias && dadosHistorico.distribuicaoCategorias.length > 0 && (
+                <div className="p-4 bg-dark-800/50 border border-dark-700/60 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                      <Filter size={14} className="text-indigo-400" />
+                      Distribuição de Categorias no Histórico
+                    </h4>
+                    <span className="text-[11px] text-dark-400">
+                      Total: {dadosHistorico.totalHistorico} lançamentos
+                    </span>
+                  </div>
+
+                  <div className="space-y-2.5 pt-1">
+                    {dadosHistorico.distribuicaoCategorias.map((cat, idx) => (
+                      <div key={idx} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-slate-200 truncate max-w-[280px]">
+                            {cat.categoria}
+                          </span>
+                          <span className="text-dark-400 font-mono text-[11px]">
+                            {cat.quantidade}x ({cat.percentual}%) • {formatCurrency(cat.valorTotal)}
+                          </span>
+                        </div>
+                        <div className="h-2 bg-dark-950 rounded-full overflow-hidden border border-dark-700/50">
+                          <div
+                            className={`h-full rounded-full ${
+                              cat.categoria === itemSelecionado.categoriaEsperada
+                                ? 'bg-emerald-500'
+                                : cat.categoria === itemSelecionado.categoriaAtual
+                                ? 'bg-amber-500'
+                                : 'bg-slate-600'
+                            }`}
+                            style={{ width: `${cat.percentual}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Últimos Lançamentos Encontrados no Histórico */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                    <Calendar size={14} className="text-sky-400" />
+                    Últimos Lançamentos Encontrados no Histórico
+                  </h4>
+                  {carregandoHistorico && (
+                    <span className="text-[11px] text-amber-400 flex items-center gap-1.5">
+                      <RefreshCw size={12} className="animate-spin" />
+                      Carregando...
+                    </span>
+                  )}
+                </div>
+
+                {carregandoHistorico && !dadosHistorico ? (
+                  <div className="p-8 text-center text-dark-400 bg-dark-800/40 rounded-2xl border border-dark-700/50 space-y-2">
+                    <RefreshCw size={24} className="animate-spin mx-auto text-amber-400" />
+                    <p className="text-xs">Consultando histórico do fornecedor na base espelho...</p>
+                  </div>
+                ) : dadosHistorico && dadosHistorico.ultimosLancamentos && dadosHistorico.ultimosLancamentos.length > 0 ? (
+                  <div className="bg-dark-800/40 border border-dark-700/60 rounded-2xl overflow-hidden">
+                    <div className="overflow-x-auto max-h-72 overflow-y-auto">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead className="sticky top-0 bg-dark-950 border-b border-dark-700/80 text-[10px] text-dark-400 uppercase font-bold tracking-wider">
+                          <tr>
+                            <th className="py-2.5 px-3">Data</th>
+                            <th className="py-2.5 px-3">Categoria</th>
+                            <th className="py-2.5 px-3">Descrição</th>
+                            <th className="py-2.5 px-3 text-right">Valor</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-dark-700/50 font-medium text-slate-300 text-[11px]">
+                          {dadosHistorico.ultimosLancamentos.map((lanc) => {
+                            const matchPredominante = lanc.categoria === itemSelecionado.categoriaEsperada
+                            return (
+                              <tr key={lanc.id} className="hover:bg-dark-700/40 transition-colors">
+                                <td className="py-2.5 px-3 whitespace-nowrap text-dark-300">
+                                  {formatDate(lanc.dataCompetencia)}
+                                </td>
+                                <td className="py-2.5 px-3">
+                                  <span className={`font-semibold ${
+                                    matchPredominante ? 'text-emerald-400' : 'text-amber-300'
+                                  }`}>
+                                    {lanc.categoria}
+                                  </span>
+                                </td>
+                                <td className="py-2.5 px-3 max-w-[160px] truncate text-dark-400" title={lanc.descricao || ''}>
+                                  {lanc.descricao || '-'}
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-200 whitespace-nowrap">
+                                  {formatCurrency(lanc.valor)}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-6 text-center text-dark-400 bg-dark-800/30 rounded-2xl border border-dark-700/40 text-xs">
+                    Nenhum lançamento anterior registrado para este fornecedor.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer do Drawer */}
+            <div className="p-4 border-t border-dark-700/80 bg-dark-950/80 flex items-center justify-between">
+              <span className="text-[11px] text-dark-400">
+                Pressione <kbd className="px-1.5 py-0.5 rounded bg-dark-800 border border-dark-700 text-slate-300 text-[10px]">ESC</kbd> ou clique fora para fechar
+              </span>
+              <button
+                onClick={() => setItemSelecionado(null)}
+                className="px-4 py-2 rounded-xl bg-dark-800 hover:bg-dark-700 text-white font-semibold text-xs border border-dark-700 transition-colors"
+              >
+                Fechar Painel
+              </button>
+            </div>
           </div>
         </div>
       )}

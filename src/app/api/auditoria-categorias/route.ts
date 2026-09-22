@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executarAuditoriaCategorias } from '@/lib/auditoria-categorias/servico'
+import { executarAuditoriaCategorias, buscarHistoricoFornecedor } from '@/lib/auditoria-categorias/servico'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -43,12 +43,27 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const empresa_id = searchParams.get('empresa_id')
+    const fornecedor = searchParams.get('fornecedor')
+
+    // 1. Se solicitou histórico de um fornecedor específico
+    if (empresa_id && fornecedor) {
+      const limiteParam = searchParams.get('limite')
+      const limite = limiteParam ? parseInt(limiteParam, 10) : 20
+      const dados = await buscarHistoricoFornecedor({
+        empresaId: empresa_id,
+        fornecedor,
+        limite
+      })
+      return NextResponse.json(dados)
+    }
+
+    // 2. Consulta geral da auditoria por período
     const data_inicio = searchParams.get('data_inicio')
     const data_fim = searchParams.get('data_fim')
 
     if (!empresa_id || !data_inicio || !data_fim) {
       return NextResponse.json(
-        { error: 'Parâmetros empresa_id, data_inicio e data_fim são obrigatórios.' },
+        { error: 'Parâmetros empresa_id, data_inicio e data_fim são obrigatórios (ou empresa_id e fornecedor).' },
         { status: 400 }
       )
     }

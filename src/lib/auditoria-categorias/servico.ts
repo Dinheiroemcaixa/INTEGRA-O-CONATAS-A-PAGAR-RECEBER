@@ -277,3 +277,120 @@ export async function executarAuditoriaCategorias(params: {
     itens
   }
 }
+
+export interface LancamentoHistoricoItem {
+  id: string
+  contaAzulId?: string | null
+  categoria: string
+  valor: number
+  dataCompetencia: string
+  dataVencimento?: string | null
+  descricao?: string | null
+  status?: string | null
+}
+
+export interface CategoriaDistribuicaoItem {
+  categoria: string
+  quantidade: number
+  valorTotal: number
+  percentual: number
+}
+
+export interface HistoricoFornecedorDetalhado {
+  fornecedor: string
+  totalHistorico: number
+  distribuicaoCategorias: CategoriaDistribuicaoItem[]
+  ultimosLancamentos: LancamentoHistoricoItem[]
+}
+
+/**
+ * Consulta o histórico completo e os últimos lançamentos de um fornecedor
+ * 100% READ ONLY - Consulta apenas a base espelho do Conta Azul.
+ */
+export async function buscarHistoricoFornecedor(params: {
+  empresaId: string
+  fornecedor: string
+  limite?: number
+}): Promise<HistoricoFornecedorDetalhado> {
+  const { empresaId, fornecedor, limite = 20 } = params
+
+  if (!empresaId) {
+    throw new Error('O parâmetro empresaId é obrigatório.')
+  }
+  if (!fornecedor || fornecedor.trim() === '') {
+    throw new Error('O parâmetro fornecedor é obrigatório.')
+  }
+
+  const fornecedorNome = fornecedor.trim()
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const supabase = createClient(supabaseUrl, supabaseKey)
+
+  // 1. Busca os últimos lançamentos do fornecedor
+  const { data: ultimosRows, error: errUltimos } = await supabase
+    .from('contas_pagar_contaazul_espelho')
+    .select('id, conta_azul_id, fornecedor_nome, categoria_nome, valor, data_competencia, data_vencimento, descricao, status')
+    .eq('empresa_id', empresaId)
+    .eq('fornecedor_nome', fornecedorNome)
+    .order('data_competencia', { ascending: false })
+    .limit(limite)
+
+  if (errUltimos) {
+    console.error('[AuditoriaCategorias] Erro ao buscar últimos lançamentos:', errUltimos)
+    throw new Error(`Erro ao consultar histórico: ${errUltimos.message}`)
+  }
+
+  // 2. Busca todos os lançamentos para distribuição de categorias
+  const { data: todasRows, error: errTodas } = await supabase
+    .from('contas_pagar_contaazul_espelho')
+    .select('categoria_nome, valor')
+    .eq('empresa_id', empresaId)
+    .eq('fornecedor_nome', fornecedorNome)
+    .limit(10000)
+
+  if (errTodas) {
+    console.warn('[AuditoriaCategorias] Aviso ao buscar distribuição de categorias:', errTodas.message)
+  }
+
+  const rows = todasRows || []
+  const totalHistorico = rows.length
+
+  const mapaCategorias = new Map<string, { quantidade: number; valorTotal: number }>()
+  for (const r of rows) {
+    const cat = (r.categoria_nome || 'SEM CATEGORIA').trim()
+    const v = Number(r.valor) || 0
+    const atual = mapaCategorias.get(cat) || { quantidade: 0, valorTotal: 0 }
+    atual.quantidade += 1
+    atual.valorTotal += v
+    mapaCategorias.set(cat, atual)
+  }
+
+  const distribuicaoCategorias: CategoriaDistribuicaoItem[] = Array.from(mapaCategorias.entries())
+    .map(([categoria, dados]) => ({
+      categoria,
+      quantidade: dados.quantidade,
+      valorTotal: Math.round(dados.valorTotal * 100) / 100,
+      percentual: totalHistorico > 0 ? Math.round((dados.quantidade / totalHistorico) * 10000) / 100 : 0
+    }))
+    .sort((a, b) => b.quantidade - a.quantidade)
+
+  const ultimosLancamentos: LancamentoHistoricoItem[] = (ultimosRows || []).map(r => ({
+    id: r.id,
+    contaAzulId: r.conta_azul_id,
+    categoria: r.categoria_nome || 'SEM CATEGORIA',
+    valor: Number(r.valor) || 0,
+    dataCompetencia: r.data_competencia || r.data_vencimento || '',
+    dataVencimento: r.data_vencimento,
+    descricao: r.descricao,
+    status: r.status
+  }))
+
+  return {
+    fornecedor: fornecedorNome,
+    totalHistorico,
+    distribuicaoCategorias,
+    ultimosLancamentos
+  }
+}
+
