@@ -269,23 +269,59 @@ export default function AuditoriaCategoriasPage() {
         )}
       </div>
 
-      {/* Cards de Métricas */}
+      {/* Cards de Métricas e Filtros Rápidos */}
       {resultado && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-dark-900 border border-dark-700/80 p-5 rounded-2xl shadow-md">
-            <p className="text-xs text-dark-400 font-medium">Lançamentos Auditados</p>
+          {/* Card 1: Lançamentos Auditados (Todos) */}
+          <button
+            type="button"
+            onClick={() => setFiltroStatus('todos')}
+            className={`text-left p-5 rounded-2xl shadow-md transition-all duration-200 cursor-pointer transform hover:-translate-y-0.5 ${
+              filtroStatus === 'todos'
+                ? 'bg-dark-850 border-2 border-amber-500 shadow-amber-500/10 shadow-lg ring-1 ring-amber-500/40'
+                : 'bg-dark-900 border border-dark-700/80 hover:border-dark-500 hover:shadow-lg'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <p className={`text-xs font-semibold ${filtroStatus === 'todos' ? 'text-amber-400' : 'text-dark-400'}`}>
+                Lançamentos Auditados
+              </p>
+              {filtroStatus === 'todos' && (
+                <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  Ativo
+                </span>
+              )}
+            </div>
             <div className="flex items-baseline justify-between mt-2">
               <span className="text-2xl font-black text-white">{resultado.totalAuditado}</span>
               <span className="text-xs text-dark-400">{formatCurrency(resultado.valorTotalAuditado)}</span>
             </div>
-          </div>
+          </button>
 
-          <div className="bg-dark-900 border border-dark-700/80 p-5 rounded-2xl shadow-md">
+          {/* Card 2: Consistentes */}
+          <button
+            type="button"
+            onClick={() => setFiltroStatus('consistente')}
+            className={`text-left p-5 rounded-2xl shadow-md transition-all duration-200 cursor-pointer transform hover:-translate-y-0.5 ${
+              filtroStatus === 'consistente'
+                ? 'bg-emerald-500/[0.08] border-2 border-emerald-500 shadow-emerald-500/10 shadow-lg ring-1 ring-emerald-500/40'
+                : 'bg-dark-900 border border-dark-700/80 hover:border-emerald-500/50 hover:shadow-lg'
+            }`}
+          >
             <div className="flex items-center justify-between">
-              <p className="text-xs text-dark-400 font-medium">Consistentes</p>
-              <span className="p-1 rounded bg-emerald-500/10 text-emerald-400">
-                <CheckCircle2 size={14} />
-              </span>
+              <p className={`text-xs font-semibold ${filtroStatus === 'consistente' ? 'text-emerald-300' : 'text-dark-400'}`}>
+                Consistentes
+              </p>
+              <div className="flex items-center gap-1.5">
+                {filtroStatus === 'consistente' && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    Ativo
+                  </span>
+                )}
+                <span className="p-1 rounded bg-emerald-500/10 text-emerald-400">
+                  <CheckCircle2 size={14} />
+                </span>
+              </div>
             </div>
             <div className="flex items-baseline justify-between mt-2">
               <span className="text-2xl font-black text-emerald-400">{resultado.totalConsistentes}</span>
@@ -295,14 +331,30 @@ export default function AuditoriaCategoriasPage() {
                   : 0}%
               </span>
             </div>
-          </div>
+          </button>
 
-          <div className="bg-dark-900 border border-rose-500/30 bg-rose-500/5 p-5 rounded-2xl shadow-md">
+          {/* Card 3: Divergências Detectadas */}
+          <button
+            type="button"
+            onClick={() => setFiltroStatus('divergente')}
+            className={`text-left p-5 rounded-2xl shadow-md transition-all duration-200 cursor-pointer transform hover:-translate-y-0.5 ${
+              filtroStatus === 'divergente'
+                ? 'bg-rose-500/15 border-2 border-rose-500 shadow-rose-500/20 shadow-lg ring-1 ring-rose-500/50'
+                : 'bg-dark-900 border border-rose-500/30 bg-rose-500/5 hover:border-rose-500/60 hover:shadow-lg'
+            }`}
+          >
             <div className="flex items-center justify-between">
-              <p className="text-xs text-rose-300 font-medium">Divergências Detectadas</p>
-              <span className="p-1 rounded bg-rose-500/20 text-rose-400">
-                <AlertTriangle size={14} />
-              </span>
+              <p className="text-xs text-rose-300 font-semibold">Divergências Detectadas</p>
+              <div className="flex items-center gap-1.5">
+                {filtroStatus === 'divergente' && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-500/30 text-rose-300 border border-rose-500/40">
+                    Ativo
+                  </span>
+                )}
+                <span className="p-1 rounded bg-rose-500/20 text-rose-400">
+                  <AlertTriangle size={14} />
+                </span>
+              </div>
             </div>
             <div className="flex items-baseline justify-between mt-2">
               <span className="text-2xl font-black text-rose-400">{resultado.totalDivergentes}</span>
@@ -310,20 +362,38 @@ export default function AuditoriaCategoriasPage() {
                 {formatCurrency(resultado.valorTotalDivergente)}
               </span>
             </div>
-          </div>
+          </button>
 
-          <div className="bg-dark-900 border border-dark-700/80 p-5 rounded-2xl shadow-md">
+          {/* Card 4: Novos Fornecedores */}
+          <button
+            type="button"
+            onClick={() => setFiltroStatus('novo_fornecedor')}
+            className={`text-left p-5 rounded-2xl shadow-md transition-all duration-200 cursor-pointer transform hover:-translate-y-0.5 ${
+              filtroStatus === 'novo_fornecedor'
+                ? 'bg-sky-500/[0.08] border-2 border-sky-500 shadow-sky-500/10 shadow-lg ring-1 ring-sky-500/40'
+                : 'bg-dark-900 border border-dark-700/80 hover:border-sky-500/50 hover:shadow-lg'
+            }`}
+          >
             <div className="flex items-center justify-between">
-              <p className="text-xs text-dark-400 font-medium">Novos Fornecedores</p>
-              <span className="p-1 rounded bg-sky-500/10 text-sky-400">
-                <Info size={14} />
-              </span>
+              <p className={`text-xs font-semibold ${filtroStatus === 'novo_fornecedor' ? 'text-sky-300' : 'text-dark-400'}`}>
+                Novos Fornecedores
+              </p>
+              <div className="flex items-center gap-1.5">
+                {filtroStatus === 'novo_fornecedor' && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                    Ativo
+                  </span>
+                )}
+                <span className="p-1 rounded bg-sky-500/10 text-sky-400">
+                  <Info size={14} />
+                </span>
+              </div>
             </div>
             <div className="flex items-baseline justify-between mt-2">
               <span className="text-2xl font-black text-sky-400">{resultado.totalNovosFornecedores}</span>
               <span className="text-xs text-dark-400">Sem histórico prévio</span>
             </div>
-          </div>
+          </button>
         </div>
       )}
 
