@@ -1,0 +1,279 @@
+import { createClient } from '@supabase/supabase-js'
+
+export interface ItemAuditoriaCategoria {
+  id: string
+  contaAzulId?: string | null
+  fornecedor: string
+  categoriaEsperada: string
+  categoriaAtual: string
+  percentualConfianca: number
+  totalHistoricoFornecedor: number
+  status: 'divergente' | 'consistente' | 'novo_fornecedor'
+  valor: number
+  dataCompetencia: string
+  dataVencimento?: string | null
+  descricao?: string | null
+}
+
+export interface ResumoAuditoriaCategorias {
+  totalAuditado: number
+  totalConsistentes: number
+  totalDivergentes: number
+  totalNovosFornecedores: number
+  valorTotalAuditado: number
+  valorTotalDivergente: number
+  taxaDivergencia: number
+  periodoAuditado: {
+    inicio: string
+    fim: string
+  }
+  periodoHistoricoAprendizado: {
+    inicio: string
+    fim: string
+  }
+  itens: ItemAuditoriaCategoria[]
+}
+
+/**
+ * Subtrai exatamente N meses de uma data no formato YYYY-MM-DD
+ */
+export function subtrairMeses(dataIso: string, meses: number): string {
+  const [ano, mes, dia] = dataIso.split('-').map(Number)
+  const d = new Date(ano, mes - 1 - meses, dia || 1)
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+/**
+ * Normaliza nomes de strings para comparação confiável
+ */
+export function normalizarTexto(texto?: string | null): string {
+  if (!texto) return ''
+  return texto
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+/**
+ * Executa a auditoria de consistência de categorias por fornecedor
+ * 100% READ ONLY - Consulta exclusivamente a tabela public.contas_pagar_contaazul_espelho.
+ * Não realiza nenhuma operação de escrita (INSERT, UPDATE ou UPSERT) no banco.
+ */
+export async function executarAuditoriaCategorias(params: {
+  empresaId: string
+  dataInicio: string
+  dataFim: string
+}): Promise<ResumoAuditoriaCategorias> {
+  const { empresaId, dataInicio, dataFim } = params
+
+  if (!empresaId) {
+    throw new Error('O parâmetro empresaId é obrigatório.')
+  }
+  if (!dataInicio || !dataFim) {
+    throw new Error('As datas de início e fim são obrigatórias.')
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const supabase = createClient(supabaseUrl, supabaseKey)
+
+  // 1. Define janela de histórico de 6 meses anteriores ao início do período auditado
+  const dataHistoricoInicio = subtrairMeses(dataInicio, 6)
+
+  // 2. Busca lançamentos a auditar no período selecionado (exclusivamente SELECT em contas_pagar_contaazul_espelho)
+  const { data: lancamentosAuditados, error: errAuditados } = await supabase
+    .from('contas_pagar_contaazul_espelho')
+    .select('*')
+    .eq('empresa_id', empresaId)
+    .gte('data_competencia', dataInicio)
+    .lte('data_competencia', dataFim)
+    .order('data_competencia', { ascending: false })
+    .limit(50000)
+
+  if (errAuditados) {
+    console.error('[AuditoriaCategorias] Erro ao buscar lançamentos a auditar:', errAuditados)
+    throw new Error(`Erro ao consultar base espelho do Conta Azul: ${errAuditados.message}`)
+  }
+
+  const registrosAuditados = lancamentosAuditados || []
+
+  // Se não houver lançamentos no período
+  if (registrosAuditados.length === 0) {
+    return {
+      totalAuditado: 0,
+      totalConsistentes: 0,
+      totalDivergentes: 0,
+      totalNovosFornecedores: 0,
+      valorTotalAuditado: 0,
+      valorTotalDivergente: 0,
+      taxaDivergencia: 0,
+      periodoAuditado: { inicio: dataInicio, fim: dataFim },
+      periodoHistoricoAprendizado: { inicio: dataHistoricoInicio, fim: dataInicio },
+      itens: []
+    }
+  }
+
+  // 3. Identifica fornecedores distintos do período auditado
+  const fornecedoresAuditados = Array.from(
+    new Set(
+      registrosAuditados
+        .map(r => r.fornecedor_nome?.trim())
+        .filter((nome): nome is string => Boolean(nome && nome.length > 0))
+    )
+  )
+
+  // 4. Busca histórico de lançamentos dos últimos 6 meses anteriores (SELECT em contas_pagar_contaazul_espelho)
+  const { data: historicoRows, error: errHistorico } = await supabase
+    .from('contas_pagar_contaazul_espelho')
+    .select('fornecedor_nome, categoria_nome, data_competencia')
+    .eq('empresa_id', empresaId)
+    .gte('data_competencia', dataHistoricoInicio)
+    .lt('data_competencia', dataInicio)
+    .in('fornecedor_nome', fornecedoresAuditados)
+    .limit(50000)
+
+  if (errHistorico) {
+    console.warn('[AuditoriaCategorias] Aviso ao buscar histórico de fornecedores:', errHistorico.message)
+  }
+
+  // 5. Agrupa histórico por fornecedor e calcula categoria predominante 100% em memória
+  const mapaHistorico = new Map<string, { total: number; categorias: Map<string, number> }>()
+
+  for (const row of (historicoRows || [])) {
+    const fn = (row.fornecedor_nome || '').trim()
+    const cat = (row.categoria_nome || '').trim()
+    if (!fn || !cat) continue
+
+    if (!mapaHistorico.has(fn)) {
+      mapaHistorico.set(fn, { total: 0, categorias: new Map() })
+    }
+
+    const info = mapaHistorico.get(fn)!
+    info.total += 1
+    info.categorias.set(cat, (info.categorias.get(cat) || 0) + 1)
+  }
+
+  // 6. Estrutura o aprendizado estatístico por fornecedor em memória
+  interface PadraoFornecedor {
+    categoriaPadrao: string
+    percentualConfianca: number
+    totalHistorico: number
+  }
+
+  const mapaPadrao = new Map<string, PadraoFornecedor>()
+
+  for (const [fornecedorNome, info] of mapaHistorico.entries()) {
+    let catMaisFrequente = ''
+    let maxOcorrencias = 0
+
+    for (const [catNome, count] of info.categorias.entries()) {
+      if (count > maxOcorrencias) {
+        maxOcorrencias = count
+        catMaisFrequente = catNome
+      }
+    }
+
+    const confianca = info.total > 0
+      ? Math.round((maxOcorrencias / info.total) * 10000) / 100
+      : 0
+
+    mapaPadrao.set(fornecedorNome, {
+      categoriaPadrao: catMaisFrequente,
+      percentualConfianca: confianca,
+      totalHistorico: info.total
+    })
+  }
+
+  // 7. Classifica cada lançamento do período auditado em relação ao padrão histórico
+  let totalConsistentes = 0
+  let totalDivergentes = 0
+  let totalNovos = 0
+  let valorTotalAuditado = 0
+  let valorTotalDivergente = 0
+
+  const itens: ItemAuditoriaCategoria[] = registrosAuditados.map(r => {
+    const fornecedorNome = (r.fornecedor_nome || 'NÃO INFORMADO').trim()
+    const categoriaAtual = (r.categoria_nome || 'SEM CATEGORIA').trim()
+    const valor = Number(r.valor) || 0
+    valorTotalAuditado += valor
+
+    const padrao = mapaPadrao.get(fornecedorNome)
+
+    if (!padrao || padrao.totalHistorico === 0) {
+      totalNovos += 1
+      return {
+        id: r.id,
+        contaAzulId: r.conta_azul_id,
+        fornecedor: fornecedorNome,
+        categoriaEsperada: 'Sem Histórico Prévio (6 meses)',
+        categoriaAtual: categoriaAtual,
+        percentualConfianca: 0,
+        totalHistoricoFornecedor: 0,
+        status: 'novo_fornecedor',
+        valor: valor,
+        dataCompetencia: r.data_competencia || r.data_vencimento || '',
+        dataVencimento: r.data_vencimento,
+        descricao: r.descricao
+      }
+    }
+
+    const matchCategoria = normalizarTexto(categoriaAtual) === normalizarTexto(padrao.categoriaPadrao)
+
+    if (matchCategoria) {
+      totalConsistentes += 1
+      return {
+        id: r.id,
+        contaAzulId: r.conta_azul_id,
+        fornecedor: fornecedorNome,
+        categoriaEsperada: padrao.categoriaPadrao,
+        categoriaAtual: categoriaAtual,
+        percentualConfianca: padrao.percentualConfianca,
+        totalHistoricoFornecedor: padrao.totalHistorico,
+        status: 'consistente',
+        valor: valor,
+        dataCompetencia: r.data_competencia || r.data_vencimento || '',
+        dataVencimento: r.data_vencimento,
+        descricao: r.descricao
+      }
+    } else {
+      totalDivergentes += 1
+      valorTotalDivergente += valor
+      return {
+        id: r.id,
+        contaAzulId: r.conta_azul_id,
+        fornecedor: fornecedorNome,
+        categoriaEsperada: padrao.categoriaPadrao,
+        categoriaAtual: categoriaAtual,
+        percentualConfianca: padrao.percentualConfianca,
+        totalHistoricoFornecedor: padrao.totalHistorico,
+        status: 'divergente',
+        valor: valor,
+        dataCompetencia: r.data_competencia || r.data_vencimento || '',
+        dataVencimento: r.data_vencimento,
+        descricao: r.descricao
+      }
+    }
+  })
+
+  const totalAuditado = itens.length
+  const taxaDivergencia = totalAuditado > 0
+    ? Math.round((totalDivergentes / totalAuditado) * 10000) / 100
+    : 0
+
+  return {
+    totalAuditado,
+    totalConsistentes,
+    totalDivergentes,
+    totalNovosFornecedores: totalNovos,
+    valorTotalAuditado: Math.round(valorTotalAuditado * 100) / 100,
+    valorTotalDivergente: Math.round(valorTotalDivergente * 100) / 100,
+    taxaDivergencia,
+    periodoAuditado: { inicio: dataInicio, fim: dataFim },
+    periodoHistoricoAprendizado: { inicio: dataHistoricoInicio, fim: dataInicio },
+    itens
+  }
+}
