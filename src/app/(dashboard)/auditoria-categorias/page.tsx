@@ -466,6 +466,52 @@ export default function AuditoriaCategoriasPage() {
             </div>
           </div>
 
+          {/* Indicador Visual do Filtro Ativo */}
+          <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 bg-dark-800/60 border border-dark-700/60 rounded-xl text-xs">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-dark-400 font-medium">Exibindo:</span>
+              {filtroStatus === 'todos' && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  {resultado.totalAuditado} Lançamentos Auditados
+                </span>
+              )}
+              {filtroStatus === 'consistente' && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  {resultado.totalConsistentes} Consistentes
+                </span>
+              )}
+              {filtroStatus === 'divergente' && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold bg-rose-500/10 border border-rose-500/30 text-rose-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+                  {resultado.totalDivergentes} Divergências Detectadas
+                </span>
+              )}
+              {filtroStatus === 'novo_fornecedor' && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold bg-sky-500/10 border border-sky-500/30 text-sky-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+                  {resultado.totalNovosFornecedores} Novos Fornecedores
+                </span>
+              )}
+              {buscaFornecedor.trim() !== '' && (
+                <span className="text-dark-400">
+                  filtrado por termo <strong className="text-slate-300 font-semibold">&quot;{buscaFornecedor}&quot;</strong> ({itensFiltrados.length} encontrados)
+                </span>
+              )}
+            </div>
+
+            {filtroStatus !== 'todos' && (
+              <button
+                type="button"
+                onClick={() => setFiltroStatus('todos')}
+                className="text-dark-400 hover:text-white transition-colors underline text-[11px]"
+              >
+                Limpar filtro de status
+              </button>
+            )}
+          </div>
+
           {/* Listagem em Tabela */}
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-300 border-collapse">
