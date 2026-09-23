@@ -25,6 +25,10 @@ interface ItemAuditoria {
   dataCompetencia: string
   dataVencimento?: string | null
   descricao?: string | null
+  statusDivergencia?: 'PENDENTE' | 'JUSTIFICADA' | 'CORRIGIDA'
+  motivoJustificativa?: string | null
+  justificadoPor?: string | null
+  justificadoEm?: string | null
 }
 
 interface ResumoAuditoria {
@@ -32,6 +36,9 @@ interface ResumoAuditoria {
   totalConsistentes: number
   totalDivergentes: number
   totalNovosFornecedores: number
+  totalPendentes?: number
+  totalJustificadas?: number
+  totalCorrigidas?: number
   valorTotalAuditado: number
   valorTotalDivergente: number
   taxaDivergencia: number
@@ -60,10 +67,21 @@ export default function AuditoriaCategoriasPage() {
   const [dataFim, setDataFim] = useState<string>(getHojeIso())
   const [loading, setLoading] = useState<boolean>(false)
   const [resultado, setResultado] = useState<ResumoAuditoria | null>(null)
-  const [filtroStatus, setFiltroStatus] = useState<'todos' | 'divergente' | 'consistente' | 'novo_fornecedor'>('todos')
+  const [filtroStatus, setFiltroStatus] = useState<'todos' | 'divergente' | 'divergente_pendente' | 'divergente_justificada' | 'divergente_corrigida' | 'consistente' | 'novo_fornecedor'>('todos')
   const [buscaFornecedor, setBuscaFornecedor] = useState<string>('')
+  const [statusDivergenciaForm, setStatusDivergenciaForm] = useState<'PENDENTE' | 'JUSTIFICADA' | 'CORRIGIDA'>('PENDENTE')
+  const [motivoJustificativaForm, setMotivoJustificativaForm] = useState<string>('')
+  const [salvandoJustificativa, setSalvandoJustificativa] = useState<boolean>(false)
+
   const [modalFase2Aberto, setModalFase2Aberto] = useState<boolean>(false)
   const [itemSelecionado, setItemSelecionado] = useState<ItemAuditoria | null>(null)
+
+  useEffect(() => {
+    if (itemSelecionado) {
+      setStatusDivergenciaForm(itemSelecionado.statusDivergencia || 'PENDENTE')
+      setMotivoJustificativaForm(itemSelecionado.motivoJustificativa || '')
+    }
+  }, [itemSelecionado])
   const [dadosHistorico, setDadosHistorico] = useState<{
     fornecedor: string
     totalHistorico: number
@@ -186,9 +204,106 @@ export default function AuditoriaCategoriasPage() {
     }
   }
 
+  const handleSalvarJustificativa = async () => {
+    if (!empresaAtiva?.id) {
+      toast.error('Selecione uma empresa ativa.')
+      return
+    }
+    if (!itemSelecionado?.contaAzulId) {
+      toast.error('Identificador do Conta Azul não localizado para este lançamento.')
+      return
+    }
+
+    try {
+      setSalvandoJustificativa(true)
+      const res = await fetch('/api/auditoria-categorias/justificar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresa_id: empresaAtiva.id,
+          conta_azul_id: itemSelecionado.contaAzulId,
+          fornecedor_nome: itemSelecionado.fornecedor,
+          categoria_original: itemSelecionado.categoriaAtual,
+          categoria_sugerida: itemSelecionado.categoriaEsperada,
+          status_divergencia: statusDivergenciaForm,
+          motivo_justificativa: motivoJustificativaForm,
+          usuario_email: 'auditor@connecta.ai'
+        })
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro ao gravar justificativa contábil')
+      }
+
+      toast.success('Justificativa contábil gravada com sucesso!')
+
+      const agoraIso = new Date().toISOString()
+      const novoStatus = statusDivergenciaForm
+      const novoMotivo = motivoJustificativaForm
+
+      setItemSelecionado((prev) =>
+        prev
+          ? {
+              ...prev,
+              statusDivergencia: novoStatus,
+              motivoJustificativa: novoMotivo,
+              justificadoEm: agoraIso
+            }
+          : null
+      )
+
+      setResultado((prev) => {
+        if (!prev) return null
+        const novosItens = prev.itens.map((it) => {
+          if (it.contaAzulId === itemSelecionado.contaAzulId) {
+            return {
+              ...it,
+              statusDivergencia: novoStatus,
+              motivoJustificativa: novoMotivo,
+              justificadoEm: agoraIso
+            }
+          }
+          return it
+        })
+
+        let pend = 0
+        let just = 0
+        let corr = 0
+        novosItens.forEach((it) => {
+          if (it.status === 'divergente') {
+            if (it.statusDivergencia === 'JUSTIFICADA') just++
+            else if (it.statusDivergencia === 'CORRIGIDA') corr++
+            else pend++
+          }
+        })
+
+        return {
+          ...prev,
+          itens: novosItens,
+          totalPendentes: pend,
+          totalJustificadas: just,
+          totalCorrigidas: corr
+        }
+      })
+    } catch (err: any) {
+      console.error('Erro ao gravar justificativa:', err)
+      toast.error(err.message || 'Falha ao salvar justificativa.')
+    } finally {
+      setSalvandoJustificativa(false)
+    }
+  }
+
   // Filtragem dos itens da tabela
   const itensFiltrados = (resultado?.itens || []).filter(item => {
-    const matchStatus = filtroStatus === 'todos' || item.status === filtroStatus
+    let matchStatus = true
+    if (filtroStatus === 'todos') matchStatus = true
+    else if (filtroStatus === 'divergente') matchStatus = item.status === 'divergente'
+    else if (filtroStatus === 'divergente_pendente') matchStatus = item.status === 'divergente' && (!item.statusDivergencia || item.statusDivergencia === 'PENDENTE')
+    else if (filtroStatus === 'divergente_justificada') matchStatus = item.status === 'divergente' && item.statusDivergencia === 'JUSTIFICADA'
+    else if (filtroStatus === 'divergente_corrigida') matchStatus = item.status === 'divergente' && item.statusDivergencia === 'CORRIGIDA'
+    else if (filtroStatus === 'consistente') matchStatus = item.status === 'consistente'
+    else if (filtroStatus === 'novo_fornecedor') matchStatus = item.status === 'novo_fornecedor'
     const matchBusca = buscaFornecedor === '' ||
       item.fornecedor.toLowerCase().includes(buscaFornecedor.toLowerCase()) ||
       item.categoriaAtual.toLowerCase().includes(buscaFornecedor.toLowerCase()) ||
@@ -412,6 +527,21 @@ export default function AuditoriaCategoriasPage() {
                 {formatCurrency(resultado.valorTotalDivergente)}
               </span>
             </div>
+            {resultado.totalDivergentes > 0 && (
+              <div className="flex items-center gap-1.5 mt-2.5 pt-2 border-t border-rose-500/20 text-[10px]">
+                <span className="text-rose-300 font-bold">
+                  Pend: <strong>{resultado.totalPendentes ?? resultado.totalDivergentes}</strong>
+                </span>
+                <span className="text-dark-500">•</span>
+                <span className="text-amber-300 font-semibold">
+                  Just: <strong>{resultado.totalJustificadas ?? 0}</strong>
+                </span>
+                <span className="text-dark-500">•</span>
+                <span className="text-purple-300 font-semibold">
+                  Corr: <strong>{resultado.totalCorrigidas ?? 0}</strong>
+                </span>
+              </div>
+            )}
           </button>
 
           {/* Card 4: Novos Fornecedores */}
@@ -481,6 +611,36 @@ export default function AuditoriaCategoriasPage() {
                   }`}
                 >
                   Divergentes ({resultado.totalDivergentes})
+                </button>
+                <button
+                  onClick={() => setFiltroStatus('divergente_pendente')}
+                  className={`px-2 py-1 rounded-lg font-semibold transition-all flex items-center gap-1 text-[11px] ${
+                    filtroStatus === 'divergente_pendente' ? 'bg-rose-500/30 text-rose-200 border border-rose-500/50 shadow' : 'text-dark-400 hover:text-rose-300'
+                  }`}
+                  title="Filtrar divergências pendentes"
+                >
+                  <AlertTriangle size={11} className="text-rose-400" />
+                  Pendentes ({resultado.totalPendentes ?? resultado.totalDivergentes})
+                </button>
+                <button
+                  onClick={() => setFiltroStatus('divergente_justificada')}
+                  className={`px-2 py-1 rounded-lg font-semibold transition-all flex items-center gap-1 text-[11px] ${
+                    filtroStatus === 'divergente_justificada' ? 'bg-amber-500/30 text-amber-200 border border-amber-500/50 shadow' : 'text-dark-400 hover:text-amber-300'
+                  }`}
+                  title="Filtrar divergências justificadas"
+                >
+                  <HelpCircle size={11} className="text-amber-400" />
+                  Justificadas ({resultado.totalJustificadas ?? 0})
+                </button>
+                <button
+                  onClick={() => setFiltroStatus('divergente_corrigida')}
+                  className={`px-2 py-1 rounded-lg font-semibold transition-all flex items-center gap-1 text-[11px] ${
+                    filtroStatus === 'divergente_corrigida' ? 'bg-purple-500/30 text-purple-200 border border-purple-500/50 shadow' : 'text-dark-400 hover:text-purple-300'
+                  }`}
+                  title="Filtrar divergências corrigidas"
+                >
+                  <Check size={11} className="text-purple-400" />
+                  Corrigidas ({resultado.totalCorrigidas ?? 0})
                 </button>
                 <button
                   onClick={() => setFiltroStatus('consistente')}
@@ -660,10 +820,22 @@ export default function AuditoriaCategoriasPage() {
 
                         <td className="py-3.5 px-4 text-center">
                           {isDivergente && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                              <AlertTriangle size={12} />
-                              Divergente
-                            </span>
+                            item.statusDivergencia === 'JUSTIFICADA' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/40" title={item.motivoJustificativa || 'Divergência Justificada'}>
+                                <HelpCircle size={12} className="text-amber-400" />
+                                Divergente Justificada
+                              </span>
+                            ) : item.statusDivergencia === 'CORRIGIDA' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/40" title={item.motivoJustificativa || 'Divergência Corrigida no ERP'}>
+                                <Check size={12} className="text-purple-400" />
+                                Divergente Corrigida
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                                <AlertTriangle size={12} className="text-rose-400" />
+                                Divergente Pendente
+                              </span>
+                            )
                           )}
                           {isConsistente && (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
@@ -873,6 +1045,109 @@ export default function AuditoriaCategoriasPage() {
                       </p>
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* BLOCO DE GOVERNANÇA E JUSTIFICATIVA CONTÁBIL */}
+              <div className="p-4 bg-gradient-to-b from-dark-800/90 to-dark-800/40 border border-amber-500/30 rounded-2xl space-y-4 shadow-lg shadow-black/20">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-2">
+                    <ShieldCheck size={16} className="text-amber-400" />
+                    Governança & Justificativa Contábil
+                  </h4>
+                  {itemSelecionado.justificadoEm && (
+                    <span className="text-[10px] text-dark-400">
+                      Atualizado em: {formatDate(itemSelecionado.justificadoEm)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Status da Divergência */}
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-300 block mb-1.5">
+                    Status da Divergência:
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setStatusDivergenciaForm('PENDENTE')}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold border flex items-center justify-center gap-1.5 transition-all ${
+                        statusDivergenciaForm === 'PENDENTE'
+                          ? 'bg-rose-500/20 text-rose-300 border-rose-500/60 shadow-md shadow-rose-500/10'
+                          : 'bg-dark-900 border-dark-700 text-dark-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <AlertTriangle size={13} className={statusDivergenciaForm === 'PENDENTE' ? 'text-rose-400' : ''} />
+                      Pendente
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setStatusDivergenciaForm('JUSTIFICADA')}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold border flex items-center justify-center gap-1.5 transition-all ${
+                        statusDivergenciaForm === 'JUSTIFICADA'
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/60 shadow-md shadow-amber-500/10'
+                          : 'bg-dark-900 border-dark-700 text-dark-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <HelpCircle size={13} className={statusDivergenciaForm === 'JUSTIFICADA' ? 'text-amber-400' : ''} />
+                      Justificada
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setStatusDivergenciaForm('CORRIGIDA')}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold border flex items-center justify-center gap-1.5 transition-all ${
+                        statusDivergenciaForm === 'CORRIGIDA'
+                          ? 'bg-purple-500/20 text-purple-300 border-purple-500/60 shadow-md shadow-purple-500/10'
+                          : 'bg-dark-900 border-dark-700 text-dark-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <Check size={13} className={statusDivergenciaForm === 'CORRIGIDA' ? 'text-purple-400' : ''} />
+                      Corrigida
+                    </button>
+                  </div>
+                </div>
+
+                {/* Campo Textarea de Justificativa */}
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+                    Motivo da Justificativa Contábil:
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={motivoJustificativaForm}
+                    onChange={(e) => setMotivoJustificativaForm(e.target.value)}
+                    placeholder="Descreva a justificativa contábil ou motivo da divergência para registro de governança..."
+                    className="w-full p-2.5 bg-dark-900 border border-dark-700 rounded-xl text-xs text-slate-200 placeholder-dark-500 focus:outline-none focus:border-amber-500 transition-colors resize-none"
+                  />
+                  {itemSelecionado.justificadoPor && (
+                    <p className="text-[10px] text-dark-400 mt-1">
+                      Registrado por: <strong className="text-slate-300">{itemSelecionado.justificadoPor}</strong>
+                    </p>
+                  )}
+                </div>
+
+                {/* Botão de Gravação */}
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={handleSalvarJustificativa}
+                    disabled={salvandoJustificativa}
+                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-dark-950 font-bold text-xs flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
+                  >
+                    {salvandoJustificativa ? (
+                      <>
+                        <RefreshCw size={14} className="animate-spin" />
+                        <span>Gravando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check size={14} />
+                        <span>Gravar Justificativa</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
 

@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
+export type StatusJustificativa = 'PENDENTE' | 'JUSTIFICADA' | 'CORRIGIDA'
+
 export interface ItemAuditoriaCategoria {
   id: string
   contaAzulId?: string | null
@@ -13,6 +15,10 @@ export interface ItemAuditoriaCategoria {
   dataCompetencia: string
   dataVencimento?: string | null
   descricao?: string | null
+  statusDivergencia?: StatusJustificativa
+  motivoJustificativa?: string | null
+  justificadoPor?: string | null
+  justificadoEm?: string | null
 }
 
 export interface ResumoAuditoriaCategorias {
@@ -20,6 +26,9 @@ export interface ResumoAuditoriaCategorias {
   totalConsistentes: number
   totalDivergentes: number
   totalNovosFornecedores: number
+  totalPendentes: number
+  totalJustificadas: number
+  totalCorrigidas: number
   valorTotalAuditado: number
   valorTotalDivergente: number
   taxaDivergencia: number
@@ -108,6 +117,9 @@ export async function executarAuditoriaCategorias(params: {
       totalConsistentes: 0,
       totalDivergentes: 0,
       totalNovosFornecedores: 0,
+      totalPendentes: 0,
+      totalJustificadas: 0,
+      totalCorrigidas: 0,
       valorTotalAuditado: 0,
       valorTotalDivergente: 0,
       taxaDivergencia: 0,
@@ -259,23 +271,78 @@ export async function executarAuditoriaCategorias(params: {
     }
   })
 
-  const totalAuditado = itens.length
+  // 8. Consulta status de governanca e justificativas registradas no Supabase
+  const idsDivergentes = itens
+    .filter(function(i) { return i.status === 'divergente' && i.contaAzulId; })
+    .map(function(i) { return i.contaAzulId; });
+
+  const mapaStatusJustificativa = new Map();
+
+  if (idsDivergentes.length > 0) {
+    try {
+      const { data: rowsStatus, error: errStatus } = await supabase
+        .from('auditoria_divergencias_status')
+        .select('conta_azul_id, status_divergencia, motivo_justificativa, usuario_email, atualizado_em')
+        .eq('empresa_id', empresaId)
+        .in('conta_azul_id', idsDivergentes);
+
+      if (!errStatus && rowsStatus) {
+        for (const row of rowsStatus) {
+          mapaStatusJustificativa.set(row.conta_azul_id, {
+            status: row.status_divergencia,
+            motivo: row.motivo_justificativa,
+            usuarioEmail: row.usuario_email,
+            atualizadoEm: row.atualizado_em
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('[AuditoriaCategorias] Tabela de justificativas pendente ou erro na busca:', e);
+    }
+  }
+
+  let totalPendentes = 0;
+  let totalJustificadas = 0;
+  let totalCorrigidas = 0;
+
+  for (const item of itens) {
+    if (item.status === 'divergente') {
+      const just = item.contaAzulId ? mapaStatusJustificativa.get(item.contaAzulId) : undefined;
+      if (just) {
+        item.statusDivergencia = just.status;
+        item.motivoJustificativa = just.motivo;
+        item.justificadoPor = just.usuarioEmail;
+        item.justificadoEm = just.atualizadoEm;
+      } else {
+        item.statusDivergencia = 'PENDENTE';
+      }
+
+      if (item.statusDivergencia === 'JUSTIFICADA') totalJustificadas++;
+      else if (item.statusDivergencia === 'CORRIGIDA') totalCorrigidas++;
+      else totalPendentes++;
+    }
+  }
+
+  const totalAuditado = itens.length;
   const taxaDivergencia = totalAuditado > 0
     ? Math.round((totalDivergentes / totalAuditado) * 10000) / 100
-    : 0
+    : 0;
 
   return {
     totalAuditado,
     totalConsistentes,
     totalDivergentes,
     totalNovosFornecedores: totalNovos,
+    totalPendentes,
+    totalJustificadas,
+    totalCorrigidas,
     valorTotalAuditado: Math.round(valorTotalAuditado * 100) / 100,
     valorTotalDivergente: Math.round(valorTotalDivergente * 100) / 100,
     taxaDivergencia,
     periodoAuditado: { inicio: dataInicio, fim: dataFim },
     periodoHistoricoAprendizado: { inicio: dataHistoricoInicio, fim: dataInicio },
     itens
-  }
+  };
 }
 
 export interface LancamentoHistoricoItem {
@@ -394,3 +461,62 @@ export async function buscarHistoricoFornecedor(params: {
   }
 }
 
+export interface SalvarJustificativaParams {
+  empresaId: string;
+  contaAzulId: string;
+  fornecedorNome: string;
+  categoriaOriginal: string;
+  categoriaSugerida?: string | null;
+  statusDivergencia: StatusJustificativa;
+  motivoJustificativa?: string | null;
+  usuarioEmail?: string | null;
+}
+
+/**
+ * Salva ou atualiza a justificativa/governanca de uma divergencia contábil
+ */
+export async function salvarJustificativaDivergencia(params: SalvarJustificativaParams) {
+  const {
+    empresaId,
+    contaAzulId,
+    fornecedorNome,
+    categoriaOriginal,
+    categoriaSugerida,
+    statusDivergencia,
+    motivoJustificativa,
+    usuarioEmail
+  } = params;
+
+  if (!empresaId) throw new Error('O parametro empresaId e obrigatorio.');
+  if (!contaAzulId) throw new Error('O parametro contaAzulId e obrigatorio.');
+  if (!statusDivergencia) throw new Error('O parametro statusDivergencia e obrigatorio.');
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  const payload = {
+    empresa_id: empresaId,
+    conta_azul_id: contaAzulId,
+    fornecedor_nome: fornecedorNome,
+    categoria_original: categoriaOriginal,
+    categoria_sugerida: categoriaSugerida || null,
+    status_divergencia: statusDivergencia,
+    motivo_justificativa: motivoJustificativa ? motivoJustificativa.trim() : null,
+    usuario_email: usuarioEmail || null,
+    atualizado_em: new Date().toISOString()
+  };
+
+  const { data, error } = await supabase
+    .from('auditoria_divergencias_status')
+    .upsert(payload, { onConflict: 'empresa_id,conta_azul_id' })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[AuditoriaCategorias] Erro ao salvar justificativa:', error);
+    throw new Error('Erro ao salvar justificativa no banco: ' + error.message);
+  }
+
+  return data;
+}
