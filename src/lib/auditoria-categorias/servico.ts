@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
-export type StatusJustificativa = 'PENDENTE' | 'JUSTIFICADA' | 'CORRIGIDA'
+export type StatusJustificativa = 'PENDENTE' | 'JUSTIFICADA' | 'CORRIGIDA' | 'VALIDADA'
 
 export interface ItemAuditoriaCategoria {
   id: string
@@ -29,6 +29,7 @@ export interface ResumoAuditoriaCategorias {
   totalPendentes: number
   totalJustificadas: number
   totalCorrigidas: number
+  totalValidadas: number
   valorTotalAuditado: number
   valorTotalDivergente: number
   taxaDivergencia: number
@@ -120,6 +121,7 @@ export async function executarAuditoriaCategorias(params: {
       totalPendentes: 0,
       totalJustificadas: 0,
       totalCorrigidas: 0,
+      totalValidadas: 0,
       valorTotalAuditado: 0,
       valorTotalDivergente: 0,
       taxaDivergencia: 0,
@@ -304,6 +306,7 @@ export async function executarAuditoriaCategorias(params: {
   let totalPendentes = 0;
   let totalJustificadas = 0;
   let totalCorrigidas = 0;
+  let totalValidadas = 0;
 
   for (const item of itens) {
     if (item.status === 'divergente') {
@@ -319,6 +322,7 @@ export async function executarAuditoriaCategorias(params: {
 
       if (item.statusDivergencia === 'JUSTIFICADA') totalJustificadas++;
       else if (item.statusDivergencia === 'CORRIGIDA') totalCorrigidas++;
+      else if (item.statusDivergencia === 'VALIDADA') totalValidadas++;
       else totalPendentes++;
     }
   }
@@ -336,6 +340,7 @@ export async function executarAuditoriaCategorias(params: {
     totalPendentes,
     totalJustificadas,
     totalCorrigidas,
+    totalValidadas,
     valorTotalAuditado: Math.round(valorTotalAuditado * 100) / 100,
     valorTotalDivergente: Math.round(valorTotalDivergente * 100) / 100,
     taxaDivergencia,
@@ -519,4 +524,143 @@ export async function salvarJustificativaDivergencia(params: SalvarJustificativa
   }
 
   return data;
+}
+
+export interface ValidarCorrecaoParams {
+  empresaId: string;
+  contaAzulId: string;
+  usuarioEmail?: string | null;
+}
+
+export interface ResultadoValidacaoCorrecao {
+  success: boolean;
+  validado: boolean;
+  status: 'VALIDADA' | 'DIVERGENTE_PERSISTE';
+  categoriaEncontrada: string;
+  categoriaSugerida: string;
+  mensagem: string;
+}
+
+/**
+ * Consulta a API do Conta Azul para a parcela específica,
+ * verifica se o usuário corrigiu a categoria contábil e,
+ * se confirmada a alteração, atualiza o espelho local e marca como VALIDADA.
+ */
+export async function validarCorrecaoContaAzul(params: ValidarCorrecaoParams): Promise<ResultadoValidacaoCorrecao> {
+  const { empresaId, contaAzulId, usuarioEmail } = params;
+
+  if (!empresaId) throw new Error('O parametro empresaId e obrigatorio.');
+  if (!contaAzulId) throw new Error('O parametro contaAzulId e obrigatorio.');
+
+  // 1. Obter token válido via token-manager
+  const { getValidToken } = await import('@/lib/conta-azul/token-manager');
+  const { accessToken } = await getValidToken(empresaId, 'financeiro');
+
+  // 2. Consultar o lançamento diretamente na API do Conta Azul
+  const urlParcela = `https://api-v2.contaazul.com/v1/financeiro/eventos-financeiros/parcelas/${contaAzulId}`;
+  const resApi = await fetch(urlParcela, {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!resApi.ok) {
+    const errText = await resApi.text();
+    throw new Error(`Falha ao consultar parcela no Conta Azul (${resApi.status}): ${errText}`);
+  }
+
+  const parcelaData = await resApi.json();
+
+  // 3. Extrair categoria contábil atual no Conta Azul (localizada em evento.rateio)
+  const rateioPrincipal = parcelaData.evento?.rateio?.[0];
+  const categoriaIdApi = rateioPrincipal?.id_categoria || null;
+  const categoriaNomeApi = (rateioPrincipal?.nome_categoria || parcelaData.categoria?.nome || '').trim();
+
+  if (!categoriaNomeApi) {
+    throw new Error('Não foi possível identificar a categoria do lançamento na resposta do Conta Azul.');
+  }
+
+  // 4. Buscar a categoria sugerida / esperada e dados do registro no Supabase
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  const { data: divergenciaRow } = await supabase
+    .from('auditoria_divergencias_status')
+    .select('*')
+    .eq('empresa_id', empresaId)
+    .eq('conta_azul_id', contaAzulId)
+    .maybeSingle();
+
+  const { data: espelhoRow } = await supabase
+    .from('contas_pagar_contaazul_espelho')
+    .select('fornecedor_nome, categoria_nome')
+    .eq('empresa_id', empresaId)
+    .eq('conta_azul_id', contaAzulId)
+    .maybeSingle();
+
+  const fornecedorNome = divergenciaRow?.fornecedor_nome || espelhoRow?.fornecedor_nome || 'FORNECEDOR';
+  const categoriaOriginal = divergenciaRow?.categoria_original || espelhoRow?.categoria_nome || '';
+  const categoriaSugerida = divergenciaRow?.categoria_sugerida || '';
+
+  if (!categoriaSugerida) {
+    throw new Error('Categoria sugerida não localizada para este lançamento. Registre ou consulte a auditoria primeiro.');
+  }
+
+  // 5. Comparação heurística insensível a maiúsculas e acentos
+  const coincide = normalizarTexto(categoriaNomeApi) === normalizarTexto(categoriaSugerida);
+
+  const agoraIso = new Date().toISOString();
+  const agoraFormatada = `${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`;
+
+  if (coincide) {
+    // 6. SUCESSO: Atualiza a tabela espelho local de forma atômica
+    await supabase
+      .from('contas_pagar_contaazul_espelho')
+      .update({
+        categoria_id: categoriaIdApi,
+        categoria_nome: categoriaNomeApi,
+        sincronizado_em: agoraIso
+      })
+      .eq('empresa_id', empresaId)
+      .eq('conta_azul_id', contaAzulId);
+
+    // 7. Atualiza o status para VALIDADA na tabela de governança
+    const motivoAtualizado = `Validação automática confirmada via API Conta Azul em ${agoraFormatada}. Categoria no ERP atualizada para "${categoriaNomeApi}".`;
+
+    await supabase
+      .from('auditoria_divergencias_status')
+      .upsert({
+        empresa_id: empresaId,
+        conta_azul_id: contaAzulId,
+        fornecedor_nome: fornecedorNome,
+        categoria_original: categoriaOriginal,
+        categoria_sugerida: categoriaSugerida,
+        status_divergencia: 'VALIDADA',
+        motivo_justificativa: motivoAtualizado,
+        usuario_email: usuarioEmail || null,
+        validado_em: agoraIso,
+        atualizado_em: agoraIso
+      }, { onConflict: 'empresa_id,conta_azul_id' });
+
+    return {
+      success: true,
+      validado: true,
+      status: 'VALIDADA',
+      categoriaEncontrada: categoriaNomeApi,
+      categoriaSugerida: categoriaSugerida,
+      mensagem: `Correção confirmada com sucesso! A categoria no Conta Azul agora é "${categoriaNomeApi}".`
+    };
+  } else {
+    // 8. DIVERGÊNCIA PERSISTE: Informa claramente ao usuário
+    return {
+      success: true,
+      validado: false,
+      status: 'DIVERGENTE_PERSISTE',
+      categoriaEncontrada: categoriaNomeApi,
+      categoriaSugerida: categoriaSugerida,
+      mensagem: `No Conta Azul a categoria ainda consta como "${categoriaNomeApi}". Altere para "${categoriaSugerida}" no ERP antes de validar.`
+    };
+  }
 }

@@ -4,7 +4,7 @@ import { salvarJustificativaDivergencia, StatusJustificativa } from '@/lib/audit
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const STATUS_VALIDOS: StatusJustificativa[] = ['PENDENTE', 'JUSTIFICADA', 'CORRIGIDA']
+const STATUS_VALIDOS: StatusJustificativa[] = ['PENDENTE', 'JUSTIFICADA', 'CORRIGIDA', 'VALIDADA']
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     if (!status_divergencia || !STATUS_VALIDOS.includes(status_divergencia)) {
       return NextResponse.json(
-        { error: 'O campo status_divergencia deve ser PENDENTE, JUSTIFICADA ou CORRIGIDA.' },
+        { error: 'O campo status_divergencia deve ser PENDENTE, JUSTIFICADA, CORRIGIDA ou VALIDADA.' },
         { status: 400 }
       )
     }

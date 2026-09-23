@@ -8,7 +8,7 @@ import {
   ShieldCheck, AlertTriangle, CheckCircle2, Calendar,
   Search, RefreshCw, Wrench, Sparkles, Filter,
   Building2, ArrowUpDown, ChevronRight, HelpCircle,
-  X, Check, AlertCircle, Info, Database
+  X, Check, AlertCircle, Info, Database, CheckCheck
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -25,7 +25,7 @@ interface ItemAuditoria {
   dataCompetencia: string
   dataVencimento?: string | null
   descricao?: string | null
-  statusDivergencia?: 'PENDENTE' | 'JUSTIFICADA' | 'CORRIGIDA'
+  statusDivergencia?: 'PENDENTE' | 'JUSTIFICADA' | 'CORRIGIDA' | 'VALIDADA'
   motivoJustificativa?: string | null
   justificadoPor?: string | null
   justificadoEm?: string | null
@@ -39,6 +39,7 @@ interface ResumoAuditoria {
   totalPendentes?: number
   totalJustificadas?: number
   totalCorrigidas?: number
+  totalValidadas?: number
   valorTotalAuditado: number
   valorTotalDivergente: number
   taxaDivergencia: number
@@ -67,11 +68,12 @@ export default function AuditoriaCategoriasPage() {
   const [dataFim, setDataFim] = useState<string>(getHojeIso())
   const [loading, setLoading] = useState<boolean>(false)
   const [resultado, setResultado] = useState<ResumoAuditoria | null>(null)
-  const [filtroStatus, setFiltroStatus] = useState<'todos' | 'divergente' | 'divergente_pendente' | 'divergente_justificada' | 'divergente_corrigida' | 'consistente' | 'novo_fornecedor'>('todos')
+  const [filtroStatus, setFiltroStatus] = useState<'todos' | 'divergente' | 'divergente_pendente' | 'divergente_justificada' | 'divergente_corrigida' | 'divergente_validada' | 'consistente' | 'novo_fornecedor'>('todos')
   const [buscaFornecedor, setBuscaFornecedor] = useState<string>('')
-  const [statusDivergenciaForm, setStatusDivergenciaForm] = useState<'PENDENTE' | 'JUSTIFICADA' | 'CORRIGIDA'>('PENDENTE')
+  const [statusDivergenciaForm, setStatusDivergenciaForm] = useState<'PENDENTE' | 'JUSTIFICADA' | 'CORRIGIDA' | 'VALIDADA'>('PENDENTE')
   const [motivoJustificativaForm, setMotivoJustificativaForm] = useState<string>('')
   const [salvandoJustificativa, setSalvandoJustificativa] = useState<boolean>(false)
+  const [validandoContaAzul, setValidandoContaAzul] = useState<boolean>(false)
 
   const [modalFase2Aberto, setModalFase2Aberto] = useState<boolean>(false)
   const [itemSelecionado, setItemSelecionado] = useState<ItemAuditoria | null>(null)
@@ -270,10 +272,12 @@ export default function AuditoriaCategoriasPage() {
         let pend = 0
         let just = 0
         let corr = 0
+        let valid = 0
         novosItens.forEach((it) => {
           if (it.status === 'divergente') {
             if (it.statusDivergencia === 'JUSTIFICADA') just++
             else if (it.statusDivergencia === 'CORRIGIDA') corr++
+            else if (it.statusDivergencia === 'VALIDADA') valid++
             else pend++
           }
         })
@@ -283,7 +287,8 @@ export default function AuditoriaCategoriasPage() {
           itens: novosItens,
           totalPendentes: pend,
           totalJustificadas: just,
-          totalCorrigidas: corr
+          totalCorrigidas: corr,
+          totalValidadas: valid
         }
       })
     } catch (err: any) {
@@ -291,6 +296,101 @@ export default function AuditoriaCategoriasPage() {
       toast.error(err.message || 'Falha ao salvar justificativa.')
     } finally {
       setSalvandoJustificativa(false)
+    }
+  }
+
+  const handleValidarNoContaAzul = async () => {
+    if (!empresaAtiva?.id) {
+      toast.error('Selecione uma empresa ativa.')
+      return
+    }
+    if (!itemSelecionado?.contaAzulId) {
+      toast.error('Identificador do Conta Azul não localizado para este lançamento.')
+      return
+    }
+
+    try {
+      setValidandoContaAzul(true)
+      const res = await fetch('/api/auditoria-categorias/validar-correcao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresa_id: empresaAtiva.id,
+          conta_azul_id: itemSelecionado.contaAzulId,
+          usuario_email: 'auditor@connecta.ai'
+        })
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro ao validar correção no Conta Azul')
+      }
+
+      if (data.validado) {
+        toast.success(data.mensagem || 'Correção confirmada com sucesso no Conta Azul!')
+
+        const agoraIso = new Date().toISOString()
+        const novaCat = data.categoriaEncontrada
+
+        setItemSelecionado((prev) =>
+          prev
+            ? {
+                ...prev,
+                categoriaAtual: novaCat,
+                statusDivergencia: 'VALIDADA',
+                motivoJustificativa: `Validado via integração Conta Azul em ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}. Categoria confirmada: "${novaCat}".`,
+                justificadoEm: agoraIso
+              }
+            : null
+        )
+
+        setStatusDivergenciaForm('VALIDADA')
+        setMotivoJustificativaForm(`Validado via integração Conta Azul em ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}. Categoria confirmada: "${novaCat}".`)
+
+        setResultado((prev) => {
+          if (!prev) return null
+          const novosItens = prev.itens.map((it) => {
+            if (it.contaAzulId === itemSelecionado.contaAzulId) {
+              return {
+                ...it,
+                categoriaAtual: novaCat,
+                statusDivergencia: 'VALIDADA' as const,
+                justificadoEm: agoraIso
+              }
+            }
+            return it
+          })
+
+          let pend = 0
+          let just = 0
+          let corr = 0
+          let valid = 0
+          novosItens.forEach((it) => {
+            if (it.status === 'divergente') {
+              if (it.statusDivergencia === 'JUSTIFICADA') just++
+              else if (it.statusDivergencia === 'CORRIGIDA') corr++
+              else if (it.statusDivergencia === 'VALIDADA') valid++
+              else pend++
+            }
+          })
+
+          return {
+            ...prev,
+            itens: novosItens,
+            totalPendentes: pend,
+            totalJustificadas: just,
+            totalCorrigidas: corr,
+            totalValidadas: valid
+          }
+        })
+      } else {
+        toast.error(data.mensagem || 'A alteração ainda não foi realizada no Conta Azul.', { duration: 6000 })
+      }
+    } catch (err: any) {
+      console.error('Erro ao validar correção no Conta Azul:', err)
+      toast.error(err.message || 'Falha ao consultar Conta Azul.')
+    } finally {
+      setValidandoContaAzul(false)
     }
   }
 
@@ -302,6 +402,7 @@ export default function AuditoriaCategoriasPage() {
     else if (filtroStatus === 'divergente_pendente') matchStatus = item.status === 'divergente' && (!item.statusDivergencia || item.statusDivergencia === 'PENDENTE')
     else if (filtroStatus === 'divergente_justificada') matchStatus = item.status === 'divergente' && item.statusDivergencia === 'JUSTIFICADA'
     else if (filtroStatus === 'divergente_corrigida') matchStatus = item.status === 'divergente' && item.statusDivergencia === 'CORRIGIDA'
+    else if (filtroStatus === 'divergente_validada') matchStatus = item.status === 'divergente' && item.statusDivergencia === 'VALIDADA'
     else if (filtroStatus === 'consistente') matchStatus = item.status === 'consistente'
     else if (filtroStatus === 'novo_fornecedor') matchStatus = item.status === 'novo_fornecedor'
     const matchBusca = buscaFornecedor === '' ||
@@ -540,6 +641,10 @@ export default function AuditoriaCategoriasPage() {
                 <span className="text-purple-300 font-semibold">
                   Corr: <strong>{resultado.totalCorrigidas ?? 0}</strong>
                 </span>
+                <span className="text-dark-500">•</span>
+                <span className="text-emerald-300 font-semibold">
+                  Valid: <strong>{resultado.totalValidadas ?? 0}</strong>
+                </span>
               </div>
             )}
           </button>
@@ -643,6 +748,16 @@ export default function AuditoriaCategoriasPage() {
                   Corrigidas ({resultado.totalCorrigidas ?? 0})
                 </button>
                 <button
+                  onClick={() => setFiltroStatus('divergente_validada')}
+                  className={`px-2 py-1 rounded-lg font-semibold transition-all flex items-center gap-1 text-[11px] ${
+                    filtroStatus === 'divergente_validada' ? 'bg-emerald-500/30 text-emerald-200 border border-emerald-500/50 shadow' : 'text-dark-400 hover:text-emerald-300'
+                  }`}
+                  title="Filtrar divergências validadas no Conta Azul"
+                >
+                  <CheckCheck size={11} className="text-emerald-400" />
+                  Validadas ({resultado.totalValidadas ?? 0})
+                </button>
+                <button
                   onClick={() => setFiltroStatus('consistente')}
                   className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
                     filtroStatus === 'consistente' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'text-dark-400 hover:text-emerald-400'
@@ -696,6 +811,12 @@ export default function AuditoriaCategoriasPage() {
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold bg-rose-500/10 border border-rose-500/30 text-rose-400">
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
                   {resultado.totalDivergentes} Divergências Detectadas
+                </span>
+              )}
+              {filtroStatus === 'divergente_validada' && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  {resultado.totalValidadas ?? 0} Divergências Validadas no Conta Azul
                 </span>
               )}
               {filtroStatus === 'novo_fornecedor' && (
@@ -820,7 +941,12 @@ export default function AuditoriaCategoriasPage() {
 
                         <td className="py-3.5 px-4 text-center">
                           {isDivergente && (
-                            item.statusDivergencia === 'JUSTIFICADA' ? (
+                            item.statusDivergencia === 'VALIDADA' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" title={item.motivoJustificativa || 'Divergência Validada no ERP Conta Azul'}>
+                                <CheckCheck size={12} className="text-emerald-400" />
+                                Divergente Validada
+                              </span>
+                            ) : item.statusDivergencia === 'JUSTIFICADA' ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/40" title={item.motivoJustificativa || 'Divergência Justificada'}>
                                 <HelpCircle size={12} className="text-amber-400" />
                                 Divergente Justificada
@@ -1062,12 +1188,48 @@ export default function AuditoriaCategoriasPage() {
                   )}
                 </div>
 
+                {/* Validação Automática via API Conta Azul */}
+                <div className="p-3 bg-dark-900/80 border border-emerald-500/30 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-emerald-300 flex items-center gap-1.5">
+                      <CheckCheck size={14} className="text-emerald-400" />
+                      Validação Automática no Conta Azul
+                    </span>
+                    {itemSelecionado.statusDivergencia === 'VALIDADA' && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                        Validada no ERP
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-dark-300">
+                    Após corrigir a categoria diretamente no ERP Conta Azul, clique no botão abaixo para reconsultar a API e certificar a correção.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleValidarNoContaAzul}
+                    disabled={validandoContaAzul || !itemSelecionado.contaAzulId}
+                    className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-lg shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    {validandoContaAzul ? (
+                      <>
+                        <RefreshCw size={13} className="animate-spin" />
+                        <span>Consultando Conta Azul...</span>
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw size={13} />
+                        <span>Verificar no Conta Azul</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
                 {/* Status da Divergência */}
                 <div>
                   <label className="text-[11px] font-semibold text-slate-300 block mb-1.5">
                     Status da Divergência:
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <button
                       type="button"
                       onClick={() => setStatusDivergenciaForm('PENDENTE')}
@@ -1105,6 +1267,19 @@ export default function AuditoriaCategoriasPage() {
                     >
                       <Check size={13} className={statusDivergenciaForm === 'CORRIGIDA' ? 'text-purple-400' : ''} />
                       Corrigida
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setStatusDivergenciaForm('VALIDADA')}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold border flex items-center justify-center gap-1.5 transition-all ${
+                        statusDivergenciaForm === 'VALIDADA'
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/60 shadow-md shadow-emerald-500/10'
+                          : 'bg-dark-900 border-dark-700 text-dark-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <CheckCheck size={13} className={statusDivergenciaForm === 'VALIDADA' ? 'text-emerald-400' : ''} />
+                      Validada
                     </button>
                   </div>
                 </div>
