@@ -80,6 +80,19 @@ export default function AuditoriaCategoriasPage() {
   const [modalFase2Aberto, setModalFase2Aberto] = useState<boolean>(false)
   const [itemSelecionado, setItemSelecionado] = useState<ItemAuditoria | null>(null)
 
+  // Status da Base Espelho do Conta Azul para a empresa selecionada
+  const [statusEspelho, setStatusEspelho] = useState<{
+    totalEspelhados: number
+    ultimaSincronizacao: string | null
+    carregando: boolean
+  }>({
+    totalEspelhados: -1, // -1 indica não verificado ainda
+    ultimaSincronizacao: null,
+    carregando: false
+  })
+  const [sincronizando, setSincronizando] = useState<boolean>(false)
+  const [progressoSync, setProgressoSync] = useState<string | null>(null)
+
   useEffect(() => {
     if (itemSelecionado) {
       setStatusDivergenciaForm(itemSelecionado.statusDivergencia || 'PENDENTE')
@@ -178,6 +191,83 @@ export default function AuditoriaCategoriasPage() {
       const ini = new Date(hoje.getFullYear(), 0, 1)
       setDataInicio(ini.toISOString().slice(0, 10))
       setDataFim(hoje.toISOString().slice(0, 10))
+    }
+  }
+
+  // Consulta o status da tabela espelho para a empresa ativa
+  const carregarStatusEspelho = async (empresaId: string) => {
+    setStatusEspelho(prev => ({ ...prev, carregando: true }))
+    try {
+      const res = await fetch(`/api/conta-azul/contas-pagar/sincronizar?empresa_id=${empresaId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setStatusEspelho({
+          totalEspelhados: data.total_espelhados ?? 0,
+          ultimaSincronizacao: data.ultima_sincronizacao ?? null,
+          carregando: false
+        })
+      } else {
+        setStatusEspelho(prev => ({ ...prev, carregando: false }))
+      }
+    } catch (err) {
+      console.warn('Erro ao consultar status da base espelho:', err)
+      setStatusEspelho(prev => ({ ...prev, carregando: false }))
+    }
+  }
+
+  // Ao trocar de empresa, consulta o status da base espelho e limpa auditoria anterior
+  useEffect(() => {
+    if (empresaAtiva?.id) {
+      carregarStatusEspelho(empresaAtiva.id)
+      setResultado(null)
+      setItemSelecionado(null)
+    }
+  }, [empresaAtiva?.id])
+
+  // Dispara a sincronização via endpoint /api/conta-azul/contas-pagar/sincronizar
+  const handleSincronizarContaAzul = async () => {
+    if (!empresaAtiva?.id) {
+      toast.error('Selecione uma empresa antes de sincronizar.')
+      return
+    }
+
+    setSincronizando(true)
+    setProgressoSync('Conectando à API v2 do Conta Azul...')
+
+    try {
+      setProgressoSync('Buscando e persistindo lançamentos dos últimos 12 meses...')
+      const res = await fetch('/api/conta-azul/contas-pagar/sincronizar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresa_id: empresaAtiva.id,
+          meses: 12
+        })
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Falha ao sincronizar contas a pagar do Conta Azul.')
+      }
+
+      toast.success(
+        `Sincronização concluída! ${data.total_sincronizados ?? 0} lançamentos atualizados na base espelho.`,
+        { duration: 6000 }
+      )
+
+      // Atualiza o status da base espelho
+      await carregarStatusEspelho(empresaAtiva.id)
+
+      // Auto-executa a auditoria para já exibir os dados para o usuário
+      toast('Executando auditoria contábil do período...', { icon: '🔍' })
+      await executarAuditoria()
+    } catch (err: any) {
+      console.error('Erro na sincronização:', err)
+      toast.error(err.message || 'Erro ao comunicar com a API do Conta Azul.')
+    } finally {
+      setSincronizando(false)
+      setProgressoSync(null)
     }
   }
 
@@ -463,6 +553,108 @@ export default function AuditoriaCategoriasPage() {
           <SelectorEmpresa />
         </div>
       </div>
+
+      {/* Banner Informativo de Sincronização da Base Espelho */}
+      {empresaAtiva && (
+        <div className={`p-5 rounded-2xl border transition-all shadow-lg ${
+          statusEspelho.totalEspelhados === 0
+            ? 'bg-amber-950/30 border-amber-500/40'
+            : 'bg-dark-900 border-dark-700/80'
+        }`}>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className={`p-2.5 rounded-xl border flex-shrink-0 ${
+                statusEspelho.totalEspelhados === 0
+                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-400'
+                  : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400'
+              }`}>
+                <Database size={22} />
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-sm font-bold text-white">
+                    Base Espelho de Contas a Pagar
+                  </h3>
+                  {statusEspelho.carregando ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-dark-800 text-dark-300 border border-dark-700">
+                      <RefreshCw size={10} className="animate-spin" /> Verificando...
+                    </span>
+                  ) : statusEspelho.totalEspelhados === 0 ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                      <AlertCircle size={10} /> Base Vazia
+                    </span>
+                  ) : statusEspelho.totalEspelhados > 0 ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                      <CheckCircle2 size={10} /> Sincronizada
+                    </span>
+                  ) : null}
+                </div>
+
+                {statusEspelho.totalEspelhados === 0 ? (
+                  <p className="text-xs text-amber-200/90 font-medium leading-relaxed">
+                    Esta empresa ainda não possui lançamentos sincronizados do Conta Azul. Clique em <strong>Sincronizar Conta Azul</strong> para carregar o histórico contábil.
+                  </p>
+                ) : (
+                  <p className="text-xs text-dark-300">
+                    Lançamentos sincronizados e preparados para auditoria estatística.
+                  </p>
+                )}
+
+                {/* Métricas e Detalhes de Sincronização */}
+                <div className="flex flex-wrap items-center gap-4 text-xs text-dark-400 pt-1">
+                  <span>
+                    Registros espelhados:{' '}
+                    <strong className="text-slate-200">
+                      {statusEspelho.totalEspelhados === -1
+                        ? '...'
+                        : statusEspelho.totalEspelhados.toLocaleString('pt-BR')}
+                    </strong>
+                  </span>
+                  <span>•</span>
+                  <span>
+                    Última sincronização:{' '}
+                    <strong className="text-slate-200">
+                      {statusEspelho.ultimaSincronizacao
+                        ? new Date(statusEspelho.ultimaSincronizacao).toLocaleString('pt-BR')
+                        : 'Nunca realizada'}
+                    </strong>
+                  </span>
+                  {statusEspelho.totalEspelhados > 0 && (
+                    <>
+                      <span>•</span>
+                      <span className="text-emerald-400 font-medium">Status: Operacional</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Ação de Sincronização */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-shrink-0">
+              <button
+                onClick={handleSincronizarContaAzul}
+                disabled={sincronizando || statusEspelho.carregando}
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shadow-lg transition-all ${
+                  statusEspelho.totalEspelhados === 0
+                    ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20'
+                    : 'bg-dark-800 hover:bg-dark-700 text-slate-200 border border-dark-600 hover:border-dark-500'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                <RefreshCw size={15} className={sincronizando ? 'animate-spin text-slate-950' : ''} />
+                <span>{sincronizando ? 'Sincronizando...' : 'Sincronizar Conta Azul'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Feedback de Progresso Ativo */}
+          {sincronizando && progressoSync && (
+            <div className="mt-4 pt-3 border-t border-dark-700/60 flex items-center gap-2.5 text-xs text-amber-300 animate-pulse">
+              <RefreshCw size={14} className="animate-spin text-amber-400" />
+              <span>{progressoSync}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Painel de Filtros e Disparo */}
       <div className="bg-dark-900 border border-dark-700/80 p-6 rounded-2xl space-y-4 shadow-lg">
@@ -884,8 +1076,26 @@ export default function AuditoriaCategoriasPage() {
               <tbody className="divide-y divide-dark-800/60 font-medium">
                 {itensFiltrados.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-dark-400">
-                      Nenhum lançamento encontrado para os filtros selecionados.
+                    <td colSpan={7} className="py-10 text-center text-dark-400">
+                      {statusEspelho.totalEspelhados === 0 ? (
+                        <div className="flex flex-col items-center justify-center gap-2 max-w-md mx-auto">
+                          <AlertCircle size={28} className="text-amber-400" />
+                          <p className="text-sm font-bold text-white">Esta empresa ainda não possui lançamentos sincronizados do Conta Azul.</p>
+                          <p className="text-xs text-dark-400">
+                            A base espelho local está vazia. Execute a sincronização para importar o histórico contábil.
+                          </p>
+                          <button
+                            onClick={handleSincronizarContaAzul}
+                            disabled={sincronizando}
+                            className="mt-2 flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition-all"
+                          >
+                            <RefreshCw size={14} className={sincronizando ? 'animate-spin' : ''} />
+                            <span>{sincronizando ? 'Sincronizando...' : 'Sincronizar Agora'}</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <span>Nenhum lançamento encontrado para os filtros selecionados.</span>
+                      )}
                     </td>
                   </tr>
                 ) : (
