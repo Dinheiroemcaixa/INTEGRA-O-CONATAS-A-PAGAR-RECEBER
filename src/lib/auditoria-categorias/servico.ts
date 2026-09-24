@@ -19,6 +19,8 @@ export interface ItemAuditoriaCategoria {
   motivoJustificativa?: string | null
   justificadoPor?: string | null
   justificadoEm?: string | null
+  validadoPor?: string | null
+  validadoEm?: string | null
 }
 
 export interface ResumoAuditoriaCategorias {
@@ -926,7 +928,7 @@ export async function executarAuditoriaCategorias(params: {
     try {
       const { data: rowsStatus, error: errStatus } = await supabase
         .from('auditoria_divergencias_status')
-        .select('conta_azul_id, status_divergencia, motivo_justificativa, usuario_email, atualizado_em')
+        .select('conta_azul_id, status_divergencia, motivo_justificativa, usuario_email, atualizado_em, justificado_por_email, justificado_em, validado_por_email, validado_em')
         .eq('empresa_id', empresaId)
         .in('conta_azul_id', idsDivergentes);
 
@@ -936,7 +938,11 @@ export async function executarAuditoriaCategorias(params: {
             status: row.status_divergencia,
             motivo: row.motivo_justificativa,
             usuarioEmail: row.usuario_email,
-            atualizadoEm: row.atualizado_em
+            atualizadoEm: row.atualizado_em,
+            justificadoPor: (row as any).justificado_por_email || row.usuario_email,
+            justificadoEm: (row as any).justificado_em || row.atualizado_em,
+            validadoPor: (row as any).validado_por_email || (row.status_divergencia === 'VALIDADA' ? row.usuario_email : null),
+            validadoEm: (row as any).validado_em || null
           });
         }
       }
@@ -956,8 +962,10 @@ export async function executarAuditoriaCategorias(params: {
       if (just) {
         item.statusDivergencia = just.status;
         item.motivoJustificativa = just.motivo;
-        item.justificadoPor = just.usuarioEmail;
-        item.justificadoEm = just.atualizadoEm;
+        item.justificadoPor = just.justificadoPor;
+        item.justificadoEm = just.justificadoEm;
+        item.validadoPor = just.validadoPor;
+        item.validadoEm = just.validadoEm;
       } else {
         item.statusDivergencia = 'PENDENTE';
       }
@@ -1142,7 +1150,8 @@ export async function salvarJustificativaDivergencia(params: SalvarJustificativa
   const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!;
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  const payload = {
+  const agoraIso = new Date().toISOString();
+  const payload: any = {
     empresa_id: empresaId,
     conta_azul_id: contaAzulId,
     fornecedor_nome: fornecedorNome,
@@ -1151,8 +1160,16 @@ export async function salvarJustificativaDivergencia(params: SalvarJustificativa
     status_divergencia: statusDivergencia,
     motivo_justificativa: motivoJustificativa ? motivoJustificativa.trim() : null,
     usuario_email: usuarioEmail || null,
-    atualizado_em: new Date().toISOString()
+    atualizado_em: agoraIso
   };
+
+  if (statusDivergencia === 'JUSTIFICADA' || statusDivergencia === 'CORRIGIDA') {
+    payload.justificado_por_email = usuarioEmail || 'auditor@connecta.ai';
+    payload.justificado_em = agoraIso;
+  } else if (statusDivergencia === 'VALIDADA') {
+    payload.validado_por_email = usuarioEmail || 'auditor@connecta.ai';
+    payload.validado_em = agoraIso;
+  }
 
   const { data, error } = await supabase
     .from('auditoria_divergencias_status')
@@ -1268,7 +1285,7 @@ export async function validarCorrecaoContaAzul(params: ValidarCorrecaoParams): P
       .eq('empresa_id', empresaId)
       .eq('conta_azul_id', contaAzulId);
 
-    // 7. Atualiza o status para VALIDADA na tabela de governança
+    // 7. Atualiza o status para VALIDADA na tabela de governança com segregação de auditor
     const motivoAtualizado = `Validação automática confirmada via API Conta Azul em ${agoraFormatada}. Categoria no ERP atualizada para "${categoriaNomeApi}".`;
 
     await supabase
@@ -1282,6 +1299,7 @@ export async function validarCorrecaoContaAzul(params: ValidarCorrecaoParams): P
         status_divergencia: 'VALIDADA',
         motivo_justificativa: motivoAtualizado,
         usuario_email: usuarioEmail || null,
+        validado_por_email: usuarioEmail || 'auditor@connecta.ai',
         validado_em: agoraIso,
         atualizado_em: agoraIso
       }, { onConflict: 'empresa_id,conta_azul_id' });
@@ -1305,4 +1323,60 @@ export async function validarCorrecaoContaAzul(params: ValidarCorrecaoParams): P
       mensagem: `No Conta Azul a categoria ainda consta como "${categoriaNomeApi}". Altere para "${categoriaSugerida}" no ERP antes de validar.`
     };
   }
+}
+
+export interface HistoricoDivergenciaItem {
+  id: string;
+  empresaId: string;
+  contaAzulId: string;
+  statusAnterior: string | null;
+  statusNovo: string;
+  categoriaOriginal: string;
+  categoriaSugerida: string | null;
+  motivoJustificativa: string | null;
+  usuarioEmail: string;
+  acao: string;
+  criadoEm: string;
+}
+
+/**
+ * Consulta a trilha de auditoria completa da divergência (imutável)
+ */
+export async function buscarHistoricoDivergencia(params: {
+  empresaId: string;
+  contaAzulId: string;
+}): Promise<HistoricoDivergenciaItem[]> {
+  const { empresaId, contaAzulId } = params;
+
+  if (!empresaId || !contaAzulId) return [];
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  const { data, error } = await supabase
+    .from('auditoria_divergencias_historico')
+    .select('*')
+    .eq('empresa_id', empresaId)
+    .eq('conta_azul_id', contaAzulId)
+    .order('criado_em', { ascending: false });
+
+  if (error) {
+    console.warn('[AuditoriaCategorias] Erro ao buscar histórico de auditoria:', error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    empresaId: row.empresa_id,
+    contaAzulId: row.conta_azul_id,
+    statusAnterior: row.status_anterior,
+    statusNovo: row.status_novo,
+    categoriaOriginal: row.categoria_original,
+    categoriaSugerida: row.categoria_sugerida,
+    motivoJustificativa: row.motivo_justificativa,
+    usuarioEmail: row.usuario_email,
+    acao: row.acao,
+    criadoEm: row.criado_em
+  }));
 }

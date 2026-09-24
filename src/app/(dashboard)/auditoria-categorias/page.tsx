@@ -8,7 +8,7 @@ import {
   ShieldCheck, AlertTriangle, CheckCircle2, Calendar,
   Search, RefreshCw, Wrench, Sparkles, Filter,
   Building2, ArrowUpDown, ChevronRight, HelpCircle,
-  X, Check, AlertCircle, Info, Database, CheckCheck
+  X, Check, AlertCircle, Info, Database, CheckCheck, History, Clock, User
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -29,6 +29,8 @@ interface ItemAuditoria {
   motivoJustificativa?: string | null
   justificadoPor?: string | null
   justificadoEm?: string | null
+  validadoPor?: string | null
+  validadoEm?: string | null
 }
 
 interface ResumoAuditoria {
@@ -100,6 +102,18 @@ export default function AuditoriaCategoriasPage() {
     }>
   } | null>(null)
   const [carregandoHistorico, setCarregandoHistorico] = useState<boolean>(false)
+  const [timelineAuditoria, setTimelineAuditoria] = useState<Array<{
+    id: string
+    statusAnterior: string | null
+    statusNovo: string
+    categoriaOriginal: string
+    categoriaSugerida: string | null
+    motivoJustificativa: string | null
+    usuarioEmail: string
+    acao: string
+    criadoEm: string
+  }>>([])
+  const [carregandoTimeline, setCarregandoTimeline] = useState<boolean>(false)
 
   // Fechar gaveta/modal com tecla ESC
   useEffect(() => {
@@ -116,9 +130,19 @@ export default function AuditoriaCategoriasPage() {
   const abrirDetalhesFornecedor = async (item: ItemAuditoria) => {
     setItemSelecionado(item)
     setDadosHistorico(null)
+    setTimelineAuditoria([])
     if (!empresaAtiva?.id) return
 
     setCarregandoHistorico(true)
+    if (item.contaAzulId) {
+      setCarregandoTimeline(true)
+      fetch(`/api/auditoria-categorias/historico?empresa_id=${empresaAtiva.id}&conta_azul_id=${item.contaAzulId}`)
+        .then(res => res.ok ? res.json() : { historico: [] })
+        .then(data => setTimelineAuditoria(data.historico || []))
+        .catch(err => console.warn('Erro ao carregar timeline de auditoria:', err))
+        .finally(() => setCarregandoTimeline(false))
+    }
+
     try {
       const res = await fetch(`/api/auditoria-categorias?empresa_id=${empresaAtiva.id}&fornecedor=${encodeURIComponent(item.fornecedor)}`)
       if (res.ok) {
@@ -1296,11 +1320,21 @@ export default function AuditoriaCategoriasPage() {
                     placeholder="Descreva a justificativa contábil ou motivo da divergência para registro de governança..."
                     className="w-full p-2.5 bg-dark-900 border border-dark-700 rounded-xl text-xs text-slate-200 placeholder-dark-500 focus:outline-none focus:border-amber-500 transition-colors resize-none"
                   />
-                  {itemSelecionado.justificadoPor && (
-                    <p className="text-[10px] text-dark-400 mt-1">
-                      Registrado por: <strong className="text-slate-300">{itemSelecionado.justificadoPor}</strong>
-                    </p>
-                  )}
+                  {/* Indicadores de Autoria Segregada */}
+                  <div className="flex flex-wrap items-center gap-4 pt-1 text-[11px] text-dark-300">
+                    {itemSelecionado.justificadoPor && (
+                      <div className="flex items-center gap-1.5">
+                        <User size={13} className="text-amber-400" />
+                        <span>Justificado por: <strong className="text-slate-200">{itemSelecionado.justificadoPor}</strong> {itemSelecionado.justificadoEm && <span className="text-dark-500">({formatDate(itemSelecionado.justificadoEm)})</span>}</span>
+                      </div>
+                    )}
+                    {itemSelecionado.validadoPor && (
+                      <div className="flex items-center gap-1.5">
+                        <CheckCheck size={13} className="text-emerald-400" />
+                        <span>Validado por: <strong className="text-slate-200">{itemSelecionado.validadoPor}</strong> {itemSelecionado.validadoEm && <span className="text-dark-500">({formatDate(itemSelecionado.validadoEm)})</span>}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Botão de Gravação */}
@@ -1431,6 +1465,82 @@ export default function AuditoriaCategoriasPage() {
                 ) : (
                   <div className="p-6 text-center text-dark-400 bg-dark-800/30 rounded-2xl border border-dark-700/40 text-xs">
                     Nenhum lançamento anterior registrado para este fornecedor.
+                  </div>
+                )}
+              </div>
+
+              {/* TIMELINE DE GOVERNANÇA (Histórico Imutável) */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                    <History size={14} className="text-amber-400" />
+                    Trilha de Auditoria & Governança (Timeline)
+                  </h4>
+                  {carregandoTimeline && (
+                    <span className="text-[11px] text-amber-400 flex items-center gap-1.5">
+                      <RefreshCw size={12} className="animate-spin" />
+                      Consultando trilha...
+                    </span>
+                  )}
+                </div>
+
+                {carregandoTimeline && timelineAuditoria.length === 0 ? (
+                  <div className="p-4 text-center text-dark-400 bg-dark-800/30 rounded-xl border border-dark-700/40 text-xs">
+                    Carregando histórico de auditoria...
+                  </div>
+                ) : timelineAuditoria.length > 0 ? (
+                  <div className="bg-dark-800/40 border border-dark-700/60 rounded-2xl p-4 space-y-3">
+                    <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-dark-700">
+                      {timelineAuditoria.map((evento) => (
+                        <div key={evento.id} className="relative group">
+                          {/* Marcador do ponto da timeline */}
+                          <div className={`absolute -left-6 top-1 w-2.5 h-2.5 rounded-full border-2 border-dark-900 ${
+                            evento.statusNovo === 'VALIDADA'
+                              ? 'bg-emerald-400 ring-2 ring-emerald-500/20'
+                              : evento.statusNovo === 'JUSTIFICADA'
+                              ? 'bg-amber-400 ring-2 ring-amber-500/20'
+                              : evento.statusNovo === 'CORRIGIDA'
+                              ? 'bg-purple-400 ring-2 ring-purple-500/20'
+                              : 'bg-rose-400 ring-2 ring-rose-500/20'
+                          }`} />
+                          
+                          <div className="bg-dark-900/60 border border-dark-700/70 rounded-xl p-3 space-y-1.5 hover:border-dark-600 transition-colors">
+                            <div className="flex items-center justify-between text-[11px]">
+                              <div className="flex items-center gap-2">
+                                <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${
+                                  evento.statusNovo === 'VALIDADA'
+                                    ? 'bg-emerald-500/20 text-emerald-300'
+                                    : evento.statusNovo === 'JUSTIFICADA'
+                                    ? 'bg-amber-500/20 text-amber-300'
+                                    : evento.statusNovo === 'CORRIGIDA'
+                                    ? 'bg-purple-500/20 text-purple-300'
+                                    : 'bg-rose-500/20 text-rose-300'
+                                }`}>
+                                  {evento.statusNovo}
+                                </span>
+                                <span className="font-semibold text-slate-200">
+                                  {evento.usuarioEmail}
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-dark-400 font-mono flex items-center gap-1">
+                                <Clock size={11} />
+                                {formatDate(evento.criadoEm)}
+                              </span>
+                            </div>
+
+                            {evento.motivoJustificativa && (
+                              <p className="text-xs text-slate-300 bg-dark-950/60 p-2 rounded-lg border border-dark-800/80 leading-relaxed italic">
+                                "{evento.motivoJustificativa}"
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-dark-400 bg-dark-800/30 rounded-xl border border-dark-700/40 text-xs">
+                    Nenhuma alteração registrada anteriormente nesta divergência.
                   </div>
                 )}
               </div>
