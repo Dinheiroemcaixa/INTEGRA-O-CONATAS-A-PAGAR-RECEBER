@@ -69,6 +69,246 @@ export function normalizarTexto(texto?: string | null): string {
 }
 
 /**
+ * Constantes de Whitelist para Redução de Falsos Positivos (Fase 1)
+ */
+export const WHITELIST_CAJU = [
+  'vale-alimentacao',
+  'vale alimentacao',
+  'vale-transporte',
+  'vale transporte',
+  'gratificacoes',
+  'gratificacao'
+]
+
+export const WHITELIST_CLT = [
+  'salarios',
+  'salario',
+  'adiantamento salarial',
+  'ferias',
+  '13o salario - 1a parcela',
+  '13o salario 1a parcela',
+  '13 salario - 1 parcela',
+  '13 salario 1 parcela',
+  '13o salario',
+  '13o salario - 2a parcela',
+  '13o salario 2a parcela',
+  '13 salario - 2 parcela',
+  '13 salario 2 parcela',
+  'rescisao',
+  'rescisoes',
+  'gratificacoes',
+  'gratificacao',
+  'vale-alimentacao',
+  'vale alimentacao',
+  'vale-transporte',
+  'vale transporte',
+  'fgts e multa de fgts',
+  'fgts'
+]
+
+/**
+ * Identifica se o fornecedor corresponde à plataforma de benefícios CAJU
+ */
+export function isCajuFornecedor(fornecedorNome?: string | null): boolean {
+  if (!fornecedorNome) return false
+  const norm = normalizarTexto(fornecedorNome)
+  return /^caju(\s|$)/.test(norm) || /(\s|^)caju(\s|$)/.test(norm)
+}
+
+/**
+ * Identifica se o fornecedor possui perfil de colaborador/funcionário CLT
+ * através do histórico de categorias típicas de folha de pagamento
+ */
+export function isCltFornecedor(fornecedorNome?: string | null, categoriasHistorico?: string[]): boolean {
+  if (!fornecedorNome || isCajuFornecedor(fornecedorNome)) return false
+  if (categoriasHistorico && categoriasHistorico.length > 0) {
+    for (const cat of categoriasHistorico) {
+      const cNorm = normalizarTexto(cat)
+      if (
+        cNorm.includes('salario') ||
+        cNorm.includes('adiantamento salarial') ||
+        cNorm.includes('rescis') ||
+        cNorm.includes('ferias') ||
+        cNorm.includes('13')
+      ) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
+/**
+ * Extrai de forma segura o dia do mês de uma string no formato YYYY-MM-DD
+ */
+export function extrairDiaDoMes(dataIso?: string | null): number {
+  if (!dataIso) return 0
+  const partes = dataIso.split('-')
+  if (partes.length >= 3) {
+    return parseInt(partes[2], 10) || 0
+  }
+  return 0
+}
+
+/**
+ * Constantes de Whitelist para Fase 2A (Multi-Tributos e Multi-Adquirentes)
+ */
+export const WHITELIST_RECEITA_FEDERAL = [
+  'inss sobre salarios - gps',
+  'inss sobre salarios',
+  'inss',
+  'pis/cofins',
+  'pis / cofins',
+  'pis',
+  'cofins',
+  'darf previdenciario',
+  'darf prev',
+  'darf',
+  'irrf',
+  'irrf sobre salarios'
+]
+
+export const WHITELIST_PREFEITURA_BH = [
+  'taxas municipais',
+  'taxa municipal',
+  'retencao - iss servicos tomados',
+  'retencao iss servicos tomados',
+  'retencao iss',
+  'retencao - iss',
+  'iss retido'
+]
+
+export const WHITELIST_LILIAN_GEO = [
+  'aluguel',
+  'retencao - darf 3208 - irrf aluguel',
+  'retencao darf 3208 irrf aluguel',
+  'darf 3208'
+]
+
+export const WHITELIST_SISDEB_REDECARD = [
+  'estornos e cancelamentos',
+  'estorno e cancelamento',
+  'tarifas bancarias',
+  'tarifa bancaria'
+]
+
+export const WHITELIST_STONE = [
+  'tarifas de cartoes de credito',
+  'tarifa de cartao de credito',
+  'tarifas de cartao de credito',
+  'tarifas de antecipacoes de cartoes',
+  'tarifa de antecipacao de cartao',
+  'tarifas de antecipacao de cartoes',
+  'antecipacao de cartoes'
+]
+
+/**
+ * Identifica se o fornecedor é a Receita Federal ou guia tributária federal correlata
+ */
+export function isReceitaFederal(fornecedorNome?: string | null): boolean {
+  if (!fornecedorNome) return false
+  const norm = normalizarTexto(fornecedorNome)
+  return norm.includes('receita federal') || norm.startsWith('darf') || norm.includes('recolhimento receita')
+}
+
+/**
+ * Identifica se o fornecedor é a Prefeitura de Belo Horizonte
+ */
+export function isPrefeituraBeloHorizonte(fornecedorNome?: string | null): boolean {
+  if (!fornecedorNome) return false
+  const norm = normalizarTexto(fornecedorNome)
+  return norm.includes('prefeitura') && (norm.includes('belo horizonte') || norm.includes('bh'))
+}
+
+/**
+ * Identifica se o fornecedor é Lilian Geo Leite Soares
+ */
+export function isLilianGeo(fornecedorNome?: string | null): boolean {
+  if (!fornecedorNome) return false
+  const norm = normalizarTexto(fornecedorNome)
+  return norm.includes('lilian geo')
+}
+
+/**
+ * Identifica se o fornecedor é SISDEB REDECARD S A
+ */
+export function isSisdebRedecard(fornecedorNome?: string | null): boolean {
+  if (!fornecedorNome) return false
+  const norm = normalizarTexto(fornecedorNome)
+  return norm.includes('sisdeb') && norm.includes('redecard')
+}
+
+/**
+ * Identifica se o fornecedor é Adquirente STONE
+ */
+export function isStoneAdquirente(fornecedorNome?: string | null): boolean {
+  if (!fornecedorNome) return false
+  const norm = normalizarTexto(fornecedorNome)
+  return norm.includes('stone')
+}
+
+/**
+ * Constantes de Whitelist para Fase 2B (AME Negócios Digitais e Sócios)
+ */
+export const WHITELIST_RUTH_CARNEIRO = [
+  'despesas pessoais dos socios',
+  'despesa pessoal dos socios',
+  'despesas pessoais',
+  'antecipacao de lucros',
+  'antecipacao de lucro'
+]
+
+export const WHITELIST_ELIAS_CARNEIRO = [
+  'honorarios consultoria',
+  'honorario consultoria',
+  'combustiveis',
+  'combustivel',
+  'lanches e refeicoes',
+  'lanches e refeicao'
+]
+
+/**
+ * Identifica se o fornecedor é AME Negócios Digitais
+ */
+export function isAmeNegociosDigitais(fornecedorNome?: string | null): boolean {
+  if (!fornecedorNome) return false
+  const norm = normalizarTexto(fornecedorNome)
+  return norm.includes('ame') && norm.includes('negocios')
+}
+
+/**
+ * Identifica se o fornecedor é Ruth Carneiro Rodrigues
+ */
+export function isRuthCarneiro(fornecedorNome?: string | null): boolean {
+  if (!fornecedorNome) return false
+  const norm = normalizarTexto(fornecedorNome)
+  return norm.includes('ruth') && norm.includes('carneiro')
+}
+
+/**
+ * Identifica se o fornecedor é Elias Carneiro Rodrigues
+ */
+export function isEliasCarneiro(fornecedorNome?: string | null): boolean {
+  if (!fornecedorNome) return false
+  const norm = normalizarTexto(fornecedorNome)
+  return norm.includes('elias') && norm.includes('carneiro')
+}
+
+/**
+ * Identifica se a entidade/fornecedor representa uma Pessoa Física (Sócio, Colaborador, Favorecido PF)
+ */
+export function isPessoaFisica(fornecedorNome?: string | null): boolean {
+  if (!fornecedorNome) return false
+  const norm = normalizarTexto(fornecedorNome)
+  const indicadoresPj = [
+    'ltda', 's/a', 's.a.', 's a ', 'eireli', 'me ', 'epp', 'instituicao de pagamento',
+    'banco', 'prefeitura', 'secretaria', 'receita federal', 'ministerio', 'cartorio', 'comercial', 'industria'
+  ]
+  if (indicadoresPj.some(ind => norm.includes(ind))) return false
+  return true
+}
+
+/**
  * Executa a auditoria de consistência de categorias por fornecedor
  * 100% READ ONLY - Consulta exclusivamente a tabela public.contas_pagar_contaazul_espelho.
  * Não realiza nenhuma operação de escrita (INSERT, UPDATE ou UPSERT) no banco.
@@ -176,6 +416,7 @@ export async function executarAuditoriaCategorias(params: {
     categoriaPadrao: string
     percentualConfianca: number
     totalHistorico: number
+    categoriasHistorico: string[]
   }
 
   const mapaPadrao = new Map<string, PadraoFornecedor>()
@@ -198,7 +439,8 @@ export async function executarAuditoriaCategorias(params: {
     mapaPadrao.set(fornecedorNome, {
       categoriaPadrao: catMaisFrequente,
       percentualConfianca: confianca,
-      totalHistorico: info.total
+      totalHistorico: info.total,
+      categoriasHistorico: Array.from(info.categorias.keys())
     })
   }
 
@@ -235,7 +477,8 @@ export async function executarAuditoriaCategorias(params: {
       }
     }
 
-    const matchCategoria = normalizarTexto(categoriaAtual) === normalizarTexto(padrao.categoriaPadrao)
+    const catAtualNorm = normalizarTexto(categoriaAtual)
+    const matchCategoria = catAtualNorm === normalizarTexto(padrao.categoriaPadrao)
 
     if (matchCategoria) {
       totalConsistentes += 1
@@ -253,23 +496,422 @@ export async function executarAuditoriaCategorias(params: {
         dataVencimento: r.data_vencimento,
         descricao: r.descricao
       }
-    } else {
-      totalDivergentes += 1
-      valorTotalDivergente += valor
-      return {
-        id: r.id,
-        contaAzulId: r.conta_azul_id,
-        fornecedor: fornecedorNome,
-        categoriaEsperada: padrao.categoriaPadrao,
-        categoriaAtual: categoriaAtual,
-        percentualConfianca: padrao.percentualConfianca,
-        totalHistoricoFornecedor: padrao.totalHistorico,
-        status: 'divergente',
-        valor: valor,
-        dataCompetencia: r.data_competencia || r.data_vencimento || '',
-        dataVencimento: r.data_vencimento,
-        descricao: r.descricao
+    }
+
+    // =========================================================================
+    // FASE 1: REDUÇÃO DE FALSOS POSITIVOS (CAJU E FUNCIONÁRIOS CLT)
+    // =========================================================================
+
+    // Regra 1: CAJU (Benefícios Corporativos)
+    if (isCajuFornecedor(fornecedorNome)) {
+      const permitidaCaju = WHITELIST_CAJU.some(w => catAtualNorm.includes(w) || w.includes(catAtualNorm))
+      if (permitidaCaju) {
+        totalConsistentes += 1
+        return {
+          id: r.id,
+          contaAzulId: r.conta_azul_id,
+          fornecedor: fornecedorNome,
+          categoriaEsperada: categoriaAtual,
+          categoriaAtual: categoriaAtual,
+          percentualConfianca: 100,
+          totalHistoricoFornecedor: padrao.totalHistorico,
+          status: 'consistente',
+          valor: valor,
+          dataCompetencia: r.data_competencia || r.data_vencimento || '',
+          dataVencimento: r.data_vencimento,
+          descricao: r.descricao
+        }
       }
+    }
+
+    // Regra 2: Funcionários CLT (Whitelist e Regras Temporais)
+    if (isCltFornecedor(fornecedorNome, padrao.categoriasHistorico)) {
+      const permitidaClt = WHITELIST_CLT.some(w => catAtualNorm.includes(w) || w.includes(catAtualNorm))
+
+      if (permitidaClt) {
+        const diaVenc = extrairDiaDoMes(r.data_vencimento || r.data_competencia)
+
+        // 2.1. Salários: vencimento deve estar entre dias 01 e 08 (5º dia útil / feriados bancários)
+        const isSalario = catAtualNorm.includes('salario') && !catAtualNorm.includes('adiantamento') && !catAtualNorm.includes('13')
+        if (isSalario) {
+          if (diaVenc >= 1 && diaVenc <= 8) {
+            totalConsistentes += 1
+            return {
+              id: r.id,
+              contaAzulId: r.conta_azul_id,
+              fornecedor: fornecedorNome,
+              categoriaEsperada: categoriaAtual,
+              categoriaAtual: categoriaAtual,
+              percentualConfianca: 100,
+              totalHistoricoFornecedor: padrao.totalHistorico,
+              status: 'consistente',
+              valor: valor,
+              dataCompetencia: r.data_competencia || r.data_vencimento || '',
+              dataVencimento: r.data_vencimento,
+              descricao: r.descricao
+            }
+          } else {
+            // Divergência temporal: Salário com vencimento fora do prazo legal (01 a 08)
+            totalDivergentes += 1
+            valorTotalDivergente += valor
+            return {
+              id: r.id,
+              contaAzulId: r.conta_azul_id,
+              fornecedor: fornecedorNome,
+              categoriaEsperada: 'Salários (Vencimento esperado: dias 01 a 08)',
+              categoriaAtual: categoriaAtual,
+              percentualConfianca: padrao.percentualConfianca,
+              totalHistoricoFornecedor: padrao.totalHistorico,
+              status: 'divergente',
+              valor: valor,
+              dataCompetencia: r.data_competencia || r.data_vencimento || '',
+              dataVencimento: r.data_vencimento,
+              descricao: r.descricao
+            }
+          }
+        }
+
+        // 2.2. Adiantamento Salarial: vencimento deve estar entre dias 15 e 25 (quinzena padrão e compensações)
+        const isAdiantamento = catAtualNorm.includes('adiantamento')
+        if (isAdiantamento) {
+          if (diaVenc >= 15 && diaVenc <= 25) {
+            totalConsistentes += 1
+            return {
+              id: r.id,
+              contaAzulId: r.conta_azul_id,
+              fornecedor: fornecedorNome,
+              categoriaEsperada: categoriaAtual,
+              categoriaAtual: categoriaAtual,
+              percentualConfianca: 100,
+              totalHistoricoFornecedor: padrao.totalHistorico,
+              status: 'consistente',
+              valor: valor,
+              dataCompetencia: r.data_competencia || r.data_vencimento || '',
+              dataVencimento: r.data_vencimento,
+              descricao: r.descricao
+            }
+          } else {
+            // Divergência temporal: Adiantamento com vencimento fora da quinzena (15 a 25)
+            totalDivergentes += 1
+            valorTotalDivergente += valor
+            return {
+              id: r.id,
+              contaAzulId: r.conta_azul_id,
+              fornecedor: fornecedorNome,
+              categoriaEsperada: 'Adiantamento Salarial (Vencimento esperado: dias 15 a 25)',
+              categoriaAtual: categoriaAtual,
+              percentualConfianca: padrao.percentualConfianca,
+              totalHistoricoFornecedor: padrao.totalHistorico,
+              status: 'divergente',
+              valor: valor,
+              dataCompetencia: r.data_competencia || r.data_vencimento || '',
+              dataVencimento: r.data_vencimento,
+              descricao: r.descricao
+            }
+          }
+        }
+
+        // 2.3. Demais eventos da whitelist CLT (Férias, 13º, Rescisões, Gratificações, VA, VT, FGTS)
+        totalConsistentes += 1
+        return {
+          id: r.id,
+          contaAzulId: r.conta_azul_id,
+          fornecedor: fornecedorNome,
+          categoriaEsperada: categoriaAtual,
+          categoriaAtual: categoriaAtual,
+          percentualConfianca: 100,
+          totalHistoricoFornecedor: padrao.totalHistorico,
+          status: 'consistente',
+          valor: valor,
+          dataCompetencia: r.data_competencia || r.data_vencimento || '',
+          dataVencimento: r.data_vencimento,
+          descricao: r.descricao
+        }
+      }
+    }
+
+    // =========================================================================
+    // FASE 2A: MULTI_TRIBUTOS & MULTI_ADQUIRENTES
+    // =========================================================================
+
+    // 1. MULTI_TRIBUTOS: Receita Federal
+    if (isReceitaFederal(fornecedorNome)) {
+      const permitida = WHITELIST_RECEITA_FEDERAL.some(w => catAtualNorm.includes(w) || w.includes(catAtualNorm))
+      if (permitida) {
+        totalConsistentes += 1
+        return {
+          id: r.id,
+          contaAzulId: r.conta_azul_id,
+          fornecedor: fornecedorNome,
+          categoriaEsperada: categoriaAtual,
+          categoriaAtual: categoriaAtual,
+          percentualConfianca: 100,
+          totalHistoricoFornecedor: padrao.totalHistorico,
+          status: 'consistente',
+          valor: valor,
+          dataCompetencia: r.data_competencia || r.data_vencimento || '',
+          dataVencimento: r.data_vencimento,
+          descricao: r.descricao
+        }
+      }
+    }
+
+    // 1. MULTI_TRIBUTOS: Prefeitura de Belo Horizonte
+    if (isPrefeituraBeloHorizonte(fornecedorNome)) {
+      const permitida = WHITELIST_PREFEITURA_BH.some(w => catAtualNorm.includes(w) || w.includes(catAtualNorm))
+      if (permitida) {
+        totalConsistentes += 1
+        return {
+          id: r.id,
+          contaAzulId: r.conta_azul_id,
+          fornecedor: fornecedorNome,
+          categoriaEsperada: categoriaAtual,
+          categoriaAtual: categoriaAtual,
+          percentualConfianca: 100,
+          totalHistoricoFornecedor: padrao.totalHistorico,
+          status: 'consistente',
+          valor: valor,
+          dataCompetencia: r.data_competencia || r.data_vencimento || '',
+          dataVencimento: r.data_vencimento,
+          descricao: r.descricao
+        }
+      }
+    }
+
+    // 1. MULTI_TRIBUTOS: LILIAN GEO LEITE SOARES
+    if (isLilianGeo(fornecedorNome)) {
+      const permitida = WHITELIST_LILIAN_GEO.some(w => catAtualNorm.includes(w) || w.includes(catAtualNorm))
+      if (permitida) {
+        totalConsistentes += 1
+        return {
+          id: r.id,
+          contaAzulId: r.conta_azul_id,
+          fornecedor: fornecedorNome,
+          categoriaEsperada: categoriaAtual,
+          categoriaAtual: categoriaAtual,
+          percentualConfianca: 100,
+          totalHistoricoFornecedor: padrao.totalHistorico,
+          status: 'consistente',
+          valor: valor,
+          dataCompetencia: r.data_competencia || r.data_vencimento || '',
+          dataVencimento: r.data_vencimento,
+          descricao: r.descricao
+        }
+      }
+    }
+
+    // 2. MULTI_ADQUIRENTES: SISDEB REDECARD S A
+    if (isSisdebRedecard(fornecedorNome)) {
+      const permitida = WHITELIST_SISDEB_REDECARD.some(w => catAtualNorm.includes(w) || w.includes(catAtualNorm))
+      if (permitida) {
+        totalConsistentes += 1
+        return {
+          id: r.id,
+          contaAzulId: r.conta_azul_id,
+          fornecedor: fornecedorNome,
+          categoriaEsperada: categoriaAtual,
+          categoriaAtual: categoriaAtual,
+          percentualConfianca: 100,
+          totalHistoricoFornecedor: padrao.totalHistorico,
+          status: 'consistente',
+          valor: valor,
+          dataCompetencia: r.data_competencia || r.data_vencimento || '',
+          dataVencimento: r.data_vencimento,
+          descricao: r.descricao
+        }
+      }
+    }
+
+    // 2. MULTI_ADQUIRENTES: STONE
+    if (isStoneAdquirente(fornecedorNome)) {
+      const permitida = WHITELIST_STONE.some(w => catAtualNorm.includes(w) || w.includes(catAtualNorm))
+      if (permitida) {
+        totalConsistentes += 1
+        return {
+          id: r.id,
+          contaAzulId: r.conta_azul_id,
+          fornecedor: fornecedorNome,
+          categoriaEsperada: categoriaAtual,
+          categoriaAtual: categoriaAtual,
+          percentualConfianca: 100,
+          totalHistoricoFornecedor: padrao.totalHistorico,
+          status: 'consistente',
+          valor: valor,
+          dataCompetencia: r.data_competencia || r.data_vencimento || '',
+          dataVencimento: r.data_vencimento,
+          descricao: r.descricao
+        }
+      }
+    }
+
+    // =========================================================================
+    // FASE 2B: AME NEGÓCIOS DIGITAIS E SÓCIOS (RUTH E ELIAS)
+    // =========================================================================
+
+    // 1. AME NEGOCIOS DIGITAIS (Fase 2B e Fase 2C)
+    if (isAmeNegociosDigitais(fornecedorNome)) {
+      const descNorm = normalizarTexto(r.descricao)
+
+      // 1.1. Telefonia e Internet (Fase 2B)
+      const isTelefoniaInternet = catAtualNorm.includes('telefonia') && catAtualNorm.includes('internet')
+      if (isTelefoniaInternet) {
+        const matchValor = Math.abs(valor - 620) < 0.01
+        const matchDescricao =
+          descNorm.includes('atendimento') ||
+          descNorm.includes('servico de atendimento') ||
+          descNorm.includes('voip') ||
+          descNorm.includes('pabx')
+
+        if (matchValor || matchDescricao) {
+          totalConsistentes += 1
+          return {
+            id: r.id,
+            contaAzulId: r.conta_azul_id,
+            fornecedor: fornecedorNome,
+            categoriaEsperada: categoriaAtual,
+            categoriaAtual: categoriaAtual,
+            percentualConfianca: 100,
+            totalHistoricoFornecedor: padrao.totalHistorico,
+            status: 'consistente',
+            valor: valor,
+            dataCompetencia: r.data_competencia || r.data_vencimento || '',
+            dataVencimento: r.data_vencimento,
+            descricao: r.descricao
+          }
+        }
+      }
+
+      // 1.2. Insumos/Materiais de Oficina para Check-list ou Impressos (Fase 2C)
+      const isInsumosOficina =
+        catAtualNorm.includes('insumos') ||
+        catAtualNorm.includes('materiais de oficina') ||
+        catAtualNorm.includes('material de oficina')
+      if (isInsumosOficina) {
+        const matchChecklistOuImpressos =
+          descNorm.includes('check list') ||
+          descNorm.includes('checklist') ||
+          descNorm.includes('impressos') ||
+          descNorm.includes('impresso')
+
+        if (matchChecklistOuImpressos) {
+          totalConsistentes += 1
+          return {
+            id: r.id,
+            contaAzulId: r.conta_azul_id,
+            fornecedor: fornecedorNome,
+            categoriaEsperada: categoriaAtual,
+            categoriaAtual: categoriaAtual,
+            percentualConfianca: 100,
+            totalHistoricoFornecedor: padrao.totalHistorico,
+            status: 'consistente',
+            valor: valor,
+            dataCompetencia: r.data_competencia || r.data_vencimento || '',
+            dataVencimento: r.data_vencimento,
+            descricao: r.descricao
+          }
+        }
+      }
+      // Casos como Limpeza predial (ex: LIMPEZA AR BARAO) permanecem divergentes
+    }
+
+    // 2. RUTH CARNEIRO RODRIGUES (Despesas Pessoais dos Sócios e Antecipação de Lucros)
+    if (isRuthCarneiro(fornecedorNome)) {
+      const permitida = WHITELIST_RUTH_CARNEIRO.some(w => catAtualNorm.includes(w) || w.includes(catAtualNorm))
+      if (permitida) {
+        totalConsistentes += 1
+        return {
+          id: r.id,
+          contaAzulId: r.conta_azul_id,
+          fornecedor: fornecedorNome,
+          categoriaEsperada: categoriaAtual,
+          categoriaAtual: categoriaAtual,
+          percentualConfianca: 100,
+          totalHistoricoFornecedor: padrao.totalHistorico,
+          status: 'consistente',
+          valor: valor,
+          dataCompetencia: r.data_competencia || r.data_vencimento || '',
+          dataVencimento: r.data_vencimento,
+          descricao: r.descricao
+        }
+      }
+    }
+
+    // 3. ELIAS CARNEIRO RODRIGUES (Honorários Consultoria, Combustíveis, Lanches e Refeições)
+    // NÃO inclui Antecipação de Lucros (RETIRADA SILAS - ELIAS BTG continua divergente)
+    if (isEliasCarneiro(fornecedorNome)) {
+      const permitida = WHITELIST_ELIAS_CARNEIRO.some(w => catAtualNorm.includes(w) || w.includes(catAtualNorm))
+      if (permitida) {
+        totalConsistentes += 1
+        return {
+          id: r.id,
+          contaAzulId: r.conta_azul_id,
+          fornecedor: fornecedorNome,
+          categoriaEsperada: categoriaAtual,
+          categoriaAtual: categoriaAtual,
+          percentualConfianca: 100,
+          totalHistoricoFornecedor: padrao.totalHistorico,
+          status: 'consistente',
+          valor: valor,
+          dataCompetencia: r.data_competencia || r.data_vencimento || '',
+          dataVencimento: r.data_vencimento,
+          descricao: r.descricao
+        }
+      }
+    }
+
+    // =========================================================================
+    // FASE 2C: REGRA DE REEMBOLSO CONTEXTUAL (POR DESCRIÇÃO "REEMBOLSO")
+    // =========================================================================
+    const descNormReembolso = normalizarTexto(r.descricao)
+    if (descNormReembolso.includes('reembolso')) {
+      const fornecedorNomeNorm = normalizarTexto(fornecedorNome)
+      const isPessoaFisicaOuColaborador =
+        fornecedorNomeNorm.includes('silas') ||
+        fornecedorNomeNorm.includes('claudio leonardo') ||
+        isPessoaFisica(fornecedorNome)
+
+      const isCategoriaReembolsoValida =
+        catAtualNorm.includes('confraternizac') ||
+        catAtualNorm.includes('lanches e refeic') ||
+        catAtualNorm.includes('insumos') ||
+        catAtualNorm.includes('materiais de oficina') ||
+        catAtualNorm.includes('combustiv')
+
+      if (isPessoaFisicaOuColaborador && isCategoriaReembolsoValida) {
+        totalConsistentes += 1
+        return {
+          id: r.id,
+          contaAzulId: r.conta_azul_id,
+          fornecedor: fornecedorNome,
+          categoriaEsperada: categoriaAtual,
+          categoriaAtual: categoriaAtual,
+          percentualConfianca: 100,
+          totalHistoricoFornecedor: padrao.totalHistorico,
+          status: 'consistente',
+          valor: valor,
+          dataCompetencia: r.data_competencia || r.data_vencimento || '',
+          dataVencimento: r.data_vencimento,
+          descricao: r.descricao
+        }
+      }
+    }
+
+    // Regra 3: Categoria Única (demais fornecedores mantêm comportamento atual)
+    totalDivergentes += 1
+    valorTotalDivergente += valor
+    return {
+      id: r.id,
+      contaAzulId: r.conta_azul_id,
+      fornecedor: fornecedorNome,
+      categoriaEsperada: padrao.categoriaPadrao,
+      categoriaAtual: categoriaAtual,
+      percentualConfianca: padrao.percentualConfianca,
+      totalHistoricoFornecedor: padrao.totalHistorico,
+      status: 'divergente',
+      valor: valor,
+      dataCompetencia: r.data_competencia || r.data_vencimento || '',
+      dataVencimento: r.data_vencimento,
+      descricao: r.descricao
     }
   })
 
