@@ -37,11 +37,11 @@ const navSections: NavSection[] = [
     title: 'OPERAÇÃO & FISCAL',
     items: [
       { label: 'Vendas Produtos', href: '/vendas', icon: ShoppingBag },
-      { label: 'Vendas Serviços', href: '/vendas-servicos', icon: Receipt, badge: 'NOVO', badgeColor: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30' },
+      { label: 'Vendas Serviços', href: '/vendas-servicos', icon: Receipt, badge: 'EM BREVE', badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30' },
       { label: 'Notas Emitidas', href: '/notas-emitidas', icon: FileCheck2 },
-      { label: 'Contas a Pagar', href: '/contas-pagar', icon: ArrowDownCircle, badge: 'ATIVO', badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' },
-      { label: 'Auditoria de Categorias', href: '/auditoria-categorias', icon: ShieldCheck, badge: 'NOVO', badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/30' },
-      { label: 'Gestão Pagamentos', href: '/gestao-pagamentos', icon: Layers, badge: 'NOVO', badgeColor: 'bg-purple-500/10 text-purple-400 border-purple-500/30' },
+      { label: 'Contas a Pagar', href: '/contas-pagar', icon: ArrowDownCircle },
+      { label: 'Auditoria de Categorias', href: '/auditoria-categorias', icon: ShieldCheck, badge: 'EM BREVE', badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30' },
+      { label: 'Gestão Pagamentos', href: '/gestao-pagamentos', icon: Layers },
       { label: 'Contas a Receber', href: '/contas-receber', icon: ArrowUpCircle, badge: 'EM BREVE', disabled: true },
     ]
   },
@@ -101,16 +101,16 @@ export default function Sidebar() {
           isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        {/* Logo do app + Botão Fechar Mobile */}
-        <div className="p-4 flex items-center justify-between min-h-[90px] lg:min-h-[105px] border-b border-slate-200/70 dark:border-white/[0.06] mb-1">
+        {/* Logo do app + Botão Fechar Mobile (Logo ampliado e refinado) */}
+        <div className="p-4 flex items-center justify-between min-h-[96px] lg:min-h-[112px] border-b border-slate-200/70 dark:border-white/[0.06] mb-1 bg-gradient-to-b from-slate-50/50 to-transparent dark:from-white/[0.02]">
           <img 
             src="/images/dinheiro-em-caixa-logo.png" 
             alt="Dinheiro em Caixa" 
-            className="w-full max-w-[145px] lg:max-w-[170px] h-auto object-contain drop-shadow-sm transition-transform duration-200 hover:scale-[1.02]" 
+            className="w-full max-w-[155px] lg:max-w-[185px] h-auto object-contain drop-shadow-sm transition-transform duration-300 hover:scale-[1.03]" 
           />
           <button
             onClick={closeMobile}
-            className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-dark-800 transition-colors cursor-pointer"
+            className="lg:hidden p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-dark-800 transition-colors cursor-pointer"
             title="Fechar menu"
           >
             <X size={18} />
@@ -134,10 +134,10 @@ export default function Sidebar() {
                     key={item.href}
                     href={item.disabled ? '#' : item.href}
                     className={cn(
-                      'relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-150 group',
+                      'relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 group',
                       isActive 
                         ? 'bg-brand-500/10 dark:bg-brand-500/15 text-brand-600 dark:text-brand-400 font-semibold border border-brand-500/20 shadow-xs' 
-                        : 'text-slate-600 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-white/[0.04]',
+                        : 'text-slate-600 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/90 dark:hover:bg-white/[0.06] hover:translate-x-0.5',
                       item.disabled && 'opacity-40 cursor-not-allowed pointer-events-none'
                     )}
                   >
@@ -147,7 +147,7 @@ export default function Sidebar() {
                     )}
 
                     <Icon size={17} className={cn(
-                      'flex-shrink-0 transition-transform duration-150 group-hover:scale-110',
+                      'flex-shrink-0 transition-transform duration-200 group-hover:scale-110',
                       isActive ? 'text-brand-600 dark:text-brand-400' : 'text-slate-400 dark:text-dark-400 group-hover:text-slate-700 dark:group-hover:text-white'
                     )} />
                     
@@ -179,26 +179,33 @@ export default function Sidebar() {
         </nav>
 
         {/* Footer */}
-        <div className="p-3 border-t border-slate-200/80 dark:border-white/[0.08] space-y-2 bg-slate-50/50 dark:bg-dark-900/60 backdrop-blur-sm">
-          <div className="flex items-center justify-between bg-slate-100/80 dark:bg-dark-800/80 border border-slate-200/80 dark:border-dark-700/70 rounded-xl px-2.5 py-2">
-            <div className="flex-1 flex items-center gap-2.5 min-w-0 text-left select-none">
+        <div className="p-3 border-t border-slate-200/80 dark:border-white/[0.08] space-y-2 bg-slate-50/60 dark:bg-dark-900/70 backdrop-blur-md">
+          {/* Avatar do Usuário Estilo SaaS Premium */}
+          <div className="flex items-center justify-between bg-white dark:bg-dark-850/90 hover:bg-slate-50 dark:hover:bg-dark-800 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl p-2.5 shadow-xs transition-all group">
+            <div className="flex-1 flex items-center gap-3 min-w-0 text-left select-none">
               <div className="relative flex-shrink-0">
-                <div className={`w-8 h-8 ${accentClasses.bg}/15 border ${accentClasses.border}/40 rounded-full flex items-center justify-center`}>
-                  <User size={14} className={accentClasses.text} />
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 p-[1.5px] shadow-xs">
+                  <div className="w-full h-full bg-white dark:bg-dark-900 rounded-[10px] flex items-center justify-center">
+                    <User size={15} className="text-brand-600 dark:text-brand-400" />
+                  </div>
                 </div>
                 {/* Dot status Online */}
-                <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-dark-800" />
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-dark-850" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-slate-900 dark:text-white text-xs font-semibold truncate">{config.nomeExibicao || userEmail || '...'}</p>
-                <p className="text-[10px] text-slate-500 dark:text-dark-400 truncate">{config.nomeExibicao ? userEmail : (userEmail ? 'Conectado' : 'Carregando...')}</p>
+                <p className="text-slate-900 dark:text-white text-xs font-bold truncate group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
+                  {config.nomeExibicao || userEmail || '...'}
+                </p>
+                <p className="text-[10px] text-slate-500 dark:text-dark-400 truncate">
+                  {config.nomeExibicao ? userEmail : (userEmail ? 'Conectado' : 'Carregando...')}
+                </p>
               </div>
             </div>
 
             <button
               onClick={toggleTema}
               title={config.darkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
-              className="p-1.5 hover:bg-slate-200/70 dark:hover:bg-dark-700/70 rounded-lg text-slate-500 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white transition-all flex-shrink-0 ml-1 cursor-pointer"
+              className="p-1.5 hover:bg-slate-100 dark:hover:bg-dark-700/80 rounded-xl text-slate-500 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white transition-all flex-shrink-0 ml-1 cursor-pointer"
             >
               {config.darkMode ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} className="text-indigo-500" />}
             </button>
