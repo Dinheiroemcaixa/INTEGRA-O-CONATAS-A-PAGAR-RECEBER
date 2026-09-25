@@ -1,10 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import toast from 'react-hot-toast'
+import Link from 'next/link'
 import {
-  Eye, EyeOff, LogIn, Loader2, X,
+  LogIn,
   Car, Building2, CreditCard, Receipt,
   ArrowDownToLine, RefreshCw, Zap, ArrowLeftRight,
   Sun, Moon
@@ -13,81 +11,6 @@ import { useAppConfig } from '@/contexts/AppConfigContext'
 
 export default function HomePageClient() {
   const { config, update } = useAppConfig()
-  const [email, setEmail] = useState('')
-  const [senha, setSenha] = useState('')
-  const [mostrarSenha, setMostrarSenha] = useState(false)
-  const [carregando, setCarregando] = useState(false)
-  const [modoRegistro, setModoRegistro] = useState(false)
-  const [mostrarCard, setMostrarCard] = useState(false)
-  const supabase = createClient()
-
-  const fazerLogin = async (emailVal: string, senhaVal: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: emailVal,
-      password: senhaVal,
-    })
-    if (error) throw error
-
-    await new Promise(r => setTimeout(r, 1000))
-    const check = await fetch('/api/auth/check')
-    const { authenticated } = await check.json()
-
-    if (authenticated) {
-      window.location.replace('/dashboard')
-    } else {
-      await new Promise(r => setTimeout(r, 1500))
-      window.location.replace('/dashboard')
-    }
-
-    return data
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setCarregando(true)
-    try {
-      if (modoRegistro) {
-        const { error } = await supabase.auth.signUp({ email, password: senha })
-        if (error) throw error
-        toast.success('Conta criada! Fazendo login...')
-        await fazerLogin(email, senha)
-      } else {
-        await fazerLogin(email, senha)
-        toast.success('Bem-vindo!')
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro desconhecido'
-      if (msg.includes('Invalid login credentials')) {
-        toast.error('E-mail ou senha incorretos')
-      } else if (msg.includes('Email not confirmed')) {
-        toast.error('Confirme seu e-mail antes de entrar')
-      } else {
-        toast.error(msg)
-      }
-    } finally {
-      setCarregando(false)
-    }
-  }
-
-  const handleResetSenha = async () => {
-    if (!email) {
-      toast.error('Por favor, preencha o campo de e-mail para receber o link de redefinição.')
-      return
-    }
-    setCarregando(true)
-    try {
-      const redirectUrl = `${window.location.origin}/dashboard`
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectUrl
-      })
-      if (error) throw error
-      toast.success('E-mail de redefinição enviado! Verifique sua caixa de entrada.', { duration: 6000 })
-    } catch (err: any) {
-      toast.error(err.message || 'Erro ao enviar e-mail de redefinição.')
-    } finally {
-      setCarregando(false)
-    }
-  }
 
   return (
     <div className="relative min-h-screen bg-slate-50 dark:bg-[#070a13] text-slate-800 dark:text-[#f4f6fb] overflow-x-hidden selection:bg-emerald-500 selection:text-white dark:selection:text-black transition-colors duration-200">
@@ -146,13 +69,13 @@ export default function HomePageClient() {
             {config.darkMode ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-indigo-500" />}
           </button>
 
-          <button
-            onClick={() => setMostrarCard(true)}
+          <Link
+            href="/login"
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-[#1c2436] bg-white dark:bg-[#0c1120] hover:bg-slate-100 dark:hover:bg-[#151c2e] hover:border-[#2ee88a]/40 text-xs font-semibold text-slate-800 dark:text-[#f4f6fb] transition-all cursor-pointer shadow-xs"
           >
             <LogIn size={14} className="text-[#2ee88a]" />
             Entrar
-          </button>
+          </Link>
         </div>
       </nav>
 
@@ -459,100 +382,6 @@ export default function HomePageClient() {
           <div>© 2026 CONNECTA AI. Todos os direitos reservados.</div>
         </div>
       </footer>
-
-      {/* LOGIN MODAL */}
-      {mostrarCard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/75 backdrop-blur-md animate-fade-in">
-          <div className="relative w-full max-w-md z-20">
-            <button 
-              onClick={() => setMostrarCard(false)}
-              className="absolute -top-3 -right-3 p-2 bg-white dark:bg-[#0c1120] text-slate-500 hover:text-slate-900 dark:text-[#8b94ab] dark:hover:text-white rounded-full border border-slate-200 dark:border-[#1c2436] shadow-xl transition-colors cursor-pointer"
-            >
-              <X size={18} />
-            </button>
-
-            <div className="bg-white dark:bg-[#0c1120] rounded-3xl border border-slate-200 dark:border-[#1c2436] p-8 shadow-2xl relative">
-              <div className="text-center mb-6">
-                <div className="w-14 h-14 rounded-2xl bg-[#2ee88a] text-[#04150c] flex items-center justify-center font-black text-2xl mx-auto mb-3 shadow-lg shadow-[#2ee88a]/30">
-                  C
-                </div>
-                <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">
-                  {modoRegistro ? 'Criar conta' : 'Entrar no CONNECTA AI'}
-                </h2>
-                <p className="text-xs text-slate-600 dark:text-[#8b94ab] mt-1">Acesse seu painel de gestão financeira e BPO</p>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-[#8b94ab] uppercase tracking-wider mb-1.5">E-mail</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="seu@email.com.br"
-                    required
-                    className="w-full bg-slate-50 dark:bg-[#070a13] border border-slate-300 dark:border-[#1c2436] rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-[#586178] focus:outline-none focus:border-emerald-500 dark:focus:border-[#2ee88a] focus:bg-white dark:focus:bg-[#070a13] transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-[#8b94ab] uppercase tracking-wider mb-1.5">Senha</label>
-                  <div className="relative">
-                    <input
-                      type={mostrarSenha ? 'text' : 'password'}
-                      value={senha}
-                      onChange={(e) => setSenha(e.target.value)}
-                      placeholder="••••••••"
-                      required
-                      minLength={6}
-                      className="w-full bg-slate-50 dark:bg-[#070a13] border border-slate-300 dark:border-[#1c2436] rounded-xl px-4 py-3 pr-12 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-[#586178] focus:outline-none focus:border-emerald-500 dark:focus:border-[#2ee88a] focus:bg-white dark:focus:bg-[#070a13] transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setMostrarSenha(!mostrarSenha)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900 dark:text-[#8b94ab] dark:hover:text-white transition-colors"
-                    >
-                      {mostrarSenha ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </div>
-
-                {!modoRegistro && (
-                  <div className="text-right">
-                    <button
-                      type="button"
-                      onClick={handleResetSenha}
-                      disabled={carregando}
-                      className="text-xs text-slate-600 dark:text-[#8b94ab] hover:text-emerald-600 dark:hover:text-[#2ee88a] transition-colors font-medium cursor-pointer"
-                    >
-                      Esqueceu a senha?
-                    </button>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={carregando}
-                  className="w-full bg-emerald-500 hover:bg-emerald-600 dark:bg-[#2ee88a] dark:hover:bg-[#25c474] disabled:opacity-60 text-white dark:text-[#04150c] font-extrabold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20 dark:shadow-[#2ee88a]/30 mt-4 cursor-pointer"
-                >
-                  {carregando ? <Loader2 size={18} className="animate-spin" /> : <LogIn size={18} />}
-                  {modoRegistro ? 'Criar Conta' : 'Entrar na Plataforma'}
-                </button>
-              </form>
-
-              <p className="text-center text-xs text-slate-600 dark:text-[#8b94ab] mt-6">
-                {modoRegistro ? 'Já tem uma conta?' : 'Ainda não tem acesso?'}{' '}
-                <button
-                  onClick={() => setModoRegistro(!modoRegistro)}
-                  className="text-emerald-600 dark:text-[#2ee88a] hover:underline font-bold transition-colors cursor-pointer"
-                >
-                  {modoRegistro ? 'Fazer login' : 'Criar conta'}
-                </button>
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   )
