@@ -90,7 +90,7 @@ export default function HomePageClient() {
   }
 
   return (
-    <div className="relative min-h-screen bg-[#070a13] text-[#f4f6fb] overflow-x-hidden selection:bg-emerald-500 selection:text-black">
+    <div className="relative min-h-screen bg-slate-50 dark:bg-[#070a13] text-slate-800 dark:text-[#f4f6fb] overflow-x-hidden selection:bg-emerald-500 selection:text-white dark:selection:text-black transition-colors duration-200">
 
       {/* Estilos inline para animação da energia fluindo no fio */}
       <style jsx global>{`
@@ -119,36 +119,36 @@ export default function HomePageClient() {
       `}</style>
 
       {/* Ambient background glows */}
-      <div className="absolute inset-0 pointer-events-none z-0 bg-[radial-gradient(900px_600px_at_78%_-8%,rgba(46,232,138,0.15),transparent_60%),radial-gradient(700px_500px_at_12%_8%,rgba(91,157,245,0.12),transparent_55%)]" />
-      <div className="absolute inset-0 z-0 pointer-events-none bg-[radial-gradient(1px_1px_at_12%_18%,#fff,transparent),radial-gradient(1px_1px_at_44%_28%,#fff,transparent),radial-gradient(1px_1px_at_79%_22%,#fff,transparent)] opacity-40" />
+      <div className="absolute inset-0 pointer-events-none z-0 bg-[radial-gradient(900px_600px_at_78%_-8%,rgba(46,232,138,0.08),transparent_60%),radial-gradient(700px_500px_at_12%_8%,rgba(91,157,245,0.08),transparent_55%)] dark:bg-[radial-gradient(900px_600px_at_78%_-8%,rgba(46,232,138,0.15),transparent_60%),radial-gradient(700px_500px_at_12%_8%,rgba(91,157,245,0.12),transparent_55%)]" />
+      <div className="absolute inset-0 z-0 pointer-events-none bg-[radial-gradient(1px_1px_at_12%_18%,#cbd5e1,transparent),radial-gradient(1px_1px_at_44%_28%,#cbd5e1,transparent),radial-gradient(1px_1px_at_79%_22%,#cbd5e1,transparent)] dark:bg-[radial-gradient(1px_1px_at_12%_18%,#fff,transparent),radial-gradient(1px_1px_at_44%_28%,#fff,transparent),radial-gradient(1px_1px_at_79%_22%,#fff,transparent)] opacity-40" />
 
       {/* NAV COMPACTA */}
       <nav className="relative z-20 max-w-[1180px] mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5 font-extrabold text-lg tracking-wider">
-          <div className="w-7 h-7 rounded-lg bg-[#2ee88a] text-[#04150c] flex items-center justify-center font-black text-sm shadow-lg shadow-[#2ee88a]/20">
+          <div className="w-7 h-7 rounded-lg bg-[#2ee88a] text-[#04150c] flex items-center justify-center font-black text-sm shadow-md shadow-[#2ee88a]/20">
             C
           </div>
-          <span className="text-white text-base">CONNECTA<span className="text-[#2ee88a] ml-1">AI</span></span>
+          <span className="text-slate-900 dark:text-white text-base">CONNECTA<span className="text-[#2ee88a] ml-1">AI</span></span>
         </div>
 
-        <div className="hidden md:flex items-center gap-6 text-xs font-semibold text-[#8b94ab]">
-          <a href="#como" className="hover:text-white transition-colors">Como funciona</a>
-          <a href="#integracoes" className="hover:text-white transition-colors">Integrações</a>
-          <a href="#recursos" className="hover:text-white transition-colors">Recursos</a>
+        <div className="hidden md:flex items-center gap-6 text-xs font-semibold text-slate-600 dark:text-[#8b94ab]">
+          <a href="#como" className="hover:text-slate-900 dark:hover:text-white transition-colors">Como funciona</a>
+          <a href="#integracoes" className="hover:text-slate-900 dark:hover:text-white transition-colors">Integrações</a>
+          <a href="#recursos" className="hover:text-slate-900 dark:hover:text-white transition-colors">Recursos</a>
         </div>
 
         <div className="flex items-center gap-2.5">
           <button
             onClick={() => update({ darkMode: !config.darkMode })}
             title={config.darkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
-            className="p-1.5 rounded-xl border border-[#1c2436] bg-[#0c1120] hover:bg-[#151c2e] text-[#8b94ab] hover:text-white transition-all cursor-pointer shadow-sm"
+            className="p-1.5 rounded-xl border border-slate-200 dark:border-[#1c2436] bg-white dark:bg-[#0c1120] hover:bg-slate-100 dark:hover:bg-[#151c2e] text-slate-600 dark:text-[#8b94ab] hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer shadow-xs"
           >
-            {config.darkMode ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-blue-400" />}
+            {config.darkMode ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-indigo-500" />}
           </button>
 
           <button
             onClick={() => setMostrarCard(true)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-[#1c2436] bg-[#0c1120] hover:bg-[#151c2e] hover:border-[#2ee88a]/40 text-xs font-semibold text-[#f4f6fb] transition-all cursor-pointer shadow-md"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-[#1c2436] bg-white dark:bg-[#0c1120] hover:bg-slate-100 dark:hover:bg-[#151c2e] hover:border-[#2ee88a]/40 text-xs font-semibold text-slate-800 dark:text-[#f4f6fb] transition-all cursor-pointer shadow-xs"
           >
             <LogIn size={14} className="text-[#2ee88a]" />
             Entrar
@@ -159,23 +159,23 @@ export default function HomePageClient() {
       {/* HERO SECTION COMPACTADA (OTIMIZADA PARA PRIMEIRA DOBRA EM NOTEBOOKS) */}
       <header className="relative z-10 max-w-[1080px] mx-auto px-4 pt-1 pb-4 text-center">
         {/* BADGE */}
-        <div className="inline-flex items-center gap-2 bg-[#0c1120] border border-[#1c2436] px-3 py-1 rounded-full text-[11px] font-semibold tracking-wider text-[#8b94ab] uppercase mb-2 shadow-inner">
+        <div className="inline-flex items-center gap-2 bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] px-3 py-1 rounded-full text-[11px] font-semibold tracking-wider text-slate-600 dark:text-[#8b94ab] uppercase mb-2 shadow-xs">
           <span className="w-1.5 h-1.5 rounded-full bg-[#2ee88a] animate-pulse" />
           BPO FINANCEIRO · GESTÃO FINANCEIRA COMPLETA
         </div>
 
         {/* TITLE */}
-        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-1 text-white drop-shadow-[0_0_40px_rgba(46,232,138,0.25)]">
+        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-1 text-slate-900 dark:text-white drop-shadow-[0_0_40px_rgba(46,232,138,0.15)] dark:drop-shadow-[0_0_40px_rgba(46,232,138,0.25)]">
           CONNECTA <span className="text-[#2ee88a]">AI</span>
         </h1>
 
         {/* TAGLINE */}
-        <h2 className="text-base md:text-2xl font-bold max-w-2xl mx-auto leading-tight text-white mb-1.5">
+        <h2 className="text-base md:text-2xl font-bold max-w-2xl mx-auto leading-tight text-slate-800 dark:text-white mb-1.5">
           Contas a pagar, pagamentos e NFe, <span className="text-[#2ee88a]">tudo em um clique.</span>
         </h2>
 
         {/* SUBTITLE */}
-        <p className="text-xs md:text-sm text-[#8b94ab] max-w-2xl mx-auto leading-relaxed mb-4">
+        <p className="text-xs md:text-sm text-slate-600 dark:text-[#8b94ab] max-w-2xl mx-auto leading-relaxed mb-4">
           O CONNECTA AI busca contas a pagar, contas a receber e vendas no seu sistema, deixa você conferir tudo, executa os pagamentos e emite a NFe automaticamente — do lançamento à nota fiscal, sem digitação e sem retrabalho.
         </p>
 
@@ -253,12 +253,12 @@ export default function HomePageClient() {
             {/* PRIMEIRA LINHA DE NÓS (ORIGEM & DESTINO) */}
             <div className="flex justify-between items-center z-10 gap-3">
               {/* NÓ DATACAR */}
-              <div className="bg-[#0c1120] border border-[#1c2436] rounded-xl p-3 w-44 text-left shadow-xl hover:border-[#f0b74f] transition-all transform hover:-translate-y-0.5">
-                <div className="w-8 h-8 rounded-lg bg-[#f0b74f]/15 text-[#f0b74f] flex items-center justify-center text-base mb-1.5 shadow-sm">
+              <div className="bg-white dark:bg-[#0c1120] border border-slate-200/90 dark:border-[#1c2436] rounded-xl p-3 w-44 text-left shadow-lg dark:shadow-xl hover:border-[#f0b74f] transition-all transform hover:-translate-y-0.5">
+                <div className="w-8 h-8 rounded-lg bg-[#f0b74f]/15 text-[#f0b74f] flex items-center justify-center text-base mb-1.5 shadow-xs">
                   <Car size={16} />
                 </div>
-                <div className="text-xs font-bold text-white">Datacar</div>
-                <div className="text-[10px] text-[#586178]">Sistema de origem</div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white">Datacar</div>
+                <div className="text-[10px] text-slate-500 dark:text-[#586178]">Sistema de origem</div>
                 <div className="mt-1 text-[9px] font-mono text-[#f0b74f] uppercase tracking-wider font-bold flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#f0b74f] animate-pulse inline-block" />
                   Extrai Dados
@@ -266,12 +266,12 @@ export default function HomePageClient() {
               </div>
 
               {/* NÓ CONTA AZUL */}
-              <div className="bg-[#0c1120] border border-[#1c2436] rounded-xl p-3 w-44 text-left shadow-xl hover:border-[#2ee88a] transition-all transform hover:-translate-y-0.5">
-                <div className="w-8 h-8 rounded-lg bg-[#2ee88a]/15 text-[#2ee88a] flex items-center justify-center text-base mb-1.5 shadow-sm">
+              <div className="bg-white dark:bg-[#0c1120] border border-slate-200/90 dark:border-[#1c2436] rounded-xl p-3 w-44 text-left shadow-lg dark:shadow-xl hover:border-[#2ee88a] transition-all transform hover:-translate-y-0.5">
+                <div className="w-8 h-8 rounded-lg bg-[#2ee88a]/15 text-[#2ee88a] flex items-center justify-center text-base mb-1.5 shadow-xs">
                   <Building2 size={16} />
                 </div>
-                <div className="text-xs font-bold text-white">Conta Azul</div>
-                <div className="text-[10px] text-[#586178]">Sistema de destino</div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white">Conta Azul</div>
+                <div className="text-[10px] text-slate-500 dark:text-[#586178]">Sistema de destino</div>
                 <div className="mt-1 text-[9px] font-mono text-[#2ee88a] uppercase tracking-wider font-bold flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#2ee88a] animate-pulse inline-block" />
                   Importa & Lança
@@ -281,14 +281,14 @@ export default function HomePageClient() {
 
             {/* CENTRO: NÓ PRINCIPAL CONNECTA AI (PULSANDO COM ENERGIA) */}
             <div className="self-center z-20 my-1">
-              <div className="core-node bg-[#0c1120] border-2 border-[#2ee88a] rounded-2xl p-3.5 w-56 text-center bg-gradient-to-b from-[#0c1120] via-[#101e33] to-[#0c1120] cursor-pointer">
-                <div className="w-9 h-9 rounded-xl bg-[#2ee88a] text-[#04150c] flex items-center justify-center text-lg font-black mx-auto mb-1.5 shadow-lg shadow-[#2ee88a]/40">
+              <div className="core-node bg-white dark:bg-[#0c1120] border-2 border-emerald-500 dark:border-[#2ee88a] rounded-2xl p-3.5 w-56 text-center bg-gradient-to-b from-white via-emerald-50/30 to-white dark:from-[#0c1120] dark:via-[#101e33] dark:to-[#0c1120] cursor-pointer shadow-xl dark:shadow-2xl">
+                <div className="w-9 h-9 rounded-xl bg-[#2ee88a] text-[#04150c] flex items-center justify-center text-lg font-black mx-auto mb-1.5 shadow-lg shadow-[#2ee88a]/30">
                   C
                 </div>
-                <div className="text-base font-black text-white tracking-wide">CONNECTA AI</div>
-                <div className="text-[11px] text-[#2ee88a] font-bold mt-0.5">Confere, Paga & Emite</div>
-                <div className="mt-1.5 text-[9px] bg-[#2ee88a]/10 border border-[#2ee88a]/30 text-[#bdf5da] px-2 py-0.5 rounded-full inline-flex items-center gap-1 font-semibold">
-                  <Zap size={10} className="fill-[#2ee88a] text-[#2ee88a]" /> Hub de IA & BPO Inteligente
+                <div className="text-base font-black text-slate-900 dark:text-white tracking-wide">CONNECTA AI</div>
+                <div className="text-[11px] text-emerald-600 dark:text-[#2ee88a] font-bold mt-0.5">Confere, Paga & Emite</div>
+                <div className="mt-1.5 text-[9px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-[#bdf5da] px-2 py-0.5 rounded-full inline-flex items-center gap-1 font-semibold">
+                  <Zap size={10} className="fill-emerald-500 dark:fill-[#2ee88a] text-emerald-500 dark:text-[#2ee88a]" /> Hub de IA & BPO Inteligente
                 </div>
               </div>
             </div>
@@ -296,12 +296,12 @@ export default function HomePageClient() {
             {/* SEGUNDA LINHA DE NÓS (PAGAMENTOS & NFE) */}
             <div className="flex justify-between items-center z-10 gap-3">
               {/* NÓ GESTÃO PAGAMENTOS */}
-              <div className="bg-[#0c1120] border border-[#1c2436] rounded-xl p-3 w-44 text-left shadow-xl hover:border-[#5b9df5] transition-all transform hover:-translate-y-0.5">
-                <div className="w-8 h-8 rounded-lg bg-[#5b9df5]/15 text-[#5b9df5] flex items-center justify-center text-base mb-1.5 shadow-sm">
+              <div className="bg-white dark:bg-[#0c1120] border border-slate-200/90 dark:border-[#1c2436] rounded-xl p-3 w-44 text-left shadow-lg dark:shadow-xl hover:border-[#5b9df5] transition-all transform hover:-translate-y-0.5">
+                <div className="w-8 h-8 rounded-lg bg-[#5b9df5]/15 text-[#5b9df5] flex items-center justify-center text-base mb-1.5 shadow-xs">
                   <CreditCard size={16} />
                 </div>
-                <div className="text-xs font-bold text-white">Gestão de Pagamentos</div>
-                <div className="text-[10px] text-[#586178]">Aprova & executa</div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white">Gestão de Pagamentos</div>
+                <div className="text-[10px] text-slate-500 dark:text-[#586178]">Aprova & executa</div>
                 <div className="mt-1 text-[9px] font-mono text-[#5b9df5] uppercase tracking-wider font-bold flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#5b9df5] animate-pulse inline-block" />
                   Paga Boletos
@@ -309,12 +309,12 @@ export default function HomePageClient() {
               </div>
 
               {/* NÓ NFE */}
-              <div className="bg-[#0c1120] border border-[#1c2436] rounded-xl p-3 w-44 text-left shadow-xl hover:border-[#9b8cf0] transition-all transform hover:-translate-y-0.5">
-                <div className="w-8 h-8 rounded-lg bg-[#9b8cf0]/15 text-[#9b8cf0] flex items-center justify-center text-base mb-1.5 shadow-sm">
+              <div className="bg-white dark:bg-[#0c1120] border border-slate-200/90 dark:border-[#1c2436] rounded-xl p-3 w-44 text-left shadow-lg dark:shadow-xl hover:border-[#9b8cf0] transition-all transform hover:-translate-y-0.5">
+                <div className="w-8 h-8 rounded-lg bg-[#9b8cf0]/15 text-[#9b8cf0] flex items-center justify-center text-base mb-1.5 shadow-xs">
                   <Receipt size={16} />
                 </div>
-                <div className="text-xs font-bold text-white">Emissão de NFe</div>
-                <div className="text-[10px] text-[#586178]">Nota automática</div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white">Emissão de NFe</div>
+                <div className="text-[10px] text-slate-500 dark:text-[#586178]">Nota automática</div>
                 <div className="mt-1 text-[9px] font-mono text-[#9b8cf0] uppercase tracking-wider font-bold flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#9b8cf0] animate-pulse inline-block" />
                   Emite NFes
@@ -327,84 +327,84 @@ export default function HomePageClient() {
 
         {/* AS 4 CAIXINHAS DE RECURSOS COM ÍCONES LUCIDE */}
         <div id="recursos" className="grid grid-cols-2 md:grid-cols-4 gap-2.5 max-w-4xl mx-auto mb-8">
-          <div className="bg-[#0c1120] border border-[#1c2436] rounded-xl p-3 flex flex-col items-center gap-1.5 text-center hover:border-[#5b9df5]/50 transition-all shadow-md group">
+          <div className="bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] rounded-xl p-3 flex flex-col items-center gap-1.5 text-center hover:border-[#5b9df5]/50 transition-all shadow-xs dark:shadow-md group">
             <div className="w-8 h-8 rounded-lg bg-[#5b9df5]/15 text-[#5b9df5] flex items-center justify-center transition-transform group-hover:scale-110">
               <ArrowDownToLine size={16} />
             </div>
-            <div className="text-xs font-bold text-white">Contas a Pagar</div>
-            <div className="text-[10px] text-[#586178]">Captura automática</div>
+            <div className="text-xs font-bold text-slate-900 dark:text-white">Contas a Pagar</div>
+            <div className="text-[10px] text-slate-500 dark:text-[#586178]">Captura automática</div>
           </div>
 
-          <div className="bg-[#0c1120] border border-[#1c2436] rounded-xl p-3 flex flex-col items-center gap-1.5 text-center hover:border-[#2ee88a]/50 transition-all shadow-md group">
+          <div className="bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] rounded-xl p-3 flex flex-col items-center gap-1.5 text-center hover:border-[#2ee88a]/50 transition-all shadow-xs dark:shadow-md group">
             <div className="w-8 h-8 rounded-lg bg-[#2ee88a]/15 text-[#2ee88a] flex items-center justify-center transition-transform group-hover:scale-110">
               <CreditCard size={16} />
             </div>
-            <div className="text-xs font-bold text-white">Gestão de Pagamentos</div>
-            <div className="text-[10px] text-[#586178]">Aprova & executa</div>
+            <div className="text-xs font-bold text-slate-900 dark:text-white">Gestão de Pagamentos</div>
+            <div className="text-[10px] text-slate-500 dark:text-[#586178]">Aprova & executa</div>
           </div>
 
-          <div className="bg-[#0c1120] border border-[#1c2436] rounded-xl p-3 flex flex-col items-center gap-1.5 text-center hover:border-[#9b8cf0]/50 transition-all shadow-md group">
+          <div className="bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] rounded-xl p-3 flex flex-col items-center gap-1.5 text-center hover:border-[#9b8cf0]/50 transition-all shadow-xs dark:shadow-md group">
             <div className="w-8 h-8 rounded-lg bg-[#9b8cf0]/15 text-[#9b8cf0] flex items-center justify-center transition-transform group-hover:scale-110">
               <Receipt size={16} />
             </div>
-            <div className="text-xs font-bold text-white">Emissão de NFe</div>
-            <div className="text-[10px] text-[#586178]">Nota automática</div>
+            <div className="text-xs font-bold text-slate-900 dark:text-white">Emissão de NFe</div>
+            <div className="text-[10px] text-slate-500 dark:text-[#586178]">Nota automática</div>
           </div>
 
-          <div className="bg-[#0c1120] border border-[#1c2436] rounded-xl p-3 flex flex-col items-center gap-1.5 text-center hover:border-[#f0b74f]/50 transition-all shadow-md group">
+          <div className="bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] rounded-xl p-3 flex flex-col items-center gap-1.5 text-center hover:border-[#f0b74f]/50 transition-all shadow-xs dark:shadow-md group">
             <div className="w-8 h-8 rounded-lg bg-[#f0b74f]/15 text-[#f0b74f] flex items-center justify-center transition-transform group-hover:scale-110">
               <RefreshCw size={16} />
             </div>
-            <div className="text-xs font-bold text-white">Datacar ↔ Conta Azul</div>
-            <div className="text-[10px] text-[#586178]">Sincronizado</div>
+            <div className="text-xs font-bold text-slate-900 dark:text-white">Datacar ↔ Conta Azul</div>
+            <div className="text-[10px] text-slate-500 dark:text-[#586178]">Sincronizado</div>
           </div>
         </div>
 
       </header>
 
       {/* COMO FUNCIONA COM ÍCONES LUCIDE */}
-      <section id="como" className="relative z-10 max-w-[1120px] mx-auto px-4 py-12 border-t border-[#1c2436]/50">
+      <section id="como" className="relative z-10 max-w-[1120px] mx-auto px-4 py-12 border-t border-slate-200 dark:border-[#1c2436]/50">
         <div className="text-center mb-10">
-          <div className="text-xs font-bold tracking-widest text-[#2ee88a] uppercase mb-1.5">Como Funciona</div>
-          <h2 className="text-2xl md:text-3xl font-extrabold text-white">Fluxo Inteligente. Zero Digitação.</h2>
+          <div className="text-xs font-bold tracking-widest text-emerald-600 dark:text-[#2ee88a] uppercase mb-1.5">Como Funciona</div>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white">Fluxo Inteligente. Zero Digitação.</h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="bg-[#0c1120] border border-[#1c2436] rounded-2xl p-5 hover:border-[#2ee88a]/40 transition-all">
+          <div className="bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] rounded-2xl p-5 hover:border-emerald-500/40 dark:hover:border-[#2ee88a]/40 shadow-xs dark:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3.5">
               <div className="w-10 h-10 rounded-xl bg-[#5b9df5]/15 text-[#5b9df5] flex items-center justify-center">
                 <ArrowDownToLine size={20} />
               </div>
-              <span className="text-2xl font-black text-[#1c2436]">01</span>
+              <span className="text-2xl font-black text-slate-200 dark:text-[#1c2436]">01</span>
             </div>
-            <h3 className="text-base font-bold text-white mb-1.5">Busca & Captura</h3>
-            <p className="text-xs text-[#8b94ab] leading-relaxed">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1.5">Busca & Captura</h3>
+            <p className="text-xs text-slate-600 dark:text-[#8b94ab] leading-relaxed">
               O CONNECTA AI acessa o Datacar e extrai automaticamente as contas a pagar, contas a receber e vendas do período com total precisão.
             </p>
           </div>
 
-          <div className="bg-[#0c1120] border border-[#1c2436] rounded-2xl p-5 hover:border-[#2ee88a]/40 transition-all">
+          <div className="bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] rounded-2xl p-5 hover:border-emerald-500/40 dark:hover:border-[#2ee88a]/40 shadow-xs dark:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3.5">
               <div className="w-10 h-10 rounded-xl bg-[#2ee88a]/15 text-[#2ee88a] flex items-center justify-center">
                 <CreditCard size={20} />
               </div>
-              <span className="text-2xl font-black text-[#1c2436]">02</span>
+              <span className="text-2xl font-black text-slate-200 dark:text-[#1c2436]">02</span>
             </div>
-            <h3 className="text-base font-bold text-white mb-1.5">Gestão de Pagamentos</h3>
-            <p className="text-xs text-[#8b94ab] leading-relaxed">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1.5">Gestão de Pagamentos</h3>
+            <p className="text-xs text-slate-600 dark:text-[#8b94ab] leading-relaxed">
               Organiza boletos, DDAs e agendamentos por loja e conta bancária. Permite aprovar e executar pagamentos sem retrabalho manual.
             </p>
           </div>
 
-          <div className="bg-[#0c1120] border border-[#1c2436] rounded-2xl p-5 hover:border-[#2ee88a]/40 transition-all">
+          <div className="bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] rounded-2xl p-5 hover:border-emerald-500/40 dark:hover:border-[#2ee88a]/40 shadow-xs dark:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3.5">
               <div className="w-10 h-10 rounded-xl bg-[#9b8cf0]/15 text-[#9b8cf0] flex items-center justify-center">
                 <Receipt size={20} />
               </div>
-              <span className="text-2xl font-black text-[#1c2436]">03</span>
+              <span className="text-2xl font-black text-slate-200 dark:text-[#1c2436]">03</span>
             </div>
-            <h3 className="text-base font-bold text-white mb-1.5">NFe & Conta Azul</h3>
-            <p className="text-xs text-[#8b94ab] leading-relaxed">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1.5">NFe & Conta Azul</h3>
+            <p className="text-xs text-slate-600 dark:text-[#8b94ab] leading-relaxed">
               Sincroniza os lançamentos aprovados com o Conta Azul e habilita a emissão automática de Notas Fiscais com um único clique.
             </p>
           </div>
@@ -412,48 +412,48 @@ export default function HomePageClient() {
       </section>
 
       {/* INTEGRAÇÕES COM ÍCONES LUCIDE */}
-      <section id="integracoes" className="relative z-10 max-w-[1120px] mx-auto px-4 py-12 border-t border-[#1c2436]/50">
-        <div className="bg-gradient-to-r from-[#0c1120] via-[#142238] to-[#0c1120] border border-[#1c2436] rounded-3xl p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
+      <section id="integracoes" className="relative z-10 max-w-[1120px] mx-auto px-4 py-12 border-t border-slate-200 dark:border-[#1c2436]/50">
+        <div className="bg-gradient-to-r from-slate-100 via-emerald-50/20 to-slate-100 dark:from-[#0c1120] dark:via-[#142238] dark:to-[#0c1120] border border-slate-200 dark:border-[#1c2436] rounded-3xl p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6 shadow-lg dark:shadow-2xl">
           <div className="max-w-xl">
-            <div className="text-xs font-bold tracking-widest text-[#2ee88a] uppercase mb-1.5">Integrações Conectadas</div>
-            <h2 className="text-xl md:text-2xl font-extrabold text-white mb-3">Datacar e Conta Azul em Perfeita Sincronia</h2>
-            <p className="text-xs md:text-sm text-[#8b94ab] leading-relaxed mb-4">
+            <div className="text-xs font-bold tracking-widest text-emerald-600 dark:text-[#2ee88a] uppercase mb-1.5">Integrações Conectadas</div>
+            <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white mb-3">Datacar e Conta Azul em Perfeita Sincronia</h2>
+            <p className="text-xs md:text-sm text-slate-600 dark:text-[#8b94ab] leading-relaxed mb-4">
               Integração nativa de alta velocidade conectando o seu ERP Datacar ao Conta Azul para automação financeira completa de BPO.
             </p>
-            <div className="inline-flex items-center gap-2 bg-[#0c1120] border border-[#1c2436] px-3 py-1 rounded-full text-xs text-[#8b94ab]">
+            <div className="inline-flex items-center gap-2 bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] px-3 py-1 rounded-full text-xs text-slate-600 dark:text-[#8b94ab] shadow-xs">
               <span className="w-2 h-2 rounded-full bg-[#2ee88a]" />
               Conexões multi-empresas e multi-bancos ativas
             </div>
           </div>
 
-          <div className="flex items-center gap-4 bg-[#0c1120] border border-[#1c2436] p-5 rounded-2xl shadow-xl">
+          <div className="flex items-center gap-4 bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] p-5 rounded-2xl shadow-md dark:shadow-xl">
             <div className="text-center">
-              <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-1.5">
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 dark:text-amber-400 mb-1.5">
                 <Car size={26} />
               </div>
-              <div className="text-xs font-bold text-white">Datacar</div>
+              <div className="text-xs font-bold text-slate-900 dark:text-white">Datacar</div>
             </div>
 
-            <div className="text-[#2ee88a] p-2 bg-[#2ee88a]/10 rounded-xl border border-[#2ee88a]/20">
+            <div className="text-emerald-600 dark:text-[#2ee88a] p-2 bg-emerald-500/10 dark:bg-[#2ee88a]/10 rounded-xl border border-emerald-500/20 dark:border-[#2ee88a]/20">
               <ArrowLeftRight size={18} />
             </div>
 
             <div className="text-center">
-              <div className="w-14 h-14 rounded-2xl bg-[#2ee88a]/10 border border-[#2ee88a]/20 flex items-center justify-center text-[#2ee88a] mb-1.5">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 dark:bg-[#2ee88a]/10 border border-emerald-500/20 dark:border-[#2ee88a]/20 flex items-center justify-center text-emerald-600 dark:text-[#2ee88a] mb-1.5">
                 <Building2 size={26} />
               </div>
-              <div className="text-xs font-bold text-white">Conta Azul</div>
+              <div className="text-xs font-bold text-slate-900 dark:text-white">Conta Azul</div>
             </div>
           </div>
         </div>
       </section>
 
       {/* FOOTER */}
-      <footer className="relative z-10 max-w-[1120px] mx-auto px-4 py-12 border-t border-[#1c2436]/50 text-center md:text-left">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-[#8b94ab]">
-          <div className="flex items-center gap-2 font-bold text-white">
+      <footer className="relative z-10 max-w-[1120px] mx-auto px-4 py-12 border-t border-slate-200 dark:border-[#1c2436]/50 text-center md:text-left">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-[#8b94ab]">
+          <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white">
             <div className="w-6 h-6 rounded-md bg-[#2ee88a] text-[#04150c] flex items-center justify-center font-black text-xs">C</div>
-            <span>CONNECTA<span className="text-[#2ee88a]">AI</span></span>
+            <span>CONNECTA<span className="text-emerald-600 dark:text-[#2ee88a]">AI</span></span>
           </div>
           <div>BPO Financeiro · Automação Inteligente · Gestão Eficiente</div>
           <div>© 2026 CONNECTA AI. Todos os direitos reservados.</div>
@@ -462,41 +462,41 @@ export default function HomePageClient() {
 
       {/* LOGIN MODAL */}
       {mostrarCard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/75 backdrop-blur-md animate-fade-in">
           <div className="relative w-full max-w-md z-20">
             <button 
               onClick={() => setMostrarCard(false)}
-              className="absolute -top-3 -right-3 p-2 bg-[#0c1120] text-[#8b94ab] hover:text-white rounded-full border border-[#1c2436] shadow-xl transition-colors cursor-pointer"
+              className="absolute -top-3 -right-3 p-2 bg-white dark:bg-[#0c1120] text-slate-500 hover:text-slate-900 dark:text-[#8b94ab] dark:hover:text-white rounded-full border border-slate-200 dark:border-[#1c2436] shadow-xl transition-colors cursor-pointer"
             >
               <X size={18} />
             </button>
 
-            <div className="bg-[#0c1120] rounded-3xl border border-[#1c2436] p-8 shadow-2xl relative">
+            <div className="bg-white dark:bg-[#0c1120] rounded-3xl border border-slate-200 dark:border-[#1c2436] p-8 shadow-2xl relative">
               <div className="text-center mb-6">
                 <div className="w-14 h-14 rounded-2xl bg-[#2ee88a] text-[#04150c] flex items-center justify-center font-black text-2xl mx-auto mb-3 shadow-lg shadow-[#2ee88a]/30">
                   C
                 </div>
-                <h2 className="text-2xl font-extrabold text-white">
+                <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">
                   {modoRegistro ? 'Criar conta' : 'Entrar no CONNECTA AI'}
                 </h2>
-                <p className="text-xs text-[#8b94ab] mt-1">Acesse seu painel de gestão financeira e BPO</p>
+                <p className="text-xs text-slate-600 dark:text-[#8b94ab] mt-1">Acesse seu painel de gestão financeira e BPO</p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-[#8b94ab] uppercase tracking-wider mb-1.5">E-mail</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-[#8b94ab] uppercase tracking-wider mb-1.5">E-mail</label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="seu@email.com.br"
                     required
-                    className="w-full bg-[#070a13] border border-[#1c2436] rounded-xl px-4 py-3 text-sm text-white placeholder-[#586178] focus:outline-none focus:border-[#2ee88a] transition-all"
+                    className="w-full bg-slate-50 dark:bg-[#070a13] border border-slate-300 dark:border-[#1c2436] rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-[#586178] focus:outline-none focus:border-emerald-500 dark:focus:border-[#2ee88a] focus:bg-white dark:focus:bg-[#070a13] transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[#8b94ab] uppercase tracking-wider mb-1.5">Senha</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-[#8b94ab] uppercase tracking-wider mb-1.5">Senha</label>
                   <div className="relative">
                     <input
                       type={mostrarSenha ? 'text' : 'password'}
@@ -505,12 +505,12 @@ export default function HomePageClient() {
                       placeholder="••••••••"
                       required
                       minLength={6}
-                      className="w-full bg-[#070a13] border border-[#1c2436] rounded-xl px-4 py-3 pr-12 text-sm text-white placeholder-[#586178] focus:outline-none focus:border-[#2ee88a] transition-all"
+                      className="w-full bg-slate-50 dark:bg-[#070a13] border border-slate-300 dark:border-[#1c2436] rounded-xl px-4 py-3 pr-12 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-[#586178] focus:outline-none focus:border-emerald-500 dark:focus:border-[#2ee88a] focus:bg-white dark:focus:bg-[#070a13] transition-all"
                     />
                     <button
                       type="button"
                       onClick={() => setMostrarSenha(!mostrarSenha)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8b94ab] hover:text-white transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900 dark:text-[#8b94ab] dark:hover:text-white transition-colors"
                     >
                       {mostrarSenha ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
@@ -523,7 +523,7 @@ export default function HomePageClient() {
                       type="button"
                       onClick={handleResetSenha}
                       disabled={carregando}
-                      className="text-xs text-[#8b94ab] hover:text-[#2ee88a] transition-colors font-medium cursor-pointer"
+                      className="text-xs text-slate-600 dark:text-[#8b94ab] hover:text-emerald-600 dark:hover:text-[#2ee88a] transition-colors font-medium cursor-pointer"
                     >
                       Esqueceu a senha?
                     </button>
@@ -533,18 +533,18 @@ export default function HomePageClient() {
                 <button
                   type="submit"
                   disabled={carregando}
-                  className="w-full bg-[#2ee88a] hover:bg-[#25c474] disabled:opacity-60 text-[#04150c] font-extrabold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-[#2ee88a]/30 mt-4 cursor-pointer"
+                  className="w-full bg-emerald-500 hover:bg-emerald-600 dark:bg-[#2ee88a] dark:hover:bg-[#25c474] disabled:opacity-60 text-white dark:text-[#04150c] font-extrabold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20 dark:shadow-[#2ee88a]/30 mt-4 cursor-pointer"
                 >
                   {carregando ? <Loader2 size={18} className="animate-spin" /> : <LogIn size={18} />}
                   {modoRegistro ? 'Criar Conta' : 'Entrar na Plataforma'}
                 </button>
               </form>
 
-              <p className="text-center text-xs text-[#8b94ab] mt-6">
+              <p className="text-center text-xs text-slate-600 dark:text-[#8b94ab] mt-6">
                 {modoRegistro ? 'Já tem uma conta?' : 'Ainda não tem acesso?'}{' '}
                 <button
                   onClick={() => setModoRegistro(!modoRegistro)}
-                  className="text-[#2ee88a] hover:underline font-bold transition-colors cursor-pointer"
+                  className="text-emerald-600 dark:text-[#2ee88a] hover:underline font-bold transition-colors cursor-pointer"
                 >
                   {modoRegistro ? 'Fazer login' : 'Criar conta'}
                 </button>
