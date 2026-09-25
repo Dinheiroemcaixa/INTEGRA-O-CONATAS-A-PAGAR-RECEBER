@@ -167,39 +167,39 @@ export default function TabelaPreview({
   }, [buscaFornecedor, buscaCategoria, buscaValor, filtro, onToggleTodosLote])
 
   return (
-    <div className="bg-dark-850/90 border border-dark-700/70 rounded-xl overflow-hidden shadow-lg">
+    <div className="bg-white dark:bg-dark-850/90 border border-slate-200/80 dark:border-dark-700/70 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-shadow">
       {/* Header da tabela */}
-      <div className="px-4 py-3 border-b border-dark-700 space-y-3">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <p className="text-sm text-dark-400">
-            Mostrando <span className="text-white font-semibold">{dadosFiltrados.length}</span> de <span className="text-white font-semibold">{dados.length}</span> registros
+      <div className="px-5 py-4 border-b border-slate-200 dark:border-dark-700 space-y-3.5">
+        <div className="flex items-center justify-between flex-wrap gap-2.5">
+          <p className="text-xs text-slate-500 dark:text-dark-400">
+            Mostrando <span className="text-slate-900 dark:text-white font-bold font-mono">{dadosFiltrados.length}</span> de <span className="text-slate-900 dark:text-white font-bold font-mono">{dados.length}</span> registros
           </p>
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             {exatosCount > 0 && (
-              <span className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 rounded-md font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-200 dark:border-emerald-500/30 px-2.5 py-1 rounded-full font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 {exatosCount} exatos
               </span>
             )}
             {deparaCount > 0 && (
-              <span className="flex items-center gap-1.5 text-xs text-primary-300 bg-primary-500/15 border border-primary-500/30 px-2.5 py-1 rounded-md font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary-400" />
+              <span className="flex items-center gap-1.5 text-xs text-brand-700 dark:text-brand-300 bg-brand-50 dark:bg-brand-500/15 border border-brand-200 dark:border-brand-500/30 px-2.5 py-1 rounded-full font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
                 {deparaCount} corrigidos
               </span>
             )}
             {naoEncontradosCount > 0 && (
-              <span className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 rounded-md font-medium">
+              <span className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/30 px-2.5 py-1 rounded-full font-bold">
                 <AlertCircle size={11} />
                 {naoEncontradosCount} não encontrados
               </span>
             )}
-            <span className="flex items-center gap-1.5 text-xs text-green-400 ml-1">
-              <CheckCircle size={12} />
+            <span className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold ml-1">
+              <CheckCircle size={13} />
               {dados.filter((d) => d.valido).length} válidos
             </span>
             {dados.filter((d) => !d.valido).length > 0 && (
-              <span className="flex items-center gap-1.5 text-xs text-red-400">
-                <AlertCircle size={12} />
+              <span className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-semibold">
+                <AlertCircle size={13} />
                 {dados.filter((d) => !d.valido).length} com erro
               </span>
             )}
@@ -214,7 +214,7 @@ export default function TabelaPreview({
               placeholder="Filtrar fornecedor..."
               value={buscaFornecedor}
               onChange={(e) => setBuscaFornecedor(e.target.value)}
-              className="h-10 w-full bg-dark-900 border border-dark-700 rounded-lg px-3 text-sm text-white placeholder-dark-500 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
+              className="h-9 w-full bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 rounded-xl px-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-dark-500 outline-none focus:border-brand-500 focus:bg-white dark:focus:bg-dark-900 focus:ring-1 focus:ring-brand-500 transition-colors shadow-2xs"
             />
           </div>
           <div className="relative">
@@ -223,7 +223,7 @@ export default function TabelaPreview({
               placeholder="Filtrar categoria..."
               value={buscaCategoria}
               onChange={(e) => setBuscaCategoria(e.target.value)}
-              className="h-10 w-full bg-dark-900 border border-dark-700 rounded-lg px-3 text-sm text-white placeholder-dark-500 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
+              className="h-9 w-full bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 rounded-xl px-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-dark-500 outline-none focus:border-brand-500 focus:bg-white dark:focus:bg-dark-900 focus:ring-1 focus:ring-brand-500 transition-colors shadow-2xs"
             />
           </div>
           <div className="relative">
@@ -232,17 +232,17 @@ export default function TabelaPreview({
               placeholder="Filtrar valor..."
               value={buscaValor}
               onChange={(e) => setBuscaValor(e.target.value)}
-              className="h-10 w-full bg-dark-900 border border-dark-700 rounded-lg px-3 text-sm text-white placeholder-dark-500 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
+              className="h-9 w-full bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 rounded-xl px-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-dark-500 outline-none focus:border-brand-500 focus:bg-white dark:focus:bg-dark-900 focus:ring-1 focus:ring-brand-500 transition-colors shadow-2xs"
             />
           </div>
         </div>
 
         {/* Painel de Edição em Lote */}
         {selecionados.size > 0 && (
-          <div className="bg-primary-950/60 border border-primary-500/30 rounded-lg p-3 flex items-center justify-between animate-in slide-in-from-top-2">
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold text-primary-300 px-2 py-0.5 rounded bg-primary-500/20">{selecionados.size} selecionados</span>
-              <div className="h-4 w-px bg-dark-600" />
+          <div className="bg-brand-50/80 dark:bg-brand-950/60 border border-brand-200/80 dark:border-brand-500/30 rounded-xl p-3 flex items-center justify-between flex-wrap gap-2.5 animate-in slide-in-from-top-2">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-xs font-bold text-brand-700 dark:text-brand-300 px-2.5 py-1 rounded-full bg-brand-100 dark:bg-brand-500/20">{selecionados.size} selecionados</span>
+              <div className="h-4 w-px bg-brand-200 dark:bg-dark-600 hidden sm:block" />
               {showBulkEdit ? (
                 <div className="flex items-center gap-3 flex-wrap">
                   {/* Categoria em Lote */}
@@ -254,15 +254,15 @@ export default function TabelaPreview({
                         value={loteCategoria}
                         onChange={(e) => { setLoteCategoria(e.target.value); setShowBulkList(true) }}
                         onFocus={() => setShowBulkList(true)}
-                        className="bg-dark-900 border border-dark-600 rounded px-2 py-1 text-xs text-white outline-none w-[160px]"
+                        className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-600 rounded-lg px-2.5 py-1 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-dark-500 outline-none w-[160px] focus:border-brand-500 shadow-2xs"
                       />
                       {showBulkList && (
-                        <div className="absolute z-50 mt-1 w-full bg-dark-800 border border-dark-600 rounded-lg shadow-2xl overflow-hidden max-h-[200px] overflow-y-auto">
+                        <div className="absolute z-50 mt-1 w-full bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl overflow-hidden max-h-[200px] overflow-y-auto p-1 divide-y divide-slate-100 dark:divide-dark-700/60">
                           {((categoriasCA && categoriasCA.length > 0) ? categoriasCA : LISTA_CATEGORIAS_FLAT).filter(c => c.toLowerCase().includes(loteCategoria.toLowerCase())).slice(0, 10).map((cat, i) => (
                             <button
                               key={i}
                               onClick={() => { setLoteCategoria(cat); setShowBulkList(false) }}
-                              className="w-full text-left px-3 py-1.5 text-xs text-white hover:bg-primary-600/20 transition-colors"
+                              className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 dark:text-white hover:bg-brand-50 dark:hover:bg-brand-600/20 rounded-md transition-colors truncate"
                             >
                               {cat}
                             </button>
@@ -277,7 +277,7 @@ export default function TabelaPreview({
                         setLoteCategoria('')
                       }}
                       disabled={!loteCategoria}
-                      className="bg-primary-600 hover:bg-primary-500 hover:shadow-md hover:shadow-primary-600/30 active:scale-[0.98] text-white px-3 py-1 rounded-md text-xs font-semibold disabled:opacity-50 transition-all duration-200 cursor-pointer"
+                      className="bg-brand-600 hover:bg-brand-500 text-white px-3 py-1 rounded-lg text-xs font-semibold disabled:opacity-50 transition-all cursor-pointer shadow-xs"
                     >
                       Aplicar
                     </button>
@@ -292,15 +292,15 @@ export default function TabelaPreview({
                         value={loteConta}
                         onChange={(e) => { setLoteConta(e.target.value); setShowBulkContaList(true) }}
                         onFocus={() => setShowBulkContaList(true)}
-                        className="bg-dark-900 border border-dark-600 rounded px-2 py-1 text-xs text-white outline-none w-[160px]"
+                        className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-600 rounded-lg px-2.5 py-1 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-dark-500 outline-none w-[160px] focus:border-brand-500 shadow-2xs"
                       />
                       {showBulkContaList && (
-                        <div className="absolute z-50 mt-1 w-full bg-dark-800 border border-dark-600 rounded-lg shadow-2xl overflow-hidden max-h-[200px] overflow-y-auto">
+                        <div className="absolute z-50 mt-1 w-full bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl overflow-hidden max-h-[200px] overflow-y-auto p-1 divide-y divide-slate-100 dark:divide-dark-700/60">
                           {contasFinanceiras.filter(c => c.descricao.toLowerCase().includes(loteConta.toLowerCase())).map((c) => (
                             <button
                               key={c.id}
                               onClick={() => { setLoteConta(c.descricao); setShowBulkContaList(false) }}
-                              className="w-full text-left px-3 py-1.5 text-xs text-white hover:bg-primary-600/20 transition-colors"
+                              className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 dark:text-white hover:bg-brand-50 dark:hover:bg-brand-600/20 rounded-md transition-colors truncate"
                             >
                               {c.descricao}
                             </button>
@@ -315,7 +315,7 @@ export default function TabelaPreview({
                         setLoteConta('')
                       }}
                       disabled={!loteConta}
-                      className="bg-primary-600 hover:bg-primary-500 hover:shadow-md hover:shadow-primary-600/30 active:scale-[0.98] text-white px-3 py-1 rounded-md text-xs font-semibold disabled:opacity-50 transition-all duration-200 cursor-pointer"
+                      className="bg-brand-600 hover:bg-brand-500 text-white px-3 py-1 rounded-lg text-xs font-semibold disabled:opacity-50 transition-all cursor-pointer shadow-xs"
                     >
                       Aplicar
                     </button>
@@ -329,18 +329,18 @@ export default function TabelaPreview({
                         onUpdateFornecedorLote(Array.from(selecionados), '')
                       }
                     }}
-                    className="bg-amber-600 hover:bg-amber-500 hover:shadow-md hover:shadow-amber-600/30 hover:border-amber-400/50 border border-amber-500 active:scale-[0.98] text-white px-2.5 py-1 rounded-md text-xs font-semibold transition-all duration-200 cursor-pointer"
+                    className="bg-amber-600 hover:bg-amber-500 text-white px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer"
                     title="Remove o fornecedor selecionado para enviar em branco"
                   >
                     Limpar Fornecedor
                   </button>
 
-                  <button onClick={() => { setShowBulkEdit(false); setShowBulkList(false); setShowBulkContaList(false) }} className="text-dark-400 hover:text-white hover:bg-dark-700/60 px-2 py-1 rounded text-xs transition-all duration-150 cursor-pointer">Fechar</button>
+                  <button onClick={() => { setShowBulkEdit(false); setShowBulkList(false); setShowBulkContaList(false) }} className="text-slate-500 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white px-2 py-1 rounded-lg text-xs transition-all cursor-pointer">Fechar</button>
                 </div>
               ) : (
                 <button 
                   onClick={() => setShowBulkEdit(true)}
-                  className="text-xs text-primary-300 hover:text-white hover:bg-primary-600/30 px-2.5 py-1 rounded-md border border-primary-500/30 hover:border-primary-400/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] font-semibold flex items-center gap-1.5 transition-all duration-200 cursor-pointer"
+                  className="text-xs text-brand-700 dark:text-brand-300 hover:text-brand-900 dark:hover:text-white hover:bg-brand-100 dark:hover:bg-brand-600/30 px-2.5 py-1 rounded-lg border border-brand-200 dark:border-brand-500/30 font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
                 >
                   <Edit2 size={12} /> Alterar em Lote
                 </button>
@@ -352,7 +352,7 @@ export default function TabelaPreview({
                   onRemoverLote(Array.from(selecionados))
                 }
               }}
-              className="text-xs text-red-400 hover:text-white hover:bg-red-600/25 px-2.5 py-1 rounded-md border border-red-500/30 hover:border-red-400/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] font-semibold flex items-center gap-1.5 transition-all duration-200 cursor-pointer"
+              className="text-xs text-rose-600 dark:text-rose-400 hover:text-white hover:bg-rose-600 px-2.5 py-1 rounded-lg border border-rose-200 dark:border-rose-500/30 font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
             >
               <Trash2 size={12} /> Excluir selecionados
             </button>
@@ -360,23 +360,23 @@ export default function TabelaPreview({
         )}
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs border-collapse table-fixed select-text">
+      <div className="overflow-x-auto custom-scrollbar">
+        <table className="w-full min-w-[840px] text-xs border-collapse table-fixed select-text">
           <colgroup>
             <col style={{ width: '32px' }} />
             <col style={{ width: 'auto' }} />
-            <col style={{ width: '86px' }} />
-            <col style={{ width: '82px' }} />
-            <col style={{ width: '86px' }} />
-            <col style={{ width: '178px' }} />
+            <col style={{ width: '90px' }} />
+            <col style={{ width: '84px' }} />
+            <col style={{ width: '88px' }} />
+            <col style={{ width: '180px' }} />
             <col style={{ width: '160px' }} />
             <col style={{ width: '92px' }} />
-            <col style={{ width: '52px' }} />
-            <col style={{ width: '34px' }} />
+            <col style={{ width: '56px' }} />
+            <col style={{ width: '36px' }} />
           </colgroup>
-          <thead>
-            <tr className="bg-dark-900/85 text-dark-300 text-xs font-semibold tracking-normal border-b border-dark-700/80">
-              <th className="py-3.5 px-2 text-center">
+          <thead className="sticky top-0 z-10 bg-slate-100/95 dark:bg-dark-900/95 backdrop-blur-md text-slate-600 dark:text-dark-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200 dark:border-dark-700/80">
+            <tr>
+              <th className="py-3 px-2 text-center">
                 <input
                   type="checkbox"
                   checked={todosFiltradosSelecionados}
@@ -388,21 +388,21 @@ export default function TabelaPreview({
                       onToggleTodosLote(indicesFiltradosValidos, 'marcar')
                     }
                   }}
-                  className="w-4 h-4 rounded border-dark-500 bg-dark-700 checked:bg-primary-600 cursor-pointer"
+                  className="w-3.5 h-3.5 rounded border-slate-300 dark:border-dark-500 bg-white dark:bg-dark-700 text-brand-600 focus:ring-brand-500 cursor-pointer"
                 />
               </th>
-              <th className="py-3.5 px-2 text-left text-white font-bold">Fornecedor</th>
-              <th className="py-3.5 px-2 text-right">Valor</th>
-              <th className="py-3.5 px-1 text-center">Vencimento</th>
-              <th className="py-3.5 px-1 text-center">Competência</th>
-              <th className="py-3.5 px-2 text-left">Categoria</th>
-              <th className="py-3.5 px-2 text-left">Conta</th>
-              <th className="py-3.5 px-2 text-left">Descrição</th>
-              <th className="py-3.5 px-1 text-center">Status</th>
-              <th className="py-3.5 px-1 text-center"></th>
+              <th className="py-3 px-2 text-left text-slate-900 dark:text-white font-bold">Fornecedor</th>
+              <th className="py-3 px-2 text-right text-slate-700 dark:text-dark-300 font-semibold">Valor</th>
+              <th className="py-3 px-1 text-center text-slate-700 dark:text-dark-300 font-semibold">Vencimento</th>
+              <th className="py-3 px-1 text-center text-slate-700 dark:text-dark-300 font-semibold">Competência</th>
+              <th className="py-3 px-2 text-left text-slate-700 dark:text-dark-300 font-semibold">Categoria</th>
+              <th className="py-3 px-2 text-left text-slate-700 dark:text-dark-300 font-semibold">Conta</th>
+              <th className="py-3 px-2 text-left text-slate-700 dark:text-dark-300 font-semibold">Descrição</th>
+              <th className="py-3 px-1 text-center text-slate-700 dark:text-dark-300 font-semibold">Status</th>
+              <th className="py-3 px-1 text-center"></th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-200/70 dark:divide-dark-800/60">
             {dadosFiltrados.map((item) => {
               const idx = item.originalIdx ?? 0
               const match = item.matchFornecedor
@@ -424,11 +424,13 @@ export default function TabelaPreview({
                 <tr
                   key={idx}
                   className={cn(
-                    'group/row relative border-b border-dark-700/40 transition-colors duration-150',
-                    'hover:bg-dark-800/35',
-                    !item.valido && 'bg-red-500/5 hover:bg-red-500/10',
-                    selecionados.has(idx) && item.valido && 'bg-primary-500/10 hover:bg-primary-500/20',
-                    isEditing && 'bg-dark-800/95 ring-1 ring-inset ring-primary-500/30 border-t border-b border-primary-500/40'
+                    'group/row relative border-b border-slate-200/70 dark:border-dark-700/40 transition-colors duration-150',
+                    !item.valido 
+                      ? 'bg-rose-50/60 dark:bg-rose-500/5 hover:bg-rose-100/60 dark:hover:bg-rose-500/10'
+                      : selecionados.has(idx)
+                        ? 'bg-brand-50/80 dark:bg-brand-500/10 hover:bg-brand-100/60 dark:hover:bg-brand-500/20'
+                        : 'even:bg-slate-50/50 dark:even:bg-white/[0.015] hover:bg-slate-100/60 dark:hover:bg-white/[0.035]',
+                    isEditing && 'bg-slate-100/90 dark:bg-dark-800/95 ring-1 ring-inset ring-brand-500/30'
                   )}
                 >
                   <td className="relative py-3 px-1 text-center">
@@ -438,15 +440,15 @@ export default function TabelaPreview({
                       className={cn(
                         'absolute left-0 top-0 bottom-0 w-[3px] transition-all duration-150 rounded-r-[1px] pointer-events-none',
                         isEditing
-                          ? 'bg-primary-400'
-                          : 'bg-transparent group-hover/row:bg-primary-500/60'
+                          ? 'bg-brand-500'
+                          : 'bg-transparent group-hover/row:bg-brand-500/60'
                       )}
                     />
                     <input
                       type="checkbox"
                       checked={selecionados.has(idx)}
                       onChange={() => onToggle(idx)}
-                      className="w-4 h-4 rounded border-dark-500 bg-dark-700 checked:bg-primary-600 cursor-pointer"
+                      className="w-3.5 h-3.5 rounded border-slate-300 dark:border-dark-500 bg-white dark:bg-dark-700 text-brand-600 focus:ring-brand-500 cursor-pointer"
                     />
                   </td>
                   <td className="py-3 px-2 overflow-hidden">
@@ -464,8 +466,8 @@ export default function TabelaPreview({
                         <div className="flex items-center gap-2 flex-wrap">
                           <span
                             className={cn(
-                              'font-semibold text-[13px] sm:text-sm block line-clamp-2 leading-snug break-words',
-                              item.valido ? 'text-white' : 'text-red-400'
+                              'font-semibold text-xs sm:text-[13px] block line-clamp-2 leading-snug break-words',
+                              item.valido ? 'text-slate-900 dark:text-white' : 'text-rose-600 dark:text-red-400 font-bold'
                             )}
                             title={item.fornecedor}
                           >
@@ -481,19 +483,19 @@ export default function TabelaPreview({
                           )}
                           <button 
                             onClick={() => setEditingIdx(idx)}
-                            className="opacity-50 group-hover:opacity-100 transition-all text-dark-400 hover:text-brand-300 hover:bg-dark-700/80 hover:scale-110 p-1 rounded cursor-pointer"
+                            className="opacity-40 group-hover:opacity-100 transition-all text-slate-400 dark:text-dark-400 hover:text-brand-600 dark:hover:text-brand-300 hover:scale-110 p-1 rounded cursor-pointer"
                             title="Editar ou corrigir fornecedor"
                           >
                             <Edit2 size={12} />
                           </button>
                         </div>
                         {foiCorrigido && match.nomeOriginal !== item.fornecedor && (
-                          <span className="text-xs text-dark-400 flex items-center gap-1 mt-0.5 font-mono">
+                          <span className="text-xs text-slate-500 dark:text-dark-400 flex items-center gap-1 mt-0.5 font-mono">
                             original: {match.nomeOriginal}
                           </span>
                         )}
                         {item.ca_duplicidade?.encontrado && (
-                          <div className="mt-1 flex items-center gap-1 text-xs text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded-md border border-amber-500/30 w-max cursor-help" title={`Possível duplicidade no Conta Azul:\nStatus: ${item.ca_duplicidade.status}\nData: ${item.ca_duplicidade.vencimento}\nValor: R$ ${item.ca_duplicidade.valor}\nFornecedor: ${item.ca_duplicidade.fornecedor}`}>
+                          <div className="mt-1 flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/15 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-500/30 w-max cursor-help" title={`Possível duplicidade no Conta Azul:\nStatus: ${item.ca_duplicidade.status}\nData: ${item.ca_duplicidade.vencimento}\nValor: R$ ${item.ca_duplicidade.valor}\nFornecedor: ${item.ca_duplicidade.fornecedor}`}>
                             <AlertCircle size={10} />
                             <span>Possível Duplicidade CA</span>
                           </div>
@@ -501,7 +503,7 @@ export default function TabelaPreview({
                       </div>
                     )}
                   </td>
-                  <td className="py-3 px-2 text-right font-mono text-white text-sm font-medium whitespace-nowrap">
+                  <td className="py-3 px-2 text-right font-mono text-slate-900 dark:text-white text-xs sm:text-[13px] font-bold tabular-nums whitespace-nowrap">
                     {editingValorIdx === idx ? (
                       <input
                         type="number"
@@ -520,22 +522,22 @@ export default function TabelaPreview({
                             setEditingValorIdx(null)
                           } else if (e.key === 'Escape') setEditingValorIdx(null)
                         }}
-                        className="w-full bg-dark-900 border border-primary-500 rounded px-2 py-1 text-xs text-right outline-none"
+                        className="w-full bg-white dark:bg-dark-900 border border-brand-500 rounded px-2 py-1 text-xs text-right outline-none text-slate-900 dark:text-white"
                       />
                     ) : (
-                      <div className="group flex items-center justify-end gap-2">
+                      <div className="group flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => setEditingValorIdx(idx)}
-                          className="opacity-50 group-hover:opacity-100 transition-all text-dark-400 hover:text-brand-300 hover:bg-dark-800/80 hover:scale-110 p-1 rounded flex-shrink-0 cursor-pointer"
+                          className="opacity-40 group-hover:opacity-100 transition-all text-slate-400 dark:text-dark-400 hover:text-brand-600 dark:hover:text-brand-300 hover:scale-110 p-0.5 rounded cursor-pointer"
                           title="Editar valor"
                         >
-                          <Edit2 size={12} />
+                          <Edit2 size={11} />
                         </button>
                         <span>{formatCurrency(item.valor)}</span>
                       </div>
                     )}
                   </td>
-                  <td className="py-3 px-1 text-dark-200 text-xs sm:text-[13px] font-mono text-center whitespace-nowrap">
+                  <td className="py-3 px-1 text-slate-600 dark:text-dark-300 text-xs font-mono text-center whitespace-nowrap tabular-nums">
                     {editingVencIdx === idx ? (
                       <input
                         type="date"
@@ -551,22 +553,22 @@ export default function TabelaPreview({
                             setEditingVencIdx(null)
                           } else if (e.key === 'Escape') setEditingVencIdx(null)
                         }}
-                        className="w-full bg-dark-900 border border-primary-500 rounded px-2 py-1 text-xs outline-none"
+                        className="w-full bg-white dark:bg-dark-900 border border-brand-500 rounded px-2 py-1 text-xs outline-none text-slate-900 dark:text-white"
                       />
                     ) : (
-                      <div className="group flex items-center gap-2">
+                      <div className="group flex items-center justify-center gap-1">
                         <span>{item.vencimento ? formatDate(item.vencimento) : '---'}</span>
                         <button
                           onClick={() => setEditingVencIdx(idx)}
-                          className="opacity-50 group-hover:opacity-100 transition-all text-dark-400 hover:text-brand-300 hover:bg-dark-800/80 hover:scale-110 p-1 rounded flex-shrink-0 cursor-pointer"
+                          className="opacity-40 group-hover:opacity-100 transition-all text-slate-400 dark:text-dark-400 hover:text-brand-600 dark:hover:text-brand-300 hover:scale-110 p-0.5 rounded cursor-pointer"
                           title="Editar vencimento"
                         >
-                          <Edit2 size={12} />
+                          <Edit2 size={11} />
                         </button>
                       </div>
                     )}
                   </td>
-                  <td className="py-3 px-1 text-dark-200 text-xs sm:text-[13px] font-mono text-center whitespace-nowrap">
+                  <td className="py-3 px-1 text-slate-500 dark:text-dark-400 text-xs font-mono text-center whitespace-nowrap tabular-nums">
                     {editingEmissaoIdx === idx ? (
                       <input
                         type="date"
@@ -582,22 +584,22 @@ export default function TabelaPreview({
                             setEditingEmissaoIdx(null)
                           } else if (e.key === 'Escape') setEditingEmissaoIdx(null)
                         }}
-                        className="w-full bg-dark-900 border border-primary-500 rounded px-2 py-1 text-xs outline-none"
+                        className="w-full bg-white dark:bg-dark-900 border border-brand-500 rounded px-2 py-1 text-xs outline-none text-slate-900 dark:text-white"
                       />
                     ) : (
-                      <div className="group flex items-center gap-2">
+                      <div className="group flex items-center justify-center gap-1">
                         <span>{item.emissao ? formatDate(item.emissao) : '---'}</span>
                         <button
                           onClick={() => setEditingEmissaoIdx(idx)}
-                          className="opacity-50 group-hover:opacity-100 transition-all text-dark-400 hover:text-brand-300 hover:bg-dark-800/80 hover:scale-110 p-1 rounded flex-shrink-0 cursor-pointer"
+                          className="opacity-40 group-hover:opacity-100 transition-all text-slate-400 dark:text-dark-400 hover:text-brand-600 dark:hover:text-brand-300 hover:scale-110 p-0.5 rounded cursor-pointer"
                           title="Editar competência (emissão)"
                         >
-                          <Edit2 size={12} />
+                          <Edit2 size={11} />
                         </button>
                       </div>
                     )}
                   </td>
-                  <td className={cn("py-3 px-1.5 text-dark-200 text-xs sm:text-[13px]", editingCatIdx === idx ? "overflow-visible relative" : "overflow-hidden")}>
+                  <td className={cn("py-3 px-1.5 text-slate-700 dark:text-dark-200 text-xs", editingCatIdx === idx ? "overflow-visible relative" : "overflow-hidden")}>
                     {editingCatIdx === idx ? (
                       <SelectorCategoria 
                         valorInicial={item.categoria || 'Materiais para Revenda'}
@@ -610,18 +612,18 @@ export default function TabelaPreview({
                       />
                     ) : (
                       <div 
-                        className="group flex items-center justify-between gap-1.5 bg-dark-900/60 border border-dark-700/60 hover:border-brand-500/60 hover:bg-dark-800 hover:shadow-sm rounded px-2.5 py-1.5 cursor-pointer transition-all duration-200"
+                        className="group flex items-center justify-between gap-1.5 bg-slate-100 dark:bg-dark-900/60 border border-slate-200 dark:border-dark-700/60 hover:border-brand-500 dark:hover:border-brand-500/60 hover:bg-slate-200/70 dark:hover:bg-dark-800 rounded-lg px-2.5 py-1.5 cursor-pointer transition-all"
                         onClick={() => setEditingCatIdx(idx)}
                         title={item.categoria || 'Materiais para Revenda'}
                       >
-                        <span className="truncate" title={item.categoria || 'Materiais para Revenda'}>
+                        <span className="truncate text-slate-800 dark:text-dark-200 font-medium" title={item.categoria || 'Materiais para Revenda'}>
                           {item.categoria || 'Materiais para Revenda'}
                         </span>
-                        <ChevronDown size={12} className="text-dark-500 group-hover:text-dark-300 flex-shrink-0" />
+                        <ChevronDown size={11} className="text-slate-400 dark:text-dark-500 group-hover:text-slate-600 dark:group-hover:text-dark-300 shrink-0" />
                       </div>
                     )}
                   </td>
-                  <td className={cn("py-3 px-1.5 text-blue-300 text-xs sm:text-[13px]", editingContaIdx === idx ? "overflow-visible relative" : "overflow-hidden")}>
+                  <td className={cn("py-3 px-1.5 text-brand-700 dark:text-blue-300 text-xs", editingContaIdx === idx ? "overflow-visible relative" : "overflow-hidden")}>
                     {editingContaIdx === idx ? (
                       <SelectorContaFinanceira 
                         valorInicial={item.conta_financeira || ''}
@@ -634,21 +636,21 @@ export default function TabelaPreview({
                       />
                     ) : (
                       <div 
-                        className="group flex items-center justify-between gap-1.5 bg-blue-950/20 border border-blue-500/25 hover:border-blue-400/60 hover:bg-blue-900/30 hover:shadow-sm rounded px-2.5 py-1.5 cursor-pointer transition-all duration-200"
+                        className="group flex items-center justify-between gap-1.5 bg-brand-50/60 dark:bg-blue-950/20 border border-brand-200/80 dark:border-blue-500/25 hover:border-brand-400 dark:hover:border-blue-400/60 hover:bg-brand-100/50 dark:hover:bg-blue-900/30 rounded-lg px-2.5 py-1.5 cursor-pointer transition-all"
                         onClick={() => setEditingContaIdx(idx)}
                         title={item.conta_financeira || 'Selecionar conta...'}
                       >
                         <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                          <Landmark size={12} className="text-blue-400/80 group-hover:text-blue-300 flex-shrink-0" />
-                          <span className="truncate text-blue-300" title={item.conta_financeira || 'Selecionar conta...'}>
+                          <Landmark size={12} className="text-brand-600 dark:text-blue-400 shrink-0" />
+                          <span className="truncate text-brand-800 dark:text-blue-300 font-medium" title={item.conta_financeira || 'Selecionar conta...'}>
                             {item.conta_financeira || 'Selecionar conta...'}
                           </span>
                         </div>
-                        <ChevronDown size={12} className="text-blue-500 group-hover:text-blue-300 flex-shrink-0 ml-1" />
+                        <ChevronDown size={11} className="text-brand-500 dark:text-blue-500 group-hover:text-brand-700 dark:group-hover:text-blue-300 shrink-0 ml-1" />
                       </div>
                     )}
                   </td>
-                  <td className="py-3 px-1.5 text-dark-300 text-xs sm:text-[13px] font-mono overflow-hidden">
+                  <td className="py-3 px-1.5 text-slate-500 dark:text-dark-300 text-xs font-mono overflow-hidden">
                     {editingDescIdx === idx ? (
                       <input
                         type="text"
@@ -664,51 +666,55 @@ export default function TabelaPreview({
                             setEditingDescIdx(null)
                           } else if (e.key === 'Escape') setEditingDescIdx(null)
                         }}
-                        className="w-full bg-dark-900 border border-primary-500 rounded px-2 py-1 text-xs outline-none"
+                        className="w-full bg-white dark:bg-dark-900 border border-brand-500 rounded px-2 py-1 text-xs outline-none text-slate-900 dark:text-white"
                       />
                     ) : (
-                      <div className="group flex items-center gap-2 truncate">
+                      <div className="group flex items-center gap-1.5 truncate">
                         <span className="truncate" title={item.descricao}>{item.descricao || '---'}</span>
                         <button
                           onClick={() => setEditingDescIdx(idx)}
-                          className="opacity-50 group-hover:opacity-100 transition-all text-dark-400 hover:text-brand-300 hover:bg-dark-800/80 hover:scale-110 p-1 rounded flex-shrink-0 cursor-pointer"
+                          className="opacity-40 group-hover:opacity-100 transition-all text-slate-400 dark:text-dark-400 hover:text-brand-600 dark:hover:text-brand-300 hover:scale-110 p-0.5 rounded shrink-0 cursor-pointer"
                           title="Editar descrição"
                         >
-                          <Edit2 size={12} />
+                          <Edit2 size={11} />
                         </button>
                       </div>
                     )}
                   </td>
                   <td className="py-3 px-1 text-center">
                     {item.valido ? (
-                      <span className="text-emerald-400 text-xs font-semibold uppercase tracking-wider">OK</span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30">
+                        OK
+                      </span>
                     ) : (
                       <div className="flex flex-col items-center">
-                        <span className="text-red-400 text-xs font-semibold uppercase tracking-wider">Erro</span>
-                        <p className="text-[9px] text-red-400/70 max-w-[100px] leading-tight">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30">
+                          Erro
+                        </span>
+                        <p className="text-[9px] text-rose-600 dark:text-red-400/80 max-w-[100px] leading-tight mt-0.5">
                           {item.erros?.[0]}
                         </p>
                       </div>
                     )}
                   </td>
                   <td className="py-3 px-1 text-center">
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center justify-center gap-1">
                       {(item.anexo_url || item.metadata?.anexo_url) && (
                         <button
                           type="button"
                           onClick={() => visualizarAnexo(item.anexo_url || item.metadata?.anexo_url)}
-                          className="text-emerald-400 hover:text-white hover:bg-emerald-600/30 border border-emerald-500/20 hover:border-emerald-400/50 hover:shadow-sm hover:scale-110 active:scale-95 transition-all duration-200 p-1.5 bg-emerald-500/10 rounded-md cursor-pointer"
+                          className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-white hover:bg-emerald-50 dark:hover:bg-emerald-600/30 border border-emerald-200 dark:border-emerald-500/20 p-1.5 rounded-lg transition-all cursor-pointer"
                           title="Visualizar Anexo/Comprovante"
                         >
-                          <Paperclip size={14} />
+                          <Paperclip size={13} />
                         </button>
                       )}
                       <button
                         onClick={() => onRemover(idx)}
-                        className="text-dark-400 hover:text-red-400 hover:bg-red-500/15 border border-transparent hover:border-red-500/30 hover:shadow-sm hover:scale-110 active:scale-95 transition-all duration-200 p-1.5 rounded-md cursor-pointer"
+                        className="text-slate-400 dark:text-dark-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/15 p-1.5 rounded-lg transition-all cursor-pointer"
                         title="Excluir"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </td>

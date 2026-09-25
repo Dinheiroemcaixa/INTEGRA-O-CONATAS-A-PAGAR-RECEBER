@@ -1060,165 +1060,169 @@ export default function AuditoriaCategoriasPage() {
           </div>
 
           {/* Listagem em Tabela */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300 border-collapse">
-              <thead>
-                <tr className="border-b border-dark-700/80 bg-dark-950/50 text-[11px] font-bold text-dark-400 uppercase tracking-wider">
-                  <th className="py-3 px-4">Fornecedor</th>
-                  <th className="py-3 px-4">Categoria Esperada (Histórica)</th>
-                  <th className="py-3 px-4">Categoria Atual (Conta Azul)</th>
-                  <th className="py-3 px-4 text-center">Confiança</th>
-                  <th className="py-3 px-4 text-right">Valor</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-3 text-center w-10"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-dark-800/60 font-medium">
-                {itensFiltrados.length === 0 ? (
+          <div className="bg-white dark:bg-dark-850/80 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-shadow">
+            <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full min-w-[780px] text-left text-xs text-slate-600 dark:text-slate-300 border-collapse">
+                <thead className="sticky top-0 z-10 bg-slate-100/95 dark:bg-dark-900/95 backdrop-blur-md border-b border-slate-200 dark:border-dark-700 text-[10px] font-bold text-slate-600 dark:text-dark-400 uppercase tracking-wider">
                   <tr>
-                    <td colSpan={7} className="py-10 text-center text-dark-400">
-                      {statusEspelho.totalEspelhados === 0 ? (
-                        <div className="flex flex-col items-center justify-center gap-2 max-w-md mx-auto">
-                          <AlertCircle size={28} className="text-amber-400" />
-                          <p className="text-sm font-bold text-white">Esta empresa ainda não possui lançamentos sincronizados do Conta Azul.</p>
-                          <p className="text-xs text-dark-400">
-                            A base espelho local está vazia. Execute a sincronização para importar o histórico contábil.
-                          </p>
-                          <button
-                            onClick={handleSincronizarContaAzul}
-                            disabled={sincronizando}
-                            className="mt-2 flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition-all"
-                          >
-                            <RefreshCw size={14} className={sincronizando ? 'animate-spin' : ''} />
-                            <span>{sincronizando ? 'Sincronizando...' : 'Sincronizar Agora'}</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <span>Nenhum lançamento encontrado para os filtros selecionados.</span>
-                      )}
-                    </td>
+                    <th className="py-3 px-4">Fornecedor</th>
+                    <th className="py-3 px-4">Categoria Esperada (Histórica)</th>
+                    <th className="py-3 px-4">Categoria Atual (Conta Azul)</th>
+                    <th className="py-3 px-4 text-center">Confiança</th>
+                    <th className="py-3 px-4 text-right">Valor</th>
+                    <th className="py-3 px-4 text-center">Status</th>
+                    <th className="py-3 px-3 text-center w-10"></th>
                   </tr>
-                ) : (
-                  itensFiltrados.map((item) => {
-                    const isDivergente = item.status === 'divergente'
-                    const isConsistente = item.status === 'consistente'
-
-                    return (
-                      <tr
-                        key={item.id}
-                        onClick={() => abrirDetalhesFornecedor(item)}
-                        className={`transition-colors hover:bg-dark-800/80 cursor-pointer group ${
-                          isDivergente ? 'bg-rose-500/[0.06]' : ''
-                        }`}
-                        title="Clique para visualizar o histórico completo deste fornecedor"
-                      >
-                        <td className="py-3.5 px-4">
-                          <div className="font-bold text-white max-w-[240px] truncate" title={item.fornecedor}>
-                            {item.fornecedor}
+                </thead>
+                <tbody className="divide-y divide-slate-200/70 dark:divide-dark-800/60 font-medium">
+                  {itensFiltrados.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-slate-500 dark:text-dark-400">
+                        {statusEspelho.totalEspelhados === 0 ? (
+                          <div className="flex flex-col items-center justify-center gap-2 max-w-md mx-auto">
+                            <AlertCircle size={28} className="text-amber-500" />
+                            <p className="text-sm font-bold text-slate-900 dark:text-white">Esta empresa ainda não possui lançamentos sincronizados do Conta Azul.</p>
+                            <p className="text-xs text-slate-500 dark:text-dark-400">
+                              A base espelho local está vazia. Execute a sincronização para importar o histórico contábil.
+                            </p>
+                            <button
+                              onClick={handleSincronizarContaAzul}
+                              disabled={sincronizando}
+                              className="mt-2 flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition-all shadow-xs cursor-pointer"
+                            >
+                              <RefreshCw size={14} className={sincronizando ? 'animate-spin' : ''} />
+                              <span>{sincronizando ? 'Sincronizando...' : 'Sincronizar Agora'}</span>
+                            </button>
                           </div>
-                          <div className="text-[10px] text-dark-400 flex items-center gap-1.5 mt-0.5">
-                            <span>{formatDate(item.dataCompetencia)}</span>
-                            {item.descricao && item.descricao !== item.fornecedor && (
-                              <span className="truncate max-w-[180px]" title={item.descricao}>
-                                • {item.descricao}
+                        ) : (
+                          <span>Nenhum lançamento encontrado para os filtros selecionados.</span>
+                        )}
+                      </td>
+                    </tr>
+                  ) : (
+                    itensFiltrados.map((item) => {
+                      const isDivergente = item.status === 'divergente'
+                      const isConsistente = item.status === 'consistente'
+
+                      return (
+                        <tr
+                          key={item.id}
+                          onClick={() => abrirDetalhesFornecedor(item)}
+                          className={`transition-colors hover:bg-slate-100/60 dark:hover:bg-white/[0.035] cursor-pointer group ${
+                            isDivergente 
+                              ? 'bg-rose-50/60 dark:bg-rose-500/[0.06]' 
+                              : 'even:bg-slate-50/50 dark:even:bg-white/[0.015]'
+                          }`}
+                          title="Clique para visualizar o histórico completo deste fornecedor"
+                        >
+                          <td className="py-3.5 px-4">
+                            <div className="font-bold text-slate-900 dark:text-white max-w-[240px] truncate" title={item.fornecedor}>
+                              {item.fornecedor}
+                            </div>
+                            <div className="text-[10px] text-slate-500 dark:text-dark-400 flex items-center gap-1.5 mt-0.5">
+                              <span className="font-mono">{formatDate(item.dataCompetencia)}</span>
+                              {item.descricao && item.descricao !== item.fornecedor && (
+                                <span className="truncate max-w-[180px]" title={item.descricao}>
+                                  • {item.descricao}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-4">
+                            <div className="font-semibold text-slate-800 dark:text-slate-200">
+                              {item.categoriaEsperada}
+                            </div>
+                            {item.totalHistoricoFornecedor > 0 && (
+                              <div className="text-[10px] text-slate-500 dark:text-dark-400 mt-0.5">
+                                Base: {item.totalHistoricoFornecedor} lançamentos prévios
+                              </div>
+                            )}
+                          </td>
+
+                          <td className="py-3.5 px-4">
+                            <div className={`font-semibold ${
+                              isDivergente ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-700 dark:text-slate-300'
+                            }`}>
+                              {item.categoriaAtual}
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-4 text-center">
+                            {item.totalHistoricoFornecedor > 0 ? (
+                              <div className="flex flex-col items-center gap-1">
+                                <span className="font-mono text-[11px] font-bold text-slate-900 dark:text-slate-200 tabular-nums">
+                                  {item.percentualConfianca}%
+                                </span>
+                                <div className="w-16 h-1.5 bg-slate-200 dark:bg-dark-700 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${
+                                      item.percentualConfianca >= 80
+                                        ? 'bg-emerald-500'
+                                        : item.percentualConfianca >= 50
+                                        ? 'bg-amber-500'
+                                        : 'bg-rose-500'
+                                    }`}
+                                    style={{ width: `${item.percentualConfianca}%` }}
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 dark:text-dark-500 text-[11px]">-</span>
+                            )}
+                          </td>
+
+                          <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-900 dark:text-slate-200 tabular-nums text-xs sm:text-sm">
+                            {formatCurrency(item.valor)}
+                          </td>
+
+                          <td className="py-3.5 px-4 text-center">
+                            {isDivergente && (
+                              item.statusDivergencia === 'VALIDADA' ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/40" title={item.motivoJustificativa || 'Divergência Validada no ERP Conta Azul'}>
+                                  <CheckCheck size={12} className="text-emerald-500 dark:text-emerald-400" />
+                                  Divergente Validada
+                                </span>
+                              ) : item.statusDivergencia === 'JUSTIFICADA' ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-50 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-500/40" title={item.motivoJustificativa || 'Divergência Justificada'}>
+                                  <HelpCircle size={12} className="text-amber-500 dark:text-amber-400" />
+                                  Divergente Justificada
+                                </span>
+                              ) : item.statusDivergencia === 'CORRIGIDA' ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-purple-50 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/40" title={item.motivoJustificativa || 'Divergência Corrigida no ERP'}>
+                                  <Check size={12} className="text-purple-500 dark:text-purple-400" />
+                                  Divergente Corrigida
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-rose-50 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-500/40">
+                                  <AlertTriangle size={12} className="text-rose-500 dark:text-rose-400" />
+                                  Divergente Pendente
+                                </span>
+                              )
+                            )}
+                            {isConsistente && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30">
+                                <CheckCircle2 size={12} />
+                                Consistente
                               </span>
                             )}
-                          </div>
-                        </td>
-
-                        <td className="py-3.5 px-4">
-                          <div className="font-semibold text-slate-200">
-                            {item.categoriaEsperada}
-                          </div>
-                          {item.totalHistoricoFornecedor > 0 && (
-                            <div className="text-[10px] text-dark-400 mt-0.5">
-                              Base: {item.totalHistoricoFornecedor} lançamentos prévios
-                            </div>
-                          )}
-                        </td>
-
-                        <td className="py-3.5 px-4">
-                          <div className={`font-semibold ${
-                            isDivergente ? 'text-rose-400 font-bold' : 'text-slate-300'
-                          }`}>
-                            {item.categoriaAtual}
-                          </div>
-                        </td>
-
-                        <td className="py-3.5 px-4 text-center">
-                          {item.totalHistoricoFornecedor > 0 ? (
-                            <div className="flex flex-col items-center gap-1">
-                              <span className="font-mono text-[11px] font-bold text-slate-200">
-                                {item.percentualConfianca}%
+                            {item.status === 'novo_fornecedor' && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-sky-50 dark:bg-sky-500/20 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-500/30">
+                                <Info size={12} />
+                                Sem Histórico
                               </span>
-                              <div className="w-16 h-1.5 bg-dark-700 rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full ${
-                                    item.percentualConfianca >= 80
-                                      ? 'bg-emerald-500'
-                                      : item.percentualConfianca >= 50
-                                      ? 'bg-amber-500'
-                                      : 'bg-rose-500'
-                                  }`}
-                                  style={{ width: `${item.percentualConfianca}%` }}
-                                />
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-dark-500 text-[11px]">-</span>
-                          )}
-                        </td>
-
-                        <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-200">
-                          {formatCurrency(item.valor)}
-                        </td>
-
-                        <td className="py-3.5 px-4 text-center">
-                          {isDivergente && (
-                            item.statusDivergencia === 'VALIDADA' ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" title={item.motivoJustificativa || 'Divergência Validada no ERP Conta Azul'}>
-                                <CheckCheck size={12} className="text-emerald-400" />
-                                Divergente Validada
-                              </span>
-                            ) : item.statusDivergencia === 'JUSTIFICADA' ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/40" title={item.motivoJustificativa || 'Divergência Justificada'}>
-                                <HelpCircle size={12} className="text-amber-400" />
-                                Divergente Justificada
-                              </span>
-                            ) : item.statusDivergencia === 'CORRIGIDA' ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/40" title={item.motivoJustificativa || 'Divergência Corrigida no ERP'}>
-                                <Check size={12} className="text-purple-400" />
-                                Divergente Corrigida
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                                <AlertTriangle size={12} className="text-rose-400" />
-                                Divergente Pendente
-                              </span>
-                            )
-                          )}
-                          {isConsistente && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                              <CheckCircle2 size={12} />
-                              Consistente
-                            </span>
-                          )}
-                          {item.status === 'novo_fornecedor' && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-sky-500/20 text-sky-300 border border-sky-500/30">
-                              <Info size={12} />
-                              Sem Histórico
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3.5 px-3 text-center">
-                          <ChevronRight size={16} className="text-dark-500 group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all inline-block" />
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-3 text-center">
+                            <ChevronRight size={16} className="text-slate-400 dark:text-dark-500 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all inline-block" />
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

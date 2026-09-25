@@ -17,11 +17,29 @@ const DEFAULT: AppConfig = {
   accentColor: 'violet',
   appLogoUrl: null,
   appNome: 'Connecta AI',
-  darkMode: true,
+  darkMode: false, // Padrão: Modo Claro (light)
   nomeExibicao: '',
 }
 
 const APP_STORAGE_KEY = 'connecta_app_config'
+export const THEME_STORAGE_KEY = 'connecta_theme'
+
+export function loadThemeShared(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY)
+    if (saved === 'dark') return true
+    if (saved === 'light') return false
+  } catch { /* empty */ }
+  return false // Padrão: light
+}
+
+export function saveThemeShared(darkMode: boolean) {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, darkMode ? 'dark' : 'light')
+  } catch { /* empty */ }
+}
 
 function loadAppShared(): Pick<AppConfig, 'appLogoUrl' | 'appNome'> {
   if (typeof window === 'undefined') return { appLogoUrl: DEFAULT.appLogoUrl, appNome: DEFAULT.appNome }
@@ -79,17 +97,35 @@ interface AppConfigCtx {
 const Ctx = createContext<AppConfigCtx | null>(null)
 
 export function AppConfigProvider({ children }: { children: ReactNode }) {
-  const [config, setConfig] = useState<AppConfig>(() => ({ ...DEFAULT, ...loadAppShared() }))
+  const [config, setConfig] = useState<AppConfig>(() => ({
+    ...DEFAULT,
+    ...loadAppShared(),
+    darkMode: loadThemeShared(),
+  }))
   const userIdRef = useRef<string | null>(null)
   const supabase = createClient()
 
+  // Aplica classe no HTML e persiste na chave pública connecta_theme
   useEffect(() => {
     if (config.darkMode) {
       document.documentElement.classList.add('dark')
     } else {
       document.documentElement.classList.remove('dark')
     }
+    saveThemeShared(config.darkMode)
   }, [config.darkMode])
+
+  // Sincroniza abas do navegador em tempo real
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === THEME_STORAGE_KEY) {
+        const isDark = e.newValue === 'dark'
+        setConfig(prev => (prev.darkMode !== isDark ? { ...prev, darkMode: isDark } : prev))
+      }
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
 
   useEffect(() => {
     let cancelado = false
@@ -105,7 +141,11 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
 
       const cache = loadPerfilCache(user.id)
       if (cache) {
-        setConfig(prev => ({ ...prev, ...cache }))
+        setConfig(prev => ({
+          ...prev,
+          accentColor: cache.accentColor || prev.accentColor,
+          nomeExibicao: cache.nomeExibicao || prev.nomeExibicao,
+        }))
       }
 
       const { data, error } = await supabase
@@ -137,7 +177,12 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
       if (event === 'SIGNED_IN') carregarPerfil()
       if (event === 'SIGNED_OUT') {
         userIdRef.current = null
-        setConfig(prev => ({ ...prev, accentColor: DEFAULT.accentColor, nomeExibicao: '', darkMode: DEFAULT.darkMode }))
+        setConfig(prev => ({
+          ...prev,
+          accentColor: DEFAULT.accentColor,
+          nomeExibicao: '',
+          darkMode: loadThemeShared()
+        }))
       }
     })
 
@@ -150,6 +195,10 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
   const update = (partial: Partial<AppConfig>) => {
     setConfig(prev => {
       const next = { ...prev, ...partial }
+
+      if ('darkMode' in partial && partial.darkMode !== undefined) {
+        saveThemeShared(partial.darkMode)
+      }
 
       if ('appLogoUrl' in partial || 'appNome' in partial) {
         saveAppShared({ appLogoUrl: next.appLogoUrl, appNome: next.appNome })

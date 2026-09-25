@@ -3,9 +3,16 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
-import { Eye, EyeOff, LogIn, Loader2, X, ArrowRight } from 'lucide-react'
+import {
+  Eye, EyeOff, LogIn, Loader2, X,
+  Car, Building2, CreditCard, Receipt,
+  ArrowDownToLine, RefreshCw, Zap, ArrowLeftRight,
+  Sun, Moon
+} from 'lucide-react'
+import { useAppConfig } from '@/contexts/AppConfigContext'
 
 export default function HomePageClient() {
+  const { config, update } = useAppConfig()
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [mostrarSenha, setMostrarSenha] = useState(false)
@@ -115,58 +122,66 @@ export default function HomePageClient() {
       <div className="absolute inset-0 pointer-events-none z-0 bg-[radial-gradient(900px_600px_at_78%_-8%,rgba(46,232,138,0.15),transparent_60%),radial-gradient(700px_500px_at_12%_8%,rgba(91,157,245,0.12),transparent_55%)]" />
       <div className="absolute inset-0 z-0 pointer-events-none bg-[radial-gradient(1px_1px_at_12%_18%,#fff,transparent),radial-gradient(1px_1px_at_44%_28%,#fff,transparent),radial-gradient(1px_1px_at_79%_22%,#fff,transparent)] opacity-40" />
 
-      {/* NAV */}
-      <nav className="relative z-20 max-w-[1180px] mx-auto px-4 py-6 flex items-center justify-between">
+      {/* NAV COMPACTA */}
+      <nav className="relative z-20 max-w-[1180px] mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5 font-extrabold text-lg tracking-wider">
-          <div className="w-8 h-8 rounded-lg bg-[#2ee88a] text-[#04150c] flex items-center justify-center font-black text-base shadow-lg shadow-[#2ee88a]/20">
+          <div className="w-7 h-7 rounded-lg bg-[#2ee88a] text-[#04150c] flex items-center justify-center font-black text-sm shadow-lg shadow-[#2ee88a]/20">
             C
           </div>
-          <span className="text-white">CONNECTA<span className="text-[#2ee88a] ml-1">AI</span></span>
+          <span className="text-white text-base">CONNECTA<span className="text-[#2ee88a] ml-1">AI</span></span>
         </div>
 
-        <div className="hidden md:flex items-center gap-8 text-sm font-medium text-[#8b94ab]">
+        <div className="hidden md:flex items-center gap-6 text-xs font-semibold text-[#8b94ab]">
           <a href="#como" className="hover:text-white transition-colors">Como funciona</a>
           <a href="#integracoes" className="hover:text-white transition-colors">Integrações</a>
           <a href="#recursos" className="hover:text-white transition-colors">Recursos</a>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => update({ darkMode: !config.darkMode })}
+            title={config.darkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
+            className="p-1.5 rounded-xl border border-[#1c2436] bg-[#0c1120] hover:bg-[#151c2e] text-[#8b94ab] hover:text-white transition-all cursor-pointer shadow-sm"
+          >
+            {config.darkMode ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-blue-400" />}
+          </button>
+
           <button
             onClick={() => setMostrarCard(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#1c2436] bg-[#0c1120] hover:bg-[#151c2e] hover:border-[#2ee88a]/40 text-sm font-semibold text-[#f4f6fb] transition-all cursor-pointer shadow-md"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-[#1c2436] bg-[#0c1120] hover:bg-[#151c2e] hover:border-[#2ee88a]/40 text-xs font-semibold text-[#f4f6fb] transition-all cursor-pointer shadow-md"
           >
-            <LogIn size={15} className="text-[#2ee88a]" />
+            <LogIn size={14} className="text-[#2ee88a]" />
             Entrar
           </button>
         </div>
       </nav>
 
-      {/* HERO SECTION */}
-      <header className="relative z-10 max-w-[1080px] mx-auto px-4 pt-6 pb-12 text-center">
+      {/* HERO SECTION COMPACTADA (OTIMIZADA PARA PRIMEIRA DOBRA EM NOTEBOOKS) */}
+      <header className="relative z-10 max-w-[1080px] mx-auto px-4 pt-1 pb-4 text-center">
         {/* BADGE */}
-        <div className="inline-flex items-center gap-2 bg-[#0c1120] border border-[#1c2436] px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider text-[#8b94ab] uppercase mb-6 shadow-inner">
-          <span className="w-2 h-2 rounded-full bg-[#2ee88a] animate-pulse" />
+        <div className="inline-flex items-center gap-2 bg-[#0c1120] border border-[#1c2436] px-3 py-1 rounded-full text-[11px] font-semibold tracking-wider text-[#8b94ab] uppercase mb-2 shadow-inner">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#2ee88a] animate-pulse" />
           BPO FINANCEIRO · GESTÃO FINANCEIRA COMPLETA
         </div>
 
         {/* TITLE */}
-        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-4 text-white drop-shadow-[0_0_50px_rgba(46,232,138,0.25)]">
+        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-1 text-white drop-shadow-[0_0_40px_rgba(46,232,138,0.25)]">
           CONNECTA <span className="text-[#2ee88a]">AI</span>
         </h1>
 
         {/* TAGLINE */}
-        <h2 className="text-2xl md:text-4xl font-bold max-w-3xl mx-auto leading-tight text-white mb-4">
+        <h2 className="text-base md:text-2xl font-bold max-w-2xl mx-auto leading-tight text-white mb-1.5">
           Contas a pagar, pagamentos e NFe, <span className="text-[#2ee88a]">tudo em um clique.</span>
         </h2>
 
         {/* SUBTITLE */}
-        <p className="text-sm md:text-base text-[#8b94ab] max-w-2xl mx-auto leading-relaxed mb-8">
+        <p className="text-xs md:text-sm text-[#8b94ab] max-w-2xl mx-auto leading-relaxed mb-4">
           O CONNECTA AI busca contas a pagar, contas a receber e vendas no seu sistema, deixa você conferir tudo, executa os pagamentos e emite a NFe automaticamente — do lançamento à nota fiscal, sem digitação e sem retrabalho.
         </p>
 
-        {/* DIAGRAMA DINÂMICO DE ENERGIA FLUINDO NOS FIOS (SEM CONTAINER BALAOZÃO E SEM BOTÕES CENTRAIS) */}
-        <div className="relative max-w-4xl mx-auto p-2 md:p-4 overflow-hidden mb-12">
-          <div className="relative min-h-[380px] flex flex-col justify-between">
+        {/* DIAGRAMA DINÂMICO DE ENERGIA FLUINDO NOS FIOS (ANIMAÇÃO 100% PRESERVADA) */}
+        <div className="relative max-w-4xl mx-auto px-2 py-1 overflow-hidden mb-5">
+          <div className="relative min-h-[340px] flex flex-col justify-between">
             
             {/* LINHAS SVG COM ENERGIA FLUINDO CONTINUAMENTE NOS FIOS */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 800 380" preserveAspectRatio="xMidYMid meet">
@@ -236,171 +251,197 @@ export default function HomePageClient() {
             </svg>
 
             {/* PRIMEIRA LINHA DE NÓS (ORIGEM & DESTINO) */}
-            <div className="flex justify-between items-center z-10 gap-4">
+            <div className="flex justify-between items-center z-10 gap-3">
               {/* NÓ DATACAR */}
-              <div className="bg-[#0c1120] border border-[#1c2436] rounded-2xl p-4 w-48 text-left shadow-xl hover:border-[#f0b74f] transition-all transform hover:-translate-y-1">
-                <div className="w-9 h-9 rounded-lg bg-[#f0b74f]/15 text-[#f0b74f] flex items-center justify-center text-lg mb-2 shadow-sm">🚗</div>
-                <div className="text-sm font-bold text-white">Datacar</div>
-                <div className="text-[11px] text-[#586178]">Sistema de origem</div>
-                <div className="mt-2 text-[10px] font-mono text-[#f0b74f] uppercase tracking-wider font-bold">● Extrai Dados</div>
+              <div className="bg-[#0c1120] border border-[#1c2436] rounded-xl p-3 w-44 text-left shadow-xl hover:border-[#f0b74f] transition-all transform hover:-translate-y-0.5">
+                <div className="w-8 h-8 rounded-lg bg-[#f0b74f]/15 text-[#f0b74f] flex items-center justify-center text-base mb-1.5 shadow-sm">
+                  <Car size={16} />
+                </div>
+                <div className="text-xs font-bold text-white">Datacar</div>
+                <div className="text-[10px] text-[#586178]">Sistema de origem</div>
+                <div className="mt-1 text-[9px] font-mono text-[#f0b74f] uppercase tracking-wider font-bold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#f0b74f] animate-pulse inline-block" />
+                  Extrai Dados
+                </div>
               </div>
 
               {/* NÓ CONTA AZUL */}
-              <div className="bg-[#0c1120] border border-[#1c2436] rounded-2xl p-4 w-48 text-left shadow-xl hover:border-[#2ee88a] transition-all transform hover:-translate-y-1">
-                <div className="w-9 h-9 rounded-lg bg-[#2ee88a]/15 text-[#2ee88a] flex items-center justify-center text-lg mb-2 shadow-sm">📗</div>
-                <div className="text-sm font-bold text-white">Conta Azul</div>
-                <div className="text-[11px] text-[#586178]">Sistema de destino</div>
-                <div className="mt-2 text-[10px] font-mono text-[#2ee88a] uppercase tracking-wider font-bold">● Importa & Lança</div>
+              <div className="bg-[#0c1120] border border-[#1c2436] rounded-xl p-3 w-44 text-left shadow-xl hover:border-[#2ee88a] transition-all transform hover:-translate-y-0.5">
+                <div className="w-8 h-8 rounded-lg bg-[#2ee88a]/15 text-[#2ee88a] flex items-center justify-center text-base mb-1.5 shadow-sm">
+                  <Building2 size={16} />
+                </div>
+                <div className="text-xs font-bold text-white">Conta Azul</div>
+                <div className="text-[10px] text-[#586178]">Sistema de destino</div>
+                <div className="mt-1 text-[9px] font-mono text-[#2ee88a] uppercase tracking-wider font-bold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#2ee88a] animate-pulse inline-block" />
+                  Importa & Lança
+                </div>
               </div>
             </div>
 
             {/* CENTRO: NÓ PRINCIPAL CONNECTA AI (PULSANDO COM ENERGIA) */}
-            <div className="self-center z-20 my-2">
-              <div className="core-node bg-[#0c1120] border-2 border-[#2ee88a] rounded-3xl p-5 w-64 text-center bg-gradient-to-b from-[#0c1120] via-[#101e33] to-[#0c1120] cursor-pointer">
-                <div className="w-12 h-12 rounded-2xl bg-[#2ee88a] text-[#04150c] flex items-center justify-center text-2xl font-black mx-auto mb-2 shadow-lg shadow-[#2ee88a]/40">
+            <div className="self-center z-20 my-1">
+              <div className="core-node bg-[#0c1120] border-2 border-[#2ee88a] rounded-2xl p-3.5 w-56 text-center bg-gradient-to-b from-[#0c1120] via-[#101e33] to-[#0c1120] cursor-pointer">
+                <div className="w-9 h-9 rounded-xl bg-[#2ee88a] text-[#04150c] flex items-center justify-center text-lg font-black mx-auto mb-1.5 shadow-lg shadow-[#2ee88a]/40">
                   C
                 </div>
-                <div className="text-lg font-black text-white tracking-wide">CONNECTA AI</div>
-                <div className="text-xs text-[#2ee88a] font-bold mt-0.5">Confere, Paga & Emite</div>
-                <div className="mt-2 text-[10px] bg-[#2ee88a]/10 border border-[#2ee88a]/30 text-[#bdf5da] px-2.5 py-0.5 rounded-full inline-block font-semibold">
-                  ⚡ Hub de IA & BPO Inteligente
+                <div className="text-base font-black text-white tracking-wide">CONNECTA AI</div>
+                <div className="text-[11px] text-[#2ee88a] font-bold mt-0.5">Confere, Paga & Emite</div>
+                <div className="mt-1.5 text-[9px] bg-[#2ee88a]/10 border border-[#2ee88a]/30 text-[#bdf5da] px-2 py-0.5 rounded-full inline-flex items-center gap-1 font-semibold">
+                  <Zap size={10} className="fill-[#2ee88a] text-[#2ee88a]" /> Hub de IA & BPO Inteligente
                 </div>
               </div>
             </div>
 
             {/* SEGUNDA LINHA DE NÓS (PAGAMENTOS & NFE) */}
-            <div className="flex justify-between items-center z-10 gap-4">
+            <div className="flex justify-between items-center z-10 gap-3">
               {/* NÓ GESTÃO PAGAMENTOS */}
-              <div className="bg-[#0c1120] border border-[#1c2436] rounded-2xl p-4 w-48 text-left shadow-xl hover:border-[#5b9df5] transition-all transform hover:-translate-y-1">
-                <div className="w-9 h-9 rounded-lg bg-[#5b9df5]/15 text-[#5b9df5] flex items-center justify-center text-lg mb-2 shadow-sm">💳</div>
-                <div className="text-sm font-bold text-white">Gestão de Pagamentos</div>
-                <div className="text-[11px] text-[#586178]">Aprova & executa</div>
-                <div className="mt-2 text-[10px] font-mono text-[#5b9df5] uppercase tracking-wider font-bold">● Paga Boletos</div>
+              <div className="bg-[#0c1120] border border-[#1c2436] rounded-xl p-3 w-44 text-left shadow-xl hover:border-[#5b9df5] transition-all transform hover:-translate-y-0.5">
+                <div className="w-8 h-8 rounded-lg bg-[#5b9df5]/15 text-[#5b9df5] flex items-center justify-center text-base mb-1.5 shadow-sm">
+                  <CreditCard size={16} />
+                </div>
+                <div className="text-xs font-bold text-white">Gestão de Pagamentos</div>
+                <div className="text-[10px] text-[#586178]">Aprova & executa</div>
+                <div className="mt-1 text-[9px] font-mono text-[#5b9df5] uppercase tracking-wider font-bold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#5b9df5] animate-pulse inline-block" />
+                  Paga Boletos
+                </div>
               </div>
 
               {/* NÓ NFE */}
-              <div className="bg-[#0c1120] border border-[#1c2436] rounded-2xl p-4 w-48 text-left shadow-xl hover:border-[#9b8cf0] transition-all transform hover:-translate-y-1">
-                <div className="w-9 h-9 rounded-lg bg-[#9b8cf0]/15 text-[#9b8cf0] flex items-center justify-center text-lg mb-2 shadow-sm">🧾</div>
-                <div className="text-sm font-bold text-white">Emissão de NFe</div>
-                <div className="text-[11px] text-[#586178]">Nota automática</div>
-                <div className="mt-2 text-[10px] font-mono text-[#9b8cf0] uppercase tracking-wider font-bold">● Emite NFes</div>
+              <div className="bg-[#0c1120] border border-[#1c2436] rounded-xl p-3 w-44 text-left shadow-xl hover:border-[#9b8cf0] transition-all transform hover:-translate-y-0.5">
+                <div className="w-8 h-8 rounded-lg bg-[#9b8cf0]/15 text-[#9b8cf0] flex items-center justify-center text-base mb-1.5 shadow-sm">
+                  <Receipt size={16} />
+                </div>
+                <div className="text-xs font-bold text-white">Emissão de NFe</div>
+                <div className="text-[10px] text-[#586178]">Nota automática</div>
+                <div className="mt-1 text-[9px] font-mono text-[#9b8cf0] uppercase tracking-wider font-bold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#9b8cf0] animate-pulse inline-block" />
+                  Emite NFes
+                </div>
               </div>
             </div>
 
           </div>
         </div>
 
-        {/* AS 4 CAIXINHAS (DESCIDAS PARA BAIXO DO DIAGRAMA CONFORME SOLICITADO) */}
-        <div id="recursos" className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto mb-12">
-          <div className="bg-[#0c1120] border border-[#1c2436] rounded-2xl p-4 flex flex-col items-center gap-2 text-center hover:border-[#5b9df5]/50 transition-all shadow-md">
-            <div className="w-10 h-10 rounded-xl bg-[#5b9df5]/15 text-[#5b9df5] flex items-center justify-center text-lg font-bold">
-              📥
+        {/* AS 4 CAIXINHAS DE RECURSOS COM ÍCONES LUCIDE */}
+        <div id="recursos" className="grid grid-cols-2 md:grid-cols-4 gap-2.5 max-w-4xl mx-auto mb-8">
+          <div className="bg-[#0c1120] border border-[#1c2436] rounded-xl p-3 flex flex-col items-center gap-1.5 text-center hover:border-[#5b9df5]/50 transition-all shadow-md group">
+            <div className="w-8 h-8 rounded-lg bg-[#5b9df5]/15 text-[#5b9df5] flex items-center justify-center transition-transform group-hover:scale-110">
+              <ArrowDownToLine size={16} />
             </div>
             <div className="text-xs font-bold text-white">Contas a Pagar</div>
-            <div className="text-[11px] text-[#586178]">Captura automática</div>
+            <div className="text-[10px] text-[#586178]">Captura automática</div>
           </div>
 
-          <div className="bg-[#0c1120] border border-[#1c2436] rounded-2xl p-4 flex flex-col items-center gap-2 text-center hover:border-[#2ee88a]/50 transition-all shadow-md">
-            <div className="w-10 h-10 rounded-xl bg-[#2ee88a]/15 text-[#2ee88a] flex items-center justify-center text-lg font-bold">
-              💳
+          <div className="bg-[#0c1120] border border-[#1c2436] rounded-xl p-3 flex flex-col items-center gap-1.5 text-center hover:border-[#2ee88a]/50 transition-all shadow-md group">
+            <div className="w-8 h-8 rounded-lg bg-[#2ee88a]/15 text-[#2ee88a] flex items-center justify-center transition-transform group-hover:scale-110">
+              <CreditCard size={16} />
             </div>
             <div className="text-xs font-bold text-white">Gestão de Pagamentos</div>
-            <div className="text-[11px] text-[#586178]">Aprova & executa</div>
+            <div className="text-[10px] text-[#586178]">Aprova & executa</div>
           </div>
 
-          <div className="bg-[#0c1120] border border-[#1c2436] rounded-2xl p-4 flex flex-col items-center gap-2 text-center hover:border-[#9b8cf0]/50 transition-all shadow-md">
-            <div className="w-10 h-10 rounded-xl bg-[#9b8cf0]/15 text-[#9b8cf0] flex items-center justify-center text-lg font-bold">
-              🧾
+          <div className="bg-[#0c1120] border border-[#1c2436] rounded-xl p-3 flex flex-col items-center gap-1.5 text-center hover:border-[#9b8cf0]/50 transition-all shadow-md group">
+            <div className="w-8 h-8 rounded-lg bg-[#9b8cf0]/15 text-[#9b8cf0] flex items-center justify-center transition-transform group-hover:scale-110">
+              <Receipt size={16} />
             </div>
             <div className="text-xs font-bold text-white">Emissão de NFe</div>
-            <div className="text-[11px] text-[#586178]">Nota automática</div>
+            <div className="text-[10px] text-[#586178]">Nota automática</div>
           </div>
 
-          <div className="bg-[#0c1120] border border-[#1c2436] rounded-2xl p-4 flex flex-col items-center gap-2 text-center hover:border-[#f0b74f]/50 transition-all shadow-md">
-            <div className="w-10 h-10 rounded-xl bg-[#f0b74f]/15 text-[#f0b74f] flex items-center justify-center text-lg font-bold">
-              🔄
+          <div className="bg-[#0c1120] border border-[#1c2436] rounded-xl p-3 flex flex-col items-center gap-1.5 text-center hover:border-[#f0b74f]/50 transition-all shadow-md group">
+            <div className="w-8 h-8 rounded-lg bg-[#f0b74f]/15 text-[#f0b74f] flex items-center justify-center transition-transform group-hover:scale-110">
+              <RefreshCw size={16} />
             </div>
             <div className="text-xs font-bold text-white">Datacar ↔ Conta Azul</div>
-            <div className="text-[11px] text-[#586178]">Sincronizado</div>
+            <div className="text-[10px] text-[#586178]">Sincronizado</div>
           </div>
         </div>
 
       </header>
 
-      {/* COMO FUNCIONA */}
-      <section id="como" className="relative z-10 max-w-[1120px] mx-auto px-4 py-16 border-t border-[#1c2436]/50">
-        <div className="text-center mb-12">
-          <div className="text-xs font-bold tracking-widest text-[#2ee88a] uppercase mb-2">Como Funciona</div>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-white">Fluxo Inteligente. Zero Digitação.</h2>
+      {/* COMO FUNCIONA COM ÍCONES LUCIDE */}
+      <section id="como" className="relative z-10 max-w-[1120px] mx-auto px-4 py-12 border-t border-[#1c2436]/50">
+        <div className="text-center mb-10">
+          <div className="text-xs font-bold tracking-widest text-[#2ee88a] uppercase mb-1.5">Como Funciona</div>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-white">Fluxo Inteligente. Zero Digitação.</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-[#0c1120] border border-[#1c2436] rounded-2xl p-6 hover:border-[#2ee88a]/40 transition-all">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-11 h-11 rounded-xl bg-[#5b9df5]/15 text-[#5b9df5] flex items-center justify-center text-xl">
-                📥
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="bg-[#0c1120] border border-[#1c2436] rounded-2xl p-5 hover:border-[#2ee88a]/40 transition-all">
+            <div className="flex items-center justify-between mb-3.5">
+              <div className="w-10 h-10 rounded-xl bg-[#5b9df5]/15 text-[#5b9df5] flex items-center justify-center">
+                <ArrowDownToLine size={20} />
               </div>
-              <span className="text-3xl font-black text-[#1c2436]">01</span>
+              <span className="text-2xl font-black text-[#1c2436]">01</span>
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">Busca & Captura</h3>
-            <p className="text-sm text-[#8b94ab] leading-relaxed">
+            <h3 className="text-base font-bold text-white mb-1.5">Busca & Captura</h3>
+            <p className="text-xs text-[#8b94ab] leading-relaxed">
               O CONNECTA AI acessa o Datacar e extrai automaticamente as contas a pagar, contas a receber e vendas do período com total precisão.
             </p>
           </div>
 
-          <div className="bg-[#0c1120] border border-[#1c2436] rounded-2xl p-6 hover:border-[#2ee88a]/40 transition-all">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-11 h-11 rounded-xl bg-[#2ee88a]/15 text-[#2ee88a] flex items-center justify-center text-xl">
-                💳
+          <div className="bg-[#0c1120] border border-[#1c2436] rounded-2xl p-5 hover:border-[#2ee88a]/40 transition-all">
+            <div className="flex items-center justify-between mb-3.5">
+              <div className="w-10 h-10 rounded-xl bg-[#2ee88a]/15 text-[#2ee88a] flex items-center justify-center">
+                <CreditCard size={20} />
               </div>
-              <span className="text-3xl font-black text-[#1c2436]">02</span>
+              <span className="text-2xl font-black text-[#1c2436]">02</span>
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">Gestão de Pagamentos</h3>
-            <p className="text-sm text-[#8b94ab] leading-relaxed">
+            <h3 className="text-base font-bold text-white mb-1.5">Gestão de Pagamentos</h3>
+            <p className="text-xs text-[#8b94ab] leading-relaxed">
               Organiza boletos, DDAs e agendamentos por loja e conta bancária. Permite aprovar e executar pagamentos sem retrabalho manual.
             </p>
           </div>
 
-          <div className="bg-[#0c1120] border border-[#1c2436] rounded-2xl p-6 hover:border-[#2ee88a]/40 transition-all">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-11 h-11 rounded-xl bg-[#9b8cf0]/15 text-[#9b8cf0] flex items-center justify-center text-xl">
-                🧾
+          <div className="bg-[#0c1120] border border-[#1c2436] rounded-2xl p-5 hover:border-[#2ee88a]/40 transition-all">
+            <div className="flex items-center justify-between mb-3.5">
+              <div className="w-10 h-10 rounded-xl bg-[#9b8cf0]/15 text-[#9b8cf0] flex items-center justify-center">
+                <Receipt size={20} />
               </div>
-              <span className="text-3xl font-black text-[#1c2436]">03</span>
+              <span className="text-2xl font-black text-[#1c2436]">03</span>
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">NFe & Conta Azul</h3>
-            <p className="text-sm text-[#8b94ab] leading-relaxed">
+            <h3 className="text-base font-bold text-white mb-1.5">NFe & Conta Azul</h3>
+            <p className="text-xs text-[#8b94ab] leading-relaxed">
               Sincroniza os lançamentos aprovados com o Conta Azul e habilita a emissão automática de Notas Fiscais com um único clique.
             </p>
           </div>
         </div>
       </section>
 
-      {/* INTEGRAÇÕES */}
-      <section id="integracoes" className="relative z-10 max-w-[1120px] mx-auto px-4 py-16 border-t border-[#1c2436]/50">
-        <div className="bg-gradient-to-r from-[#0c1120] via-[#142238] to-[#0c1120] border border-[#1c2436] rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl">
+      {/* INTEGRAÇÕES COM ÍCONES LUCIDE */}
+      <section id="integracoes" className="relative z-10 max-w-[1120px] mx-auto px-4 py-12 border-t border-[#1c2436]/50">
+        <div className="bg-gradient-to-r from-[#0c1120] via-[#142238] to-[#0c1120] border border-[#1c2436] rounded-3xl p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
           <div className="max-w-xl">
-            <div className="text-xs font-bold tracking-widest text-[#2ee88a] uppercase mb-2">Integrações Conectadas</div>
-            <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-4">Datacar e Conta Azul em Perfeita Sincronia</h2>
-            <p className="text-sm text-[#8b94ab] leading-relaxed mb-6">
+            <div className="text-xs font-bold tracking-widest text-[#2ee88a] uppercase mb-1.5">Integrações Conectadas</div>
+            <h2 className="text-xl md:text-2xl font-extrabold text-white mb-3">Datacar e Conta Azul em Perfeita Sincronia</h2>
+            <p className="text-xs md:text-sm text-[#8b94ab] leading-relaxed mb-4">
               Integração nativa de alta velocidade conectando o seu ERP Datacar ao Conta Azul para automação financeira completa de BPO.
             </p>
-            <div className="inline-flex items-center gap-2 bg-[#0c1120] border border-[#1c2436] px-3.5 py-1.5 rounded-full text-xs text-[#8b94ab]">
+            <div className="inline-flex items-center gap-2 bg-[#0c1120] border border-[#1c2436] px-3 py-1 rounded-full text-xs text-[#8b94ab]">
               <span className="w-2 h-2 rounded-full bg-[#2ee88a]" />
               Conexões multi-empresas e multi-bancos ativas
             </div>
           </div>
 
-          <div className="flex items-center gap-4 bg-[#0c1120] border border-[#1c2436] p-6 rounded-2xl shadow-xl">
+          <div className="flex items-center gap-4 bg-[#0c1120] border border-[#1c2436] p-5 rounded-2xl shadow-xl">
             <div className="text-center">
-              <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-3xl mb-2">🚗</div>
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-1.5">
+                <Car size={26} />
+              </div>
               <div className="text-xs font-bold text-white">Datacar</div>
             </div>
 
-            <div className="text-[#2ee88a] text-xl font-bold">⇄</div>
+            <div className="text-[#2ee88a] p-2 bg-[#2ee88a]/10 rounded-xl border border-[#2ee88a]/20">
+              <ArrowLeftRight size={18} />
+            </div>
 
             <div className="text-center">
-              <div className="w-16 h-16 rounded-2xl bg-[#2ee88a]/10 border border-[#2ee88a]/20 flex items-center justify-center text-3xl mb-2">📗</div>
+              <div className="w-14 h-14 rounded-2xl bg-[#2ee88a]/10 border border-[#2ee88a]/20 flex items-center justify-center text-[#2ee88a] mb-1.5">
+                <Building2 size={26} />
+              </div>
               <div className="text-xs font-bold text-white">Conta Azul</div>
             </div>
           </div>

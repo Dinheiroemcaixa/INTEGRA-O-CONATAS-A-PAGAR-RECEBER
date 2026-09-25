@@ -161,13 +161,13 @@ export default function SelectorEmpresa() {
     <div ref={refEmpresa} className="relative w-full sm:w-auto">
       <button
         onClick={() => setOpenEmpresa(!openEmpresa)}
-        className="w-full sm:w-auto flex items-center justify-between gap-2.5 bg-dark-800 hover:bg-dark-700 border border-dark-600 rounded-xl px-3 py-2 transition-all group shadow-sm"
+        className="w-full sm:w-auto flex items-center justify-between gap-2.5 bg-white dark:bg-dark-800 hover:bg-slate-50 dark:hover:bg-dark-700 border border-slate-200/80 dark:border-dark-600 rounded-xl px-3 py-2 transition-all group shadow-xs cursor-pointer"
       >
         <div className="flex items-center gap-2 min-w-0">
           <div className={`w-6 h-6 ${accentClasses.bg}/20 rounded-md flex items-center justify-center flex-shrink-0`}>
             <Building2 size={13} className={accentClasses.text} />
           </div>
-          <span className="text-white text-sm font-semibold max-w-[210px] truncate text-left">
+          <span className="text-slate-900 dark:text-white text-sm font-semibold max-w-[210px] truncate text-left">
             {empresaAtiva?.nome || 'Selecionar empresa'}
           </span>
           
@@ -185,31 +185,31 @@ export default function SelectorEmpresa() {
       </button>
 
       {openEmpresa && (
-        <div className="absolute top-full mt-2 right-0 sm:right-auto sm:left-0 w-80 sm:w-96 bg-dark-800 border border-dark-600 rounded-2xl shadow-2xl z-50 overflow-hidden animate-fade-in flex flex-col">
+        <div className="absolute top-full mt-2 right-0 sm:right-auto sm:left-0 w-80 sm:w-96 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-2xl shadow-xl z-50 overflow-hidden animate-fade-in flex flex-col">
           {/* Cabeçalho do Dropdown */}
-          <div className="px-3.5 py-2.5 border-b border-dark-700 bg-dark-900/60 flex items-center justify-between">
-            <span className="text-[11px] font-bold text-dark-300 uppercase tracking-wider">Suas Empresas</span>
-            <span className="text-[10px] font-bold bg-dark-700 text-dark-300 px-2 py-0.5 rounded-full border border-dark-600/50">
+          <div className="px-3.5 py-2.5 border-b border-slate-200 dark:border-dark-700 bg-slate-50 dark:bg-dark-900/60 flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-500 dark:text-dark-300 uppercase tracking-wider">Suas Empresas</span>
+            <span className="text-[10px] font-bold bg-slate-200 dark:bg-dark-700 text-slate-700 dark:text-dark-300 px-2 py-0.5 rounded-full border border-slate-300/50 dark:border-dark-600/50">
               {empresasExibidas.length} {empresasExibidas.length === 1 ? 'loja' : 'lojas'}
             </span>
           </div>
 
           {/* Campo de Pesquisa Interativa */}
-          <div className="p-2.5 border-b border-dark-700 bg-dark-850 sticky top-0 z-10">
+          <div className="p-2.5 border-b border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-850 sticky top-0 z-10">
             <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400" />
               <input
                 ref={searchInputRef}
                 type="text"
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 placeholder="Pesquisar loja por nome ou CNPJ..."
-                className="w-full bg-dark-900 border border-dark-700 rounded-xl pl-9 pr-7 py-2 text-xs text-white placeholder-dark-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all"
+                className="w-full bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 rounded-xl pl-9 pr-7 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-dark-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all"
               />
               {busca && (
                 <button
                   onClick={() => setBusca('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-dark-400 hover:text-white text-xs p-1"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:text-dark-400 dark:hover:text-white text-xs p-1"
                 >
                   ✕
                 </button>
@@ -218,9 +218,9 @@ export default function SelectorEmpresa() {
           </div>
 
           {/* Lista de Empresas com Scroll Sem Cortes */}
-          <div className="max-h-72 overflow-y-auto divide-y divide-dark-700/40 custom-scrollbar">
+          <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-dark-700/40 custom-scrollbar">
             {empresasExibidas.length === 0 ? (
-              <div className="px-4 py-8 text-center text-dark-400 text-xs">
+              <div className="px-4 py-8 text-center text-slate-500 dark:text-dark-400 text-xs">
                 {busca ? `Nenhuma empresa encontrada para "${busca}"` : 'Nenhuma empresa disponível para este módulo'}
               </div>
             ) : (
@@ -237,7 +237,7 @@ export default function SelectorEmpresa() {
                     key={emp.id}
                     onClick={() => handleSelectEmpresa(emp)}
                     className={`w-full flex items-start gap-3 px-3.5 py-3 transition-colors text-left group ${
-                      isSelected ? 'bg-dark-700/70' : 'hover:bg-dark-700/40'
+                      isSelected ? 'bg-slate-100 dark:bg-dark-700/70' : 'hover:bg-slate-50 dark:hover:bg-dark-700/40'
                     }`}
                   >
                     <div className={`w-8 h-8 mt-0.5 rounded-lg flex items-center justify-center flex-shrink-0 transition-all ${
@@ -256,7 +256,7 @@ export default function SelectorEmpresa() {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className={`text-xs font-semibold truncate ${isSelected ? 'text-white' : 'text-dark-100 group-hover:text-white'}`}>
+                        <p className={`text-xs font-semibold truncate ${isSelected ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-dark-100 group-hover:text-slate-900 dark:group-hover:text-white'}`}>
                           {emp.nome}
                         </p>
                         {ehSomenteBanco ? (
@@ -264,12 +264,12 @@ export default function SelectorEmpresa() {
                             SOMENTE BANCO
                           </span>
                         ) : (
-                          <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded-full bg-dark-700 text-dark-300">
+                          <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-dark-700 text-slate-600 dark:text-dark-300">
                             {emp.tipo_empresa || 'ambos'}
                           </span>
                         )}
                       </div>
-                      <p className="text-dark-400 text-[11px] font-mono mt-0.5">
+                      <p className="text-slate-400 dark:text-dark-400 text-[11px] font-mono mt-0.5">
                         {emp.cnpj ? formatCNPJ(emp.cnpj) : 'CNPJ não informado'}
                       </p>
 
@@ -304,9 +304,9 @@ export default function SelectorEmpresa() {
 
           {/* Rodapé de Status do Conta Azul */}
           {empresaAtiva && (
-            <div className="border-t border-dark-700 px-3.5 py-3 bg-dark-900/80">
-              <p className="text-[10px] text-dark-400 font-bold uppercase tracking-wider mb-2">Conexão Conta Azul</p>
-              <div className="flex items-center justify-between bg-dark-800 border border-dark-700 rounded-xl px-3 py-2">
+            <div className="border-t border-slate-200 dark:border-dark-700 px-3.5 py-3 bg-slate-50 dark:bg-dark-900/80">
+              <p className="text-[10px] text-slate-500 dark:text-dark-400 font-bold uppercase tracking-wider mb-2">Conexão Conta Azul</p>
+              <div className="flex items-center justify-between bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 rounded-xl px-3 py-2">
                 <div className="flex items-center gap-2">
                   {caModuloConectado ? (
                     <><CheckCircle size={13} className="text-emerald-400" /><span className="text-xs text-emerald-400 font-medium">{statusAtivaCA.label}</span></>
@@ -318,11 +318,11 @@ export default function SelectorEmpresa() {
                   {caModuloConectado ? (
                     <>
                       <button onClick={(e) => { e.stopPropagation(); handleConectar() }} disabled={conectando}
-                        className="p-1.5 rounded-lg text-dark-400 hover:text-white hover:bg-dark-700 transition-all" title="Renovar token">
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:text-dark-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-dark-700 transition-all" title="Renovar token">
                         {conectando ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
                       </button>
                       <button onClick={(e) => { e.stopPropagation(); handleDesconectar() }} disabled={desconectando}
-                        className="p-1.5 rounded-lg text-dark-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all" title="Desconectar">
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 dark:text-dark-400 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all" title="Desconectar">
                         {desconectando ? <Loader2 size={13} className="animate-spin" /> : <Unlink size={13} />}
                       </button>
                     </>

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
+import { AppConfigProvider } from '@/contexts/AppConfigContext'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -10,16 +11,33 @@ export const metadata: Metadata = {
   description: 'Sistema de Integração e Automação Financeira BPO',
 }
 
-// Force redeploy - original clean version
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   return (
-    <html lang="pt-BR" className="dark">
+    <html lang="pt-BR" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var t = localStorage.getItem('connecta_theme');
+                if (t === 'dark') {
+                  document.documentElement.classList.add('dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
+      </head>
       <body className={inter.className}>
-        {children}
+        <AppConfigProvider>
+          {children}
+        </AppConfigProvider>
         <Toaster
           position="top-right"
           toastOptions={{

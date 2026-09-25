@@ -19,7 +19,7 @@ import {
   Database, RefreshCw, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, HelpCircle,
   Trash2, FileSpreadsheet, BookOpen,
   Search, Calendar, ExternalLink, FileText, Download,
-  Layers, PackageCheck
+  Layers, PackageCheck, Clock, TrendingUp
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -533,52 +533,55 @@ export default function VendasPage() {
   // ─── Render ──────────────────────────────────────────────────
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-              <ShoppingCart className="text-blue-500" />
-              Vendas Produtos (NF-e Conta Azul)
-            </h1>
-            <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-bold rounded border border-blue-500/30 uppercase tracking-wider">
-              Módulo de Peças & Produtos
-            </span>
+      {/* Header Executivo (Padrão Linear / Vercel) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200/70 dark:border-white/[0.08]">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 flex-shrink-0 shadow-xs">
+            <ShoppingCart size={20} />
           </div>
-          <p className="text-dark-400 text-xs mt-0.5">
-            Sincronização de vendas de produtos e emissão de NF-e via Conta Azul.
-          </p>
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">
+                Vendas Produtos (NF-e Conta Azul)
+              </h1>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                Peças & Produtos
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-dark-400 mt-0.5 font-normal">
+              Sincronização de vendas de produtos e emissão de NF-e via Conta Azul.
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 flex-wrap">
           <SelectorEmpresa />
           {subAba === 'planilha' && etapa !== 'upload' && (
             <button
               onClick={() => { setEtapa('upload'); setResultado(null); setDadosEditados([]) }}
-              className="flex items-center gap-2 text-dark-400 hover:text-white text-sm px-3 py-2 rounded-lg hover:bg-dark-800 transition-all"
+              className="flex items-center gap-2 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white text-xs font-semibold px-3.5 py-2 rounded-xl bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 shadow-xs hover:bg-slate-50 dark:hover:bg-dark-700 transition-all cursor-pointer"
             >
-              <ArrowLeft size={16} /> Voltar
+              <ArrowLeft size={14} /> Voltar
             </button>
           )}
         </div>
       </div>
 
-
       {/* ═══════════════════════════════════════════════════════════════ */}
       {/* 3 SUB-ABAS INTEGRADAS (PADRÃO PILL SWITCHER FINTECH)           */}
       {/* ═══════════════════════════════════════════════════════════════ */}
-      <div className="bg-dark-900/60 p-1.5 rounded-2xl border border-dark-700/80 flex items-center gap-1 shadow-inner max-w-2xl">
+      <div className="bg-slate-200/60 dark:bg-dark-900/80 p-1.5 rounded-2xl border border-slate-300/60 dark:border-dark-700/80 flex items-center gap-1 shadow-inner max-w-2xl">
         <button
           onClick={() => setSubAba('datacar')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold transition-all duration-200 ${
+          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 sm:px-4 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
             subAba === 'datacar'
-              ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
-              : 'text-dark-400 hover:text-white hover:bg-dark-800/50'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-slate-600 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-dark-800/50'
           }`}
         >
-          <Database size={15} className={subAba === 'datacar' ? 'text-blue-400' : ''} />
+          <Database size={15} />
           <span>Datacar (A Enviar)</span>
           {pendenteCount > 0 && (
-            <span className="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full font-black">
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${subAba === 'datacar' ? 'bg-white/20 text-white' : 'bg-blue-500/20 text-blue-600 dark:text-blue-300'}`}>
               {pendenteCount}
             </span>
           )}
@@ -586,16 +589,16 @@ export default function VendasPage() {
 
         <button
           onClick={() => setSubAba('emitidas')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold transition-all duration-200 ${
+          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 sm:px-4 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
             subAba === 'emitidas'
-              ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
-              : 'text-dark-400 hover:text-white hover:bg-dark-800/50'
+              ? 'bg-emerald-600 text-white shadow-sm'
+              : 'text-slate-600 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-dark-800/50'
           }`}
         >
-          <FileCheck size={15} className={subAba === 'emitidas' ? 'text-emerald-400' : ''} />
+          <FileCheck size={15} />
           <span>NF-e Emitidas (Conta Azul)</span>
           {notasEmitidas.length > 0 && (
-            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-black">
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${subAba === 'emitidas' ? 'bg-white/20 text-white' : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300'}`}>
               {notasEmitidas.length}
             </span>
           )}
@@ -603,13 +606,13 @@ export default function VendasPage() {
 
         <button
           onClick={() => setSubAba('planilha')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold transition-all duration-200 ${
+          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 sm:px-4 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
             subAba === 'planilha'
-              ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
-              : 'text-dark-400 hover:text-white hover:bg-dark-800/50'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-slate-600 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-dark-800/50'
           }`}
         >
-          <UploadCloud size={15} className={subAba === 'planilha' ? 'text-blue-400' : ''} />
+          <UploadCloud size={15} />
           <span>Upload Planilha</span>
         </button>
       </div>
@@ -1111,21 +1114,21 @@ export default function VendasPage() {
 
         return (
           <div className="space-y-4 animate-fade-in">
-            {/* ─── BARRA DE PERÍODO & PESQUISA (ESTILO CONTA AZUL) ─── */}
-            <div className="bg-dark-800/90 border border-dark-700/80 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-md">
+            {/* ─── BARRA DE PERÍODO & PESQUISA (ESTILO CONTA AZUL / LINEAR) ─── */}
+            <div className="bg-white dark:bg-dark-800/90 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-xs">
               
               {/* Seletor de Mês < Mês de Ano > */}
-              <div className="flex items-center gap-1.5 bg-dark-900 border border-dark-700 rounded-lg p-1">
+              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 rounded-xl p-1 shadow-inner">
                 <button
                   onClick={() => navegarMes(-1)}
                   disabled={carregandoNotas}
                   title="Mês anterior"
-                  className="p-1.5 hover:bg-dark-750 text-dark-300 hover:text-white rounded transition-colors disabled:opacity-40"
+                  className="p-1.5 hover:bg-white dark:hover:bg-dark-750 text-slate-600 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white rounded-lg transition-colors disabled:opacity-40 cursor-pointer"
                 >
                   <ChevronLeft size={16} />
                 </button>
                 
-                <div className="px-3 py-1 text-xs font-bold text-white min-w-[140px] text-center select-none">
+                <div className="px-3 py-1 text-xs font-bold text-slate-800 dark:text-white min-w-[140px] text-center select-none">
                   {formatNomeMes(mesRef)}
                 </div>
 
@@ -1133,7 +1136,7 @@ export default function VendasPage() {
                   onClick={() => navegarMes(1)}
                   disabled={carregandoNotas}
                   title="Próximo mês"
-                  className="p-1.5 hover:bg-dark-750 text-dark-300 hover:text-white rounded transition-colors disabled:opacity-40"
+                  className="p-1.5 hover:bg-white dark:hover:bg-dark-750 text-slate-600 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white rounded-lg transition-colors disabled:opacity-40 cursor-pointer"
                 >
                   <ChevronRight size={16} />
                 </button>
@@ -1141,13 +1144,13 @@ export default function VendasPage() {
 
               {/* Campo de Pesquisa */}
               <div className="flex-1 min-w-[260px] relative">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400" />
                 <input
                   type="text"
                   placeholder="Pesquisar por cliente, número ou chave da NF-e..."
                   value={buscaEmitidas}
                   onChange={e => setBuscaEmitidas(e.target.value)}
-                  className="w-full bg-dark-900 border border-dark-700 rounded-lg pl-9 pr-3 py-2 text-white text-xs outline-none focus:border-blue-500 transition-colors"
+                  className="w-full bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 rounded-xl pl-9 pr-3 py-2 text-slate-900 dark:text-white text-xs outline-none focus:border-blue-500 transition-colors"
                 />
               </div>
 
@@ -1155,10 +1158,10 @@ export default function VendasPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setMostrarFiltroCustomizado(!mostrarFiltroCustomizado)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                     mostrarFiltroCustomizado 
-                      ? 'bg-blue-600/20 text-blue-300 border-blue-500/40' 
-                      : 'bg-dark-900 text-dark-300 border-dark-700 hover:text-white hover:bg-dark-750'
+                      ? 'bg-blue-50 dark:bg-blue-600/20 text-blue-600 dark:text-blue-300 border-blue-300 dark:border-blue-500/40' 
+                      : 'bg-white dark:bg-dark-900 text-slate-700 dark:text-dark-300 border-slate-200 dark:border-dark-700 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50'
                   }`}
                   title="Definir intervalo de datas personalizado"
                 >
@@ -1169,7 +1172,7 @@ export default function VendasPage() {
                 <button
                   onClick={carregarNotasEmitidas}
                   disabled={carregandoNotas}
-                  className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-blue-600/20"
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
                 >
                   <RefreshCw size={13} className={carregandoNotas ? 'animate-spin' : ''} />
                   <span>Atualizar</span>
@@ -1179,46 +1182,53 @@ export default function VendasPage() {
 
             {/* Painel Expansível de Datas Personalizadas */}
             {mostrarFiltroCustomizado && (
-              <div className="bg-dark-850 border border-dark-700 rounded-xl p-3 flex flex-wrap items-center gap-3 animate-fade-in text-xs">
-                <span className="text-dark-400 font-medium">Intervalo de Emissão:</span>
+              <div className="bg-white dark:bg-dark-850 border border-slate-200/80 dark:border-dark-700 rounded-2xl p-3.5 flex flex-wrap items-center gap-3 animate-fade-in text-xs shadow-xs">
+                <span className="text-slate-500 dark:text-dark-400 font-medium">Intervalo de Emissão:</span>
                 <input
                   type="date"
                   value={dtIniEmitidas}
                   onChange={e => setDtIniEmitidas(e.target.value)}
-                  className="bg-dark-900 border border-dark-700 rounded-lg px-2.5 py-1.5 text-white outline-none focus:border-blue-500"
+                  className="bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 rounded-xl px-2.5 py-1.5 text-slate-900 dark:text-white outline-none focus:border-blue-500"
                 />
-                <span className="text-dark-500">até</span>
+                <span className="text-slate-400 dark:text-dark-500">até</span>
                 <input
                   type="date"
                   value={dtFimEmitidas}
                   onChange={e => setDtFimEmitidas(e.target.value)}
-                  className="bg-dark-900 border border-dark-700 rounded-lg px-2.5 py-1.5 text-white outline-none focus:border-blue-500"
+                  className="bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 rounded-xl px-2.5 py-1.5 text-slate-900 dark:text-white outline-none focus:border-blue-500"
                 />
                 <button
                   onClick={carregarNotasEmitidas}
-                  className="px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-white font-semibold rounded-lg transition-colors"
+                  className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 dark:bg-dark-700 dark:hover:bg-dark-600 text-white font-semibold rounded-xl transition-colors cursor-pointer"
                 >
                   Filtrar Datas
                 </button>
               </div>
             )}
 
-            {/* ─── PAINEL SUPERIOR DE RESUMO (4 CARDS ESTILO CONTA AZUL) ─── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 bg-dark-800/90 border border-dark-700/80 rounded-xl overflow-hidden shadow-lg divide-y sm:divide-y-0 sm:divide-x divide-dark-700/60">
+            {/* ─── PAINEL SUPERIOR DE RESUMO (4 CARDS COM ÍCONES CIRCULARES RESPONSIVOS) ─── */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-3.5">
               
               {/* Card 1: Notas Canceladas */}
               <div 
                 onClick={() => setFiltroSituacao(filtroSituacao === 'cancelado' ? 'todas' : 'cancelado')}
-                className={`p-4 text-center cursor-pointer transition-all duration-200 select-none hover:bg-dark-750/50 ${
-                  filtroSituacao === 'cancelado' ? 'bg-rose-500/10 ring-2 ring-rose-500/40' : ''
+                className={`p-4 rounded-2xl border transition-all duration-200 select-none flex items-center gap-3.5 cursor-pointer shadow-xs ${
+                  filtroSituacao === 'cancelado' 
+                    ? 'bg-rose-50/80 dark:bg-rose-500/10 border-rose-400/60 dark:border-rose-500/40 ring-2 ring-rose-500/20' 
+                    : 'bg-white dark:bg-dark-800/90 border-slate-200/80 dark:border-dark-700/80 hover:bg-slate-50 dark:hover:bg-dark-750/50 hover:border-slate-300 dark:hover:border-dark-600'
                 }`}
               >
-                <div className="text-[11px] font-medium text-dark-300 flex items-center justify-center gap-1">
-                  <span>Notas canceladas</span>
-                  <span className="text-dark-400 font-semibold">({countCanceladas})</span>
+                <div className="w-10 h-10 rounded-full bg-rose-500/10 dark:bg-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400 flex-shrink-0 shadow-xs">
+                  <AlertCircle size={18} />
                 </div>
-                <div className="text-base sm:text-lg font-bold text-dark-200 mt-1 tabular-nums">
-                  {formatCurrency(valorCanceladas)}
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-slate-500 dark:text-dark-300 flex items-center gap-1 uppercase tracking-wider">
+                    <span>Canceladas</span>
+                    <span className="text-rose-600 dark:text-rose-400 font-extrabold">({countCanceladas})</span>
+                  </div>
+                  <div className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white mt-0.5 tabular-nums font-mono">
+                    {formatCurrency(valorCanceladas)}
+                  </div>
                 </div>
               </div>
 
@@ -1228,48 +1238,69 @@ export default function VendasPage() {
                   setFiltroSituacao(filtroSituacao === 'pendente' ? 'todas' : 'pendente')
                   if (countPendentes > 0) setSubAba('datacar')
                 }}
-                className={`p-4 text-center cursor-pointer transition-all duration-200 select-none hover:bg-dark-750/50 ${
-                  filtroSituacao === 'pendente' ? 'bg-amber-500/10 ring-2 ring-amber-500/40' : ''
+                className={`p-4 rounded-2xl border transition-all duration-200 select-none flex items-center gap-3.5 cursor-pointer shadow-xs ${
+                  filtroSituacao === 'pendente' 
+                    ? 'bg-amber-50/80 dark:bg-amber-500/10 border-amber-400/60 dark:border-amber-500/40 ring-2 ring-amber-500/20' 
+                    : 'bg-white dark:bg-dark-800/90 border-slate-200/80 dark:border-dark-700/80 hover:bg-slate-50 dark:hover:bg-dark-750/50 hover:border-slate-300 dark:hover:border-dark-600'
                 }`}
               >
-                <div className="text-[11px] font-medium text-amber-400/90 flex items-center justify-center gap-1">
-                  <span>Pendentes</span>
-                  <span className="text-amber-400/70 font-semibold">({countPendentes})</span>
+                <div className="w-10 h-10 rounded-full bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 flex-shrink-0 shadow-xs">
+                  <Clock size={18} />
                 </div>
-                <div className="text-base sm:text-lg font-bold text-amber-400 mt-1 tabular-nums">
-                  {formatCurrency(valorPendentes)}
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-amber-600 dark:text-amber-400/90 flex items-center gap-1 uppercase tracking-wider">
+                    <span>Pendentes</span>
+                    <span className="text-amber-600 dark:text-amber-400 font-extrabold">({countPendentes})</span>
+                  </div>
+                  <div className="text-base sm:text-lg font-extrabold text-amber-600 dark:text-amber-400 mt-0.5 tabular-nums font-mono">
+                    {formatCurrency(valorPendentes)}
+                  </div>
                 </div>
               </div>
 
               {/* Card 3: Emitidas */}
               <div 
                 onClick={() => setFiltroSituacao(filtroSituacao === 'emitida' ? 'todas' : 'emitida')}
-                className={`p-4 text-center cursor-pointer transition-all duration-200 select-none hover:bg-dark-750/50 ${
-                  filtroSituacao === 'emitida' ? 'bg-emerald-500/10 ring-2 ring-emerald-500/40' : ''
+                className={`p-4 rounded-2xl border transition-all duration-200 select-none flex items-center gap-3.5 cursor-pointer shadow-xs ${
+                  filtroSituacao === 'emitida' 
+                    ? 'bg-emerald-50/80 dark:bg-emerald-500/10 border-emerald-400/60 dark:border-emerald-500/40 ring-2 ring-emerald-500/20' 
+                    : 'bg-white dark:bg-dark-800/90 border-slate-200/80 dark:border-dark-700/80 hover:bg-slate-50 dark:hover:bg-dark-750/50 hover:border-slate-300 dark:hover:border-dark-600'
                 }`}
               >
-                <div className="text-[11px] font-medium text-emerald-400/90 flex items-center justify-center gap-1">
-                  <span>Emitidas</span>
-                  <span className="text-emerald-400/70 font-semibold">({countEmitidas})</span>
+                <div className="w-10 h-10 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 flex-shrink-0 shadow-xs">
+                  <CheckCircle size={18} />
                 </div>
-                <div className="text-base sm:text-lg font-bold text-emerald-400 mt-1 tabular-nums">
-                  {formatCurrency(valorEmitidas)}
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400/90 flex items-center gap-1 uppercase tracking-wider">
+                    <span>Emitidas</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">({countEmitidas})</span>
+                  </div>
+                  <div className="text-base sm:text-lg font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5 tabular-nums font-mono">
+                    {formatCurrency(valorEmitidas)}
+                  </div>
                 </div>
               </div>
 
               {/* Card 4: Total do Período */}
               <div 
                 onClick={() => setFiltroSituacao('todas')}
-                className={`p-4 text-center cursor-pointer transition-all duration-200 select-none hover:bg-dark-750/50 border-t-2 border-t-blue-500 bg-blue-500/[0.03] ${
-                  filtroSituacao === 'todas' ? 'bg-blue-500/10 ring-2 ring-blue-500/40' : ''
+                className={`p-4 rounded-2xl border transition-all duration-200 select-none flex items-center gap-3.5 cursor-pointer shadow-xs ${
+                  filtroSituacao === 'todas' 
+                    ? 'bg-blue-50/80 dark:bg-blue-500/10 border-blue-400/60 dark:border-blue-500/40 ring-2 ring-blue-500/20' 
+                    : 'bg-white dark:bg-dark-800/90 border-slate-200/80 dark:border-dark-700/80 hover:bg-slate-50 dark:hover:bg-dark-750/50 hover:border-slate-300 dark:hover:border-dark-600'
                 }`}
               >
-                <div className="text-[11px] font-medium text-blue-400/90 flex items-center justify-center gap-1">
-                  <span>Total do período</span>
-                  <span className="text-blue-400/70 font-semibold">({totalPeriodoCount})</span>
+                <div className="w-10 h-10 rounded-full bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 flex-shrink-0 shadow-xs">
+                  <TrendingUp size={18} />
                 </div>
-                <div className="text-base sm:text-lg font-bold text-blue-400 mt-1 tabular-nums">
-                  {formatCurrency(totalPeriodoValor)}
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-blue-600 dark:text-blue-400/90 flex items-center gap-1 uppercase tracking-wider">
+                    <span>Total do período</span>
+                    <span className="text-blue-600 dark:text-blue-400 font-extrabold">({totalPeriodoCount})</span>
+                  </div>
+                  <div className="text-base sm:text-lg font-extrabold text-blue-600 dark:text-blue-400 mt-0.5 tabular-nums font-mono">
+                    {formatCurrency(totalPeriodoValor)}
+                  </div>
                 </div>
               </div>
 
@@ -1277,41 +1308,41 @@ export default function VendasPage() {
 
             {/* Aviso de Filtro Ativo */}
             {filtroSituacao !== 'todas' && (
-              <div className="flex items-center justify-between px-3 py-2 bg-dark-900 border border-dark-700/80 rounded-lg text-xs">
-                <span className="text-dark-300">
-                  Filtrando por situação: <strong className="text-white capitalize">{filtroSituacao}</strong> ({notasExibidas.length} notas)
+              <div className="flex items-center justify-between px-3.5 py-2 bg-slate-50 dark:bg-dark-900 border border-slate-200/80 dark:border-dark-700/80 rounded-xl text-xs">
+                <span className="text-slate-600 dark:text-dark-300">
+                  Filtrando por situação: <strong className="text-slate-900 dark:text-white capitalize">{filtroSituacao}</strong> ({notasExibidas.length} notas)
                 </span>
                 <button
                   onClick={() => setFiltroSituacao('todas')}
-                  className="text-blue-400 hover:text-blue-300 font-semibold text-[11px] underline"
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-semibold text-[11px] underline cursor-pointer"
                 >
-                  Mostrar todas
+                  Limpar filtro
                 </button>
               </div>
             )}
 
             {/* ─── TABELA DE NF-E EMITIDAS ─── */}
             {carregandoNotas ? (
-              <div className="flex items-center justify-center py-20 bg-dark-800 border border-dark-700 rounded-xl">
+              <div className="flex items-center justify-center py-20 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 rounded-2xl shadow-xs">
                 <div className="flex flex-col items-center gap-2">
-                  <Loader2 size={32} className="animate-spin text-blue-400" />
-                  <span className="text-dark-400 text-xs font-medium">Carregando notas do Conta Azul...</span>
+                  <Loader2 size={32} className="animate-spin text-blue-500" />
+                  <span className="text-slate-500 dark:text-dark-400 text-xs font-medium">Carregando notas do Conta Azul...</span>
                 </div>
               </div>
             ) : notasExibidas.length === 0 ? (
-              <div className="bg-dark-800 border border-dark-700 rounded-xl p-12 text-center">
-                <FileText size={40} className="text-dark-600 mx-auto mb-3" />
-                <h3 className="text-white font-bold text-sm">Nenhuma NF-e encontrada no período</h3>
-                <p className="text-dark-400 text-xs mt-1">
+              <div className="bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 rounded-2xl p-12 text-center shadow-xs">
+                <FileText size={40} className="text-slate-300 dark:text-dark-600 mx-auto mb-3" />
+                <h3 className="text-slate-900 dark:text-white font-bold text-sm">Nenhuma NF-e encontrada no período</h3>
+                <p className="text-slate-500 dark:text-dark-400 text-xs mt-1">
                   Não encontramos notas fiscais emitidas com os filtros selecionados para este mês.
                 </p>
               </div>
             ) : (
-              <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden shadow-lg">
-                <div className="overflow-x-auto">
+              <div className="bg-white dark:bg-dark-800 border border-slate-200/80 dark:border-dark-700 rounded-2xl overflow-hidden shadow-xs">
+                <div className="overflow-x-auto custom-scrollbar">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
-                      <tr className="bg-dark-900/60 border-b border-dark-700 text-dark-400 font-bold uppercase tracking-wider">
+                      <tr className="bg-slate-50 dark:bg-dark-900/60 border-b border-slate-200 dark:border-dark-700 text-slate-500 dark:text-dark-400 font-bold uppercase tracking-wider text-[11px]">
                         <th className="py-3 px-4">Série - NF</th>
                         <th className="py-3 px-4">Emissão</th>
                         <th className="py-3 px-4">Cliente / Fornecedor</th>
@@ -1321,40 +1352,40 @@ export default function VendasPage() {
                         <th className="py-3 px-4 text-right">Ações</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-dark-700/50">
+                    <tbody className="divide-y divide-slate-100 dark:divide-dark-700/50">
                       {notasExibidas.map((nota) => {
                         const isCancelada = nota.status === 'cancelado'
                         const chave = nota.metadata?.chave_acesso || nota.dados_datacar?.chave_acesso
                         const serie = nota.metadata?.serie || nota.dados_datacar?.serie || '1'
                         return (
-                          <tr key={nota.id} className="hover:bg-dark-750/40 transition-colors">
-                            <td className="py-3.5 px-4 font-mono font-bold text-white">
-                              <span className="text-blue-400">{serie} - {nota.os_numero}</span>
+                          <tr key={nota.id} className="hover:bg-slate-50/80 dark:hover:bg-dark-750/40 transition-colors">
+                            <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white">
+                              <span className="text-blue-600 dark:text-blue-400">{serie} - {nota.os_numero}</span>
                             </td>
-                            <td className="py-3.5 px-4 text-dark-300 font-mono">
+                            <td className="py-3.5 px-4 text-slate-600 dark:text-dark-300 font-mono">
                               {formatDate(nota.data_venda)}
                             </td>
-                            <td className="py-3.5 px-4 font-medium text-white">
+                            <td className="py-3.5 px-4 font-medium text-slate-900 dark:text-white">
                               {nota.cliente}
                               {nota.metadata?.cliente_cpf_cnpj && (
-                                <span className="block text-[10px] text-dark-400 font-mono">
+                                <span className="block text-[10px] text-slate-400 dark:text-dark-400 font-mono">
                                   {nota.metadata.cliente_cpf_cnpj}
                                 </span>
                               )}
                             </td>
-                            <td className="py-3.5 px-4 text-center text-dark-300">
+                            <td className="py-3.5 px-4 text-center text-slate-500 dark:text-dark-300">
                               Saída
                             </td>
                             <td className="py-3.5 px-4 text-center">
                               <span className={`inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[11px] font-bold border ${
                                 isCancelada 
-                                  ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
-                                  : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                  ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' 
+                                  : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                               }`}>
                                 {isCancelada ? 'Cancelada' : 'Emitida'}
                               </span>
                             </td>
-                            <td className="py-3.5 px-4 text-right font-bold text-white tabular-nums text-[13px]">
+                            <td className="py-3.5 px-4 text-right font-bold text-slate-900 dark:text-white tabular-nums text-[13px] font-mono">
                               {formatCurrency(nota.valor_total)}
                             </td>
                             <td className="py-3.5 px-4 text-right">
@@ -1364,7 +1395,7 @@ export default function VendasPage() {
                                     href={`/api/notas-emitidas/danfe?empresa_id=${empresaAtiva?.id}&chave=${chave}`}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 rounded text-xs font-semibold transition-colors shadow-sm"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 border border-rose-500/20 rounded-lg text-xs font-semibold transition-colors shadow-xs"
                                     title="Visualizar e Imprimir DANFE em PDF"
                                   >
                                     <FileText size={13} />
@@ -1374,7 +1405,7 @@ export default function VendasPage() {
                                     href={`/api/notas-emitidas/xml?empresa_id=${empresaAtiva?.id}&chave=${chave}`}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-dark-700 hover:bg-dark-600 text-blue-400 hover:text-white rounded text-xs font-semibold transition-colors"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-dark-700 dark:hover:bg-dark-600 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-white rounded-lg text-xs font-semibold transition-colors"
                                     title="Baixar XML oficial da NF-e"
                                   >
                                     <Download size={13} />
@@ -1382,7 +1413,7 @@ export default function VendasPage() {
                                   </a>
                                 </div>
                               ) : (
-                                <span className="text-[10px] text-dark-500 font-mono">
+                                <span className="text-[10px] text-slate-400 dark:text-dark-500 font-mono">
                                   ID CA: {nota.conta_azul_id ? String(nota.conta_azul_id).slice(0, 8) : '—'}
                                 </span>
                               )}

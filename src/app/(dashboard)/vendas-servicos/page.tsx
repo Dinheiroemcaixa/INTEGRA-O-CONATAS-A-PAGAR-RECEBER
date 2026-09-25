@@ -18,7 +18,7 @@ import {
   Database, RefreshCw, ChevronDown, ChevronUp,
   Trash2, FileSpreadsheet, BookOpen,
   Search, Calendar, ExternalLink, FileText, Eye, Printer, X,
-  XCircle, AlertTriangle, Download, ShieldCheck
+  XCircle, AlertTriangle, Download, ShieldCheck, Clock, TrendingUp
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -503,50 +503,55 @@ export default function VendasServicosPage() {
   // ─── Render ──────────────────────────────────────────────────
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-              <ShoppingCart className="text-brand-500" />
-              Vendas Serviços (Emissor NFS-e)
-            </h1>
-            <span className="px-2 py-0.5 bg-brand-500/20 text-brand-400 text-[10px] font-bold rounded border border-brand-500/30 uppercase tracking-wider">
-              Gov.br Nacional
-            </span>
+      {/* Header Executivo (Padrão Linear / Vercel) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200/70 dark:border-white/[0.08]">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 flex-shrink-0 shadow-xs">
+            <ShoppingCart size={20} />
           </div>
-          <p className="text-dark-400 text-xs mt-0.5">
-            Emissão de Notas Fiscais de Serviços, assinatura A1 ICP-Brasil e gestão de DANFSE.
-          </p>
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">
+                Vendas Serviços (Emissor NFS-e)
+              </h1>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                Gov.br Nacional
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-dark-400 mt-0.5 font-normal">
+              Emissão de Notas Fiscais de Serviços, assinatura A1 ICP-Brasil e gestão de DANFSE.
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 flex-wrap">
           <SelectorEmpresa />
           {subAba === 'planilha' && etapa !== 'upload' && (
             <button
               onClick={() => { setEtapa('upload'); setResultado(null); setDadosEditados([]) }}
-              className="flex items-center gap-2 text-dark-400 hover:text-white text-sm px-3 py-2 rounded-lg hover:bg-dark-800 transition-all"
+              className="flex items-center gap-2 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white text-xs font-semibold px-3.5 py-2 rounded-xl bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 shadow-xs hover:bg-slate-50 dark:hover:bg-dark-700 transition-all cursor-pointer"
             >
-              <ArrowLeft size={16} /> Voltar
+              <ArrowLeft size={14} /> Voltar
             </button>
           )}
         </div>
       </div>
 
-      {/* 3 SUB-ABAS INTEGRADAS                                          */}
       {/* ═══════════════════════════════════════════════════════════════ */}
-      <div className="flex border-b border-dark-700 gap-0">
+      {/* 3 SUB-ABAS INTEGRADAS (PADRÃO PILL SWITCHER FINTECH)           */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="bg-slate-200/60 dark:bg-dark-900/80 p-1.5 rounded-2xl border border-slate-300/60 dark:border-dark-700/80 flex items-center gap-1 shadow-inner max-w-2xl">
         <button
           onClick={() => setSubAba('datacar')}
-          className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all border-b-2 ${
+          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 sm:px-4 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
             subAba === 'datacar'
-              ? 'border-blue-400 text-blue-400 bg-dark-800/40'
-              : 'border-transparent text-dark-400 hover:text-white hover:bg-dark-800/20'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-slate-600 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-dark-800/50'
           }`}
         >
           <Database size={15} />
-          Importadas do Datacar (A Emitir)
+          <span>Datacar (A Emitir)</span>
           {pendenteCount > 0 && (
-            <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full font-bold">
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${subAba === 'datacar' ? 'bg-white/20 text-white' : 'bg-blue-500/20 text-blue-600 dark:text-blue-300'}`}>
               {pendenteCount}
             </span>
           )}
@@ -554,16 +559,16 @@ export default function VendasServicosPage() {
 
         <button
           onClick={() => setSubAba('emitidas')}
-          className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all border-b-2 ${
+          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 sm:px-4 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
             subAba === 'emitidas'
-              ? 'border-emerald-400 text-emerald-400 bg-dark-800/40'
-              : 'border-transparent text-dark-400 hover:text-white hover:bg-dark-800/20'
+              ? 'bg-emerald-600 text-white shadow-sm'
+              : 'text-slate-600 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-dark-800/50'
           }`}
         >
           <FileText size={15} />
-          NFS-e Emitidas (Histórico Gov.br)
+          <span>NFS-e Emitidas (Gov.br)</span>
           {notasAtivasEmitidas.length > 0 && (
-            <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${subAba === 'emitidas' ? 'bg-white/20 text-white' : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300'}`}>
               {notasAtivasEmitidas.length}
             </span>
           )}
@@ -571,14 +576,14 @@ export default function VendasServicosPage() {
 
         <button
           onClick={() => setSubAba('planilha')}
-          className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all border-b-2 ${
+          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 sm:px-4 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
             subAba === 'planilha'
-              ? 'border-brand-400 text-brand-400 bg-dark-800/40'
-              : 'border-transparent text-dark-400 hover:text-white hover:bg-dark-800/20'
+              ? 'bg-emerald-600 text-white shadow-sm'
+              : 'text-slate-600 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-dark-800/50'
           }`}
         >
           <Upload size={15} />
-          Upload de Planilha
+          <span>Upload Planilha</span>
         </button>
       </div>
 
@@ -898,22 +903,22 @@ export default function VendasServicosPage() {
                                 </span>
                               </div>
 
-                              <div className="overflow-x-auto rounded-xl border border-dark-700/60">
+                              <div className="overflow-x-auto custom-scrollbar rounded-xl border border-slate-200 dark:border-dark-700/60 bg-white dark:bg-dark-900/40">
                                 <table className="w-full text-left text-xs border-collapse">
-                                  <thead>
-                                    <tr className="bg-dark-900 text-dark-400 font-bold uppercase tracking-wider text-[10px] border-b border-dark-700/80">
+                                  <thead className="sticky top-0 z-10 bg-slate-100/95 dark:bg-dark-900/95 backdrop-blur-md text-slate-600 dark:text-dark-400 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200 dark:border-dark-700/80">
+                                    <tr>
                                       <th className="py-2.5 px-3">Tipo</th>
                                       <th className="py-2.5 px-3">Código</th>
                                       <th className="py-2.5 px-3">Descrição</th>
                                       <th className="py-2.5 px-3 text-center">Qtd</th>
                                       <th className="py-2.5 px-3 text-right">Vl Bruto</th>
-                                      <th className="py-2.5 px-3 text-right text-rose-400">Desconto</th>
-                                      <th className="py-2.5 px-3 text-right text-emerald-400">Vl Líquido</th>
-                                      <th className="py-2.5 px-3 text-right font-bold text-white">Total</th>
+                                      <th className="py-2.5 px-3 text-right text-rose-600 dark:text-rose-400">Desconto</th>
+                                      <th className="py-2.5 px-3 text-right text-emerald-600 dark:text-emerald-400">Vl Líquido</th>
+                                      <th className="py-2.5 px-3 text-right font-bold text-slate-900 dark:text-white">Total</th>
                                       <th className="py-2.5 px-3">NCM / CEST</th>
                                     </tr>
                                   </thead>
-                                  <tbody className="divide-y divide-dark-700/50">
+                                  <tbody className="divide-y divide-slate-100 dark:divide-dark-700/50">
                                     {(venda.itens || []).map((item: any, idxItem: number) => {
                                       const vBruto = Number(item.valor_unitario_original !== undefined ? item.valor_unitario_original : item.valor_unitario) || 0
                                       const desc = Number(item.desconto) || 0
@@ -921,26 +926,26 @@ export default function VendasServicosPage() {
                                       const totalItem = Number(item.valor_total) || (item.quantidade * vLiq)
 
                                       return (
-                                        <tr key={idxItem} className="hover:bg-dark-900/40 transition-colors">
+                                        <tr key={idxItem} className="even:bg-slate-50/50 dark:even:bg-white/[0.015] hover:bg-slate-100/60 dark:hover:bg-white/[0.035] transition-colors">
                                           <td className="p-2.5">
-                                            <span className={`px-2 py-0.5 rounded text-[9px] font-black ${
+                                            <span className={`px-2 py-0.5 rounded text-[9px] font-black border ${
                                               item.tipo === 'servico'
-                                                ? 'bg-slate-800 text-slate-300 border border-slate-700'
-                                                : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                                                ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                                                : 'bg-brand-50 dark:bg-blue-500/20 text-brand-700 dark:text-blue-300 border-brand-200 dark:border-blue-500/30'
                                             }`}>
                                               {item.tipo === 'servico' ? 'SERVIÇO' : 'PEÇA'}
                                             </span>
                                           </td>
-                                          <td className="p-2.5 font-mono text-dark-300 text-[11px]">{item.codigo || '-'}</td>
-                                          <td className="p-2.5 font-medium text-white">{item.descricao}</td>
-                                          <td className="p-2.5 text-center font-bold text-white">{item.quantidade} {item.unidade_medida || 'UN'}</td>
-                                          <td className="p-2.5 text-right font-mono text-dark-300">{formatCurrency(vBruto)}</td>
-                                          <td className="p-2.5 text-right font-mono text-rose-400">
+                                          <td className="p-2.5 font-mono text-slate-600 dark:text-dark-300 text-[11px]">{item.codigo || '-'}</td>
+                                          <td className="p-2.5 font-medium text-slate-900 dark:text-white">{item.descricao}</td>
+                                          <td className="p-2.5 text-center font-mono font-bold text-slate-800 dark:text-white tabular-nums">{item.quantidade} {item.unidade_medida || 'UN'}</td>
+                                          <td className="p-2.5 text-right font-mono text-slate-600 dark:text-dark-300 tabular-nums">{formatCurrency(vBruto)}</td>
+                                          <td className="p-2.5 text-right font-mono text-rose-600 dark:text-rose-400 tabular-nums">
                                             {desc > 0 ? `-${formatCurrency(desc * item.quantidade)}` : '-'}
                                           </td>
-                                          <td className="p-2.5 text-right font-mono text-emerald-400 font-semibold">{formatCurrency(vLiq)}</td>
-                                          <td className="p-2.5 text-right font-mono font-bold text-white tabular-nums">{formatCurrency(totalItem)}</td>
-                                          <td className="p-2.5 text-dark-400 font-mono text-[10px]">
+                                          <td className="p-2.5 text-right font-mono text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums">{formatCurrency(vLiq)}</td>
+                                          <td className="p-2.5 text-right font-mono font-bold text-slate-900 dark:text-white tabular-nums">{formatCurrency(totalItem)}</td>
+                                          <td className="p-2.5 text-slate-500 dark:text-dark-400 font-mono text-[10px]">
                                             {item.ncm ? `NCM: ${item.ncm}` : '-'} {item.cest ? `| CEST: ${item.cest}` : ''}
                                           </td>
                                         </tr>
@@ -985,43 +990,112 @@ export default function VendasServicosPage() {
       ══════════════════════════════════════════════════════ */}
       {subAba === 'emitidas' && (
         <div className="space-y-4 animate-fade-in">
+          {/* ─── PAINEL SUPERIOR DE RESUMO (4 CARDS COM ÍCONES CIRCULARES) ─── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 bg-white dark:bg-dark-800/90 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl overflow-hidden shadow-xs divide-y sm:divide-y-0 sm:divide-x divide-slate-200/80 dark:divide-dark-700/60">
+            {/* Card 1: Canceladas */}
+            <div className="p-4 flex items-center gap-3.5 select-none hover:bg-slate-50 dark:hover:bg-dark-750/50 transition-colors">
+              <div className="w-10 h-10 rounded-full bg-rose-500/10 dark:bg-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400 flex-shrink-0 shadow-xs">
+                <XCircle size={18} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-bold text-slate-500 dark:text-dark-300 flex items-center gap-1 uppercase tracking-wider">
+                  <span>Canceladas</span>
+                  <span className="text-rose-600 dark:text-rose-400 font-extrabold">({notasCanceladasCount})</span>
+                </div>
+                <div className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white mt-0.5 tabular-nums font-mono">
+                  {notasCanceladasCount} notas
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: Pendentes */}
+            <div 
+              onClick={() => setSubAba('datacar')}
+              className="p-4 flex items-center gap-3.5 cursor-pointer select-none hover:bg-slate-50 dark:hover:bg-dark-750/50 transition-colors"
+            >
+              <div className="w-10 h-10 rounded-full bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 flex-shrink-0 shadow-xs">
+                <Clock size={18} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-bold text-amber-600 dark:text-amber-400/90 flex items-center gap-1 uppercase tracking-wider">
+                  <span>Pendentes</span>
+                  <span className="text-amber-600 dark:text-amber-400 font-extrabold">({pendenteCount})</span>
+                </div>
+                <div className="text-base sm:text-lg font-extrabold text-amber-600 dark:text-amber-400 mt-0.5 tabular-nums font-mono">
+                  {pendenteCount} OS
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: Autorizadas */}
+            <div className="p-4 flex items-center gap-3.5 select-none hover:bg-slate-50 dark:hover:bg-dark-750/50 transition-colors">
+              <div className="w-10 h-10 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 flex-shrink-0 shadow-xs">
+                <CheckCircle size={18} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400/90 flex items-center gap-1 uppercase tracking-wider">
+                  <span>Autorizadas</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">({notasAtivasEmitidas.length})</span>
+                </div>
+                <div className="text-base sm:text-lg font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5 tabular-nums font-mono">
+                  {notasAtivasEmitidas.length} emitidas
+                </div>
+              </div>
+            </div>
+
+            {/* Card 4: Total Faturado */}
+            <div className="p-4 flex items-center gap-3.5 select-none hover:bg-slate-50 dark:hover:bg-dark-750/50 border-t-2 border-t-emerald-500 bg-emerald-50/20 dark:bg-emerald-500/[0.03] transition-colors">
+              <div className="w-10 h-10 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 flex-shrink-0 shadow-xs">
+                <TrendingUp size={18} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400/90 flex items-center gap-1 uppercase tracking-wider">
+                  <span>Total Faturado</span>
+                </div>
+                <div className="text-base sm:text-lg font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5 tabular-nums font-mono">
+                  {formatCurrency(totalFaturadoNfse)}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Barra de Filtros do Histórico */}
-          <div className="bg-dark-800 border border-dark-700 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="bg-white dark:bg-dark-800 border border-slate-200/80 dark:border-dark-700 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-xs">
             <div className="flex items-center gap-3 flex-1 min-w-[280px]">
               <div className="relative flex-1">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400" />
                 <input
                   type="text"
                   placeholder="Pesquisar por cliente, OS, CPF/CNPJ ou número de nota..."
                   value={buscaEmitidas}
                   onChange={e => setBuscaEmitidas(e.target.value)}
-                  className="w-full bg-dark-900 border border-dark-600 rounded-lg pl-9 pr-3 py-2 text-white text-xs outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-600 rounded-xl pl-9 pr-3 py-2 text-slate-900 dark:text-white text-xs outline-none focus:border-emerald-500 transition-colors"
                 />
               </div>
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5 text-xs text-dark-400">
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-dark-400">
                 <span>Período:</span>
                 <input
                   type="date"
                   value={dtIniEmitidas}
                   onChange={e => setDtIniEmitidas(e.target.value)}
-                  className="bg-dark-900 border border-dark-600 rounded-lg px-2.5 py-1.5 text-white text-xs outline-none"
+                  className="bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-600 rounded-xl px-2.5 py-1.5 text-slate-900 dark:text-white text-xs outline-none"
                 />
-                <span>até</span>
+                <span className="text-slate-400 dark:text-dark-500">até</span>
                 <input
                   type="date"
                   value={dtFimEmitidas}
                   onChange={e => setDtFimEmitidas(e.target.value)}
-                  className="bg-dark-900 border border-dark-600 rounded-lg px-2.5 py-1.5 text-white text-xs outline-none"
+                  className="bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-600 rounded-xl px-2.5 py-1.5 text-slate-900 dark:text-white text-xs outline-none"
                 />
               </div>
 
               <button
                 onClick={carregarNotasEmitidas}
                 disabled={carregandoNotas || sincronizandoGovBr}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-white rounded-lg text-xs font-semibold transition-colors"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-dark-700 hover:bg-slate-50 dark:hover:bg-dark-600 text-slate-700 dark:text-white border border-slate-200 dark:border-transparent rounded-xl text-xs font-semibold transition-all shadow-xs cursor-pointer"
                 title="Recarregar listagem"
               >
                 <RefreshCw size={13} className={carregandoNotas ? 'animate-spin' : ''} />
@@ -1031,7 +1105,7 @@ export default function VendasServicosPage() {
               <button
                 onClick={handleSincronizarGovBr}
                 disabled={carregandoNotas || sincronizandoGovBr}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-emerald-900/30"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
                 title="Consultar e sincronizar notas emitidas diretamente no portal da NFS-e Nacional / Gov.br usando o Certificado Digital A1"
               >
                 {sincronizandoGovBr ? (
@@ -1058,11 +1132,11 @@ export default function VendasServicosPage() {
               </p>
             </div>
           ) : (
-            <div className="bg-dark-850/80 border border-dark-700/80 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-md">
-              <div className="overflow-x-auto">
+            <div className="bg-white dark:bg-dark-850/80 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-shadow">
+              <div className="overflow-x-auto custom-scrollbar">
                 <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-dark-950/80 border-b border-dark-700 text-dark-400 font-bold uppercase tracking-wider text-[11px]">
+                  <thead className="sticky top-0 z-10 bg-slate-100/95 dark:bg-dark-900/95 backdrop-blur-md border-b border-slate-200 dark:border-dark-700 text-slate-600 dark:text-dark-400 font-bold uppercase tracking-wider text-[10px]">
+                    <tr>
                       <th className="py-3.5 px-5">NFS-e / OS</th>
                       <th className="py-3.5 px-5">Cliente / Tomador</th>
                       <th className="py-3.5 px-5">Data Emissão</th>
@@ -1071,33 +1145,33 @@ export default function VendasServicosPage() {
                       <th className="py-3.5 px-5 text-right">Ações</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-dark-700/50">
+                  <tbody className="divide-y divide-slate-200/70 dark:divide-dark-700/50">
                     {notasEmitidas.map((nota) => {
                       const isCancelada = nota.status === 'cancelado'
                       return (
-                        <tr key={nota.id} className="hover:bg-dark-750/30 transition-colors">
-                          <td className="py-3 px-4 font-mono font-bold text-white">
-                            <span className="text-emerald-400">NFS-e #{nota.os_numero}</span>
+                        <tr key={nota.id} className="even:bg-slate-50/50 dark:even:bg-white/[0.015] hover:bg-slate-100/60 dark:hover:bg-white/[0.035] transition-colors">
+                          <td className="py-3 px-4 font-mono font-bold">
+                            <span className="text-emerald-600 dark:text-emerald-400">NFS-e #{nota.os_numero}</span>
                           </td>
-                          <td className="py-3 px-4 font-medium text-white">
+                          <td className="py-3 px-4 font-medium text-slate-900 dark:text-white">
                             {nota.cliente}
                             {nota.metadata?.cliente_cpf_cnpj && (
-                              <span className="block text-[10px] text-dark-400 font-mono">
+                              <span className="block text-[10px] text-slate-500 dark:text-dark-400 font-mono">
                                 {nota.metadata.cliente_cpf_cnpj}
                               </span>
                             )}
                           </td>
-                          <td className="py-3 px-4 text-dark-300 font-mono">
+                          <td className="py-3 px-4 text-slate-600 dark:text-dark-300 font-mono tabular-nums">
                             {formatDate(nota.data_venda)}
                           </td>
-                          <td className="py-3 px-4 text-right font-bold text-white tabular-nums">
+                          <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 dark:text-white tabular-nums text-xs sm:text-sm">
                             {formatCurrency(nota.valor_total)}
                           </td>
                           <td className="py-3 px-4 text-center">
                             <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
                               isCancelada 
-                                ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
-                                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/20' 
+                                : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20'
                             }`}>
                               {isCancelada ? '● CANCELADA' : '● AUTORIZADA'}
                             </span>
@@ -1106,7 +1180,7 @@ export default function VendasServicosPage() {
                             <div className="flex items-center justify-end gap-1.5">
                               <button
                                 onClick={() => setNotaVisualizar(nota)}
-                                className="px-2.5 py-1 bg-dark-700 hover:bg-dark-600 text-white rounded text-xs font-semibold flex items-center gap-1 transition-colors"
+                                className="px-2.5 py-1 bg-slate-100 dark:bg-dark-700 hover:bg-slate-200 dark:hover:bg-dark-600 text-slate-800 dark:text-white border border-slate-200 dark:border-transparent rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
                                 title="Visualizar Espelho Oficial DANFSE"
                               >
                                 <Eye size={13} />
@@ -1116,7 +1190,7 @@ export default function VendasServicosPage() {
                               {!isCancelada && (
                                 <button
                                   onClick={() => setConfirmandoCancelar(nota)}
-                                  className="p-1 text-dark-500 hover:text-rose-400 transition-colors"
+                                  className="p-1 text-slate-400 dark:text-dark-500 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
                                   title="Cancelar NFS-e"
                                 >
                                   <XCircle size={15} />

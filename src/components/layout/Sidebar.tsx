@@ -7,12 +7,12 @@ import {
   LayoutDashboard, ArrowDownCircle, ArrowUpCircle,
   Building2, Settings, ChevronRight, User, LogOut,
   ShoppingBag, Receipt, FileCheck2, Link2, Layers,
-  ShieldCheck, Sun, Moon
+  ShieldCheck, Sun, Moon, X
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useAppConfig } from '@/contexts/AppConfigContext'
+import { useSidebar } from '@/contexts/SidebarContext'
 import { createClient } from '@/lib/supabase/client'
-import ModalPerfil from './ModalPerfil'
 import toast from 'react-hot-toast'
 
 interface NavSection {
@@ -58,7 +58,7 @@ export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { config, update, accentClasses } = useAppConfig()
-  const [modalPerfil, setModalPerfil] = useState(false)
+  const { isMobileOpen, closeMobile } = useSidebar()
   const [userEmail, setUserEmail] = useState('')
   const supabase = createClient()
 
@@ -83,15 +83,38 @@ export default function Sidebar() {
 
   return (
     <>
-      <aside className="w-64 bg-dark-900 border-r border-dark-700/80 flex flex-col select-none">
+      {/* Overlay Backdrop Blur Suave no Mobile / Tablet */}
+      {isMobileOpen && (
+        <div
+          onClick={closeMobile}
+          className="fixed inset-0 bg-slate-900/60 dark:bg-black/70 backdrop-blur-sm z-40 lg:hidden animate-in fade-in duration-200 cursor-pointer"
+          aria-hidden="true"
+        />
+      )}
 
-        {/* Logo do app */}
-        <div className="p-4 flex flex-col items-center justify-center gap-3 min-h-[110px] border-b border-dark-700/50 mb-1">
+      {/* Aside com Drawer Responsivo */}
+      <aside
+        className={cn(
+          "w-64 bg-white dark:bg-[#0c1017] border-r border-slate-200/80 dark:border-white/[0.08] flex flex-col select-none transition-all duration-300 z-50",
+          // Em telas mobile/tablet: fixo à esquerda com animação de slide
+          "fixed inset-y-0 left-0 lg:static lg:translate-x-0 flex-shrink-0 shadow-2xl lg:shadow-none",
+          isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        )}
+      >
+        {/* Logo do app + Botão Fechar Mobile */}
+        <div className="p-4 flex items-center justify-between min-h-[90px] lg:min-h-[105px] border-b border-slate-200/70 dark:border-white/[0.06] mb-1">
           <img 
             src="/images/dinheiro-em-caixa-logo.png" 
             alt="Dinheiro em Caixa" 
-            className="w-full max-w-[170px] h-auto object-contain drop-shadow-md transition-transform hover:scale-[1.02]" 
+            className="w-full max-w-[145px] lg:max-w-[170px] h-auto object-contain drop-shadow-sm transition-transform duration-200 hover:scale-[1.02]" 
           />
+          <button
+            onClick={closeMobile}
+            className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-dark-800 transition-colors cursor-pointer"
+            title="Fechar menu"
+          >
+            <X size={18} />
+          </button>
         </div>
 
         {/* Nav */}
@@ -99,7 +122,7 @@ export default function Sidebar() {
           {navSections.map((section, sIdx) => (
             <div key={sIdx} className="space-y-1">
               {section.title && (
-                <p className="px-3 pt-2 pb-1 text-[10px] font-bold text-dark-500 tracking-wider uppercase">
+                <p className="px-3 pt-2.5 pb-1 text-[10px] font-bold text-slate-400 dark:text-dark-500 tracking-wider uppercase select-none">
                   {section.title}
                 </p>
               )}
@@ -111,21 +134,21 @@ export default function Sidebar() {
                     key={item.href}
                     href={item.disabled ? '#' : item.href}
                     className={cn(
-                      'relative flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150 group',
+                      'relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-150 group',
                       isActive 
-                        ? `${accentClasses.bg} text-white shadow-lg shadow-emerald-950/40 font-semibold` 
-                        : 'text-dark-400 hover:text-white hover:bg-dark-800/70',
+                        ? 'bg-brand-500/10 dark:bg-brand-500/15 text-brand-600 dark:text-brand-400 font-semibold border border-brand-500/20 shadow-xs' 
+                        : 'text-slate-600 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-white/[0.04]',
                       item.disabled && 'opacity-40 cursor-not-allowed pointer-events-none'
                     )}
                   >
-                    {/* Indicador sutil de item ativo */}
+                    {/* Indicador lateral sutil de item ativo estilo Linear */}
                     {isActive && (
-                      <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-white rounded-r-full shadow-sm" />
+                      <span className="absolute left-0 top-2 bottom-2 w-1 bg-brand-500 rounded-r-full shadow-xs" />
                     )}
 
-                    <Icon size={16} className={cn(
+                    <Icon size={17} className={cn(
                       'flex-shrink-0 transition-transform duration-150 group-hover:scale-110',
-                      isActive ? 'text-white' : 'text-dark-400 group-hover:text-white'
+                      isActive ? 'text-brand-600 dark:text-brand-400' : 'text-slate-400 dark:text-dark-400 group-hover:text-slate-700 dark:group-hover:text-white'
                     )} />
                     
                     <span className="flex-1 truncate">{item.label}</span>
@@ -133,20 +156,20 @@ export default function Sidebar() {
                     {item.badge && !item.disabled && (
                       <span className={cn(
                         'text-[9px] px-1.5 py-0.5 rounded-full font-bold border tracking-wider',
-                        item.badgeColor || 'bg-brand-500/20 text-brand-400 border-brand-500/30'
+                        item.badgeColor || 'bg-brand-500/10 dark:bg-brand-500/20 text-brand-600 dark:text-brand-400 border-brand-500/30'
                       )}>
                         {item.badge}
                       </span>
                     )}
 
                     {item.badge && item.disabled && (
-                      <span className="text-[9px] bg-dark-800 text-dark-500 border border-dark-700 px-1.5 py-0.5 rounded-full font-semibold">
+                      <span className="text-[9px] bg-slate-100 dark:bg-dark-800 text-slate-400 dark:text-dark-500 border border-slate-200 dark:border-dark-700 px-1.5 py-0.5 rounded-full font-semibold">
                         {item.badge}
                       </span>
                     )}
 
                     {isActive && !item.disabled && (
-                      <ChevronRight size={13} className="text-white/60 ml-auto" />
+                      <ChevronRight size={13} className="text-brand-600/70 dark:text-brand-400/70 ml-auto flex-shrink-0" />
                     )}
                   </Link>
                 )
@@ -156,62 +179,57 @@ export default function Sidebar() {
         </nav>
 
         {/* Footer */}
-        <div className="p-3 border-t border-dark-700/80 space-y-2 bg-dark-900/60 backdrop-blur-sm">
-          <div className="flex items-center justify-between bg-dark-800/80 hover:bg-dark-700/80 border border-dark-700/70 hover:border-dark-600 rounded-xl px-2.5 py-2 transition-all">
-            <button
-              onClick={() => setModalPerfil(true)}
-              className="flex-1 flex items-center gap-2.5 min-w-0 text-left group"
-            >
-              <div className={`w-7 h-7 ${accentClasses.bg}/20 border ${accentClasses.border}/40 rounded-full flex items-center justify-center flex-shrink-0`}>
-                <User size={13} className={accentClasses.text} />
+        <div className="p-3 border-t border-slate-200/80 dark:border-white/[0.08] space-y-2 bg-slate-50/50 dark:bg-dark-900/60 backdrop-blur-sm">
+          <div className="flex items-center justify-between bg-slate-100/80 dark:bg-dark-800/80 border border-slate-200/80 dark:border-dark-700/70 rounded-xl px-2.5 py-2">
+            <div className="flex-1 flex items-center gap-2.5 min-w-0 text-left select-none">
+              <div className="relative flex-shrink-0">
+                <div className={`w-8 h-8 ${accentClasses.bg}/15 border ${accentClasses.border}/40 rounded-full flex items-center justify-center`}>
+                  <User size={14} className={accentClasses.text} />
+                </div>
+                {/* Dot status Online */}
+                <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-dark-800" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-white text-xs font-semibold truncate">{userEmail || '...'}</p>
-                <p className="text-[9px] text-dark-400">Opções & Perfil</p>
+                <p className="text-slate-900 dark:text-white text-xs font-semibold truncate">{config.nomeExibicao || userEmail || '...'}</p>
+                <p className="text-[10px] text-slate-500 dark:text-dark-400 truncate">{config.nomeExibicao ? userEmail : (userEmail ? 'Conectado' : 'Carregando...')}</p>
               </div>
-            </button>
+            </div>
 
             <button
               onClick={toggleTema}
               title={config.darkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
-              className="p-1.5 hover:bg-dark-600/50 rounded-lg text-dark-300 hover:text-white transition-all flex-shrink-0 ml-1"
+              className="p-1.5 hover:bg-slate-200/70 dark:hover:bg-dark-700/70 rounded-lg text-slate-500 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white transition-all flex-shrink-0 ml-1 cursor-pointer"
             >
-              {config.darkMode ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-blue-400" />}
+              {config.darkMode ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} className="text-indigo-500" />}
             </button>
           </div>
 
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-dark-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all group"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-500 dark:text-dark-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all group cursor-pointer"
           >
-            <LogOut size={15} className="text-dark-400 group-hover:text-rose-400 transition-colors" />
+            <LogOut size={15} className="text-slate-400 dark:text-dark-400 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors" />
             <span>Sair do sistema</span>
           </button>
 
           {/* Logo Connecta AI */}
-          <div className="pt-2 border-t border-dark-700/50 flex flex-col items-center">
+          <div className="pt-2 border-t border-slate-200/60 dark:border-white/[0.06] flex flex-col items-center">
             {config.appLogoUrl ? (
-              <img src={config.appLogoUrl} alt={config.appNome} className="h-7 max-w-[110px] object-contain mix-blend-screen opacity-70 hover:opacity-100 transition-opacity" />
+              <img src={config.appLogoUrl} alt={config.appNome} className="h-7 max-w-[110px] object-contain opacity-80 hover:opacity-100 transition-opacity" />
             ) : (
               <div className="flex items-center gap-2 opacity-80 hover:opacity-100 transition-opacity">
-                <div className={`w-6 h-6 ${accentClasses.bg} rounded-lg flex items-center justify-center shadow-sm flex-shrink-0`}>
+                <div className={`w-6 h-6 ${accentClasses.bg} rounded-lg flex items-center justify-center shadow-xs flex-shrink-0`}>
                   <span className="text-white font-black text-xs">{config.appNome.charAt(0)}</span>
                 </div>
                 <div>
-                  <p className="text-white font-bold text-xs leading-tight">{config.appNome}</p>
-                  <p className="text-dark-500 text-[8px] uppercase tracking-wider">Inteligência Financeira</p>
+                  <p className="text-slate-800 dark:text-white font-bold text-xs leading-tight">{config.appNome}</p>
+                  <p className="text-slate-400 dark:text-dark-500 text-[8px] uppercase tracking-wider">Inteligência Financeira</p>
                 </div>
               </div>
             )}
           </div>
         </div>
       </aside>
-
-      <ModalPerfil
-        open={modalPerfil}
-        onClose={() => setModalPerfil(false)}
-        userEmail={userEmail}
-      />
     </>
   )
 }

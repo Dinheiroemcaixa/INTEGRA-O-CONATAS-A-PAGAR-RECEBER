@@ -282,26 +282,26 @@ export default function TabelaContas({
 
   return (
     <div className="space-y-4">
-      {/* Faixa Executiva: 2 KPIs Compactos Financeiros + Botões de Ação na Mesma Linha (Fase 6.1) */}
+      {/* Faixa Executiva: 2 KPIs Compactos Financeiros com Ícones em Círculos (Padrão Sprint 3 / Linear) */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 animate-fade-in">
         {/* 2 KPIs Compactos */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
           {/* Total Pendente */}
-          <div className="bg-dark-900/90 border border-dark-700/70 hover:border-amber-500/40 rounded-xl px-4 py-2.5 shadow-xs transition-all flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-8.5 h-8.5 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 flex-shrink-0">
-                <Clock size={16} />
+          <div className="bg-white dark:bg-dark-900/90 border border-slate-200/80 dark:border-dark-700/70 hover:border-amber-500/40 rounded-2xl px-4 py-3 shadow-xs hover:shadow-md transition-all flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-10 h-10 rounded-full bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400 flex-shrink-0 shadow-xs">
+                <Clock size={18} />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold text-dark-400 uppercase tracking-wide">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider">
                     Total Pendente
                   </span>
-                  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30">
                     {qtdPendente}
                   </span>
                 </div>
-                <p className="text-lg sm:text-xl font-extrabold font-mono text-amber-400 tabular-nums leading-tight mt-0.5">
+                <p className="text-lg sm:text-xl font-extrabold font-mono text-amber-600 dark:text-amber-400 tabular-nums leading-tight mt-0.5">
                   {formatCurrency(totalPendente)}
                 </p>
               </div>
@@ -309,21 +309,21 @@ export default function TabelaContas({
           </div>
 
           {/* Total Enviado */}
-          <div className="bg-dark-900/90 border border-dark-700/70 hover:border-emerald-500/40 rounded-xl px-4 py-2.5 shadow-xs transition-all flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-8.5 h-8.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 flex-shrink-0">
-                <CheckCircle size={16} />
+          <div className="bg-white dark:bg-dark-900/90 border border-slate-200/80 dark:border-dark-700/70 hover:border-emerald-500/40 rounded-2xl px-4 py-3 shadow-xs hover:shadow-md transition-all flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-10 h-10 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 flex-shrink-0 shadow-xs">
+                <CheckCircle size={18} />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold text-dark-400 uppercase tracking-wide">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider">
                     Total Enviado
                   </span>
-                  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">
                     {qtdEnviado}
                   </span>
                 </div>
-                <p className="text-lg sm:text-xl font-extrabold font-mono text-emerald-400 tabular-nums leading-tight mt-0.5">
+                <p className="text-lg sm:text-xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400 tabular-nums leading-tight mt-0.5">
                   {formatCurrency(totalEnviado)}
                 </p>
               </div>
@@ -338,7 +338,7 @@ export default function TabelaContas({
               <button
                 onClick={onEnviarContaAzul}
                 disabled={enviandoCA}
-                className="h-10 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors shadow-sm cursor-pointer"
+                className="h-10 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-xs cursor-pointer"
               >
                 {enviandoCA ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                 <span>{enviandoCA ? 'Enviando...' : 'Enviar ao Conta Azul'}</span>
@@ -348,7 +348,7 @@ export default function TabelaContas({
               <button
                 onClick={onExportarXls}
                 disabled={gerandoXls}
-                className="h-10 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 rounded-lg text-sm font-medium flex items-center gap-2 transition-all shadow-sm cursor-pointer"
+                className="h-10 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-xs cursor-pointer"
               >
                 {gerandoXls ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
                 <span>{gerandoXls ? 'Exportando...' : 'Exportar XLS'}</span>
@@ -359,7 +359,7 @@ export default function TabelaContas({
       </div>
 
       {/* Barra Operacional: Filtros à esquerda + Ações e Atualizar alinhados à direita */}
-      <div className="bg-dark-850/90 border border-dark-700/60 rounded-xl p-2.5 sm:p-3 shadow-xs animate-fade-in">
+      <div className="bg-white dark:bg-dark-850/90 border border-slate-200/80 dark:border-dark-700/60 rounded-2xl p-2.5 sm:p-3 shadow-xs animate-fade-in">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           {/* Esquerda: Filtros em Formato Pill */}
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -375,20 +375,20 @@ export default function TabelaContas({
                     setPaginaAtual(1)
                   }}
                   className={cn(
-                    'h-8 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5',
+                    'h-8 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5',
                     isSelected
                       ? 'bg-brand-600 text-white shadow-xs'
-                      : 'bg-dark-900/90 text-dark-400 hover:text-white hover:bg-dark-800 border border-dark-700/60'
+                      : 'bg-slate-100 dark:bg-dark-900/90 text-slate-600 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/70 dark:hover:bg-dark-800 border border-slate-200 dark:border-dark-700/60'
                   )}
                 >
                   <span>{label}</span>
                   <span className={cn(
-                    'px-1.5 py-0.2 rounded-md text-[10px] font-mono tabular-nums font-bold',
+                    'px-1.5 py-0.5 rounded-full text-[10px] font-mono tabular-nums font-bold',
                     isSelected
                       ? 'bg-white/20 text-white'
                       : f === 'erro' && qtd > 0
-                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                        : 'bg-dark-800 text-dark-400'
+                        ? 'bg-rose-500/20 text-rose-600 dark:text-rose-300 border border-rose-500/30'
+                        : 'bg-slate-200 dark:bg-dark-800 text-slate-500 dark:text-dark-400'
                   )}>
                     {qtd}
                   </span>
@@ -402,7 +402,7 @@ export default function TabelaContas({
             {contas.length > 0 && (
               <div className="flex items-center gap-2 flex-wrap animate-fade-in">
                 {selecionados.length > 0 && (
-                  <span className="text-xs text-brand-300 font-semibold px-2.5 py-1 bg-brand-500/15 rounded-md border border-brand-500/30">
+                  <span className="text-xs text-brand-600 dark:text-brand-300 font-bold px-2.5 py-1 bg-brand-500/15 rounded-xl border border-brand-500/30">
                     {selecionados.length} selecionada(s)
                   </span>
                 )}
@@ -419,7 +419,7 @@ export default function TabelaContas({
                   ) : (
                     <button
                       onClick={() => setEditandoEmMassaConta(true)}
-                      className="flex items-center gap-1.5 bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white border border-dark-700 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors shadow-xs cursor-pointer"
+                      className="flex items-center gap-1.5 bg-slate-100 dark:bg-dark-800 hover:bg-slate-200 dark:hover:bg-dark-700 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-dark-700 text-xs font-semibold px-2.5 py-1.5 rounded-xl transition-colors shadow-xs cursor-pointer"
                       title="Aplicar o mesmo banco a todas as contas selecionadas"
                     >
                       <Landmark size={13} /> {selecionados.length > 0 ? `Banco (${selecionados.length})` : 'Banco'}
@@ -438,7 +438,7 @@ export default function TabelaContas({
                   ) : (
                     <button
                       onClick={() => setEditandoEmMassaCat(true)}
-                      className="flex items-center gap-1.5 bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white border border-dark-700 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors shadow-xs cursor-pointer"
+                      className="flex items-center gap-1.5 bg-slate-100 dark:bg-dark-800 hover:bg-slate-200 dark:hover:bg-dark-700 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-dark-700 text-xs font-semibold px-2.5 py-1.5 rounded-xl transition-colors shadow-xs cursor-pointer"
                       title="Aplicar a mesma categoria a todas as contas selecionadas"
                     >
                       <Tags size={13} /> {selecionados.length > 0 ? `Categoria (${selecionados.length})` : 'Categoria'}
@@ -449,33 +449,30 @@ export default function TabelaContas({
                 {/* Transferir para Outra Loja */}
                 <div className="relative">
                   {editandoEmMassaLoja ? (
-                    <div className="absolute top-0 right-0 z-30 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl p-2.5 min-w-[240px] animate-fade-in space-y-1.5">
-                      <div className="flex items-center justify-between px-2.5 py-1.5 text-xs font-bold text-dark-400 border-b border-dark-700/60 mb-1">
-                        <span>Transferir para Loja:</span>
-                        <button type="button" onClick={() => setEditandoEmMassaLoja(false)} className="text-dark-500 hover:text-white text-xs">✕</button>
-                      </div>
-                      {empresas.filter(e => e.id !== empresaId).length === 0 ? (
-                        <p className="text-xs text-dark-500 px-2 py-2">Nenhuma outra loja cadastrada.</p>
-                      ) : (
-                        empresas.filter(e => e.id !== empresaId).map((emp) => (
-                          <button
-                            key={emp.id}
-                            type="button"
-                            onClick={() => handleMoverLoja(emp.id)}
-                            className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-semibold text-white hover:bg-emerald-600/20 hover:text-emerald-300 transition-colors text-left border border-transparent hover:border-emerald-500/30"
-                          >
-                            <span className="truncate">{emp.nome}</span>
-                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${emp.access_token_conta_azul ? 'bg-emerald-400' : 'bg-dark-600'}`} />
-                          </button>
-                        ))
-                      )}
+                    <div className="absolute right-0 top-full mt-1 z-30 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 rounded-xl shadow-2xl p-2 w-56 space-y-1">
+                      <p className="text-[11px] font-bold text-slate-500 dark:text-dark-400 px-2 py-1 uppercase tracking-wider">Transferir para loja:</p>
+                      {empresas.filter(e => e.id !== empresaId).map(emp => (
+                        <button
+                          key={emp.id}
+                          onClick={() => handleMoverLoja(emp.id)}
+                          className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-dark-700 rounded-lg transition-colors flex items-center gap-2 truncate cursor-pointer"
+                        >
+                          <Building2 size={13} className="text-brand-500 flex-shrink-0" />
+                          <span className="truncate">{emp.nome}</span>
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => setEditandoEmMassaLoja(false)}
+                        className="w-full text-center text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-white pt-1 cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
                     </div>
                   ) : (
                     <button
-                      type="button"
                       onClick={() => setEditandoEmMassaLoja(true)}
-                      className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-all shadow-sm cursor-pointer"
-                      title="Transferir lançamentos para outra empresa"
+                      className="flex items-center gap-1.5 bg-slate-100 dark:bg-dark-800 hover:bg-slate-200 dark:hover:bg-dark-700 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-dark-700 text-xs font-semibold px-2.5 py-1.5 rounded-xl transition-colors shadow-xs cursor-pointer"
+                      title="Transferir contas selecionadas para outra empresa"
                     >
                       <ArrowRightLeft size={13} /> {selecionados.length > 0 ? `Mover (${selecionados.length})` : 'Mover Loja'}
                     </button>
@@ -485,7 +482,7 @@ export default function TabelaContas({
                 {selecionados.length > 0 && (
                   <button
                     onClick={handleExcluirSelecionados}
-                    className="flex items-center gap-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                    className="flex items-center gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-xs font-semibold px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer"
                   >
                     <Trash2 size={13} /> Excluir ({selecionados.length})
                   </button>
@@ -496,7 +493,7 @@ export default function TabelaContas({
             {contas.some(c => c.status === 'pendente') && (
               <button
                 onClick={limparTudo}
-                className="flex items-center gap-1.5 text-red-400 hover:text-red-300 hover:bg-red-400/10 text-xs px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
+                className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-700 hover:bg-rose-500/10 text-xs px-2.5 py-1.5 rounded-xl transition-all cursor-pointer font-medium"
               >
                 <Trash2 size={13} />
                 <span>Limpar Pendentes</span>
@@ -506,71 +503,71 @@ export default function TabelaContas({
             <button
               onClick={carregar}
               disabled={loading}
-              className="flex items-center gap-1.5 text-dark-300 hover:text-white text-xs font-medium px-3 py-1.5 rounded-lg border border-dark-700 bg-dark-900/60 hover:bg-dark-800 transition-all cursor-pointer shadow-xs"
+              className="flex items-center gap-1.5 text-slate-700 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-900/60 hover:bg-slate-50 dark:hover:bg-dark-800 transition-all cursor-pointer shadow-xs"
               title="Atualizar lista de contas"
             >
-              {loading ? <Loader2 size={13} className="animate-spin text-brand-400" /> : <RefreshCw size={13} className="text-brand-400" />}
+              {loading ? <Loader2 size={13} className="animate-spin text-brand-500" /> : <RefreshCw size={13} className="text-brand-500" />}
               <span>Atualizar</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Tabela */}
+      {/* Tabela com Sticky Header, Zebra Rows e Contraste Claro/Escuro */}
       {loading ? (
         <div className="flex items-center justify-center h-32">
-          <Loader2 size={22} className="text-brand-400 animate-spin" />
+          <Loader2 size={24} className="text-brand-500 animate-spin" />
         </div>
       ) : contas.length === 0 ? (
-        <div className="bg-dark-850/80 border border-dark-700/60 rounded-xl py-7 px-4 text-center space-y-2 shadow-xs">
-          <div className="w-9 h-9 rounded-lg bg-dark-900 border border-dark-700/80 flex items-center justify-center mx-auto text-dark-400 shadow-inner">
-            <Clock size={16} className="text-dark-400" />
+        <div className="bg-white dark:bg-dark-850/80 border border-slate-200/80 dark:border-dark-700/60 rounded-2xl py-9 px-4 text-center space-y-2 shadow-xs">
+          <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-dark-900 border border-slate-200 dark:border-dark-700/80 flex items-center justify-center mx-auto text-slate-400 dark:text-dark-400 shadow-inner">
+            <Clock size={18} />
           </div>
           <div className="space-y-0.5">
-            <p className="text-sm font-semibold text-white">Nenhuma conta com status "{filtro}"</p>
-            <p className="text-xs text-dark-400 max-w-sm mx-auto leading-relaxed">
+            <p className="text-sm font-bold text-slate-900 dark:text-white">Nenhuma conta com status "{filtro}"</p>
+            <p className="text-xs text-slate-500 dark:text-dark-400 max-w-sm mx-auto leading-relaxed">
               Não há lançamentos financeiros registrados nesta categoria para a empresa selecionada.
             </p>
           </div>
         </div>
       ) : (
-        <div className="bg-dark-850/90 border border-dark-700/70 rounded-xl overflow-hidden shadow-lg">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs border-collapse table-fixed select-none">
+        <div className="bg-white dark:bg-dark-850/90 border border-slate-200/80 dark:border-dark-700/70 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-shadow">
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full min-w-[760px] text-xs border-collapse table-fixed select-none">
               <colgroup>
-                <col style={{ width: '30px' }} />
-                <col style={{ width: '38%' }} />
-                <col style={{ width: '82px' }} />
-                <col style={{ width: '72px' }} />
-                <col style={{ width: '72px' }} />
-                <col style={{ width: '88px' }} />
-                <col style={{ width: '84px' }} />
-                <col style={{ width: '58px' }} />
-                <col style={{ width: '72px' }} />
                 <col style={{ width: '32px' }} />
+                <col style={{ width: '38%' }} />
+                <col style={{ width: '86px' }} />
+                <col style={{ width: '74px' }} />
+                <col style={{ width: '74px' }} />
+                <col style={{ width: '92px' }} />
+                <col style={{ width: '88px' }} />
+                <col style={{ width: '60px' }} />
+                <col style={{ width: '74px' }} />
+                <col style={{ width: '34px' }} />
               </colgroup>
-              <thead>
-                <tr className="bg-dark-900/90 text-dark-400 uppercase text-[10px] font-semibold tracking-wide border-b border-dark-700/80">
-                  <th className="py-2 px-1 text-center">
+              <thead className="sticky top-0 z-10 bg-slate-100/95 dark:bg-dark-900/95 backdrop-blur-md text-slate-600 dark:text-dark-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200 dark:border-dark-700/80">
+                <tr>
+                  <th className="py-2.5 px-1 text-center">
                     <input
                       type="checkbox"
                       checked={contas.length > 0 && selecionados.length === contas.length}
                       onChange={toggleSelectAll}
-                      className="rounded border-dark-600 bg-dark-900 text-brand-500 focus:ring-brand-500 cursor-pointer w-3.5 h-3.5"
+                      className="rounded border-slate-300 dark:border-dark-600 bg-white dark:bg-dark-900 text-brand-600 focus:ring-brand-500 cursor-pointer w-3.5 h-3.5"
                     />
                   </th>
-                  <th className="py-2 px-2 text-left text-white font-bold">Fornecedor</th>
-                  <th className="py-2 px-1 text-right">Valor</th>
-                  <th className="py-2 px-0.5 text-center">Venc.</th>
-                  <th className="py-2 px-0.5 text-center">Comp.</th>
-                  <th className="py-2 px-1 text-left">Categoria</th>
-                  <th className="py-2 px-1 text-left">Banco</th>
-                  <th className="py-2 px-1 text-left">Desc.</th>
-                  <th className="py-2 px-0.5 text-center">Status</th>
-                  <th className="py-2 px-0.5 text-center"></th>
+                  <th className="py-2.5 px-2 text-left text-slate-900 dark:text-white font-bold">Fornecedor</th>
+                  <th className="py-2.5 px-1 text-right text-slate-700 dark:text-dark-300 font-semibold">Valor</th>
+                  <th className="py-2.5 px-0.5 text-center text-slate-700 dark:text-dark-300 font-semibold">Venc.</th>
+                  <th className="py-2.5 px-0.5 text-center text-slate-700 dark:text-dark-300 font-semibold">Comp.</th>
+                  <th className="py-2.5 px-1 text-left text-slate-700 dark:text-dark-300 font-semibold">Categoria</th>
+                  <th className="py-2.5 px-1 text-left text-slate-700 dark:text-dark-300 font-semibold">Banco</th>
+                  <th className="py-2.5 px-1 text-left text-slate-700 dark:text-dark-300 font-semibold">Desc.</th>
+                  <th className="py-2.5 px-0.5 text-center text-slate-700 dark:text-dark-300 font-semibold">Status</th>
+                  <th className="py-2.5 px-0.5 text-center"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-dark-800/60">
+              <tbody className="divide-y divide-slate-200/70 dark:divide-dark-800/60">
                 {contasExibidas.map((conta) => {
                   const cfg = STATUS_CONFIG[conta.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pendente
                   const Icon = cfg.icon
@@ -580,24 +577,26 @@ export default function TabelaContas({
                     <tr
                       key={conta.id}
                       className={cn(
-                        'hover:bg-dark-700/35 transition-colors duration-150',
-                        isSelected ? 'bg-brand-500/10' : 'even:bg-dark-800/20'
+                        'transition-colors duration-150',
+                        isSelected 
+                          ? 'bg-brand-50/80 dark:bg-brand-500/10' 
+                          : 'even:bg-slate-50/50 dark:even:bg-white/[0.015] hover:bg-slate-100/60 dark:hover:bg-white/[0.035]'
                       )}
                     >
                       {/* Checkbox */}
-                      <td className="py-2 px-1 text-center">
+                      <td className="py-2.5 px-1 text-center">
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelect(conta.id)}
-                          className="rounded border-dark-600 bg-dark-900 text-brand-500 focus:ring-brand-500 cursor-pointer w-3.5 h-3.5"
+                          className="rounded border-slate-300 dark:border-dark-600 bg-white dark:bg-dark-900 text-brand-600 focus:ring-brand-500 cursor-pointer w-3.5 h-3.5"
                         />
                       </td>
 
-                      {/* Fornecedor - Prioridade Máxima e Espaço Expandido */}
-                      <td className="py-2 px-2 overflow-hidden">
+                      {/* Fornecedor */}
+                      <td className="py-2.5 px-2 overflow-hidden">
                         <span
-                          className="text-white font-semibold text-xs block line-clamp-2 leading-snug break-words"
+                          className="text-slate-900 dark:text-white font-semibold text-xs block line-clamp-2 leading-snug break-words"
                           title={conta.fornecedor}
                         >
                           {conta.fornecedor}
@@ -605,28 +604,28 @@ export default function TabelaContas({
                       </td>
 
                       {/* Valor */}
-                      <td className="py-2 px-1 text-right whitespace-nowrap overflow-hidden">
-                        <span className="text-green-400 font-semibold tabular-nums text-xs">
+                      <td className="py-2.5 px-1 text-right whitespace-nowrap overflow-hidden">
+                        <span className="text-emerald-600 dark:text-emerald-400 font-mono font-bold tabular-nums text-xs">
                           {formatCurrency(Number(conta.valor))}
                         </span>
                       </td>
 
                       {/* Vencimento */}
-                      <td className="py-2 px-0.5 text-center whitespace-nowrap overflow-hidden">
-                        <span className="text-dark-300 text-[11px] tabular-nums">
+                      <td className="py-2.5 px-0.5 text-center whitespace-nowrap overflow-hidden">
+                        <span className="text-slate-600 dark:text-dark-300 font-mono text-[11px] tabular-nums">
                           {formatDate(conta.vencimento)}
                         </span>
                       </td>
 
                       {/* Competência */}
-                      <td className="py-2 px-0.5 text-center whitespace-nowrap overflow-hidden">
-                        <span className="text-dark-400 text-[11px] tabular-nums">
+                      <td className="py-2.5 px-0.5 text-center whitespace-nowrap overflow-hidden">
+                        <span className="text-slate-500 dark:text-dark-400 font-mono text-[11px] tabular-nums">
                           {conta.emissao ? formatDate(conta.emissao) : '-'}
                         </span>
                       </td>
 
-                      {/* Categoria editável inline enxuta */}
-                      <td className="py-2 px-1 overflow-hidden">
+                      {/* Categoria editável inline */}
+                      <td className="py-2.5 px-1 overflow-hidden">
                         {editandoCategoriaId === conta.id ? (
                           <SelectorCategoria
                             valorInicial={conta.categoria || ''}
@@ -637,17 +636,17 @@ export default function TabelaContas({
                           <button
                             type="button"
                             onClick={() => setEditandoCategoriaId(conta.id)}
-                            className="inline-flex items-center justify-between w-full gap-0.5 text-[10.5px] px-1 py-0.5 rounded bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white border border-dark-700 transition-colors font-medium truncate"
+                            className="inline-flex items-center justify-between w-full gap-0.5 text-[10.5px] px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-dark-800 hover:bg-slate-200/80 dark:hover:bg-dark-700 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-dark-700 transition-colors font-medium truncate"
                             title={conta.categoria || 'Materiais para Revenda'}
                           >
                             <span className="truncate">{conta.categoria || 'Materiais'}</span>
-                            <Edit2 size={8} className="opacity-40 shrink-0" />
+                            <Edit2 size={8} className="opacity-50 shrink-0" />
                           </button>
                         )}
                       </td>
 
-                      {/* Conta Bancária (Banco) editável inline enxuta */}
-                      <td className="py-2 px-1 overflow-hidden">
+                      {/* Conta Bancária (Banco) */}
+                      <td className="py-2.5 px-1 overflow-hidden">
                         {editandoContaId === conta.id ? (
                           <SelectorContaFinanceira
                             valorInicial={conta.conta_financeira || ''}
@@ -660,10 +659,10 @@ export default function TabelaContas({
                             type="button"
                             onClick={() => setEditandoContaId(conta.id)}
                             className={cn(
-                              'inline-flex items-center justify-between w-full gap-0.5 text-[10.5px] px-1 py-0.5 rounded-full border font-medium transition-all truncate',
+                              'inline-flex items-center justify-between w-full gap-0.5 text-[10.5px] px-1.5 py-0.5 rounded-full border font-medium transition-all truncate',
                               conta.conta_financeira
-                                ? 'bg-brand-500/15 text-brand-300 border-brand-500/30 hover:bg-primary-500/25'
-                                : 'bg-amber-400/10 text-amber-400 border-amber-400/30 hover:bg-amber-400/20'
+                                ? 'bg-brand-500/10 dark:bg-brand-500/15 text-brand-700 dark:text-brand-300 border-brand-500/30 hover:bg-brand-500/20'
+                                : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
                             )}
                             title={conta.conta_financeira || 'Selecionar Banco...'}
                           >
@@ -671,28 +670,29 @@ export default function TabelaContas({
                               <Landmark size={9} className="shrink-0 opacity-80" />
                               <span className="truncate">{conta.conta_financeira ? conta.conta_financeira.split('-')[0].trim() : 'Banco'}</span>
                             </span>
-                            <Edit2 size={8} className="opacity-40 shrink-0" />
+                            <Edit2 size={8} className="opacity-50 shrink-0" />
                           </button>
                         )}
                       </td>
 
                       {/* Descrição */}
-                      <td className="py-2 px-1 overflow-hidden">
+                      <td className="py-2.5 px-1 overflow-hidden">
                         <span
-                          className="text-dark-400 text-[10px] truncate block font-mono"
+                          className="text-slate-500 dark:text-dark-400 text-[10px] truncate block font-mono"
                           title={conta.descricao || ''}
                         >
                           {conta.descricao || '-'}
                         </span>
                       </td>
 
-                      {/* Status compacto */}
-                      <td className="py-2 px-0.5 text-center overflow-hidden">
+                      {/* Status */}
+                      <td className="py-2.5 px-0.5 text-center overflow-hidden">
                         <span
                           className={cn(
-                            'inline-flex items-center gap-0.5 text-[9.5px] px-1 py-0.5 rounded-full font-medium whitespace-nowrap',
+                            'inline-flex items-center gap-0.5 text-[9.5px] px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap border',
                             cfg.color,
-                            cfg.bg
+                            cfg.bg,
+                            'border-current/20'
                           )}
                         >
                           <Icon size={8} className="shrink-0" />
@@ -700,7 +700,7 @@ export default function TabelaContas({
                         </span>
                         {conta.status === 'erro' && conta.erro_mensagem && (
                           <p
-                            className="text-red-400/90 text-[9px] mt-0.5 truncate"
+                            className="text-rose-600 dark:text-rose-400 text-[9px] mt-0.5 truncate"
                             title={conta.erro_mensagem}
                           >
                             {conta.erro_mensagem}
@@ -709,13 +709,13 @@ export default function TabelaContas({
                       </td>
 
                       {/* Ações */}
-                      <td className="py-2 px-0.5 text-center overflow-hidden">
-                        <div className="flex items-center justify-center gap-0.5">
+                      <td className="py-2.5 px-0.5 text-center overflow-hidden">
+                        <div className="flex items-center justify-center gap-1">
                           {(conta.metadata?.anexo_url || conta.anexo_url) && (
                             <button
                               type="button"
                               onClick={() => visualizarAnexo(conta.metadata?.anexo_url || conta.anexo_url)}
-                              className="text-emerald-400 hover:text-emerald-300 transition-colors p-0.5 bg-emerald-500/10 rounded"
+                              className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 p-1 bg-emerald-500/10 rounded-md transition-colors"
                               title="Visualizar Anexo/Comprovante"
                             >
                               <Paperclip size={11} />
@@ -723,7 +723,7 @@ export default function TabelaContas({
                           )}
                           <button
                             onClick={() => removerConta(conta.id)}
-                            className="text-dark-500 hover:text-red-400 transition-colors p-0.5"
+                            className="text-slate-400 dark:text-dark-500 hover:text-rose-600 dark:hover:text-rose-400 p-1 rounded-md transition-colors"
                             title="Excluir"
                           >
                             <Trash2 size={11} />
@@ -741,16 +741,16 @@ export default function TabelaContas({
 
       {/* Rodapé com paginação e contagem */}
       {contas.length > 0 && (
-        <div className="flex items-center justify-between flex-wrap gap-3 px-1 py-1 text-xs text-dark-400">
+        <div className="flex items-center justify-between flex-wrap gap-3 px-2 py-1 text-xs text-slate-500 dark:text-dark-400">
           <div>
-            Mostrando <span className="font-semibold text-white">{contasExibidas.length}</span> de <span className="font-semibold text-white">{contas.length}</span> registros
+            Mostrando <span className="font-bold text-slate-900 dark:text-white font-mono">{contasExibidas.length}</span> de <span className="font-bold text-slate-900 dark:text-white font-mono">{contas.length}</span> registros
           </div>
           {totalPaginas > 1 && (
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
                 disabled={paginaAtual === 1}
-                className="w-7 h-7 rounded-lg border border-dark-700 bg-dark-900 text-dark-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors cursor-pointer"
+                className="w-7 h-7 rounded-lg border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-900 text-slate-600 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-dark-800 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors cursor-pointer shadow-xs"
               >
                 ‹
               </button>
@@ -761,10 +761,10 @@ export default function TabelaContas({
                     key={p}
                     onClick={() => setPaginaAtual(p)}
                     className={cn(
-                      'w-7 h-7 rounded-lg text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center',
+                      'w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center font-mono',
                       paginaAtual === p
                         ? 'bg-brand-600 text-white shadow-xs'
-                        : 'border border-dark-700 bg-dark-900 text-dark-400 hover:text-white hover:bg-dark-800'
+                        : 'border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-900 text-slate-600 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-dark-800'
                     )}
                   >
                     {p}
@@ -773,7 +773,7 @@ export default function TabelaContas({
               <button
                 onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
                 disabled={paginaAtual === totalPaginas}
-                className="w-7 h-7 rounded-lg border border-dark-700 bg-dark-900 text-dark-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors cursor-pointer"
+                className="w-7 h-7 rounded-lg border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-900 text-slate-600 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-dark-800 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors cursor-pointer shadow-xs"
               >
                 ›
               </button>

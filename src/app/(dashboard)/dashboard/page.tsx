@@ -268,26 +268,27 @@ export default function DashboardPage() {
     <div className="space-y-6 animate-fade-in">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/60 dark:border-white/[0.06]">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
             Dashboard
-            <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-semibold tracking-wider">
+            <span className="inline-flex items-center gap-1.5 text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 px-2.5 py-0.5 rounded-full font-bold tracking-wider">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               LIVE
             </span>
           </h1>
-          <p className="text-xs text-dark-400 mt-1 font-normal">
+          <p className="text-xs text-slate-500 dark:text-dark-400 mt-1 font-normal">
             Visão executiva em tempo real de operações financeiras e integrações.
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 flex-wrap">
           <SelectorEmpresa />
           <button
             onClick={() => carregarStats(true)}
             disabled={refreshing}
-            className="flex items-center gap-2 text-sm text-dark-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 px-4 py-2 rounded-xl backdrop-blur-md transition-all shadow-lg shadow-black/20"
+            className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-white/[0.05] hover:bg-slate-50 dark:hover:bg-white/[0.08] border border-slate-200 dark:border-white/10 px-3.5 py-2 rounded-xl transition-all shadow-xs cursor-pointer"
           >
-            <RefreshCw size={14} className={refreshing ? 'animate-spin text-brand-400' : 'text-brand-400'} />
+            <RefreshCw size={13} className={refreshing ? 'animate-spin text-brand-500' : 'text-brand-500'} />
             Atualizar
           </button>
         </div>
@@ -296,11 +297,11 @@ export default function DashboardPage() {
       {/* KPI Cards — clicáveis */}
       {empresaAtiva?.tipo_empresa !== 'vendas' && (
         <>
-          <div className="mb-4">
-            <h2 className="text-xl font-bold text-white flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-brand-500/20 flex items-center justify-center border border-brand-500/30">
-                <ArrowDownCircle className="text-brand-400" size={18} />
-              </div>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-brand-500/10 dark:bg-brand-500/20 flex items-center justify-center border border-brand-500/20">
+              <ArrowDownCircle className="text-brand-600 dark:text-brand-400" size={17} />
+            </div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
               Contas a Pagar
             </h2>
           </div>
@@ -315,24 +316,28 @@ export default function DashboardPage() {
               key={card.title}
               onClick={() => isClickable ? abrirDrawer(card.status) : undefined}
               className={[
-                'relative group rounded-2xl border p-5 flex flex-col gap-4 transition-all duration-300',
-                'bg-white/[0.02] backdrop-blur-xl',
-                isActive ? `${card.hoverBorder} bg-white/[0.04] shadow-[0_0_30px_rgba(0,0,0,0.15)] ring-1 ring-offset-0` : card.border,
-                isClickable && !isActive ? `cursor-pointer hover:bg-white/[0.04] hover:-translate-y-1 hover:shadow-xl hover:shadow-black/40 ${card.hoverBorder}` : '',
+                'relative group rounded-2xl border p-5 flex flex-col justify-between transition-all duration-300',
+                'bg-white dark:bg-dark-900/60 shadow-xs backdrop-blur-md',
+                isActive 
+                  ? 'border-brand-500/60 ring-2 ring-brand-500/20 shadow-md bg-brand-50/20 dark:bg-brand-950/20' 
+                  : 'border-slate-200/80 dark:border-white/[0.08]',
+                isClickable && !isActive 
+                  ? 'cursor-pointer hover:border-slate-300 dark:hover:border-white/[0.18] hover:shadow-lg dark:hover:shadow-black/40 hover:-translate-y-0.5' 
+                  : '',
               ].join(' ')}
-              style={isActive ? { '--tw-ring-color': card.colorHex, boxShadow: `0 0 30px ${card.colorHex}25` } as any : {}}
             >
               {/* Top row */}
               <div className="flex items-start justify-between">
-                <div className={`${card.bg} rounded-xl p-2.5 shadow-inner border border-white/5`}>
-                  <Icon size={18} className={card.color} />
+                {/* Ícone dentro de círculo perfeito */}
+                <div className={`w-11 h-11 rounded-full ${card.bg} flex items-center justify-center border border-white/40 dark:border-white/5 shadow-xs flex-shrink-0 transition-transform duration-200 group-hover:scale-105`}>
+                  <Icon size={19} className={card.color} />
                 </div>
                 <div className="flex items-center gap-1.5">
                   {card.canDelete && (
                     <button
                       onClick={(e) => { e.stopPropagation(); handleLimparStatus(card.status as 'pendente' | 'erro') }}
                       disabled={deleting !== null}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all border border-transparent hover:border-rose-500/20"
+                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-all border border-transparent hover:border-rose-500/20 cursor-pointer"
                       title="Apagar todos"
                     >
                       {deleting === card.status ? (
@@ -342,29 +347,29 @@ export default function DashboardPage() {
                       )}
                     </button>
                   )}
-                  <span className={`text-[10px] font-bold uppercase tracking-widest ${card.color} opacity-60 border border-current px-2 py-0.5 rounded-full`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${card.color} ${card.bg} border ${card.border} px-2.5 py-0.5 rounded-full`}>
                     {card.label}
                   </span>
                 </div>
               </div>
 
               {/* Value */}
-              <div className="flex-1 mt-1">
+              <div className="flex-1 my-3">
                 {loading ? (
                   <div className="space-y-2">
-                    <div className="h-10 w-20 bg-dark-700/50 animate-pulse rounded-lg" />
-                    <div className="h-4 w-28 bg-dark-700/50 animate-pulse rounded" />
+                    <div className="h-9 w-20 bg-slate-200 dark:bg-dark-700/50 animate-pulse rounded-lg" />
+                    <div className="h-4 w-28 bg-slate-200 dark:bg-dark-700/50 animate-pulse rounded" />
                   </div>
                 ) : (
                   <>
-                    <p className="text-3xl font-bold text-white font-mono tabular-nums leading-none drop-shadow-sm tracking-tight">{card.value}</p>
-                    <p className="text-dark-300 text-xs mt-2 font-medium font-mono">{card.sub}</p>
+                    <p className="text-3xl font-extrabold text-slate-900 dark:text-white font-mono tabular-nums leading-none tracking-tight">{card.value}</p>
+                    <p className="text-slate-500 dark:text-dark-300 text-xs mt-2 font-medium font-mono">{card.sub}</p>
                   </>
                 )}
               </div>
 
               {/* Progress bar */}
-              <div className="h-1.5 bg-dark-900/50 rounded-full overflow-hidden shadow-inner mt-2">
+              <div className="h-1.5 bg-slate-100 dark:bg-dark-950/60 rounded-full overflow-hidden shadow-inner mt-1">
                 <div
                   className={`h-full ${card.barColor} rounded-full transition-all duration-700`}
                   style={{ width: loading ? '0%' : card.barWidth }}
@@ -373,8 +378,8 @@ export default function DashboardPage() {
 
               {/* Click hint */}
               {isClickable && (
-                <div className={`absolute bottom-3 right-4 opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1 text-[11px] ${card.color} font-bold tracking-wide`}>
-                  Ver lançamentos <ChevronRight size={14} />
+                <div className={`mt-2 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-end gap-1 text-[11px] ${card.color} font-bold tracking-wide`}>
+                  Ver lançamentos <ChevronRight size={13} />
                 </div>
               )}
             </div>
@@ -389,25 +394,25 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
         {/* Taxa de sucesso */}
-        <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 rounded-2xl p-6 flex flex-col gap-4 shadow-2xl hover:bg-white/[0.04] transition-colors">
-          <p className="text-dark-400 text-sm font-medium">Taxa de Sucesso</p>
+        <div className="bg-white dark:bg-dark-900/60 border border-slate-200/80 dark:border-white/[0.08] rounded-2xl p-6 flex flex-col gap-4 shadow-xs">
+          <p className="text-slate-500 dark:text-dark-400 text-xs font-bold uppercase tracking-wider">Taxa de Sucesso</p>
           <div>
-            <p className="text-5xl font-bold text-white tabular-nums leading-none drop-shadow-sm">
-              {loading ? <span className="text-dark-600">—</span> : `${taxaSucesso}%`}
+            <p className="text-5xl font-extrabold text-slate-900 dark:text-white tabular-nums leading-none tracking-tight">
+              {loading ? <span className="text-slate-400 dark:text-dark-600">—</span> : `${taxaSucesso}%`}
             </p>
-            <p className="text-dark-500 text-xs mt-2 font-medium">
+            <p className="text-slate-500 dark:text-dark-400 text-xs mt-2 font-medium">
               {stats.totalEnviado} de {total} registros enviados
             </p>
           </div>
           <div className="space-y-3 mt-auto pt-2">
             {[
-              { label: 'Enviados', value: stats.totalEnviado, color: 'bg-emerald-400', textColor: 'text-emerald-400' },
-              { label: 'Pendentes', value: stats.totalPendente, color: 'bg-amber-400', textColor: 'text-amber-400' },
-              { label: 'Erros', value: stats.totalErro, color: 'bg-rose-400', textColor: 'text-rose-400' },
+              { label: 'Enviados', value: stats.totalEnviado, color: 'bg-emerald-500', textColor: 'text-emerald-600 dark:text-emerald-400' },
+              { label: 'Pendentes', value: stats.totalPendente, color: 'bg-amber-500', textColor: 'text-amber-600 dark:text-amber-400' },
+              { label: 'Erros', value: stats.totalErro, color: 'bg-rose-500', textColor: 'text-rose-600 dark:text-rose-400' },
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-3">
-                <span className="text-dark-500 text-xs font-medium w-16">{item.label}</span>
-                <div className="flex-1 h-2 bg-dark-900/50 rounded-full overflow-hidden shadow-inner">
+                <span className="text-slate-500 dark:text-dark-400 text-xs font-medium w-16">{item.label}</span>
+                <div className="flex-1 h-2 bg-slate-100 dark:bg-dark-950/60 rounded-full overflow-hidden shadow-inner">
                   <div
                     className={`h-full ${item.color} rounded-full transition-all duration-700`}
                     style={{ width: total > 0 ? `${Math.round((item.value / total) * 100)}%` : '0%' }}
@@ -422,21 +427,21 @@ export default function DashboardPage() {
         {/* Ação rápida — um só card */}
         <div className="lg:col-span-2">
           <Link href="/contas-pagar"
-            className="h-full bg-white/[0.02] backdrop-blur-xl border border-white/5 hover:border-brand-500/50 hover:bg-white/[0.04] rounded-2xl p-8 flex flex-col justify-between transition-all duration-300 group hover:shadow-2xl hover:shadow-brand-900/20 hover:-translate-y-1 relative overflow-hidden">
+            className="h-full bg-white dark:bg-dark-900/60 border border-slate-200/80 dark:border-white/[0.08] hover:border-brand-500/50 hover:bg-slate-50/80 dark:hover:bg-dark-850/80 rounded-2xl p-7 flex flex-col justify-between transition-all duration-300 group shadow-xs hover:shadow-lg dark:hover:shadow-brand-950/20 hover:-translate-y-0.5 relative overflow-hidden">
             {/* Subtle glow background */}
             <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-brand-500/5 rounded-full blur-3xl group-hover:bg-brand-500/10 transition-colors pointer-events-none"></div>
 
             <div className="flex items-start justify-between relative z-10">
-              <div className="w-12 h-12 bg-brand-500/10 rounded-xl flex items-center justify-center group-hover:bg-brand-500/20 shadow-inner border border-brand-500/10 transition-all">
-                <Upload size={22} className="text-brand-400 group-hover:scale-110 transition-transform" />
+              <div className="w-12 h-12 rounded-full bg-brand-500/10 dark:bg-brand-500/20 border border-brand-500/20 flex items-center justify-center group-hover:scale-105 shadow-xs transition-all">
+                <Upload size={22} className="text-brand-600 dark:text-brand-400" />
               </div>
-              <span className="text-[11px] text-dark-500 bg-dark-900/50 border border-dark-700/50 px-2.5 py-1 rounded-lg font-medium backdrop-blur-sm shadow-inner">DataCar · CSV · PDF</span>
+              <span className="text-[11px] text-slate-500 dark:text-dark-400 bg-slate-100 dark:bg-dark-800 border border-slate-200 dark:border-dark-700/80 px-2.5 py-1 rounded-lg font-medium shadow-xs">DataCar · CSV · PDF</span>
             </div>
             <div className="mt-6 relative z-10">
-              <p className="text-white text-xl font-bold group-hover:text-brand-50 transition-colors">Contas a Pagar</p>
-              <p className="text-dark-400 text-sm mt-1.5 leading-relaxed max-w-md">Importar arquivo DataCar, revisar lançamentos e enviar para o Conta Azul de forma rápida e segura.</p>
+              <p className="text-slate-900 dark:text-white text-xl font-bold group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">Contas a Pagar</p>
+              <p className="text-slate-500 dark:text-dark-300 text-sm mt-1.5 leading-relaxed max-w-md">Importar arquivo DataCar, revisar lançamentos e enviar para o Conta Azul de forma rápida e segura.</p>
             </div>
-            <div className="flex items-center gap-2 text-brand-400 text-sm font-bold mt-6 group-hover:gap-3 transition-all relative z-10">
+            <div className="flex items-center gap-2 text-brand-600 dark:text-brand-400 text-sm font-bold mt-6 group-hover:gap-3 transition-all relative z-10">
               Abrir módulo <ArrowDownCircle size={18} className="rotate-[-90deg]" />
             </div>
           </Link>
@@ -445,72 +450,69 @@ export default function DashboardPage() {
       )}
 
       {/* Status da Integração */}
-      <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 rounded-2xl p-6 mt-4">
+      <div className="bg-white dark:bg-dark-900/60 border border-slate-200/80 dark:border-white/[0.08] rounded-2xl p-6 shadow-xs">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white font-semibold flex items-center gap-2">
-            <Zap size={15} className="text-brand-400" />
+          <h3 className="text-slate-900 dark:text-white font-semibold flex items-center gap-2">
+            <Zap size={16} className="text-brand-500" />
             Status da Integração
           </h3>
-          <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             Operacional
           </span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="flex items-center gap-3 bg-dark-900 border border-dark-700 rounded-xl px-4 py-3">
-            <div className="w-8 h-8 bg-emerald-400/10 rounded-lg flex items-center justify-center flex-shrink-0">
-              <CheckCircle size={14} className="text-emerald-400" />
+          <div className="flex items-center gap-3 bg-slate-50 dark:bg-dark-850/80 border border-slate-200 dark:border-dark-700 rounded-xl px-4 py-3">
+            <div className="w-8 h-8 bg-emerald-500/10 rounded-full flex items-center justify-center flex-shrink-0">
+              <CheckCircle size={15} className="text-emerald-500" />
             </div>
             <div>
-              <p className="text-white text-sm font-medium">Supabase</p>
-              <p className="text-dark-500 text-xs">Banco de dados conectado</p>
+              <p className="text-slate-900 dark:text-white text-sm font-medium">Supabase</p>
+              <p className="text-slate-500 dark:text-dark-400 text-xs">Banco de dados conectado</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 bg-dark-900 border border-dark-700 rounded-xl px-4 py-3">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${Boolean(empresaAtiva?.access_token_conta_azul || empresaAtiva?.conta_azul_connected || empresaAtiva?.access_token_conta_azul_vendas || empresaAtiva?.conta_azul_vendas_connected) ? 'bg-emerald-400/10' : 'bg-amber-400/10'}`}>
-              {empresaAtiva?.access_token_conta_azul
-                ? <CheckCircle size={14} className="text-emerald-400" />
-                : <AlertCircle size={14} className="text-amber-400" />}
+          <div className="flex items-center gap-3 bg-slate-50 dark:bg-dark-850/80 border border-slate-200 dark:border-dark-700 rounded-xl px-4 py-3">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${Boolean(empresaAtiva?.access_token_conta_azul || empresaAtiva?.conta_azul_connected || empresaAtiva?.access_token_conta_azul_vendas || empresaAtiva?.conta_azul_vendas_connected) ? 'bg-emerald-500/10' : 'bg-amber-500/10'}`}>
+              <CheckCircle size={15} className={Boolean(empresaAtiva?.access_token_conta_azul || empresaAtiva?.conta_azul_connected || empresaAtiva?.access_token_conta_azul_vendas || empresaAtiva?.conta_azul_vendas_connected) ? 'text-emerald-500' : 'text-amber-500'} />
             </div>
             <div>
-              <p className="text-white text-sm font-medium">Conta Azul</p>
-              <p className="text-dark-500 text-xs">
-                {Boolean(empresaAtiva?.access_token_conta_azul || empresaAtiva?.conta_azul_connected || empresaAtiva?.access_token_conta_azul_vendas || empresaAtiva?.conta_azul_vendas_connected) ? 'API conectada' : 'Configurar em Empresas'}
-              </p>
+              <p className="text-slate-900 dark:text-white text-sm font-medium">Conta Azul</p>
+              <p className="text-slate-500 dark:text-dark-400 text-xs">{Boolean(empresaAtiva?.access_token_conta_azul || empresaAtiva?.conta_azul_connected || empresaAtiva?.access_token_conta_azul_vendas || empresaAtiva?.conta_azul_vendas_connected) ? 'OAuth 2.0 ativo' : 'Aguardando conexão'}</p>
             </div>
           </div>
         </div>
       </div>
 
+
       {/* ── DRAWER ── */}
       {/* Overlay */}
       {drawerStatus && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity"
+          className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-xs z-40 transition-opacity animate-in fade-in duration-200"
           onClick={() => setDrawerStatus(null)}
         />
       )}
 
       {/* Painel lateral */}
       <div className={[
-        'fixed top-0 right-0 h-full w-full max-w-xl bg-dark-900 border-l border-dark-700 z-50',
+        'fixed top-0 right-0 h-full w-full sm:max-w-md md:max-w-lg bg-white dark:bg-dark-900 border-l border-slate-200 dark:border-dark-700 z-50',
         'flex flex-col shadow-2xl transition-transform duration-300 ease-out',
         drawerStatus ? 'translate-x-0' : 'translate-x-full',
       ].join(' ')}>
 
         {/* Header do drawer */}
-        <div className={`p-5 border-b border-dark-700 flex items-center justify-between bg-gradient-to-r ${drawerCard?.gradientFrom} to-transparent`}>
+        <div className={`p-5 border-b border-slate-200 dark:border-dark-700 flex items-center justify-between bg-gradient-to-r ${drawerCard?.gradientFrom} to-transparent`}>
           <div className="flex items-center gap-3">
             {drawerCard && (
-              <div className={`${drawerCard.bg} rounded-xl p-2`}>
-                {drawerCard && <drawerCard.icon size={16} className={drawerCard.color} />}
+              <div className={`${drawerCard.bg} rounded-xl p-2.5 border border-slate-200/50 dark:border-white/5`}>
+                <drawerCard.icon size={18} className={drawerCard.color} />
               </div>
             )}
             <div>
-              <h2 className="text-white font-bold text-lg leading-none">
+              <h2 className="text-slate-900 dark:text-white font-bold text-lg leading-tight">
                 Lançamentos — {drawerCard?.title}
               </h2>
-              <p className="text-dark-400 text-xs mt-1">
+              <p className="text-slate-500 dark:text-dark-400 text-xs mt-0.5">
                 {loadingDrawer ? 'Carregando...' : `${lancamentos.length} registro${lancamentos.length !== 1 ? 's' : ''}`}
                 {!loadingDrawer && lancamentos.length > 0 && (
                   <span className={`ml-2 font-semibold ${drawerCard?.color}`}>
@@ -522,57 +524,58 @@ export default function DashboardPage() {
           </div>
           <button
             onClick={() => setDrawerStatus(null)}
-            className="p-2 rounded-xl text-dark-400 hover:text-white hover:bg-dark-800 transition-all"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-dark-800 transition-colors cursor-pointer"
+            aria-label="Fechar gaveta"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Conteúdo do drawer */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
           {loadingDrawer ? (
-            <div className="p-6 space-y-3">
+            <div className="p-4 space-y-3">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 bg-dark-800 animate-pulse rounded-xl" />
+                <div key={i} className="h-20 bg-slate-100 dark:bg-dark-800 animate-pulse rounded-xl" />
               ))}
             </div>
           ) : lancamentos.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 gap-3 text-center px-6">
-              <div className="w-12 h-12 bg-dark-800 rounded-2xl flex items-center justify-center border border-dark-700">
-                <CheckCircle size={24} className="text-dark-500" />
+              <div className="w-12 h-12 bg-slate-100 dark:bg-dark-800 rounded-2xl flex items-center justify-center border border-slate-200 dark:border-dark-700">
+                <CheckCircle size={24} className="text-slate-400 dark:text-dark-500" />
               </div>
-              <p className="text-white font-medium">Nenhum lançamento</p>
-              <p className="text-dark-500 text-sm">Não há registros com este status.</p>
+              <p className="text-slate-900 dark:text-white font-medium">Nenhum lançamento</p>
+              <p className="text-slate-500 dark:text-dark-400 text-sm">Não há registros com este status.</p>
             </div>
           ) : (
-            <div className="p-4 space-y-2">
+            <div className="p-4 space-y-2.5">
               {lancamentos.map((l) => (
                 <div
                   key={l.id}
-                  className="group bg-dark-800 hover:bg-dark-750 border border-dark-700 hover:border-dark-600 rounded-xl p-4 flex items-start justify-between gap-3 transition-all"
+                  className="group bg-slate-50/80 dark:bg-dark-800/80 hover:bg-white dark:hover:bg-dark-750 border border-slate-200/80 dark:border-dark-700 hover:border-brand-500/40 dark:hover:border-brand-500/40 rounded-xl p-3.5 flex items-start justify-between gap-3 transition-all shadow-xs"
                 >
-                  <div className="flex-1 min-w-0 space-y-2">
+                  <div className="flex-1 min-w-0 space-y-1.5">
                     {/* Fornecedor */}
                     <div className="flex items-center gap-2">
-                      <User size={12} className="text-dark-500 flex-shrink-0" />
-                      <p className="text-white text-sm font-semibold truncate">{l.fornecedor}</p>
+                      <User size={13} className="text-slate-400 dark:text-dark-500 flex-shrink-0" />
+                      <p className="text-slate-900 dark:text-white text-sm font-semibold truncate">{l.fornecedor}</p>
                     </div>
                     {/* Descrição */}
                     {l.descricao && (
-                      <p className="text-dark-500 text-xs truncate pl-4">{l.descricao}</p>
+                      <p className="text-slate-500 dark:text-dark-400 text-xs truncate pl-5">{l.descricao}</p>
                     )}
                     {/* Valor + Vencimento */}
-                    <div className="flex items-center gap-4 pl-0">
-                      <span className="flex items-center gap-1 text-xs font-bold text-white">
-                        <DollarSign size={11} className="text-dark-400" />
+                    <div className="flex flex-wrap items-center gap-3 pt-1">
+                      <span className="flex items-center gap-1 text-xs font-bold text-slate-900 dark:text-white font-mono">
+                        <DollarSign size={12} className="text-slate-400 dark:text-dark-400" />
                         {formatCurrency(Number(l.valor))}
                       </span>
-                      <span className="flex items-center gap-1 text-xs text-dark-400">
-                        <Calendar size={11} />
+                      <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-dark-400 font-mono">
+                        <Calendar size={12} />
                         {formatDate(l.vencimento)}
                       </span>
                       {l.categoria && (
-                        <span className="text-xs text-dark-500 bg-dark-700 px-2 py-0.5 rounded-full truncate max-w-[120px]">
+                        <span className="text-[11px] text-slate-600 dark:text-dark-300 bg-slate-200/70 dark:bg-dark-700 px-2 py-0.5 rounded-full truncate max-w-[130px]">
                           {l.categoria}
                         </span>
                       )}
@@ -583,7 +586,7 @@ export default function DashboardPage() {
                   <button
                     onClick={() => excluirLancamento(l.id)}
                     disabled={deletingId === l.id}
-                    className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-2 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all disabled:opacity-50"
+                    className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-2 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-all disabled:opacity-50 cursor-pointer"
                     title="Excluir lançamento"
                   >
                     {deletingId === l.id
@@ -598,11 +601,11 @@ export default function DashboardPage() {
 
         {/* Footer do drawer */}
         {!loadingDrawer && lancamentos.length > 0 && drawerCard?.canDelete && (
-          <div className="p-4 border-t border-dark-700 bg-dark-900">
+          <div className="p-4 border-t border-slate-200 dark:border-dark-700 bg-slate-50 dark:bg-dark-900/90">
             <button
               onClick={() => handleLimparStatus(drawerStatus as 'pendente' | 'erro')}
               disabled={deleting !== null}
-              className="w-full flex items-center justify-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 px-4 py-3 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-600 dark:text-rose-400 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 cursor-pointer"
             >
               {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
               Apagar todos os {drawerCard?.title.toLowerCase()}
@@ -612,11 +615,11 @@ export default function DashboardPage() {
 
         {/* Footer com link para página de contas */}
         {!loadingDrawer && (
-          <div className="px-4 pb-4 border-t border-dark-700 pt-3 bg-dark-900">
+          <div className="p-4 border-t border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-900">
             <Link
               href="/contas-pagar"
               onClick={() => setDrawerStatus(null)}
-              className="w-full flex items-center justify-center gap-2 bg-dark-800 hover:bg-dark-700 border border-dark-700 text-dark-300 hover:text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
+              className="w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-dark-800 hover:bg-slate-200 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-700 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
             >
               Abrir módulo Contas a Pagar <ArrowDownCircle size={14} className="rotate-[-90deg]" />
             </Link>

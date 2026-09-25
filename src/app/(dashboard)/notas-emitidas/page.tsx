@@ -698,8 +698,8 @@ export default function NotasEmitidasPage() {
         </div>
 
         {/* ─── Tabela ─────────────────────────────────────────────────── */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="bg-dark-900/50 text-dark-400 border-b border-dark-700">
               <tr>
                 <th className="px-4 py-3 font-medium w-28">Geração</th>

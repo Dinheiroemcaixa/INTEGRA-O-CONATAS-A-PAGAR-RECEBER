@@ -699,23 +699,23 @@ export default function ContasPagarPage() {
     )}
 
     <div className="w-full px-2 sm:px-4 py-5 space-y-5 animate-fade-in">
-      {/* CABEÇALHO EXECUTIVO (Padrão Dashboard) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-dark-700/60">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-brand-500/15 border border-brand-500/30 flex items-center justify-center text-brand-400 flex-shrink-0 shadow-xs">
+      {/* CABEÇALHO EXECUTIVO (Padrão Dashboard / Linear) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200/70 dark:border-white/[0.08]">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-full bg-brand-500/10 dark:bg-brand-500/20 border border-brand-500/20 flex items-center justify-center text-brand-600 dark:text-brand-400 flex-shrink-0 shadow-xs">
             <FileText size={20} />
           </div>
           <div>
             <div className="flex items-center gap-2.5">
-              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight leading-tight">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">
                 Contas a Pagar
               </h1>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                 <Sparkles size={11} />
                 <span>Produção</span>
               </span>
             </div>
-            <p className="text-xs text-dark-400 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-dark-400 mt-0.5 font-normal">
               Importação DataCar (CpRi010), conciliação e envio ao Conta Azul
             </p>
           </div>
@@ -726,7 +726,7 @@ export default function ContasPagarPage() {
           {subAba === 'planilha' && etapa !== 'upload' && (
             <button
               onClick={() => { setEtapa('upload'); setResultado(null) }}
-              className="px-3 py-1.5 bg-dark-800 hover:bg-dark-700 hover:border-dark-600 hover:shadow-sm hover:scale-[1.02] active:scale-[0.98] text-dark-300 hover:text-white border border-dark-700 rounded-lg text-xs font-medium transition-all duration-200 flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-2 bg-white dark:bg-dark-800 hover:bg-slate-50 dark:hover:bg-dark-700 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-dark-700 rounded-xl text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
             >
               <ArrowLeft size={13} />
               <span>Voltar</span>
@@ -735,7 +735,7 @@ export default function ContasPagarPage() {
           {subAba === 'datacar' && contasPreviewDados && (
             <button
               onClick={() => { setContasPreviewDados(null) }}
-              className="px-3 py-1.5 bg-dark-800 hover:bg-dark-700 hover:border-dark-600 hover:shadow-sm hover:scale-[1.02] active:scale-[0.98] text-dark-300 hover:text-white border border-dark-700 rounded-lg text-xs font-medium transition-all duration-200 flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-2 bg-white dark:bg-dark-800 hover:bg-slate-50 dark:hover:bg-dark-700 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-dark-700 rounded-xl text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
             >
               <ArrowLeft size={13} />
               <span>Voltar à Busca</span>
@@ -744,15 +744,15 @@ export default function ContasPagarPage() {
         </div>
       </div>
 
-      {/* Barra de Abas Horizontais */}
+      {/* Barra de Abas Horizontais (Padrão Pill Switcher Fintech) */}
       <div className="flex items-center justify-between pb-1">
-        <div className="inline-flex p-1 bg-dark-900 border border-dark-700/60 rounded-xl gap-1">
+        <div className="inline-flex p-1.5 bg-slate-200/60 dark:bg-dark-900/80 border border-slate-300/60 dark:border-dark-700/80 rounded-2xl gap-1 shadow-inner">
           <button
             onClick={() => setSubAba('datacar')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
               subAba === 'datacar'
-                ? 'bg-brand-600 text-white shadow-xs'
-                : 'text-dark-400 hover:text-white hover:bg-dark-800/70 border border-transparent'
+                ? 'bg-brand-600 text-white shadow-sm'
+                : 'text-slate-600 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-dark-800/50'
             }`}
           >
             <Database size={15} />
@@ -760,10 +760,10 @@ export default function ContasPagarPage() {
           </button>
           <button
             onClick={() => setSubAba('planilha')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
               subAba === 'planilha'
-                ? 'bg-brand-600 text-white shadow-xs'
-                : 'text-dark-400 hover:text-white hover:bg-dark-800/70 border border-transparent'
+                ? 'bg-brand-600 text-white shadow-sm'
+                : 'text-slate-600 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-dark-800/50'
             }`}
           >
             <FileSpreadsheet size={15} />
@@ -803,27 +803,27 @@ export default function ContasPagarPage() {
               )}
 
               {/* Formulário de Busca do Datacar (Design System Connecta AI - Expandido e Harmonizado) */}
-              <div className="bg-dark-850/90 border border-dark-700/80 rounded-2xl p-4 sm:p-5 shadow-md space-y-4 animate-fade-in">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-dark-700/60">
+              <div className="bg-white dark:bg-dark-850/90 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4 animate-fade-in">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/70 dark:border-dark-700/60">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-brand-500/15 border border-brand-500/30 flex items-center justify-center text-brand-400 flex-shrink-0 shadow-sm">
+                    <div className="w-8 h-8 rounded-xl bg-brand-500/10 dark:bg-brand-500/15 border border-brand-500/20 dark:border-brand-500/30 flex items-center justify-center text-brand-600 dark:text-brand-400 flex-shrink-0 shadow-xs">
                       <Database size={16} />
                     </div>
                     <div>
-                      <h3 className="text-sm sm:text-base font-bold text-white leading-tight">Buscar Contas do Datacar</h3>
-                      <p className="text-xs text-dark-400 leading-none mt-1">Consulte lançamentos financeiros cadastrados no sistema Datacar</p>
+                      <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-tight">Buscar Contas do Datacar</h3>
+                      <p className="text-xs text-slate-500 dark:text-dark-400 leading-none mt-1">Consulte lançamentos financeiros cadastrados no sistema Datacar</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {empresaAtiva.datacar_token ? (
-                      <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg text-xs font-medium bg-dark-900/80 border border-dark-700 text-dark-200 shadow-xs">
-                        <Database size={12} className="text-emerald-400" />
+                      <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-50 dark:bg-dark-900/80 border border-emerald-200 dark:border-dark-700 text-emerald-700 dark:text-dark-200 shadow-xs">
+                        <Database size={12} className="text-emerald-500 dark:text-emerald-400" />
                         <span>Datacar Ativo</span>
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-glow-sm" />
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 shadow-glow-sm" />
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-500/10 border border-amber-500/30 text-amber-300">
-                        <AlertCircle size={12} className="text-amber-400" />
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-300">
+                        <AlertCircle size={12} className="text-amber-500 dark:text-amber-400" />
                         <span>Não Configurado</span>
                       </span>
                     )}
@@ -833,14 +833,14 @@ export default function ContasPagarPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-3.5 items-end">
                   {/* Filtro: Por */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold block text-dark-200">
+                    <label className="text-xs font-semibold block text-slate-700 dark:text-dark-200">
                       Por:
                     </label>
                     <select
                       id="tipoPeriodoContas"
                       value={tipoPeriodoContas}
                       onChange={(e) => setTipoPeriodoContas(e.target.value as any)}
-                      className="w-full h-10 bg-dark-900 border border-dark-700 hover:border-dark-600 rounded-xl px-3 text-white text-xs sm:text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all shadow-xs"
+                      className="w-full h-10 bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 hover:border-slate-300 dark:hover:border-dark-600 rounded-xl px-3 text-slate-900 dark:text-white text-xs sm:text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all shadow-xs"
                     >
                       <option value="venc">Vencimento</option>
                       <option value="emis">Emissão</option>
@@ -851,13 +851,13 @@ export default function ContasPagarPage() {
 
                   {/* Filtro: Pagamento */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold block text-dark-200">
+                    <label className="text-xs font-semibold block text-slate-700 dark:text-dark-200">
                       Pagamento:
                     </label>
                     <select
                       value={statusPagamento}
                       onChange={(e) => setStatusPagamento(e.target.value as any)}
-                      className="w-full h-10 bg-dark-900 border border-dark-700 hover:border-dark-600 rounded-xl px-3 text-white text-xs sm:text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all shadow-xs"
+                      className="w-full h-10 bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 hover:border-slate-300 dark:hover:border-dark-600 rounded-xl px-3 text-slate-900 dark:text-white text-xs sm:text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all shadow-xs"
                     >
                       <option value="todas">A pagar e pagas</option>
                       <option value="apagar">A pagar</option>
@@ -867,13 +867,13 @@ export default function ContasPagarPage() {
 
                   {/* Filtro: Local */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold block text-dark-200">
+                    <label className="text-xs font-semibold block text-slate-700 dark:text-dark-200">
                       Local:
                     </label>
                     <select
                       value={localPagamento}
                       onChange={(e) => setLocalPagamento(e.target.value as any)}
-                      className="w-full h-10 bg-dark-900 border border-dark-700 hover:border-dark-600 rounded-xl px-3 text-white text-xs sm:text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all shadow-xs"
+                      className="w-full h-10 bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 hover:border-slate-300 dark:hover:border-dark-600 rounded-xl px-3 text-slate-900 dark:text-white text-xs sm:text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all shadow-xs"
                     >
                       <option value="todos">(Todos)</option>
                       <option value="BANCO">BANCO</option>
@@ -884,32 +884,32 @@ export default function ContasPagarPage() {
 
                   {/* Filtro: Data Inicial */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold block text-dark-200">
+                    <label className="text-xs font-semibold block text-slate-700 dark:text-dark-200">
                       Data Inicial:
                     </label>
                     <div className="relative">
-                      <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400 pointer-events-none" />
+                      <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400 pointer-events-none" />
                       <input
                         type="date"
                         value={dtIni}
                         onChange={(e) => setDtIni(e.target.value)}
-                        className="w-full h-10 bg-dark-900 border border-dark-700 hover:border-dark-600 rounded-xl pl-9 pr-3 text-white text-xs sm:text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all shadow-xs"
+                        className="w-full h-10 bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 hover:border-slate-300 dark:hover:border-dark-600 rounded-xl pl-9 pr-3 text-slate-900 dark:text-white text-xs sm:text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all shadow-xs"
                       />
                     </div>
                   </div>
                   
                   {/* Filtro: Data Final */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold block text-dark-200">
+                    <label className="text-xs font-semibold block text-slate-700 dark:text-dark-200">
                       Data Final:
                     </label>
                     <div className="relative">
-                      <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400 pointer-events-none" />
+                      <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400 pointer-events-none" />
                       <input
                         type="date"
                         value={dtFim}
                         onChange={(e) => setDtFim(e.target.value)}
-                        className="w-full h-10 bg-dark-900 border border-dark-700 hover:border-dark-600 rounded-xl pl-9 pr-3 text-white text-xs sm:text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all shadow-xs"
+                        className="w-full h-10 bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 hover:border-slate-300 dark:hover:border-dark-600 rounded-xl pl-9 pr-3 text-slate-900 dark:text-white text-xs sm:text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all shadow-xs"
                       />
                     </div>
                   </div>
@@ -919,7 +919,7 @@ export default function ContasPagarPage() {
                     <button
                       onClick={handleBuscarContasDatacar}
                       disabled={buscando || !empresaAtiva.datacar_token}
-                      className="w-full h-10 bg-brand-600 hover:bg-brand-500 hover:shadow-lg hover:shadow-brand-950/50 hover:border-brand-400/50 border border-brand-500 active:scale-[0.98] disabled:opacity-50 text-white rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer shadow-sm"
+                      className="w-full h-10 bg-brand-600 hover:bg-brand-500 hover:shadow-lg hover:shadow-brand-950/20 hover:border-brand-400/50 border border-brand-500 active:scale-[0.98] disabled:opacity-50 text-white rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer shadow-sm"
                     >
                       {buscando ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
                       <span>{buscando ? 'Buscando...' : 'Buscar'}</span>
@@ -928,7 +928,7 @@ export default function ContasPagarPage() {
                 </div>
 
                 {!empresaAtiva.datacar_token && (
-                   <p className="text-amber-400 text-xs pt-1 flex items-center gap-1.5">
+                   <p className="text-amber-500 dark:text-amber-400 text-xs pt-1 flex items-center gap-1.5">
                      <span>⚠️ Credenciais do Datacar não configuradas para esta empresa. Configure na aba "Empresas".</span>
                    </p>
                 )}

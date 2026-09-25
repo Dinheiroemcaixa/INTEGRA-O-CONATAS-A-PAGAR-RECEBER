@@ -6,7 +6,7 @@ import type { ContaFinanceiraOpcao } from '@/components/upload/SelectorContaFina
 import { createClient } from '@/lib/supabase/client'
 import TabelaPreview from '@/components/upload/TabelaPreview'
 import type { ContaPagarPreview, Empresa } from '@/types'
-import { Loader2, FileDown, Trash2, Save, Upload } from 'lucide-react'
+import { Loader2, FileDown, Trash2, Save, Upload, Layers, CheckCircle2, AlertTriangle, AlertOctagon, DollarSign } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatCurrency, cn } from '@/lib/utils'
 import { matchFornecedoresEmLote, type RegraDepara } from '@/lib/utils/match-fornecedor'
@@ -616,23 +616,23 @@ export default function ContasPreviewSection({
 
   if (loadingMatch) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 bg-dark-800 rounded-xl border border-dark-700">
-        <Loader2 className="w-10 h-10 animate-spin text-primary-400 mb-4" />
-        <p className="text-white font-medium">Analisando fornecedores...</p>
-        <p className="text-dark-400 text-sm mt-1">Comparando nomes e sugerindo categorias</p>
+      <div className="flex flex-col items-center justify-center p-12 bg-white dark:bg-dark-800 rounded-2xl border border-slate-200/80 dark:border-dark-700 shadow-xs">
+        <Loader2 className="w-10 h-10 animate-spin text-brand-600 dark:text-brand-400 mb-4" />
+        <p className="text-slate-900 dark:text-white font-bold text-sm">Analisando fornecedores...</p>
+        <p className="text-slate-500 dark:text-dark-400 text-xs mt-1">Comparando nomes e sugerindo categorias</p>
       </div>
     )
   }
 
   if (dadosEditados.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 bg-dark-850/80 rounded-xl border border-dark-700/60 space-y-4 animate-fade-in text-center my-4">
-        <div className="w-12 h-12 bg-primary-500/15 border border-primary-500/30 rounded-xl flex items-center justify-center text-primary-400">
-          <Upload size={28} />
+      <div className="flex flex-col items-center justify-center p-12 bg-white dark:bg-dark-850/80 rounded-2xl border border-slate-200/80 dark:border-dark-700/60 space-y-4 animate-fade-in text-center my-4 shadow-xs">
+        <div className="w-14 h-14 rounded-full bg-brand-500/10 dark:bg-primary-500/15 border border-brand-500/20 flex items-center justify-center text-brand-600 dark:text-primary-400 mx-auto shadow-inner">
+          <Upload size={24} />
         </div>
         <div>
-          <h3 className="text-white font-bold text-base">Nenhum registro para importação</h3>
-          <p className="text-dark-400 text-xs mt-1 max-w-md">
+          <h3 className="text-slate-900 dark:text-white font-bold text-base">Nenhum registro para importação</h3>
+          <p className="text-slate-500 dark:text-dark-400 text-xs mt-1 max-w-md mx-auto">
             A lista está limpa. Clique no botão abaixo para selecionar ou arrastar uma nova planilha Excel / CSV.
           </p>
         </div>
@@ -645,9 +645,9 @@ export default function ContasPreviewSection({
               else window.location.reload()
             }
           }}
-          className="h-10 bg-primary-600 hover:bg-primary-500 text-white px-5 rounded-lg font-semibold text-sm flex items-center gap-2 transition-colors shadow-sm"
+          className="h-10 bg-brand-600 hover:bg-brand-500 text-white px-5 rounded-xl font-semibold text-xs flex items-center gap-2 transition-all shadow-xs cursor-pointer"
         >
-          <Upload size={16} /> Arraste ou Selecione Nova Planilha
+          <Upload size={15} /> Arraste ou Selecione Nova Planilha
         </button>
       </div>
     )
@@ -655,55 +655,91 @@ export default function ContasPreviewSection({
 
   return (
     <div className="space-y-4">
-      {/* Resumo / Filtros */}
+      {/* Resumo / Filtros — Cards com ícones circulares */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        {/* Total */}
         <button
           onClick={() => setFiltroPreview('todos')}
           className={cn(
-            "rounded-xl p-4 text-left transition-all space-y-1 cursor-pointer",
-            filtroPreview === 'todos' ? "border border-primary-500/70 ring-1 ring-primary-500/40 bg-primary-950/30 shadow-md shadow-primary-950/40 scale-[1.01]" : "border border-dark-700/60 hover:border-dark-500 hover:bg-dark-800/80 hover:shadow-md hover:scale-[1.01] bg-dark-850/80"
+            "rounded-2xl p-4 text-left transition-all duration-200 cursor-pointer flex flex-col justify-between shadow-xs",
+            filtroPreview === 'todos' 
+              ? "border border-brand-500/70 ring-2 ring-brand-500/20 bg-brand-50/50 dark:bg-brand-950/30 shadow-md scale-[1.01]" 
+              : "border border-slate-200/80 dark:border-dark-700/60 hover:border-slate-300 dark:hover:border-dark-500 hover:shadow-md bg-white dark:bg-dark-850/80"
           )}
         >
-          <p className="text-dark-400 text-xs font-semibold uppercase tracking-wider mb-1">Total</p>
-          <p className="text-white text-2xl font-bold font-mono tabular-nums">{dadosEditados.length}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-slate-500 dark:text-dark-400 text-[10px] font-bold uppercase tracking-wider">Total</p>
+            <div className="w-8 h-8 rounded-full bg-brand-500/10 dark:bg-brand-500/20 flex items-center justify-center text-brand-600 dark:text-brand-400">
+              <Layers size={15} />
+            </div>
+          </div>
+          <p className="text-slate-900 dark:text-white text-2xl font-extrabold font-mono tabular-nums mt-2">{dadosEditados.length}</p>
         </button>
 
-        <div className="bg-dark-850/80 border border-emerald-500/20 rounded-xl p-4 space-y-1">
-          <p className="text-dark-400 text-xs font-semibold uppercase tracking-wider mb-1">Confirmados</p>
-          <p className="text-emerald-400 text-2xl font-bold font-mono tabular-nums">
+        {/* Confirmados */}
+        <div className="bg-white dark:bg-dark-850/80 border border-emerald-500/20 rounded-2xl p-4 flex flex-col justify-between shadow-xs">
+          <div className="flex items-center justify-between">
+            <p className="text-slate-500 dark:text-dark-400 text-[10px] font-bold uppercase tracking-wider">Confirmados</p>
+            <div className="w-8 h-8 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 size={15} />
+            </div>
+          </div>
+          <p className="text-emerald-600 dark:text-emerald-400 text-2xl font-extrabold font-mono tabular-nums mt-2">
             {dadosEditados.filter(d => d.valido && (!d.matchFornecedor || d.matchFornecedor.confianca === 'exato')).length}
           </p>
         </div>
 
+        {/* Amarelas (Revisar) */}
         <button
           onClick={() => setFiltroPreview('revisao')}
           className={cn(
-            "rounded-xl p-4 text-left transition-all space-y-1 cursor-pointer",
-            filtroPreview === 'revisao' ? "border border-amber-500/70 ring-1 ring-amber-500/40 bg-amber-950/30 shadow-md shadow-amber-950/40 scale-[1.01]" : "border border-amber-500/25 hover:border-amber-500/60 hover:bg-amber-950/15 hover:shadow-md hover:scale-[1.01] bg-dark-850/80"
+            "rounded-2xl p-4 text-left transition-all duration-200 cursor-pointer flex flex-col justify-between shadow-xs",
+            filtroPreview === 'revisao' 
+              ? "border border-amber-500/70 ring-2 ring-amber-500/20 bg-amber-50/50 dark:bg-amber-950/30 shadow-md scale-[1.01]" 
+              : "border border-amber-500/25 hover:border-amber-500/60 hover:shadow-md bg-white dark:bg-dark-850/80"
           )}
         >
-          <p className="text-amber-400/80 text-xs font-semibold uppercase tracking-wider mb-1">Amarelas (Revisar)</p>
-          <p className="text-amber-400 text-2xl font-bold font-mono tabular-nums">
+          <div className="flex items-center justify-between">
+            <p className="text-amber-600 dark:text-amber-400/90 text-[10px] font-bold uppercase tracking-wider">Amarelas (Revisar)</p>
+            <div className="w-8 h-8 rounded-full bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
+              <AlertTriangle size={15} />
+            </div>
+          </div>
+          <p className="text-amber-600 dark:text-amber-400 text-2xl font-extrabold font-mono tabular-nums mt-2">
             {dadosEditados.filter(d => d.valido && d.matchFornecedor && d.matchFornecedor.confianca !== 'exato').length}
           </p>
         </button>
 
+        {/* Vermelhas (Erro) */}
         <button
           onClick={() => setFiltroPreview('erro')}
           className={cn(
-            "rounded-xl p-4 text-left transition-all space-y-1 cursor-pointer",
-            filtroPreview === 'erro' ? "border border-red-500/70 ring-1 ring-red-500/40 bg-red-950/30 shadow-md shadow-red-950/40 scale-[1.01]" : "border border-red-500/25 hover:border-red-500/60 hover:bg-red-950/15 hover:shadow-md hover:scale-[1.01] bg-dark-850/80"
+            "rounded-2xl p-4 text-left transition-all duration-200 cursor-pointer flex flex-col justify-between shadow-xs",
+            filtroPreview === 'erro' 
+              ? "border border-rose-500/70 ring-2 ring-rose-500/20 bg-rose-50/50 dark:bg-rose-950/30 shadow-md scale-[1.01]" 
+              : "border border-rose-500/25 hover:border-rose-500/60 hover:shadow-md bg-white dark:bg-dark-850/80"
           )}
         >
-          <p className="text-red-400/80 text-xs font-semibold uppercase tracking-wider mb-1">Vermelhas (Erro)</p>
-          <p className="text-red-400 text-2xl font-bold font-mono tabular-nums">
+          <div className="flex items-center justify-between">
+            <p className="text-rose-600 dark:text-rose-400/90 text-[10px] font-bold uppercase tracking-wider">Vermelhas (Erro)</p>
+            <div className="w-8 h-8 rounded-full bg-rose-500/10 dark:bg-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400">
+              <AlertOctagon size={15} />
+            </div>
+          </div>
+          <p className="text-rose-600 dark:text-rose-400 text-2xl font-extrabold font-mono tabular-nums mt-2">
             {dadosEditados.filter(d => !d.valido).length}
           </p>
         </button>
 
-        <div className="bg-dark-850/80 border border-primary-500/30 rounded-xl p-4 space-y-1">
-          <p className="text-dark-400 text-xs font-semibold uppercase tracking-wider mb-1">Valor selecionado</p>
-          <p className="text-primary-300 text-xl font-bold font-mono tabular-nums">{formatCurrency(valorSelecionado)}</p>
+        {/* Valor Selecionado */}
+        <div className="bg-white dark:bg-dark-850/80 border border-brand-500/25 rounded-2xl p-4 flex flex-col justify-between shadow-xs">
+          <div className="flex items-center justify-between">
+            <p className="text-slate-500 dark:text-dark-400 text-[10px] font-bold uppercase tracking-wider">Valor selecionado</p>
+            <div className="w-8 h-8 rounded-full bg-brand-500/10 dark:bg-brand-500/20 flex items-center justify-center text-brand-600 dark:text-brand-400">
+              <DollarSign size={15} />
+            </div>
+          </div>
+          <p className="text-brand-700 dark:text-brand-300 text-xl font-extrabold font-mono tabular-nums mt-2">{formatCurrency(valorSelecionado)}</p>
         </div>
       </div>
 
