@@ -451,7 +451,10 @@ export default function TabelaPreview({
                       className="w-3.5 h-3.5 rounded border-slate-300 dark:border-dark-500 bg-white dark:bg-dark-700 text-brand-600 focus:ring-brand-500 cursor-pointer"
                     />
                   </td>
-                  <td className="py-3 px-2 overflow-hidden">
+                  <td className={cn(
+                    "py-3 px-2",
+                    editingIdx === idx ? "overflow-visible relative z-30" : "overflow-hidden"
+                  )}>
                     {isEditing ? (
                       <SelectorFornecedor 
                         valorInicial={item.fornecedor}

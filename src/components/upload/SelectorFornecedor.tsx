@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import { Search, Loader2, X } from 'lucide-react'
@@ -23,7 +23,7 @@ export default function SelectorFornecedor({ valorInicial, onSelect, onCancel, e
   const [resultados, setResultados] = useState<{ nome: string }[]>([])
   const [loading, setLoading] = useState(false)
   const [aberto, setAberto] = useState(true)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -32,19 +32,33 @@ export default function SelectorFornecedor({ valorInicial, onSelect, onCancel, e
 
   useEffect(() => {
     const buscar = async () => {
-      if (!empresaIdFinal || busca.length < 2) {
+      if (!empresaIdFinal) {
         setResultados([])
+        return
+      }
+
+      const termo = busca.trim()
+
+      // Se tiver apenas 1 caractere, aguarda o próximo para não fazer queries curtas demais
+      if (termo.length === 1) {
         return
       }
 
       setLoading(true)
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('fornecedores_contaazul')
           .select('nome')
           .eq('empresa_id', empresaIdFinal)
-          .ilike('nome', `%${busca}%`)
-          .limit(10)
+
+        if (termo.length >= 2) {
+          query = query.ilike('nome', `%${termo}%`)
+        } else {
+          // Campo vazio: carrega os 10 primeiros em ordem alfabética
+          query = query.order('nome', { ascending: true })
+        }
+
+        const { data, error } = await query.limit(10)
 
         if (!error && data) {
           setResultados(data)
@@ -56,14 +70,15 @@ export default function SelectorFornecedor({ valorInicial, onSelect, onCancel, e
       }
     }
 
-    const timer = setTimeout(buscar, 300)
+    const delay = busca.trim().length === 0 ? 0 : 300
+    const timer = setTimeout(buscar, delay)
     return () => clearTimeout(timer)
   }, [busca, empresaIdFinal, supabase])
 
   return (
     <div className="relative w-full min-w-[200px]">
-      <div className="flex items-center gap-2 bg-dark-700 border border-brand-500/50 rounded-lg px-2 py-1 shadow-lg shadow-brand-900/20">
-        <Search size={14} className="text-brand-400" />
+      <div className="flex items-center gap-2 bg-white dark:bg-dark-700 border border-slate-300 dark:border-brand-500/50 rounded-lg px-2 py-1 shadow-xs dark:shadow-lg dark:shadow-brand-900/20">
+        <Search size={14} className="text-brand-600 dark:text-brand-400 shrink-0" />
         <input
           ref={inputRef}
           type="text"
@@ -75,39 +90,51 @@ export default function SelectorFornecedor({ valorInicial, onSelect, onCancel, e
               onSelect(resultados[0].nome)
             }
           }}
-          placeholder="Digite para buscar..."
-          className="bg-transparent border-none outline-none text-white text-sm w-full"
+          placeholder="Digite para buscar ou selecione..."
+          className="bg-transparent border-none outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-dark-400 text-xs sm:text-sm w-full"
         />
-        <button onClick={onCancel} className="text-dark-500 hover:text-white">
+        <button 
+          type="button" 
+          onClick={onCancel} 
+          className="text-slate-400 hover:text-slate-700 dark:text-dark-500 dark:hover:text-white p-0.5 transition-colors cursor-pointer"
+          title="Cancelar"
+        >
           <X size={14} />
         </button>
       </div>
 
-      {aberto && (busca.length >= 2) && (
-        <div className="absolute z-50 mt-1 w-full bg-dark-800 border border-dark-600 rounded-lg shadow-2xl overflow-hidden max-h-[200px] overflow-y-auto">
+      {aberto && (
+        <div className="absolute z-50 mt-1 w-full bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-lg shadow-2xl overflow-hidden max-h-[220px] overflow-y-auto ring-1 ring-black/5 animate-in fade-in duration-100">
           {loading && (
             <div className="p-3 flex items-center justify-center">
-              <Loader2 size={16} className="animate-spin text-brand-400" />
+              <Loader2 size={16} className="animate-spin text-brand-500 dark:text-brand-400" />
             </div>
           )}
           {!loading && resultados.length === 0 && (
-            <div className="p-3 text-xs text-dark-500 italic text-center">
+            <div className="p-3 text-xs text-slate-500 dark:text-dark-400 italic text-center">
               Nenhum fornecedor encontrado
             </div>
           )}
-          {resultados.map((f, i) => (
+          {!loading && resultados.length > 0 && busca.trim().length === 0 && (
+            <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 dark:text-dark-400 uppercase tracking-wider bg-slate-50/80 dark:bg-dark-900/60 border-b border-slate-100 dark:border-dark-700/60">
+              Fornecedores cadastrados
+            </div>
+          )}
+          {!loading && resultados.map((f, i) => (
             <button
               key={i}
+              type="button"
               onClick={() => onSelect(f.nome)}
-              className="w-full text-left px-3 py-2 text-sm text-white hover:bg-brand-600/20 hover:text-brand-400 transition-colors border-b border-dark-700 last:border-none"
+              className="w-full text-left px-3 py-2 text-xs sm:text-sm text-slate-800 dark:text-white hover:bg-brand-50 dark:hover:bg-brand-600/20 hover:text-brand-700 dark:hover:text-brand-400 transition-colors border-b border-slate-100 dark:border-dark-700 last:border-none cursor-pointer flex items-center justify-between"
             >
-              {f.nome}
+              <span className="truncate">{f.nome}</span>
             </button>
           ))}
-          {busca.length > 0 && (
+          {busca.trim().length > 0 && (
             <button
+              type="button"
               onClick={() => onSelect(busca)}
-              className="w-full text-left px-3 py-2 text-[10px] text-dark-400 bg-dark-900 hover:bg-dark-700 italic border-t border-dark-600"
+              className="w-full text-left px-3 py-2 text-[11px] text-slate-600 dark:text-dark-300 bg-slate-50 dark:bg-dark-900 hover:bg-slate-100 dark:hover:bg-dark-700 italic border-t border-slate-200 dark:border-dark-600 transition-colors cursor-pointer"
             >
               Usar "{busca}" (mesmo não cadastrado)
             </button>
