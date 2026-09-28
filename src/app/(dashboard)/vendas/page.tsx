@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import { createClient } from '@/lib/supabase/client'
 import DropZoneVendas from '@/components/upload/DropZoneVendas'
@@ -15,7 +15,7 @@ import type { VendaPreview, ResultadoImportacaoVendas } from '@/types'
 import {
   FileCheck, UploadCloud, UserCheck,
   Upload, ArrowLeft, Loader2,
-  CheckCircle, AlertCircle, Send, ShoppingCart,
+  CheckCircle, CheckCircle2, AlertCircle, AlertTriangle, X, Send, ShoppingCart,
   Database, RefreshCw, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, HelpCircle,
   Trash2, FileSpreadsheet, BookOpen,
   Search, Calendar, ExternalLink, FileText, Download,
@@ -152,6 +152,43 @@ export default function VendasPage() {
   const [editandoIdx, setEditandoIdx] = useState<number | null>(null)
   const [enviandoCA, setEnviandoCA] = useState(false)
 
+  // ─── Estados de Progresso em Tempo Real (UX Fintech) ──────────
+  const [progressoEnvio, setProgressoEnvio] = useState<{
+    ativo: boolean
+    origem: 'datacar' | 'planilha'
+    total: number
+    processados: number
+    sucessos: number
+    erros: number
+    osAtual?: string
+    clienteAtual?: string
+    segundosDecorridos: number
+    detalhesErros: string[]
+    concluido: boolean
+    cancelado?: boolean
+  } | null>(null)
+  const [mostrarErrosProgresso, setMostrarErrosProgresso] = useState(false)
+  const abortEnvioRef = useRef(false)
+
+  // Cronômetro para o tempo decorrido do envio em lote
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null
+    if (progressoEnvio?.ativo && !progressoEnvio.concluido) {
+      interval = setInterval(() => {
+        setProgressoEnvio(prev => prev ? { ...prev, segundosDecorridos: prev.segundosDecorridos + 1 } : null)
+      }, 1000)
+    }
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [progressoEnvio?.ativo, progressoEnvio?.concluido])
+
+  const formatTempoDecorrido = (segundos: number) => {
+    const mins = Math.floor(segundos / 60).toString().padStart(2, '0')
+    const secs = (segundos % 60).toString().padStart(2, '0')
+    return `${mins}:${secs}`
+  }
+
   // Carrega histórico de notas emitidas no Conta Azul
   const carregarNotasEmitidas = useCallback(async () => {
     if (!empresaAtiva) return
@@ -271,7 +308,7 @@ export default function VendasPage() {
     toast.success('Venda removida')
   }
 
-  // Envio ao Conta Azul
+  // Envio ao Conta Azul (Datacar) com Streaming de Progresso e Proteção contra Timeout
   const handleEnviarDatacarParaCA = async () => {
     if (!empresaAtiva) { toast.error('Selecione uma empresa primeiro'); return }
     if (!empresaAtiva.access_token_conta_azul_vendas) {
@@ -280,39 +317,74 @@ export default function VendasPage() {
     }
     if (selecionadosDatacar.size === 0) { toast.error('Selecione ao menos uma venda'); return }
 
+    const vendasParaEnviar = vendasDatacar
+      .filter(v => selecionadosDatacar.has(v.id))
+      .map(v => {
+        let itensFiltrados = v.itens || []
+        if (filtroTipoItens === 'produtos') {
+          itensFiltrados = itensFiltrados.filter(i => i.tipo === 'produto' || !i.tipo)
+        } else if (filtroTipoItens === 'servicos') {
+          itensFiltrados = itensFiltrados.filter(i => i.tipo === 'servico')
+        }
+        const valorTotalRecalculado = itensFiltrados.reduce((acc, i) => acc + (i.valor_unitario * i.quantidade), 0)
+        return {
+          ...v,
+          itens: itensFiltrados,
+          valor_total: valorTotalRecalculado
+        }
+      })
+      .filter(v => v.itens.length > 0)
+
+    if (vendasParaEnviar.length === 0) {
+      toast.error('Não há itens válidos para enviar com o filtro atual.')
+      return
+    }
+
+    abortEnvioRef.current = false
     setEnviandoDatacar(true)
+    setMostrarErrosProgresso(false)
+
+    setProgressoEnvio({
+      ativo: true,
+      origem: 'datacar',
+      total: vendasParaEnviar.length,
+      processados: 0,
+      sucessos: 0,
+      erros: 0,
+      osAtual: vendasParaEnviar[0]?.os_numero,
+      clienteAtual: vendasParaEnviar[0]?.cliente,
+      segundosDecorridos: 0,
+      detalhesErros: [],
+      concluido: false,
+      cancelado: false
+    })
+
+    let sucessosTotais = 0
+    let errosTotais = 0
+    const detalhesErros: string[] = []
+    const idsSucesso = new Set<string>()
+    const idsClientesExistentes = new Set<string>()
+
     try {
-      const vendasParaEnviar = vendasDatacar
-        .filter(v => selecionadosDatacar.has(v.id))
-        .map(v => {
-          let itensFiltrados = v.itens || []
-          if (filtroTipoItens === 'produtos') {
-            itensFiltrados = itensFiltrados.filter(i => i.tipo === 'produto' || !i.tipo)
-          } else if (filtroTipoItens === 'servicos') {
-            itensFiltrados = itensFiltrados.filter(i => i.tipo === 'servico')
-          }
-          const valorTotalRecalculado = itensFiltrados.reduce((acc, i) => acc + (i.valor_unitario * i.quantidade), 0)
-          return {
-            ...v,
-            itens: itensFiltrados,
-            valor_total: valorTotalRecalculado
-          }
-        })
-        .filter(v => v.itens.length > 0)
+      for (let i = 0; i < vendasParaEnviar.length; i++) {
+        if (abortEnvioRef.current) {
+          toast('Envio interrompido pelo usuário.', { icon: '🛑' })
+          setProgressoEnvio(prev => prev ? { ...prev, cancelado: true } : null)
+          break
+        }
 
-      if (vendasParaEnviar.length === 0) {
-        setEnviandoDatacar(false)
-        toast.error('Não há itens válidos para enviar com o filtro atual.')
-        return
-      }
+        const venda = vendasParaEnviar[i]
 
-      let sucessosTotais = 0
-      let errosTotais = 0
-      const detalhesErros: string[] = []
-      const idsSucesso = new Set<string>()
-      const idsClientesExistentes = new Set<string>()
+        setProgressoEnvio(prev => prev ? {
+          ...prev,
+          osAtual: venda.os_numero,
+          clienteAtual: venda.cliente
+        } : null)
 
-      for (const venda of vendasParaEnviar) {
+        // Timeout defensivo de 45 segundos por venda com AbortController
+        const controller = new AbortController()
+        const timeoutTimer = setTimeout(() => controller.abort(), 45000)
+
         try {
           const res = await fetch('/api/conta-azul/enviar-vendas', {
             method: 'POST',
@@ -321,54 +393,88 @@ export default function VendasPage() {
               empresa_id: empresaAtiva.id,
               vendas: [venda]
             }),
+            signal: controller.signal
           })
-          const data = await res.json()
+          clearTimeout(timeoutTimer)
+
+          let data: any = {}
+          try {
+            const rawText = await res.text()
+            data = JSON.parse(rawText)
+          } catch {
+            if (res.status === 504 || res.status === 408) {
+              data = { error: 'Tempo limite esgotado no servidor (TIMEOUT 504). O Conta Azul demorou para responder.' }
+            } else {
+              data = { error: `Erro no servidor Conta Azul (HTTP ${res.status}).` }
+            }
+          }
+
           if (res.ok && data.sucessos > 0) {
             sucessosTotais++
             idsSucesso.add(venda.id)
             if (data.detalhesClientesExistentes && Array.isArray(data.detalhesClientesExistentes) && data.detalhesClientesExistentes.length > 0) {
               idsClientesExistentes.add(venda.id)
             }
+            setVendasDatacar(prev => prev.map(v => {
+              if (v.id === venda.id) {
+                return { 
+                  ...v, 
+                  status: 'enviado',
+                  cliente_ja_cadastrado: (data.detalhesClientesExistentes && data.detalhesClientesExistentes.length > 0) || v.cliente_ja_cadastrado
+                }
+              }
+              return v
+            }))
+            setSelecionadosDatacar(prev => {
+              const next = new Set(prev)
+              next.delete(venda.id)
+              return next
+            })
           } else {
             errosTotais++
-            detalhesErros.push(`OS ${venda.os_numero}: ${data.error || 'Erro na API do Conta Azul'}`)
+            const msgErro = data.error || (data.detalhesErros && data.detalhesErros[0]) || 'Erro ao sincronizar com Conta Azul'
+            detalhesErros.push(`OS ${venda.os_numero || 'S/N'}: ${msgErro}`)
           }
-        } catch (err: any) {
+        } catch (fetchErr: any) {
+          clearTimeout(timeoutTimer)
           errosTotais++
-          detalhesErros.push(`OS ${venda.os_numero}: ${err.message || 'Erro de comunicação'}`)
+          const isTimeout = fetchErr.name === 'AbortError'
+          const msg = isTimeout 
+            ? 'Tempo limite de 45s excedido aguardando resposta da API'
+            : (fetchErr.message || 'Erro de conexão com o servidor')
+          detalhesErros.push(`OS ${venda.os_numero || 'S/N'}: ${msg}`)
+        }
+
+        // Atualização em tempo real do estado de progresso
+        setProgressoEnvio(prev => prev ? {
+          ...prev,
+          processados: i + 1,
+          sucessos: sucessosTotais,
+          erros: errosTotais,
+          detalhesErros: [...detalhesErros]
+        } : null)
+
+        if (i < vendasParaEnviar.length - 1 && !abortEnvioRef.current) {
+          await new Promise(r => setTimeout(r, 200))
         }
       }
 
       if (sucessosTotais > 0) {
-        toast.success(`${sucessosTotais} vendas sincronizadas com sucesso no Conta Azul!`)
-        setVendasDatacar(prev => prev.map(v => {
-          if (idsSucesso.has(v.id)) {
-            return { 
-              ...v, 
-              status: 'enviado',
-              cliente_ja_cadastrado: idsClientesExistentes.has(v.id) || v.cliente_ja_cadastrado
-            }
-          }
-          return v
-        }))
-        setSelecionadosDatacar(prev => {
-          const next = new Set(prev)
-          idsSucesso.forEach(id => next.delete(id))
-          return next
-        })
+        toast.success(`${sucessosTotais} de ${vendasParaEnviar.length} vendas sincronizadas com sucesso!`)
         carregarNotasEmitidas()
       }
 
       if (errosTotais > 0) {
-        toast.error(`${errosTotais} vendas com erro.`)
-        detalhesErros.slice(0, 3).forEach(m => toast.error(m, { duration: 6000 }))
+        toast.error(`${errosTotais} vendas com erro ou timeout. Confira o detalhamento no card.`)
       }
 
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro ao enviar para o Conta Azul'
       toast.error(msg)
     } finally {
+      // Liberação automática do botão em qualquer erro, cancelamento ou timeout garantida!
       setEnviandoDatacar(false)
+      setProgressoEnvio(prev => prev ? { ...prev, concluido: true } : null)
     }
   }
 
@@ -452,52 +558,145 @@ export default function VendasPage() {
     })
   }
 
+  // Envio ao Conta Azul (Planilha) com Streaming de Progresso e Proteção contra Timeout
   const handleEnviarContaAzul = async () => {
     if (!empresaAtiva) { toast.error('Selecione uma empresa primeiro'); return }
     if (selecionados.size === 0) { toast.error('Selecione ao menos uma venda'); return }
 
-    setEnviandoCA(true)
-    try {
-      const itensParaEnviar = dadosEditados.filter((_, i) => selecionados.has(i))
-      const res = await fetch('/api/conta-azul/enviar-vendas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          empresa_id: empresaAtiva.id,
-          vendas: itensParaEnviar
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erro ao enviar vendas')
+    const itensParaEnviar = dadosEditados.filter((_, i) => selecionados.has(i))
+    if (itensParaEnviar.length === 0) {
+      toast.error('Nenhum item selecionado para envio.')
+      return
+    }
 
-      if (data.sucessos > 0) {
-        toast.success(`${data.sucessos} vendas enviadas ao Conta Azul com sucesso!`)
-        if (data.detalhesClientesExistentes && Array.isArray(data.detalhesClientesExistentes) && data.detalhesClientesExistentes.length > 0) {
-          data.detalhesClientesExistentes.forEach((aviso: string) => {
-            toast(aviso, {
-              icon: '👤',
-              duration: 8000,
-              style: {
-                background: '#0f172a',
-                color: '#38bdf8',
-                border: '1px solid rgba(56, 189, 248, 0.3)',
-                fontSize: '13px',
-                fontWeight: 500
-              }
-            })
-          })
+    abortEnvioRef.current = false
+    setEnviandoCA(true)
+    setMostrarErrosProgresso(false)
+
+    setProgressoEnvio({
+      ativo: true,
+      origem: 'planilha',
+      total: itensParaEnviar.length,
+      processados: 0,
+      sucessos: 0,
+      erros: 0,
+      osAtual: itensParaEnviar[0]?.os_numero,
+      clienteAtual: itensParaEnviar[0]?.cliente,
+      segundosDecorridos: 0,
+      detalhesErros: [],
+      concluido: false,
+      cancelado: false
+    })
+
+    let sucessosTotais = 0
+    let errosTotais = 0
+    const detalhesErros: string[] = []
+    const indicesSucesso = new Set<number>()
+
+    try {
+      for (let i = 0; i < itensParaEnviar.length; i++) {
+        if (abortEnvioRef.current) {
+          toast('Envio da planilha interrompido pelo usuário.', { icon: '🛑' })
+          setProgressoEnvio(prev => prev ? { ...prev, cancelado: true } : null)
+          break
         }
-        setEtapa('upload')
-        setResultado(null)
-        setDadosEditados([])
-        setSelecionados(new Set())
-        carregarNotasEmitidas()
+
+        const venda = itensParaEnviar[i]
+
+        setProgressoEnvio(prev => prev ? {
+          ...prev,
+          osAtual: venda.os_numero,
+          clienteAtual: venda.cliente
+        } : null)
+
+        const controller = new AbortController()
+        const timeoutTimer = setTimeout(() => controller.abort(), 45000)
+
+        try {
+          const res = await fetch('/api/conta-azul/enviar-vendas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              empresa_id: empresaAtiva.id,
+              vendas: [venda]
+            }),
+            signal: controller.signal
+          })
+          clearTimeout(timeoutTimer)
+
+          let data: any = {}
+          try {
+            const rawText = await res.text()
+            data = JSON.parse(rawText)
+          } catch {
+            if (res.status === 504 || res.status === 408) {
+              data = { error: 'Tempo limite esgotado no servidor (TIMEOUT 504). O Conta Azul demorou para responder.' }
+            } else {
+              data = { error: `Erro no servidor Conta Azul (HTTP ${res.status}).` }
+            }
+          }
+
+          if (res.ok && data.sucessos > 0) {
+            sucessosTotais++
+            const idxOriginal = dadosEditados.findIndex(d => d === venda || (d.os_numero === venda.os_numero && d.cliente === venda.cliente))
+            if (idxOriginal !== -1) {
+              indicesSucesso.add(idxOriginal)
+            }
+          } else {
+            errosTotais++
+            const msgErro = data.error || (data.detalhesErros && data.detalhesErros[0]) || 'Erro ao sincronizar venda'
+            detalhesErros.push(`OS ${venda.os_numero || 'S/N'}: ${msgErro}`)
+          }
+        } catch (fetchErr: any) {
+          clearTimeout(timeoutTimer)
+          errosTotais++
+          const isTimeout = fetchErr.name === 'AbortError'
+          const msg = isTimeout 
+            ? 'Tempo limite de 45s excedido aguardando resposta da API' 
+            : (fetchErr.message || 'Erro de comunicação')
+          detalhesErros.push(`OS ${venda.os_numero || 'S/N'}: ${msg}`)
+        }
+
+        setProgressoEnvio(prev => prev ? {
+          ...prev,
+          processados: i + 1,
+          sucessos: sucessosTotais,
+          erros: errosTotais,
+          detalhesErros: [...detalhesErros]
+        } : null)
+
+        if (i < itensParaEnviar.length - 1 && !abortEnvioRef.current) {
+          await new Promise(r => setTimeout(r, 200))
+        }
       }
+
+      if (sucessosTotais > 0) {
+        toast.success(`${sucessosTotais} de ${itensParaEnviar.length} vendas da planilha enviadas com sucesso!`)
+        carregarNotasEmitidas()
+
+        if (indicesSucesso.size >= dadosEditados.length) {
+          setEtapa('upload')
+          setResultado(null)
+          setDadosEditados([])
+          setSelecionados(new Set())
+        } else {
+          // Remove apenas os itens que tiveram sucesso para o usuário reprocessar com facilidade
+          setDadosEditados(prev => prev.filter((_, idx) => !indicesSucesso.has(idx)))
+          setSelecionados(new Set())
+        }
+      }
+
+      if (errosTotais > 0) {
+        toast.error(`${errosTotais} vendas com falha ou timeout. Confira o detalhamento no card.`)
+      }
+
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro ao enviar para o Conta Azul'
       toast.error(msg)
     } finally {
+      // Liberação automática do botão em qualquer erro ou timeout garantida!
       setEnviandoCA(false)
+      setProgressoEnvio(prev => prev ? { ...prev, concluido: true } : null)
     }
   }
 
@@ -529,6 +728,151 @@ export default function VendasPage() {
   const totalFaturadoNfe = notasEmitidas.reduce((acc, n) => acc + (Number(n.valor_total) || 0), 0)
   const pendenteCount = vendasDatacar.filter(v => v.status === 'pendente').length
   const caVendasConectado = Boolean(empresaAtiva?.access_token_conta_azul_vendas)
+
+  // ─── Card de Progresso em Tempo Real (UX Fintech) ────────────
+  const renderCardProgresso = (origemEsperada: 'datacar' | 'planilha') => {
+    if (!progressoEnvio || progressoEnvio.origem !== origemEsperada) return null
+
+    const total = progressoEnvio.total || 1
+    const percentual = Math.min(100, Math.round((progressoEnvio.processados / total) * 100))
+
+    return (
+      <div className="bg-slate-900 border border-blue-500/40 rounded-2xl p-5 shadow-2xl space-y-4 animate-fade-in relative overflow-hidden">
+        {/* Barra luminosa no topo */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400" />
+
+        {/* Cabeçalho */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+              progressoEnvio.concluido
+                ? progressoEnvio.erros > 0
+                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                  : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                : progressoEnvio.cancelado
+                ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+            }`}>
+              {progressoEnvio.concluido ? (
+                progressoEnvio.erros > 0 ? <AlertTriangle size={20} /> : <CheckCircle2 size={20} />
+              ) : progressoEnvio.cancelado ? (
+                <AlertCircle size={20} />
+              ) : (
+                <Loader2 size={20} className="animate-spin text-blue-400" />
+              )}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-white font-bold text-sm tracking-wide">
+                  {progressoEnvio.concluido 
+                    ? (progressoEnvio.erros > 0 ? 'Sincronização Finalizada com Avisos' : 'Sincronização Concluída!')
+                    : progressoEnvio.cancelado
+                    ? 'Sincronização Interrompida'
+                    : 'Sincronizando com Conta Azul...'}
+                </h4>
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold">
+                  {percentual}%
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {progressoEnvio.concluido
+                  ? `${progressoEnvio.sucessos} vendas sincronizadas com sucesso e ${progressoEnvio.erros} com falha.`
+                  : `Processando OS #${progressoEnvio.osAtual || 'S/N'} • ${progressoEnvio.clienteAtual || 'Cliente'}`}
+              </p>
+            </div>
+          </div>
+
+          {/* Timer e Botões de Controle */}
+          <div className="flex items-center gap-2.5 self-end sm:self-center">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700 text-xs font-mono text-slate-300">
+              <Clock size={13} className="text-blue-400" />
+              <span>{formatTempoDecorrido(progressoEnvio.segundosDecorridos)}</span>
+            </div>
+
+            {!progressoEnvio.concluido && !progressoEnvio.cancelado ? (
+              <button
+                type="button"
+                onClick={() => { abortEnvioRef.current = true }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold transition-all cursor-pointer"
+                title="Interromper envio das próximas vendas"
+              >
+                <X size={13} />
+                <span>Interromper</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setProgressoEnvio(null)}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all cursor-pointer border border-slate-700"
+              >
+                <span>Fechar</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Barra de Progresso Visual */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
+            <span>Progresso: <strong className="text-white">{progressoEnvio.processados}</strong> de <strong className="text-white">{progressoEnvio.total}</strong> vendas</span>
+            <span className="font-mono text-blue-400 font-bold">{percentual}%</span>
+          </div>
+          <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700/80 shadow-inner">
+            <div
+              className="h-full rounded-full transition-all duration-300 ease-out bg-gradient-to-r from-blue-600 via-indigo-500 to-emerald-400 shadow-[0_0_12px_rgba(59,130,246,0.5)]"
+              style={{ width: `${percentual}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Badges de Resumo em Tempo Real */}
+        <div className="flex items-center justify-between flex-wrap gap-2 pt-1 border-t border-slate-800/80 text-xs">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+              <CheckCircle2 size={13} />
+              {progressoEnvio.sucessos} com sucesso
+            </span>
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold border ${
+              progressoEnvio.erros > 0
+                ? 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                : 'bg-slate-800 text-slate-400 border-slate-700'
+            }`}>
+              <AlertCircle size={13} />
+              {progressoEnvio.erros} com erro
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/60 text-slate-400 border border-slate-700 text-[11px]">
+              ⏳ {Math.max(0, progressoEnvio.total - progressoEnvio.processados)} restantes
+            </span>
+          </div>
+
+          {progressoEnvio.detalhesErros.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setMostrarErrosProgresso(!mostrarErrosProgresso)}
+              className="text-xs text-rose-400 hover:text-rose-300 underline font-semibold flex items-center gap-1 cursor-pointer"
+            >
+              {mostrarErrosProgresso ? 'Ocultar detalhes' : `Ver ${progressoEnvio.detalhesErros.length} detalhe(s) de erro`}
+            </button>
+          )}
+        </div>
+
+        {/* Detalhes de Erros (Accordion) */}
+        {mostrarErrosProgresso && progressoEnvio.detalhesErros.length > 0 && (
+          <div className="p-3 bg-rose-950/40 border border-rose-500/30 rounded-xl space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar text-xs">
+            <p className="text-rose-300 font-bold">Falhas registradas no envio:</p>
+            <ul className="space-y-1 text-slate-300 font-mono text-[11px]">
+              {progressoEnvio.detalhesErros.map((err, idx) => (
+                <li key={idx} className="flex items-start gap-1.5">
+                  <span className="text-rose-400 font-bold">•</span>
+                  <span>{err}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   // ─── Render ──────────────────────────────────────────────────
   return (
@@ -839,6 +1183,9 @@ export default function VendasPage() {
               {/* Lista de vendas com Layout Rico de Alta Densidade */}
               {!buscando && vendasDatacar.length > 0 && (
                 <div className="space-y-3">
+                  {/* Card de Progresso em Tempo Real (Datacar) */}
+                  {renderCardProgresso('datacar')}
+
                   {/* Barra de Controle de Seleção */}
                   <div className="flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-dark-850 border border-slate-200 dark:border-dark-700/80 rounded-2xl shadow-xs">
                     <div className="flex items-center gap-3">
@@ -863,7 +1210,9 @@ export default function VendasPage() {
                         className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-blue-600/25 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-lg cursor-pointer"
                       >
                         {enviandoDatacar ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
-                        {enviandoDatacar ? 'Aguarde...' : `⚡ Enviar para Conta Azul (${selecionadosDatacar.size})`}
+                        {enviandoDatacar 
+                          ? `Enviando (${progressoEnvio?.processados || 0}/${progressoEnvio?.total || selecionadosDatacar.size})...` 
+                          : `⚡ Enviar para Conta Azul (${selecionadosDatacar.size})`}
                       </button>
                     )}
                   </div>
@@ -1465,6 +1814,9 @@ export default function VendasPage() {
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Card de Progresso em Tempo Real (Planilha) */}
+              {renderCardProgresso('planilha')}
+
               <TabelaVendasPreview
                 dados={dadosEditados}
                 selecionados={selecionados}
@@ -1477,7 +1829,7 @@ export default function VendasPage() {
                 <button
                   type="button"
                   onClick={() => { setEtapa('upload'); setDadosEditados([]); setSelecionados(new Set()) }}
-                  className="px-4 py-2 text-sm text-dark-300 hover:text-white bg-dark-800 rounded-lg border border-dark-700 hover:border-dark-600 transition-colors"
+                  className="px-4 py-2 text-sm text-dark-300 hover:text-white bg-dark-800 rounded-lg border border-dark-700 hover:border-dark-600 transition-colors cursor-pointer"
                 >
                   Cancelar / Nova Planilha
                 </button>
@@ -1485,10 +1837,12 @@ export default function VendasPage() {
                   type="button"
                   onClick={handleEnviarContaAzul}
                   disabled={enviandoCA || selecionados.size === 0}
-                  className="px-6 py-2.5 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white font-medium rounded-xl transition-colors shadow-lg shadow-brand-600/20 flex items-center gap-2"
+                  className="px-6 py-2.5 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white font-medium rounded-xl transition-colors shadow-lg shadow-brand-600/20 flex items-center gap-2 cursor-pointer"
                 >
                   {enviandoCA ? <Loader2 size={16} className="animate-spin" /> : null}
-                  Enviar {selecionados.size} Vendas para Conta Azul
+                  {enviandoCA 
+                    ? `Enviando (${progressoEnvio?.processados || 0}/${progressoEnvio?.total || selecionados.size})...` 
+                    : `Enviar ${selecionados.size} Vendas para Conta Azul`}
                 </button>
               </div>
             </div>

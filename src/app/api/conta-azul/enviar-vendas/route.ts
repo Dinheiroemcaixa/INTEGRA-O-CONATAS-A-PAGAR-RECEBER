@@ -76,7 +76,20 @@ export async function POST(req: NextRequest) {
     const cacheClientesPorDoc = new Map<string, ResultadoClienteCA>()
     const cacheProdutosPorCodigo = new Map<string, string>()
 
+    const inicioExecucao = Date.now()
+    let timeoutServerlessAtingido = false
+
     for (const venda of vendas as VendaPreview[]) {
+      // Proteção de tempo limite (Vercel Serverless Function Timeout Guard):
+      // Se a execução atingir 40 segundos, encerra o processamento para garantir resposta 200 JSON
+      // e evitar que a Vercel aborte a requisição com FUNCTION_INVOCATION_TIMEOUT
+      if (Date.now() - inicioExecucao > 40000) {
+        console.warn(`[enviar-vendas] Timeout de segurança de 40s atingido. Interrompendo lote graciosamente.`)
+        timeoutServerlessAtingido = true
+        detalhesErros.push(`Limite de 40s atingido no servidor. As vendas restantes serão processadas no próximo lote.`)
+        break
+      }
+
       try {
         // 1. Busca/Cria Cliente com cache por CPF/CNPJ (ou nome se sem documento)
         const docLimpo = (venda.cliente_cpf_cnpj || '').replace(/\D/g, '')
@@ -219,13 +232,13 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 4. Cria Venda no Conta Azul (com retry para eventual consistência de cliente/produto)
+        // 4. Cria Venda no Conta Azul (com retry defensivo para eventual consistência de cliente/produto)
         let vendaCriada;
         let tentativas = 0;
         let sucesso = false;
         let ultimaMensagemErro = '';
 
-        while (tentativas < 3 && !sucesso) {
+        while (tentativas < 2 && !sucesso) {
           try {
             vendaCriada = await criarVenda(accessToken, payload)
             sucesso = true;
@@ -240,10 +253,10 @@ export async function POST(req: NextRequest) {
               msgLower.includes('not_found') ||
               msgLower.includes('422') // Unprocessable - comum em consistência eventual
 
-            if (erroConsistencia) {
+            if (erroConsistencia && tentativas < 1) {
               tentativas++;
-              console.log(`[Tentativa ${tentativas}/3] Erro de consistência eventual: ${ultimaMensagemErro.substring(0, 200)}. Aguardando 3s...`);
-              await new Promise(resolve => setTimeout(resolve, 3000));
+              console.log(`[Tentativa ${tentativas}/2] Erro de consistência eventual: ${ultimaMensagemErro.substring(0, 150)}. Aguardando 1.2s...`);
+              await new Promise(resolve => setTimeout(resolve, 1200));
             } else {
               break; // Outro tipo de erro, interrompe o retry
             }
@@ -286,7 +299,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ sucessos, erros, detalhesErros, detalhesClientesExistentes })
+    const processados = sucessos + erros
+    const pendentes_restantes = Math.max(0, vendas.length - processados)
+
+    return NextResponse.json({ 
+      sucessos, 
+      erros, 
+      total: vendas.length,
+      processados,
+      pendentes_restantes,
+      timeout_servidor_evitado: timeoutServerlessAtingido,
+      detalhesErros, 
+      detalhesClientesExistentes 
+    })
 
   } catch (error: any) {
     console.error('Erro geral no endpoint enviar-vendas:', error)

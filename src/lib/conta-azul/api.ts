@@ -637,6 +637,12 @@ export async function criarVenda(accessToken: string, payload: VendaPayload): Pr
   return res.json()
 }
 
+// Cache em memória para evitar chamadas redundantes a metadados fiscais estáticos do Conta Azul
+const cacheUnidadesMedida = new Map<string, number>()
+const cacheNCM = new Map<string, number>()
+const cacheCEST = new Map<string, number>()
+const cacheProdutosAtualizados = new Set<string>()
+
 export async function buscarOuCriarProduto(
   accessToken: string,
   codigo: string,
@@ -649,6 +655,9 @@ export async function buscarOuCriarProduto(
   const buscarUnidadeMedidaId = async (): Promise<number | undefined> => {
     if (!metadata?.unidade_medida) return undefined
     const sigla = metadata.unidade_medida.toUpperCase().trim()
+    if (cacheUnidadesMedida.has(sigla)) {
+      return cacheUnidadesMedida.get(sigla)
+    }
     try {
       const res = await fetchCA(`${BASE_URL}/produtos/unidades-medida?busca_textual=${encodeURIComponent(sigla)}&tamanho_pagina=100`, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
@@ -662,6 +671,7 @@ export async function buscarOuCriarProduto(
         )
         const alvo = exato || lista[0]
         if (alvo?.id) {
+          cacheUnidadesMedida.set(sigla, alvo.id)
           console.log(`[buscarOuCriarProduto] Unidade '${sigla}' => ID ${alvo.id}`)
           return alvo.id
         }
@@ -677,48 +687,60 @@ export async function buscarOuCriarProduto(
     if (!metadata) return undefined
     const fiscal: any = {}
 
-    // 1. Busca ID do NCM pela API
+    // 1. Busca ID do NCM pela API (com cache)
     if (metadata.ncm) {
-      try {
-        const ncmCode = metadata.ncm.replace(/\D/g, '')
-        const res = await fetchCA(`${BASE_URL}/produtos/ncm?busca_textual=${ncmCode}&tamanho_pagina=50`, {
-          headers: { 'Authorization': `Bearer ${accessToken}` }
-        })
-        if (res.ok) {
-          const data = await res.json()
-          const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : [])
-          const match = lista.find((n: any) => (n.codigo || '').replace(/\D/g, '') === ncmCode)
-          if (match?.id) {
-            fiscal.ncm = { id: match.id }
-            console.log(`[montarFiscal] NCM '${ncmCode}' => ID ${match.id}`)
-          } else if (lista.length > 0 && lista[0].id) {
-            fiscal.ncm = { id: lista[0].id }
-            console.log(`[montarFiscal] NCM '${ncmCode}' => fallback ID ${lista[0].id} (${lista[0].codigo})`)
+      const ncmCode = metadata.ncm.replace(/\D/g, '')
+      if (cacheNCM.has(ncmCode)) {
+        fiscal.ncm = { id: cacheNCM.get(ncmCode)! }
+      } else {
+        try {
+          const res = await fetchCA(`${BASE_URL}/produtos/ncm?busca_textual=${ncmCode}&tamanho_pagina=50`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          })
+          if (res.ok) {
+            const data = await res.json()
+            const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : [])
+            const match = lista.find((n: any) => (n.codigo || '').replace(/\D/g, '') === ncmCode)
+            if (match?.id) {
+              cacheNCM.set(ncmCode, match.id)
+              fiscal.ncm = { id: match.id }
+              console.log(`[montarFiscal] NCM '${ncmCode}' => ID ${match.id}`)
+            } else if (lista.length > 0 && lista[0].id) {
+              cacheNCM.set(ncmCode, lista[0].id)
+              fiscal.ncm = { id: lista[0].id }
+              console.log(`[montarFiscal] NCM '${ncmCode}' => fallback ID ${lista[0].id} (${lista[0].codigo})`)
+            }
           }
-        }
-      } catch (e) { console.warn('[montarFiscal] Erro busca NCM:', e) }
+        } catch (e) { console.warn('[montarFiscal] Erro busca NCM:', e) }
+      }
     }
 
-    // 2. Busca ID do CEST pela API
+    // 2. Busca ID do CEST pela API (com cache)
     if (metadata.cest) {
-      try {
-        const cestCode = metadata.cest.replace(/\D/g, '')
-        const res = await fetchCA(`${BASE_URL}/produtos/cest?busca_textual=${cestCode}&tamanho_pagina=50`, {
-          headers: { 'Authorization': `Bearer ${accessToken}` }
-        })
-        if (res.ok) {
-          const data = await res.json()
-          const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : [])
-          const match = lista.find((c: any) => (c.codigo || '').replace(/\D/g, '') === cestCode)
-          if (match?.id) {
-            fiscal.cest = { id: match.id }
-            console.log(`[montarFiscal] CEST '${cestCode}' => ID ${match.id}`)
-          } else if (lista.length > 0 && lista[0].id) {
-            fiscal.cest = { id: lista[0].id }
-            console.log(`[montarFiscal] CEST '${cestCode}' => fallback ID ${lista[0].id}`)
+      const cestCode = metadata.cest.replace(/\D/g, '')
+      if (cacheCEST.has(cestCode)) {
+        fiscal.cest = { id: cacheCEST.get(cestCode)! }
+      } else {
+        try {
+          const res = await fetchCA(`${BASE_URL}/produtos/cest?busca_textual=${cestCode}&tamanho_pagina=50`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          })
+          if (res.ok) {
+            const data = await res.json()
+            const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : [])
+            const match = lista.find((c: any) => (c.codigo || '').replace(/\D/g, '') === cestCode)
+            if (match?.id) {
+              cacheCEST.set(cestCode, match.id)
+              fiscal.cest = { id: match.id }
+              console.log(`[montarFiscal] CEST '${cestCode}' => ID ${match.id}`)
+            } else if (lista.length > 0 && lista[0].id) {
+              cacheCEST.set(cestCode, lista[0].id)
+              fiscal.cest = { id: lista[0].id }
+              console.log(`[montarFiscal] CEST '${cestCode}' => fallback ID ${lista[0].id}`)
+            }
           }
-        }
-      } catch (e) { console.warn('[montarFiscal] Erro busca CEST:', e) }
+        } catch (e) { console.warn('[montarFiscal] Erro busca CEST:', e) }
+      }
     }
 
     // 3. Origem (enum string conforme API v2)
@@ -815,9 +837,9 @@ export async function buscarOuCriarProduto(
     if (matchProduto) {
       const produtoId = matchProduto.id || matchProduto.uuid;
       
-      // Se temos dados fiscais, faz PUT para atualizar o produto existente
+      // Se temos dados fiscais, faz PUT para atualizar o produto existente (apenas se ainda não atualizado nesta sessão)
       const fiscal = await montarFiscal();
-      if (fiscal && produtoId) {
+      if (fiscal && produtoId && !cacheProdutosAtualizados.has(produtoId)) {
         try {
           const updatePayload: any = { fiscal };
           const unidadeId = await buscarUnidadeMedidaId();
@@ -834,6 +856,7 @@ export async function buscarOuCriarProduto(
             const errBody = await updateRes.text();
             console.warn(`[buscarOuCriarProduto] Falha ao atualizar fiscal do produto existente ${produtoId}:`, updateRes.status, errBody);
           } else {
+            cacheProdutosAtualizados.add(produtoId);
             console.log(`[buscarOuCriarProduto] Produto ${produtoId} atualizado com dados fiscais com sucesso!`);
           }
         } catch (e) {
