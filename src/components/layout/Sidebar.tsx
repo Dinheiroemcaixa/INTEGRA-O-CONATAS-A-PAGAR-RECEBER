@@ -101,16 +101,18 @@ export default function Sidebar() {
           isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        {/* Logo da Marca Dinheiro em Caixa */}
-        <div className="relative px-3.5 py-3 flex items-center justify-center bg-slate-50/80 dark:bg-[#1e293b] border-b border-slate-200/70 dark:border-white/[0.08] mb-1 transition-colors">
-          <img 
-            src="/images/dinheiro-em-caixa-logo.png" 
-            alt="Dinheiro em Caixa" 
-            className="w-full max-w-[228px] h-auto object-contain transition-transform duration-300 hover:scale-[1.02]" 
-          />
+        {/* Logo da Marca Dinheiro em Caixa (Opção B: Card Off-White Suave) */}
+        <div className="relative px-3 py-3 border-b border-slate-200/70 dark:border-white/[0.08] mb-1">
+          <div className="w-full bg-slate-100/95 dark:bg-slate-100 rounded-xl p-2.5 shadow-xs flex items-center justify-center border border-slate-200 dark:border-slate-300/80">
+            <img 
+              src="/images/dinheiro-em-caixa-logo.png" 
+              alt="Dinheiro em Caixa" 
+              className="w-full max-w-[228px] h-auto object-contain transition-transform duration-300 hover:scale-[1.02]" 
+            />
+          </div>
           <button
             onClick={closeMobile}
-            className="absolute right-3 top-3 lg:hidden p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-dark-800 transition-colors cursor-pointer"
+            className="absolute right-4 top-4 lg:hidden p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-dark-800 transition-colors cursor-pointer"
             title="Fechar menu"
           >
             <X size={18} />
