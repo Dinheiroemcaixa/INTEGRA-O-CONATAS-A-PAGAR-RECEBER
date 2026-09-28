@@ -135,8 +135,8 @@ export function EmpresaCardAccordion({
     <>
       <div className={`rounded-xl border transition-all duration-150 ${
         estaExpandido 
-          ? 'bg-dark-850 border-primary-500/50 shadow-lg shadow-primary-500/5 ring-1 ring-primary-500/20' 
-          : 'bg-dark-850/80 hover:bg-dark-850 border-dark-700/60 hover:border-dark-600/80 shadow-xs'
+          ? 'bg-white dark:bg-dark-850 border-primary-500/50 shadow-lg shadow-primary-500/5 ring-1 ring-primary-500/20' 
+          : 'bg-white dark:bg-dark-850/80 hover:bg-slate-50/80 dark:hover:bg-dark-850 border-slate-200 dark:border-dark-700/60 hover:border-slate-300 dark:hover:border-dark-600/80 shadow-xs'
       }`}>
         {/* HEADER COMPACTO DO CARD */}
         <div className="px-3.5 py-3 sm:px-4 sm:py-3.5">
@@ -150,24 +150,24 @@ export function EmpresaCardAccordion({
               >
                 {empresa.nome ? empresa.nome.slice(0, 2).toUpperCase() : <Building2 size={16} />}
                 {isAtiva && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 border-2 border-dark-900 rounded-full shadow-glow-sm" />
+                  <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 border-2 border-white dark:border-dark-900 rounded-full shadow-glow-sm" />
                 )}
               </div>
 
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-white text-base truncate leading-snug">
+                  <h3 className="font-bold text-slate-900 dark:text-white text-base truncate leading-snug">
                     {empresa.nome}
                   </h3>
                   {isAtiva && (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                       <Sparkles size={9} />
                       <span>Ativa</span>
                     </span>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 text-sm text-dark-300 font-mono mt-1 truncate">
+                <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-dark-300 font-mono mt-1 truncate">
                   {empresa.cnpj && (
                     <div className="flex items-center gap-1">
                       <span>{formatCNPJ(empresa.cnpj)}</span>
@@ -175,17 +175,17 @@ export function EmpresaCardAccordion({
                         type="button"
                         onClick={handleCopiarCnpj}
                         title="Copiar CNPJ"
-                        className="p-0.5 text-dark-400 hover:text-white rounded hover:bg-dark-700/60 transition-colors"
+                        className="p-0.5 text-slate-400 dark:text-dark-400 hover:text-slate-700 dark:hover:text-white rounded hover:bg-slate-100 dark:hover:bg-dark-700/60 transition-colors"
                       >
-                        {copiadoCnpj ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+                        {copiadoCnpj ? <Check size={11} className="text-emerald-500 dark:text-emerald-400" /> : <Copy size={11} />}
                       </button>
                     </div>
                   )}
 
                   {empresa.razao_social && empresa.razao_social !== empresa.nome && (
                     <>
-                      <span className="text-dark-600 font-sans">•</span>
-                      <span className="text-dark-400 truncate max-w-xs font-sans text-[13px]" title={empresa.razao_social}>
+                      <span className="text-slate-300 dark:text-dark-600 font-sans">•</span>
+                      <span className="text-slate-500 dark:text-dark-400 truncate max-w-xs font-sans text-[13px]" title={empresa.razao_social}>
                         {empresa.razao_social}
                       </span>
                     </>
@@ -203,15 +203,15 @@ export function EmpresaCardAccordion({
                   type="button"
                   onClick={() => setModalSemaforo('datacar')}
                   title={hasDatacar ? 'Datacar Configuração' : 'Datacar Não Configuração'}
-                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer hover:bg-dark-700/60 ${
+                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer hover:bg-slate-100 dark:hover:bg-dark-700/60 ${
                     hasDatacar 
-                      ? 'bg-dark-900/60 border-dark-700/50 text-dark-200' 
-                      : 'bg-dark-900/40 border-dark-700/40 text-dark-400'
+                      ? 'bg-slate-100/80 dark:bg-dark-900/60 border-slate-200 dark:border-dark-700/50 text-slate-700 dark:text-dark-200' 
+                      : 'bg-slate-50 dark:bg-dark-900/40 border-slate-200 dark:border-dark-700/40 text-slate-400 dark:text-dark-400'
                   }`}
                 >
-                  <Database size={11} className={hasDatacar ? 'text-emerald-400' : 'text-dark-500'} />
+                  <Database size={11} className={hasDatacar ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-400 dark:text-dark-500'} />
                   <span>Datacar</span>
-                  <span className={`w-1.5 h-1.5 rounded-full ${hasDatacar ? 'bg-emerald-400 shadow-glow-sm' : 'bg-dark-600'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${hasDatacar ? 'bg-emerald-500 dark:bg-emerald-400 shadow-glow-sm' : 'bg-slate-300 dark:bg-dark-600'}`} />
                 </button>
 
                 {/* 2. CA Fin */}
@@ -219,15 +219,15 @@ export function EmpresaCardAccordion({
                   type="button"
                   onClick={() => setModalSemaforo('financeiro')}
                   title={hasCaFin ? 'CA Financeiro Conectado' : 'CA Financeiro Desconectado'}
-                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer hover:bg-dark-700/60 ${
+                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer hover:bg-slate-100 dark:hover:bg-dark-700/60 ${
                     hasCaFin 
-                      ? 'bg-dark-900/60 border-dark-700/50 text-dark-200' 
-                      : 'bg-red-950/20 border-red-900/40 text-red-300'
+                      ? 'bg-slate-100/80 dark:bg-dark-900/60 border-slate-200 dark:border-dark-700/50 text-slate-700 dark:text-dark-200' 
+                      : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-300'
                   }`}
                 >
-                  <CreditCard size={11} className={hasCaFin ? 'text-emerald-400' : 'text-red-400'} />
+                  <CreditCard size={11} className={hasCaFin ? 'text-emerald-500 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'} />
                   <span>CA Fin</span>
-                  <span className={`w-1.5 h-1.5 rounded-full ${hasCaFin ? 'bg-emerald-400 shadow-glow-sm' : 'bg-red-500'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${hasCaFin ? 'bg-emerald-500 dark:bg-emerald-400 shadow-glow-sm' : 'bg-red-500'}`} />
                 </button>
 
                 {/* 3. CA Vendas */}
@@ -235,15 +235,15 @@ export function EmpresaCardAccordion({
                   type="button"
                   onClick={() => setModalSemaforo('vendas')}
                   title={hasCaVendas ? 'CA Vendas Conectado' : 'CA Vendas Desconectado'}
-                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer hover:bg-dark-700/60 ${
+                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer hover:bg-slate-100 dark:hover:bg-dark-700/60 ${
                     hasCaVendas 
-                      ? 'bg-dark-900/60 border-dark-700/50 text-dark-200' 
-                      : 'bg-red-950/20 border-red-900/40 text-red-300'
+                      ? 'bg-slate-100/80 dark:bg-dark-900/60 border-slate-200 dark:border-dark-700/50 text-slate-700 dark:text-dark-200' 
+                      : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-300'
                   }`}
                 >
-                  <ShoppingBag size={11} className={hasCaVendas ? 'text-emerald-400' : 'text-red-400'} />
+                  <ShoppingBag size={11} className={hasCaVendas ? 'text-emerald-500 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'} />
                   <span>CA Vendas</span>
-                  <span className={`w-1.5 h-1.5 rounded-full ${hasCaVendas ? 'bg-emerald-400 shadow-glow-sm' : 'bg-red-500'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${hasCaVendas ? 'bg-emerald-500 dark:bg-emerald-400 shadow-glow-sm' : 'bg-red-500'}`} />
                 </button>
 
                 {/* 4. NFS-e */}
@@ -251,15 +251,15 @@ export function EmpresaCardAccordion({
                   type="button"
                   onClick={() => setModalSemaforo('nfse')}
                   title={hasNfse ? 'NFS-e Gov.br Configurada' : 'NFS-e Gov.br Pendente'}
-                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer hover:bg-dark-700/60 ${
+                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer hover:bg-slate-100 dark:hover:bg-dark-700/60 ${
                     hasNfse 
-                      ? 'bg-dark-900/60 border-dark-700/50 text-dark-200' 
-                      : 'bg-dark-900/40 border-dark-700/40 text-dark-400'
+                      ? 'bg-slate-100/80 dark:bg-dark-900/60 border-slate-200 dark:border-dark-700/50 text-slate-700 dark:text-dark-200' 
+                      : 'bg-slate-50 dark:bg-dark-900/40 border-slate-200 dark:border-dark-700/40 text-slate-400 dark:text-dark-400'
                   }`}
                 >
-                  <FileText size={11} className={hasNfse ? 'text-emerald-400' : 'text-dark-500'} />
+                  <FileText size={11} className={hasNfse ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-400 dark:text-dark-500'} />
                   <span>NFS-e</span>
-                  <span className={`w-1.5 h-1.5 rounded-full ${hasNfse ? 'bg-emerald-400 shadow-glow-sm' : 'bg-dark-600'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${hasNfse ? 'bg-emerald-500 dark:bg-emerald-400 shadow-glow-sm' : 'bg-slate-300 dark:bg-dark-600'}`} />
                 </button>
               </div>
 
@@ -269,9 +269,9 @@ export function EmpresaCardAccordion({
                   type="button"
                   onClick={onDefinirComoAtiva}
                   title="Definir como empresa ativa"
-                  className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-dark-400 hover:text-white bg-dark-900/50 hover:bg-dark-800 border border-dark-700/50 transition-colors flex items-center gap-1.5"
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 dark:text-dark-400 dark:hover:text-white bg-slate-100 dark:bg-dark-900/50 hover:bg-slate-200 dark:hover:bg-dark-800 border border-slate-200 dark:border-dark-700/50 transition-colors flex items-center gap-1.5"
                 >
-                  <Star size={11} className="text-dark-400 hover:text-amber-400" />
+                  <Star size={11} className="text-slate-400 dark:text-dark-400 hover:text-amber-500 dark:hover:text-amber-400" />
                   <span>Tornar Ativa</span>
                 </button>
               )}
@@ -279,7 +279,7 @@ export function EmpresaCardAccordion({
           </div>
 
           {/* ABAS HORIZONTAIS DISCRETAS */}
-          <div className="flex items-center gap-1 mt-2.5 pt-2 border-t border-dark-700/40 overflow-x-auto no-scrollbar flex-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="flex items-center gap-1 mt-2.5 pt-2 border-t border-slate-200 dark:border-dark-700/40 overflow-x-auto no-scrollbar flex-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {abasDisponiveis.map(aba => {
               const ativa = menuAtivo === aba.id
               return (
@@ -294,16 +294,16 @@ export function EmpresaCardAccordion({
                   title={ativa ? `Recolher aba ${aba.label}` : `Abrir aba ${aba.label}`}
                   className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer select-none ${
                     ativa
-                      ? 'bg-primary-950/60 text-primary-300 border border-primary-500/40 font-semibold shadow-xs'
-                      : 'text-dark-400 hover:text-dark-200 hover:bg-dark-800/60'
+                      ? 'bg-primary-50 dark:bg-primary-950/60 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-500/40 font-semibold shadow-xs'
+                      : 'text-slate-600 dark:text-dark-400 hover:text-slate-900 dark:hover:text-dark-200 hover:bg-slate-100 dark:hover:bg-dark-800/60'
                   }`}
                 >
                   {aba.icon}
                   <span>{aba.label}</span>
                   {ativa ? (
-                    <ChevronUp size={13} className="text-primary-400 transition-transform duration-150" />
+                    <ChevronUp size={13} className="text-primary-600 dark:text-primary-400 transition-transform duration-150" />
                   ) : (
-                    <ChevronDown size={13} className="text-dark-500 transition-transform duration-150" />
+                    <ChevronDown size={13} className="text-slate-400 dark:text-dark-500 transition-transform duration-150" />
                   )}
                 </button>
               )
@@ -313,7 +313,7 @@ export function EmpresaCardAccordion({
 
         {/* CONTEÚDO EXPANDIDO (ACCORDION COLLAPSE) */}
         {estaExpandido && (
-          <div className="border-t border-dark-700/60 p-4 sm:p-5 bg-dark-900/70 rounded-b-xl animate-fadeIn">
+          <div className="border-t border-slate-200 dark:border-dark-700/60 p-4 sm:p-5 bg-slate-50/70 dark:bg-dark-900/70 rounded-b-xl animate-fadeIn">
             {menuAtivo === 'geral' && (
               <AbaGeral
                 empresa={empresa}
@@ -365,7 +365,7 @@ export function EmpresaCardAccordion({
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-dark-850 border border-dark-700/90 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4 animate-scaleUp"
+            className="bg-white dark:bg-dark-850 border border-slate-200 dark:border-dark-700/90 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4 animate-scaleUp"
           >
             {/* 1. CONTA AZUL FINANCEIRO OU VENDAS */}
             {(modalSemaforo === 'financeiro' || modalSemaforo === 'vendas') && (() => {
@@ -375,39 +375,39 @@ export function EmpresaCardAccordion({
 
               return (
                 <>
-                  <div className="flex items-center justify-between pb-3 border-b border-dark-700/70">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-dark-700/70">
                     <div className="flex items-center gap-2.5">
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                         isFin 
-                          ? 'bg-blue-500/15 border border-blue-500/30 text-blue-400' 
-                          : 'bg-purple-500/15 border border-purple-500/30 text-purple-400'
+                          ? 'bg-blue-500/15 border border-blue-500/30 text-blue-600 dark:text-blue-400' 
+                          : 'bg-purple-500/15 border border-purple-500/30 text-purple-600 dark:text-purple-400'
                       }`}>
                         {isFin ? <CreditCard size={16} /> : <ShoppingBag size={16} />}
                       </div>
                       <div>
-                        <h4 className="font-bold text-white text-sm">{nomeServico}</h4>
-                        <p className="text-xs text-dark-400 truncate max-w-[200px]">{empresa.nome}</p>
+                        <h4 className="font-bold text-slate-900 dark:text-white text-sm">{nomeServico}</h4>
+                        <p className="text-xs text-slate-500 dark:text-dark-400 truncate max-w-[200px]">{empresa.nome}</p>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => setModalSemaforo(null)}
-                      className="p-1.5 text-dark-400 hover:text-white rounded-lg hover:bg-dark-700 transition-colors"
+                      className="p-1.5 text-slate-400 hover:text-slate-700 dark:text-dark-400 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-dark-700 transition-colors"
                     >
                       <X size={16} />
                     </button>
                   </div>
 
                   {/* Status */}
-                  <div className="p-2.5 bg-dark-900/80 rounded-xl border border-dark-700/60 flex items-center justify-between">
-                    <span className="text-xs text-dark-400">Status:</span>
+                  <div className="p-2.5 bg-slate-100 dark:bg-dark-900/80 rounded-xl border border-slate-200 dark:border-dark-700/60 flex items-center justify-between">
+                    <span className="text-xs text-slate-500 dark:text-dark-400">Status:</span>
                     {conectado ? (
-                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-glow-sm" />
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 shadow-glow-sm" />
                         <span>Conectado</span>
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-400">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-600 dark:text-red-400">
                         <span className="w-2 h-2 rounded-full bg-red-500" />
                         <span>Não Conectado</span>
                       </span>
@@ -421,9 +421,9 @@ export function EmpresaCardAccordion({
                         <button
                           type="button"
                           onClick={() => handleCopiarLinkOAuth(modalSemaforo)}
-                          className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-dark-800 hover:bg-dark-700 border border-dark-700 hover:border-dark-600 rounded-lg text-sm font-medium text-white transition-colors"
+                          className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-700 hover:border-slate-300 dark:hover:border-dark-600 rounded-lg text-sm font-medium text-slate-800 dark:text-white transition-colors"
                         >
-                          {copiadoLink ? <Check size={14} className="text-emerald-400" /> : <Link size={14} className="text-blue-400" />}
+                          {copiadoLink ? <Check size={14} className="text-emerald-600 dark:text-emerald-400" /> : <Link size={14} className="text-blue-600 dark:text-blue-400" />}
                           <span>{copiadoLink ? 'Link Copiado!' : 'Copiar Link de Autorização'}</span>
                         </button>
 
@@ -433,9 +433,9 @@ export function EmpresaCardAccordion({
                             onCopiarWhatsApp(modalSemaforo)
                             toast.success('Mensagem de WhatsApp formatada com link copiada!')
                           }}
-                          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-xs font-medium text-emerald-300 transition-colors"
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-600/15 dark:hover:bg-emerald-600/25 border border-emerald-200 dark:border-emerald-500/30 hover:border-emerald-300 dark:hover:border-emerald-500/50 rounded-xl text-xs font-medium text-emerald-800 dark:text-emerald-300 transition-colors"
                         >
-                          <MessageSquare size={14} className="text-emerald-400" />
+                          <MessageSquare size={14} className="text-emerald-600 dark:text-emerald-400" />
                           <span>Copiar Mensagem WhatsApp</span>
                         </button>
 
@@ -456,7 +456,7 @@ export function EmpresaCardAccordion({
                             setModalSemaforo(null)
                             onToggleMenu('integracoes')
                           }}
-                          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-dark-800/60 hover:bg-dark-800 border border-dark-700/50 rounded-xl text-xs font-medium text-dark-300 hover:text-white transition-colors"
+                          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-slate-100/70 hover:bg-slate-100 dark:bg-dark-800/60 dark:hover:bg-dark-800 border border-slate-200 dark:border-dark-700/50 rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white transition-colors"
                         >
                           <Settings size={15} />
                           <span>Abrir Configurações</span>
@@ -478,9 +478,9 @@ export function EmpresaCardAccordion({
                         <button
                           type="button"
                           onClick={() => handleCopiarLinkOAuth(modalSemaforo)}
-                          className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-dark-800 hover:bg-dark-700 border border-dark-700 hover:border-dark-600 rounded-lg text-sm font-medium text-white transition-colors"
+                          className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-700 hover:border-slate-300 dark:hover:border-dark-600 rounded-lg text-sm font-medium text-slate-800 dark:text-white transition-colors"
                         >
-                          {copiadoLink ? <Check size={14} className="text-emerald-400" /> : <Link size={14} className="text-blue-400" />}
+                          {copiadoLink ? <Check size={14} className="text-emerald-600 dark:text-emerald-400" /> : <Link size={14} className="text-blue-600 dark:text-blue-400" />}
                           <span>{copiadoLink ? 'Link Copiado!' : 'Copiar Link'}</span>
                         </button>
 
@@ -490,9 +490,9 @@ export function EmpresaCardAccordion({
                             onCopiarWhatsApp(modalSemaforo)
                             toast.success('Mensagem de WhatsApp formatada com link copiada!')
                           }}
-                          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-xs font-medium text-emerald-300 transition-colors"
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-600/15 dark:hover:bg-emerald-600/25 border border-emerald-200 dark:border-emerald-500/30 hover:border-emerald-300 dark:hover:border-emerald-500/50 rounded-xl text-xs font-medium text-emerald-800 dark:text-emerald-300 transition-colors"
                         >
-                          <MessageSquare size={14} className="text-emerald-400" />
+                          <MessageSquare size={14} className="text-emerald-600 dark:text-emerald-400" />
                           <span>Copiar Mensagem WhatsApp</span>
                         </button>
 
@@ -502,7 +502,7 @@ export function EmpresaCardAccordion({
                             setModalSemaforo(null)
                             onToggleMenu('integracoes')
                           }}
-                          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-dark-800/60 hover:bg-dark-800 border border-dark-700/50 rounded-xl text-xs font-medium text-dark-300 hover:text-white transition-colors"
+                          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-slate-100/70 hover:bg-slate-100 dark:bg-dark-800/60 dark:hover:bg-dark-800 border border-slate-200 dark:border-dark-700/50 rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white transition-colors"
                         >
                           <Settings size={15} />
                           <span>Abrir Configurações</span>
@@ -517,36 +517,36 @@ export function EmpresaCardAccordion({
             {/* 2. DATACAR ERP */}
             {modalSemaforo === 'datacar' && (
               <>
-                <div className="flex items-center justify-between pb-3 border-b border-dark-700/70">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-dark-700/70">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                       <Database size={16} />
                     </div>
                     <div>
-                      <h4 className="font-bold text-white text-sm">Datacar ERP</h4>
-                      <p className="text-xs text-dark-400 truncate max-w-[200px]">{empresa.nome}</p>
+                      <h4 className="font-bold text-slate-900 dark:text-white text-sm">Datacar ERP</h4>
+                      <p className="text-xs text-slate-500 dark:text-dark-400 truncate max-w-[200px]">{empresa.nome}</p>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setModalSemaforo(null)}
-                    className="p-1.5 text-dark-400 hover:text-white rounded-lg hover:bg-dark-700 transition-colors"
+                    className="p-1.5 text-slate-400 hover:text-slate-700 dark:text-dark-400 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-dark-700 transition-colors"
                   >
                     <X size={16} />
                   </button>
                 </div>
 
                 {/* Status */}
-                <div className="p-2.5 bg-dark-900/80 rounded-xl border border-dark-700/60 flex items-center justify-between">
-                  <span className="text-xs text-dark-400">Status:</span>
+                <div className="p-2.5 bg-slate-100 dark:bg-dark-900/80 rounded-xl border border-slate-200 dark:border-dark-700/60 flex items-center justify-between">
+                  <span className="text-xs text-slate-500 dark:text-dark-400">Status:</span>
                   {hasDatacar ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-glow-sm" />
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 shadow-glow-sm" />
                       <span>Configuração</span>
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-dark-400">
-                      <span className="w-2 h-2 rounded-full bg-dark-500" />
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-dark-400">
+                      <span className="w-2 h-2 rounded-full bg-slate-400 dark:bg-dark-500" />
                       <span>Não Configuração</span>
                     </span>
                   )}
@@ -572,9 +572,9 @@ export function EmpresaCardAccordion({
                           setModalSemaforo(null)
                           onToggleMenu('integracoes')
                         }}
-                        className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-dark-800 hover:bg-dark-700 border border-dark-700 hover:border-dark-600 rounded-lg text-sm font-medium text-white transition-colors"
+                        className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-700 hover:border-slate-300 dark:hover:border-dark-600 rounded-lg text-sm font-medium text-slate-800 dark:text-white transition-colors"
                       >
-                        <Settings size={14} className="text-primary-400" />
+                        <Settings size={14} className="text-primary-600 dark:text-primary-400" />
                         <span>Abrir Configurações</span>
                       </button>
                     </>
@@ -598,35 +598,35 @@ export function EmpresaCardAccordion({
             {/* 3. NFS-e GOV.BR */}
             {modalSemaforo === 'nfse' && (
               <>
-                <div className="flex items-center justify-between pb-3 border-b border-dark-700/70">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-dark-700/70">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-teal-500/15 border border-teal-500/30 flex items-center justify-center text-teal-400">
+                    <div className="w-8 h-8 rounded-lg bg-teal-500/15 border border-teal-500/30 flex items-center justify-center text-teal-600 dark:text-teal-400">
                       <FileText size={16} />
                     </div>
                     <div>
-                      <h4 className="font-bold text-white text-sm">NFS-e Gov.br</h4>
-                      <p className="text-xs text-dark-400 truncate max-w-[200px]">{empresa.nome}</p>
+                      <h4 className="font-bold text-slate-900 dark:text-white text-sm">NFS-e Gov.br</h4>
+                      <p className="text-xs text-slate-500 dark:text-dark-400 truncate max-w-[200px]">{empresa.nome}</p>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setModalSemaforo(null)}
-                    className="p-1.5 text-dark-400 hover:text-white rounded-lg hover:bg-dark-700 transition-colors"
+                    className="p-1.5 text-slate-400 hover:text-slate-700 dark:text-dark-400 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-dark-700 transition-colors"
                   >
                     <X size={16} />
                   </button>
                 </div>
 
                 {/* Status */}
-                <div className="p-2.5 bg-dark-900/80 rounded-xl border border-dark-700/60 flex items-center justify-between">
-                  <span className="text-xs text-dark-400">Status:</span>
+                <div className="p-2.5 bg-slate-100 dark:bg-dark-900/80 rounded-xl border border-slate-200 dark:border-dark-700/60 flex items-center justify-between">
+                  <span className="text-xs text-slate-500 dark:text-dark-400">Status:</span>
                   {hasNfse ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-glow-sm" />
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 shadow-glow-sm" />
                       <span>Configuração</span>
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-400">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
                       <span className="w-2 h-2 rounded-full bg-amber-400" />
                       <span>Pendente</span>
                     </span>
@@ -642,9 +642,9 @@ export function EmpresaCardAccordion({
                         setModalSemaforo(null)
                         onToggleMenu('fiscal')
                       }}
-                      className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-dark-800 hover:bg-dark-700 border border-dark-700 hover:border-dark-600 rounded-lg text-sm font-medium text-white transition-colors"
+                      className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-700 hover:border-slate-300 dark:hover:border-dark-600 rounded-lg text-sm font-medium text-slate-800 dark:text-white transition-colors"
                     >
-                      <Settings size={14} className="text-teal-400" />
+                      <Settings size={14} className="text-teal-600 dark:text-teal-400" />
                       <span>Abrir Configuração Fiscal</span>
                     </button>
                   ) : (
@@ -668,7 +668,7 @@ export function EmpresaCardAccordion({
               <button
                 type="button"
                 onClick={() => setModalSemaforo(null)}
-                className="text-sm text-dark-400 hover:text-white transition-colors"
+                className="text-sm text-slate-500 hover:text-slate-800 dark:text-dark-400 dark:hover:text-white transition-colors"
               >
                 Fechar
               </button>

@@ -641,9 +641,9 @@ export default function VendasPage() {
               {!caVendasConectado && (
                 <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in">
                   <div className="flex items-center gap-2.5">
-                    <AlertCircle size={18} className="text-amber-400 flex-shrink-0" />
-                    <p className="text-amber-200 text-xs">
-                      A loja <strong className="text-white">{empresaAtiva.nome}</strong> não possui integração com o <strong>Conta Azul Vendas</strong> conectada. Conecte para poder sincronizar vendas e emitir NF-e.
+                    <AlertCircle size={18} className="text-amber-500 dark:text-amber-400 flex-shrink-0" />
+                    <p className="text-amber-800 dark:text-amber-200 text-xs">
+                      A loja <strong className="text-slate-900 dark:text-white">{empresaAtiva.nome}</strong> não possui integração com o <strong>Conta Azul Vendas</strong> conectada. Conecte para poder sincronizar vendas e emitir NF-e.
                     </p>
                   </div>
                   <a
@@ -657,10 +657,10 @@ export default function VendasPage() {
               )}
 
               {/* Formulário de Busca do Datacar */}
-              <div className="bg-dark-800 border border-dark-700 rounded-xl p-5 animate-fade-in">
-                <div className="flex items-center justify-between flex-wrap gap-3 mb-4 pb-3 border-b border-dark-700/50">
-                  <div className="flex items-center gap-2 text-white font-semibold">
-                    <Database size={18} className="text-blue-400" />
+              <div className="bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 rounded-xl p-5 animate-fade-in shadow-xs dark:shadow-none">
+                <div className="flex items-center justify-between flex-wrap gap-3 mb-4 pb-3 border-b border-slate-200 dark:border-dark-700/50">
+                  <div className="flex items-center gap-2 text-slate-900 dark:text-white font-semibold">
+                    <Database size={18} className="text-blue-500 dark:text-blue-400" />
                     <h3>Buscar Vendas do Datacar {empresaAtiva ? `— ${empresaAtiva.nome}` : ''}</h3>
                   </div>
 
@@ -668,21 +668,21 @@ export default function VendasPage() {
                     <button
                       type="button"
                       onClick={() => setShowPlanilhaFiscal(!showPlanilhaFiscal)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-dark-900 hover:bg-dark-700 border border-blue-500/30 text-blue-400 hover:text-white transition-all flex items-center gap-1.5 shadow-sm"
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-50 hover:bg-slate-100 dark:bg-dark-900 dark:hover:bg-dark-700 border border-blue-500/30 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-white transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
                       title="Importar ou atualizar planilha de NCM e CEST para vinculação automática"
                     >
                       <FileSpreadsheet size={14} />
                       Base Fiscal (NCM/CEST)
                     </button>
 
-                    <div className="flex items-center gap-1 bg-dark-900/80 p-1 rounded-xl border border-dark-700/60">
+                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-dark-900/80 p-1 rounded-xl border border-slate-200 dark:border-dark-700/60">
                       <button
                         type="button"
                         onClick={() => setFiltroTipoItens('tudo')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                           filtroTipoItens === 'tudo'
                             ? 'bg-brand-600 text-white shadow-md'
-                            : 'text-dark-400 hover:text-white'
+                            : 'text-slate-600 hover:text-slate-900 dark:text-dark-400 dark:hover:text-white'
                         }`}
                       >
                         🛍️ Todos os Itens
@@ -690,10 +690,10 @@ export default function VendasPage() {
                       <button
                         type="button"
                         onClick={() => setFiltroTipoItens('produtos')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                           filtroTipoItens === 'produtos'
                             ? 'bg-blue-600 text-white shadow-md'
-                            : 'text-dark-400 hover:text-white'
+                            : 'text-slate-600 hover:text-slate-900 dark:text-dark-400 dark:hover:text-white'
                         }`}
                       >
                         📦 Apenas Produtos
@@ -703,13 +703,13 @@ export default function VendasPage() {
                 </div>
                 
                 {showPlanilhaFiscal && (
-                  <div className="mb-4 p-4 bg-dark-900/90 border border-blue-500/30 rounded-xl space-y-3 animate-fade-in">
+                  <div className="mb-4 p-4 bg-slate-50 dark:bg-dark-900/90 border border-blue-500/30 rounded-xl space-y-3 animate-fade-in">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <FileSpreadsheet size={16} className="text-blue-400" />
-                        <span className="text-xs font-bold text-white">Importar Planilha Fiscal (NCM / CEST)</span>
+                        <FileSpreadsheet size={16} className="text-blue-500 dark:text-blue-400" />
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">Importar Planilha Fiscal (NCM / CEST)</span>
                       </div>
-                      <span className="text-[11px] text-dark-400">Suporta .xlsx, .xls, .csv com colunas de Descrição e NCM</span>
+                      <span className="text-[11px] text-slate-500 dark:text-dark-400">Suporta .xlsx, .xls, .csv com colunas de Descrição e NCM</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <input
@@ -717,10 +717,10 @@ export default function VendasPage() {
                         accept=".xlsx,.xls,.csv"
                         onChange={handleUploadPlanilhaFiscal}
                         disabled={uploadingPlanilha}
-                        className="block w-full text-xs text-dark-400 file:mr-3 file:py-1.5 file:px-3.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer bg-dark-950 rounded-lg p-1 border border-dark-700"
+                        className="block w-full text-xs text-slate-600 dark:text-dark-400 file:mr-3 file:py-1.5 file:px-3.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer bg-white dark:bg-dark-950 rounded-lg p-1 border border-slate-200 dark:border-dark-700"
                       />
                       {uploadingPlanilha && (
-                        <div className="flex items-center gap-2 text-xs text-blue-400 font-semibold whitespace-nowrap">
+                        <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 font-semibold whitespace-nowrap">
                           <Loader2 size={14} className="animate-spin" />
                           Processando base...
                         </div>
@@ -732,12 +732,12 @@ export default function VendasPage() {
                 <div className="flex items-end gap-4 flex-wrap">
                   {/* Tipo Período */}
                   <div>
-                    <label className="text-xs font-medium mb-1 block text-dark-400">Tipo período:</label>
+                    <label className="text-xs font-medium mb-1 block text-slate-600 dark:text-dark-400">Tipo período:</label>
                     <select
                       value={tipoPeriodoVendas}
                       onChange={(e) => setTipoPeriodoVendas(e.target.value as any)}
                       disabled={!!numeroOS}
-                      className={`bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none ${numeroOS ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      className={`bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none cursor-pointer ${numeroOS ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <option value="criacao">Criação/Abertura</option>
                       <option value="previsao">Previsão</option>
@@ -749,37 +749,37 @@ export default function VendasPage() {
 
                   {/* Datas */}
                   <div>
-                    <label className="text-xs font-medium mb-1 block text-dark-400">Data Início</label>
+                    <label className="text-xs font-medium mb-1 block text-slate-600 dark:text-dark-400">Data Início</label>
                     <div className="relative">
-                      <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+                      <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400" />
                       <input
                         type="date"
                         value={dtIni}
                         onChange={(e) => setDtIni(e.target.value)}
-                        className="bg-dark-900 border border-dark-600 rounded-lg pl-10 pr-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-40"
+                        className="bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-600 rounded-lg pl-10 pr-3 py-2 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-40"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-medium mb-1 block text-dark-400">Data Fim</label>
+                    <label className="text-xs font-medium mb-1 block text-slate-600 dark:text-dark-400">Data Fim</label>
                     <div className="relative">
-                      <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+                      <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400" />
                       <input
                         type="date"
                         value={dtFim}
                         onChange={(e) => setDtFim(e.target.value)}
-                        className="bg-dark-900 border border-dark-600 rounded-lg pl-10 pr-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-40"
+                        className="bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-600 rounded-lg pl-10 pr-3 py-2 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-40"
                       />
                     </div>
                   </div>
 
                   {/* Situação e OS */}
                   <div>
-                    <label className="text-xs font-medium mb-1 block text-dark-400">Situação:</label>
+                    <label className="text-xs font-medium mb-1 block text-slate-600 dark:text-dark-400">Situação:</label>
                     <select
                       value={situacaoVendas}
                       onChange={(e) => setSituacaoVendas(e.target.value as any)}
-                      className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
+                      className="bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none cursor-pointer"
                     >
                       <option value="todas">Todas</option>
                       <option value="em_andamento">Em Andamento</option>
@@ -790,13 +790,13 @@ export default function VendasPage() {
                   </div>
                   
                   <div>
-                    <label className="text-xs font-medium mb-1 block text-dark-400">Buscar por OS/Pedido:</label>
+                    <label className="text-xs font-medium mb-1 block text-slate-600 dark:text-dark-400">Buscar por OS/Pedido:</label>
                     <input
                       type="text"
                       placeholder="Ex: 12345"
                       value={numeroOS}
                       onChange={(e) => setNumeroOS(e.target.value)}
-                      className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-32"
+                      className="bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-32"
                     />
                   </div>
 
@@ -804,7 +804,7 @@ export default function VendasPage() {
                   <button
                     onClick={buscarDatacar}
                     disabled={buscando}
-                    className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-colors shadow-lg"
+                    className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-colors shadow-lg cursor-pointer"
                   >
                     {buscando ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
                     {buscando ? 'Buscando...' : 'Buscar'}
@@ -815,15 +815,15 @@ export default function VendasPage() {
               {/* Loading */}
               {buscando && (
                 <div className="flex items-center justify-center py-16">
-                  <Loader2 size={28} className="animate-spin text-blue-400" />
+                  <Loader2 size={28} className="animate-spin text-blue-500 dark:text-blue-400" />
                 </div>
               )}
 
               {/* Sem vendas */}
               {!buscando && vendasDatacar.length === 0 && (
-                <div className="bg-dark-800 border border-dark-700 rounded-xl p-12 text-center">
-                  <Database size={40} className="text-dark-600 mx-auto mb-3" />
-                  <p className="text-dark-400 text-sm font-medium">
+                <div className="bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 rounded-xl p-12 text-center shadow-xs dark:shadow-none">
+                  <Database size={40} className="text-slate-300 dark:text-dark-600 mx-auto mb-3" />
+                  <p className="text-slate-600 dark:text-dark-400 text-sm font-medium">
                     Faça uma busca para ver as vendas de produtos do Datacar.
                   </p>
                 </div>
@@ -832,16 +832,15 @@ export default function VendasPage() {
               {/* Título de Resultados da Busca */}
               {!buscando && vendasDatacar.length > 0 && (
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-white font-bold text-sm tracking-wide">Resultados da Busca ({vendasDatacar.length})</h3>
+                  <h3 className="text-slate-900 dark:text-white font-bold text-sm tracking-wide">Resultados da Busca ({vendasDatacar.length})</h3>
                 </div>
               )}
 
-              
               {/* Lista de vendas com Layout Rico de Alta Densidade */}
               {!buscando && vendasDatacar.length > 0 && (
                 <div className="space-y-3">
                   {/* Barra de Controle de Seleção */}
-                  <div className="flex items-center justify-between px-4 py-3 bg-dark-850 border border-dark-700/80 rounded-2xl shadow-sm">
+                  <div className="flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-dark-850 border border-slate-200 dark:border-dark-700/80 rounded-2xl shadow-xs">
                     <div className="flex items-center gap-3">
                       <input
                         type="checkbox"
@@ -850,10 +849,10 @@ export default function VendasPage() {
                           selecionadosDatacar.size === vendasDatacar.filter(v => v.status === 'pendente').length
                         }
                         onChange={toggleTodosDatacar}
-                        className="w-4 h-4 rounded border-dark-600 bg-dark-900 text-blue-500 focus:ring-blue-500"
+                        className="w-4 h-4 rounded border-slate-300 dark:border-dark-600 bg-white dark:bg-dark-900 text-blue-500 focus:ring-blue-500 cursor-pointer"
                       />
-                      <span className="text-xs text-dark-300 font-semibold">
-                        Selecionar todas as pendentes (<strong className="text-white">{selecionadosDatacar.size}</strong> de {vendasDatacar.length})
+                      <span className="text-xs text-slate-600 dark:text-dark-300 font-semibold">
+                        Selecionar todas as pendentes (<strong className="text-slate-900 dark:text-white">{selecionadosDatacar.size}</strong> de {vendasDatacar.length})
                       </span>
                     </div>
 
@@ -861,7 +860,7 @@ export default function VendasPage() {
                       <button
                         onClick={handleEnviarDatacarParaCA}
                         disabled={enviandoDatacar}
-                        className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-blue-600/25 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-lg"
+                        className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-blue-600/25 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-lg cursor-pointer"
                       >
                         {enviandoDatacar ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
                         {enviandoDatacar ? 'Aguarde...' : `⚡ Enviar para Conta Azul (${selecionadosDatacar.size})`}
@@ -886,8 +885,8 @@ export default function VendasPage() {
                           key={venda.id}
                           className={`border rounded-2xl transition-all duration-200 overflow-hidden ${
                             isSelected 
-                              ? 'border-blue-500/40 bg-dark-850/95 shadow-[0_0_15px_rgba(59,130,246,0.1)]' 
-                              : 'border-dark-700/80 bg-dark-850/80 hover:border-dark-600'
+                              ? 'border-blue-500/40 bg-blue-50/50 dark:bg-dark-850/95 shadow-[0_0_15px_rgba(59,130,246,0.1)]' 
+                              : 'border-slate-200 dark:border-dark-700/80 bg-white dark:bg-dark-850/80 hover:border-slate-300 dark:hover:border-dark-600 shadow-xs dark:shadow-none'
                           }`}
                         >
                           {/* Cabeçalho Principal do Card da OS */}
@@ -902,46 +901,46 @@ export default function VendasPage() {
                                     type="checkbox"
                                     checked={isSelected}
                                     onChange={() => toggleSelecionadoDatacar(venda.id)}
-                                    className="w-4 h-4 rounded border-dark-600 bg-dark-900 text-blue-500 focus:ring-blue-500"
+                                    className="w-4 h-4 rounded border-slate-300 dark:border-dark-600 bg-white dark:bg-dark-900 text-blue-500 focus:ring-blue-500 cursor-pointer"
                                   />
                                 ) : (
-                                  <CheckCircle size={18} className="text-emerald-400 flex-shrink-0" />
+                                  <CheckCircle size={18} className="text-emerald-500 dark:text-emerald-400 flex-shrink-0" />
                                 )}
                               </div>
 
                               <div className="space-y-1.5 flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-mono font-bold text-white text-sm">
+                                  <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">
                                     OS #{venda.os_numero}
                                   </span>
                                   {veiculo && (
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                                       🚗 {veiculo}
                                     </span>
                                   )}
                                   
                                   {venda.forma_pagamento && (
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                                       💳 {venda.forma_pagamento}
                                     </span>
                                   )}
                                 </div>
 
                                 <div className="flex items-center gap-2 text-xs flex-wrap">
-                                  <span className="text-white font-bold truncate max-w-[280px]">
+                                  <span className="text-slate-900 dark:text-white font-bold truncate max-w-[280px]">
                                     {venda.cliente}
                                   </span>
                                   {venda.cliente_cpf_cnpj && (
-                                    <span className="text-dark-400 font-mono text-[11px]">
+                                    <span className="text-slate-500 dark:text-dark-400 font-mono text-[11px]">
                                       • {venda.cliente_cpf_cnpj}
                                     </span>
                                   )}
                                   {(venda.cliente_ja_cadastrado || venda.ca_status === 'cliente_existente') && (
                                     <span 
                                       title="Este cliente já possui cadastro ativo no Conta Azul (identificado por CPF/CNPJ)"
-                                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/60 shadow-[0_0_12px_rgba(245,158,11,0.25)] tracking-wide"
+                                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-400/60 shadow-[0_0_12px_rgba(245,158,11,0.15)] tracking-wide"
                                     >
-                                      <UserCheck size={12} className="text-amber-400" />
+                                      <UserCheck size={12} className="text-amber-500 dark:text-amber-400" />
                                       Já cadastrado no CA
                                     </span>
                                   )}
@@ -950,19 +949,19 @@ export default function VendasPage() {
                             </div>
 
                             {/* Resumo Financeiro da OS */}
-                            <div className="flex items-center justify-between lg:justify-end gap-6 border-t lg:border-t-0 border-dark-700/50 pt-3 lg:pt-0">
+                            <div className="flex items-center justify-between lg:justify-end gap-6 border-t lg:border-t-0 border-slate-200 dark:border-dark-700/50 pt-3 lg:pt-0">
                               <div className="text-left lg:text-right space-y-0.5">
-                                <div className="flex items-center gap-2 text-[11px] text-dark-400">
-                                  <span>Peças: <strong className="text-white">{formatCurrency(totalProdutos)}</strong></span>
+                                <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-dark-400">
+                                  <span>Peças: <strong className="text-slate-900 dark:text-white">{formatCurrency(totalProdutos)}</strong></span>
                                   <span>•</span>
-                                  <span>Serviços: <strong className="text-white">{formatCurrency(totalServicos)}</strong></span>
+                                  <span>Serviços: <strong className="text-slate-900 dark:text-white">{formatCurrency(totalServicos)}</strong></span>
                                 </div>
                                 {totalDesconto > 0 && (
-                                  <p className="text-[11px] text-rose-400 font-semibold">
+                                  <p className="text-[11px] text-rose-600 dark:text-rose-400 font-semibold">
                                     Desconto: -{formatCurrency(totalDesconto)}
                                   </p>
                                 )}
-                                <p className="text-base font-black text-white tabular-nums drop-shadow-sm">
+                                <p className="text-base font-black text-slate-900 dark:text-white tabular-nums drop-shadow-sm">
                                   {formatCurrency(venda.valor_total)}
                                 </p>
                               </div>
@@ -971,7 +970,7 @@ export default function VendasPage() {
                                 <button
                                   type="button"
                                   onClick={() => setEditandoDatacarId(venda.id)}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-300 bg-blue-600/15 hover:bg-blue-600/25 border border-blue-500/30 rounded-xl transition-all"
+                                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-300 bg-blue-600/10 hover:bg-blue-600/20 dark:bg-blue-600/15 dark:hover:bg-blue-600/25 border border-blue-500/30 rounded-xl transition-all cursor-pointer"
                                   title="Editar Dados e Descontos da Venda"
                                 >
                                   Editar
@@ -979,7 +978,7 @@ export default function VendasPage() {
                                 <button
                                   type="button"
                                   onClick={() => removerVendaDatacar(venda.id)}
-                                  className="p-2 text-dark-500 hover:text-rose-400 bg-dark-900 hover:bg-rose-500/10 border border-dark-700 hover:border-rose-500/30 rounded-xl transition-all"
+                                  className="p-2 text-slate-400 hover:text-rose-600 dark:text-dark-500 dark:hover:text-rose-400 bg-slate-100 hover:bg-rose-50 dark:bg-dark-900 dark:hover:bg-rose-500/10 border border-slate-200 hover:border-rose-300 dark:border-dark-700 dark:hover:border-rose-500/30 rounded-xl transition-all cursor-pointer"
                                   title="Remover OS da lista"
                                 >
                                   <Trash2 size={14} />
@@ -990,32 +989,32 @@ export default function VendasPage() {
 
                           {/* Seção Expandida com Tabela de Itens e Descontos */}
                           {isExpanded && (
-                            <div className="bg-dark-950/60 border-t border-dark-700/80 p-5 space-y-4 animate-fade-in">
+                            <div className="bg-slate-50 dark:bg-dark-950/60 border-t border-slate-200 dark:border-dark-700/80 p-5 space-y-4 animate-fade-in">
                               <div className="flex items-center justify-between">
-                                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                                   📦 Detalhamento de Peças e Serviços ({venda.itens?.length || 0})
                                 </h4>
-                                <span className="text-xs text-dark-400 font-mono">
+                                <span className="text-xs text-slate-500 dark:text-dark-400 font-mono">
                                   Data da OS: {formatDate(venda.data_venda)}
                                 </span>
                               </div>
 
-                              <div className="overflow-x-auto rounded-xl border border-dark-700/60">
+                              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-dark-700/60">
                                 <table className="w-full text-left text-xs border-collapse">
                                   <thead>
-                                    <tr className="bg-dark-900 text-dark-400 font-bold uppercase tracking-wider text-[10px] border-b border-dark-700/80">
+                                    <tr className="bg-slate-100 dark:bg-dark-900 text-slate-600 dark:text-dark-400 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200 dark:border-dark-700/80">
                                       <th className="py-2.5 px-3">Tipo</th>
                                       <th className="py-2.5 px-3">Código</th>
                                       <th className="py-2.5 px-3">Descrição</th>
                                       <th className="py-2.5 px-3 text-center">Qtd</th>
                                       <th className="py-2.5 px-3 text-right">Vl Bruto</th>
-                                      <th className="py-2.5 px-3 text-right text-rose-400">Desconto</th>
-                                      <th className="py-2.5 px-3 text-right text-emerald-400">Vl Líquido</th>
-                                      <th className="py-2.5 px-3 text-right font-bold text-white">Total</th>
+                                      <th className="py-2.5 px-3 text-right text-rose-600 dark:text-rose-400">Desconto</th>
+                                      <th className="py-2.5 px-3 text-right text-emerald-600 dark:text-emerald-400">Vl Líquido</th>
+                                      <th className="py-2.5 px-3 text-right font-bold text-slate-900 dark:text-white">Total</th>
                                       <th className="py-2.5 px-3">NCM / CEST</th>
                                     </tr>
                                   </thead>
-                                  <tbody className="divide-y divide-dark-700/50">
+                                  <tbody className="divide-y divide-slate-200 dark:divide-dark-700/50">
                                     {(venda.itens || []).map((item: any, idxItem: number) => {
                                       const vBruto = Number(item.valor_unitario_original !== undefined ? item.valor_unitario_original : item.valor_unitario) || 0
                                       const desc = Number(item.desconto) || 0
@@ -1023,26 +1022,26 @@ export default function VendasPage() {
                                       const totalItem = Number(item.valor_total) || (item.quantidade * vLiq)
 
                                       return (
-                                        <tr key={idxItem} className="hover:bg-dark-900/40 transition-colors">
+                                        <tr key={idxItem} className="hover:bg-slate-100/50 dark:hover:bg-dark-900/40 transition-colors">
                                           <td className="p-2.5">
                                             <span className={`px-2 py-0.5 rounded text-[9px] font-black ${
                                               item.tipo === 'servico'
-                                                ? 'bg-slate-800 text-slate-300 border border-slate-700'
-                                                : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                                                ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                                                : 'bg-blue-500/15 text-blue-600 dark:text-blue-300 border border-blue-500/30'
                                             }`}>
                                               {item.tipo === 'servico' ? 'SERVIÇO' : 'PEÇA'}
                                             </span>
                                           </td>
-                                          <td className="p-2.5 font-mono text-dark-300 text-[11px]">{item.codigo || '-'}</td>
-                                          <td className="p-2.5 font-medium text-white">{item.descricao}</td>
-                                          <td className="p-2.5 text-center font-bold text-white">{item.quantidade} {item.unidade_medida || 'UN'}</td>
-                                          <td className="p-2.5 text-right font-mono text-dark-300">{formatCurrency(vBruto)}</td>
-                                          <td className="p-2.5 text-right font-mono text-rose-400">
+                                          <td className="p-2.5 font-mono text-slate-600 dark:text-dark-300 text-[11px]">{item.codigo || '-'}</td>
+                                          <td className="p-2.5 font-medium text-slate-900 dark:text-white">{item.descricao}</td>
+                                          <td className="p-2.5 text-center font-bold text-slate-900 dark:text-white">{item.quantidade} {item.unidade_medida || 'UN'}</td>
+                                          <td className="p-2.5 text-right font-mono text-slate-600 dark:text-dark-300">{formatCurrency(vBruto)}</td>
+                                          <td className="p-2.5 text-right font-mono text-rose-600 dark:text-rose-400">
                                             {desc > 0 ? `-${formatCurrency(desc * item.quantidade)}` : '-'}
                                           </td>
-                                          <td className="p-2.5 text-right font-mono text-emerald-400 font-semibold">{formatCurrency(vLiq)}</td>
-                                          <td className="p-2.5 text-right font-mono font-bold text-white tabular-nums">{formatCurrency(totalItem)}</td>
-                                          <td className="p-2.5 text-dark-400 font-mono text-[10px]">
+                                          <td className="p-2.5 text-right font-mono text-emerald-600 dark:text-emerald-400 font-semibold">{formatCurrency(vLiq)}</td>
+                                          <td className="p-2.5 text-right font-mono font-bold text-slate-900 dark:text-white tabular-nums">{formatCurrency(totalItem)}</td>
+                                          <td className="p-2.5 text-slate-500 dark:text-dark-400 font-mono text-[10px]">
                                             {item.ncm ? `NCM: ${item.ncm}` : '-'} {item.cest ? `| CEST: ${item.cest}` : ''}
                                           </td>
                                         </tr>
@@ -1059,15 +1058,15 @@ export default function VendasPage() {
                   </div>
 
                   {/* Rodapé da Lista com Ações em Lote */}
-                  <div className="flex items-center justify-between px-5 py-4 bg-dark-850 border border-dark-700/80 rounded-2xl shadow-sm text-sm">
-                    <p className="text-dark-400">
-                      <strong className="text-white">{selecionadosDatacar.size}</strong> de <strong className="text-white">{vendasDatacar.length}</strong> OS selecionadas
+                  <div className="flex items-center justify-between px-5 py-4 bg-slate-50 dark:bg-dark-850 border border-slate-200 dark:border-dark-700/80 rounded-2xl shadow-xs text-sm">
+                    <p className="text-slate-600 dark:text-dark-400">
+                      <strong className="text-slate-900 dark:text-white">{selecionadosDatacar.size}</strong> de <strong className="text-slate-900 dark:text-white">{vendasDatacar.length}</strong> OS selecionadas
                     </p>
                     {selecionadosDatacar.size > 0 && (
                       <button
                         onClick={handleEnviarDatacarParaCA}
                         disabled={enviandoDatacar}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-blue-600/25 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-lg"
+                        className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-blue-600/25 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-lg cursor-pointer"
                       >
                         {enviandoDatacar ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                         {enviandoDatacar ? 'Aguarde...' : `⚡ Enviar para Conta Azul (${selecionadosDatacar.size})`}

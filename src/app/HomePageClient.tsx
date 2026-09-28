@@ -51,7 +51,7 @@ export default function HomePageClient() {
           <div className="w-7 h-7 rounded-lg bg-[#2ee88a] text-[#04150c] flex items-center justify-center font-black text-sm shadow-md shadow-[#2ee88a]/20">
             C
           </div>
-          <span className="text-slate-900 dark:text-white text-base">CONNECTA<span className="text-[#2ee88a] ml-1">AI</span></span>
+          <span className="text-slate-900 dark:text-white text-base">CONNECTA<span className="text-emerald-600 dark:text-[#2ee88a] ml-1">AI</span></span>
         </div>
 
         <div className="hidden md:flex items-center gap-6 text-xs font-semibold text-slate-600 dark:text-[#8b94ab]">
@@ -73,7 +73,7 @@ export default function HomePageClient() {
             href="/login"
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-[#1c2436] bg-white dark:bg-[#0c1120] hover:bg-slate-100 dark:hover:bg-[#151c2e] hover:border-[#2ee88a]/40 text-xs font-semibold text-slate-800 dark:text-[#f4f6fb] transition-all cursor-pointer shadow-xs"
           >
-            <LogIn size={14} className="text-[#2ee88a]" />
+            <LogIn size={14} className="text-emerald-600 dark:text-[#2ee88a]" />
             Entrar
           </Link>
         </div>
@@ -83,18 +83,18 @@ export default function HomePageClient() {
       <header className="relative z-10 max-w-[1080px] mx-auto px-4 pt-1 pb-4 text-center">
         {/* BADGE */}
         <div className="inline-flex items-center gap-2 bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] px-3 py-1 rounded-full text-[11px] font-semibold tracking-wider text-slate-600 dark:text-[#8b94ab] uppercase mb-2 shadow-xs">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#2ee88a] animate-pulse" />
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-[#2ee88a] animate-pulse" />
           BPO FINANCEIRO · GESTÃO FINANCEIRA COMPLETA
         </div>
 
         {/* TITLE */}
         <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-1 text-slate-900 dark:text-white drop-shadow-[0_0_40px_rgba(46,232,138,0.15)] dark:drop-shadow-[0_0_40px_rgba(46,232,138,0.25)]">
-          CONNECTA <span className="text-[#2ee88a]">AI</span>
+          CONNECTA <span className="text-emerald-600 dark:text-[#2ee88a]">AI</span>
         </h1>
 
         {/* TAGLINE */}
         <h2 className="text-base md:text-2xl font-bold max-w-2xl mx-auto leading-tight text-slate-800 dark:text-white mb-1.5">
-          Contas a pagar, pagamentos e NFe, <span className="text-[#2ee88a]">tudo em um clique.</span>
+          Contas a pagar, pagamentos e NFe, <span className="text-emerald-600 dark:text-[#2ee88a]">tudo em um clique.</span>
         </h2>
 
         {/* SUBTITLE */}
@@ -298,7 +298,7 @@ export default function HomePageClient() {
               <div className="w-10 h-10 rounded-xl bg-[#5b9df5]/15 text-[#5b9df5] flex items-center justify-center">
                 <ArrowDownToLine size={20} />
               </div>
-              <span className="text-2xl font-black text-slate-200 dark:text-[#1c2436]">01</span>
+              <span className="text-2xl font-black text-slate-300 dark:text-[#1c2436]">01</span>
             </div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1.5">Busca & Captura</h3>
             <p className="text-xs text-slate-600 dark:text-[#8b94ab] leading-relaxed">
@@ -311,7 +311,7 @@ export default function HomePageClient() {
               <div className="w-10 h-10 rounded-xl bg-[#2ee88a]/15 text-[#2ee88a] flex items-center justify-center">
                 <CreditCard size={20} />
               </div>
-              <span className="text-2xl font-black text-slate-200 dark:text-[#1c2436]">02</span>
+              <span className="text-2xl font-black text-slate-300 dark:text-[#1c2436]">02</span>
             </div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1.5">Gestão de Pagamentos</h3>
             <p className="text-xs text-slate-600 dark:text-[#8b94ab] leading-relaxed">
@@ -324,7 +324,7 @@ export default function HomePageClient() {
               <div className="w-10 h-10 rounded-xl bg-[#9b8cf0]/15 text-[#9b8cf0] flex items-center justify-center">
                 <Receipt size={20} />
               </div>
-              <span className="text-2xl font-black text-slate-200 dark:text-[#1c2436]">03</span>
+              <span className="text-2xl font-black text-slate-300 dark:text-[#1c2436]">03</span>
             </div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1.5">NFe & Conta Azul</h3>
             <p className="text-xs text-slate-600 dark:text-[#8b94ab] leading-relaxed">

@@ -11,31 +11,155 @@ const BASE_URL = 'https://api-v2.contaazul.com/v1'
 const AUTH_URL = 'https://auth.contaazul.com/oauth2/token'
 const AUTHORIZE_URL = 'https://auth.contaazul.com/login'
 
+const DEFAULT_TIMEOUT_MS = 30000; // 30 segundos por requisição
+
 /**
- * Helper para lidar com os limites de requisição da Conta Azul (Spike Arrest).
- * Intercepta exclusivamente erros 429 e aplica backoff exponencial com até 3 tentativas.
- * Tentativa 1 -> 1s | Tentativa 2 -> 2s | Tentativa 3 -> última tentativa.
+ * Helper resiliente para lidar com a API do Conta Azul:
+ * 1. Timeout explícito via AbortController (30s) para evitar travamentos silenciosos de rede.
+ * 2. Intercepta erros transitórios: 429 (Rate limit / Spike Arrest), 502 (Bad Gateway), 503 (Service Unavailable) e 504 (Gateway Timeout).
+ * 3. Aplica backoff exponencial estrito:
+ *    - tentativa 1 -> aguardar 1 segundo (1000ms)
+ *    - tentativa 2 -> aguardar 2 segundos (2000ms)
+ *    - tentativa 3 -> aguardar 4 segundos (4000ms)
+ * 4. NÃO retenta erros determinísticos de cliente:
+ *    - 400 (Bad Request), 401 (Unauthorized), 403 (Forbidden), 404 (Not Found), 409 (Conflict), 422 (Unprocessable Entity).
  */
-async function fetchCA(url: string | URL | Request, options?: RequestInit): Promise<Response> {
-  const maxTentativas = 3;
-  let res: Response;
+async function fetchCA(url: string | URL | Request, options?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<Response> {
+  const maxTentativas = 4; // 1 tentativa inicial + até 3 retries (1s, 2s, 4s)
+  const delaisPorTentativa = [1000, 2000, 4000];
+  let res: Response | null = null;
 
   for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
-    res = await fetch(url, options);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    if (res.status === 429 && tentativa < maxTentativas) {
-      const waitTime = tentativa === 1 ? 1000 : 2000;
-      console.warn(
-        `[fetchCA] Rate limit atingido (429) na URL ${typeof url === 'string' ? url : '...'} - Tentativa ${tentativa}/${maxTentativas}. Aguardando ${waitTime}ms...`
-      );
-      await new Promise(r => setTimeout(r, waitTime));
-      continue;
+    if (options?.signal) {
+      options.signal.addEventListener('abort', () => controller.abort());
     }
 
-    return res;
+    try {
+      res = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      // Erros determinísticos de cliente (NÃO retentar):
+      // 400, 401, 403, 404, 409, 422 ou qualquer status < 500 exceto 429
+      if (res.status < 500 && res.status !== 429) {
+        return res;
+      }
+
+      // Erros transitórios que devem receber retry com backoff exponencial: 429, 502, 503, 504
+      const isTransitorio = res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504;
+
+      if (isTransitorio && tentativa < maxTentativas) {
+        const waitTime = delaisPorTentativa[tentativa - 1] || 4000;
+        const urlStr = typeof url === 'string' ? url : (url as any)?.url || '...';
+        console.warn(
+          `[fetchCA] Resposta transitória (${res.status}) na URL ${urlStr} - Tentativa ${tentativa}/${maxTentativas}. Aguardando ${waitTime}ms (backoff exponencial)...`
+        );
+        await new Promise(r => setTimeout(r, waitTime));
+        continue;
+      }
+
+      return res;
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+
+      const isTimeout = err?.name === 'AbortError' || err?.code === 'ETIMEDOUT';
+      const isRede = err?.code === 'ECONNRESET' || err?.code === 'ECONNREFUSED' || err?.message?.includes('fetch failed');
+
+      if ((isTimeout || isRede) && tentativa < maxTentativas) {
+        const waitTime = delaisPorTentativa[tentativa - 1] || 4000;
+        const motivo = isTimeout ? `Timeout de ${timeoutMs / 1000}s` : `Falha de rede (${err?.message || 'erro'})`;
+        const urlStr = typeof url === 'string' ? url : (url as any)?.url || '...';
+        console.warn(
+          `[fetchCA] ${motivo} na URL ${urlStr} - Tentativa ${tentativa}/${maxTentativas}. Aguardando ${waitTime}ms...`
+        );
+        await new Promise(r => setTimeout(r, waitTime));
+        continue;
+      }
+
+      throw err;
+    }
   }
 
   return res!;
+}
+
+/**
+ * Tenta localizar exaustivamente um produto no Conta Azul por SKU/código ou descrição.
+ * Utilizado para recuperação após erros 409 (SKU conflito/inativo) e 502/503/504 (timeout onde o produto pode ter sido gravado).
+ */
+async function recuperarProdutoPorCodigo(
+  accessToken: string,
+  codigo?: string,
+  descricao?: string
+): Promise<string | null> {
+  if (!codigo && !descricao) return null;
+  const codigoTrim = codigo ? codigo.trim().toLowerCase() : '';
+  const searchName = descricao ? descricao.trim().toLowerCase() : '';
+
+  const rotasDeBusca: string[] = [];
+  if (codigo && codigo.trim()) {
+    const codEnc = encodeURIComponent(codigo.trim());
+    rotasDeBusca.push(`${BASE_URL}/produtos?codigo_sku=${codEnc}`);
+    rotasDeBusca.push(`${BASE_URL}/produtos?busca=${codEnc}`);
+    rotasDeBusca.push(`${BASE_URL}/produtos?status=TODOS&termo_busca=${codEnc}`);
+    rotasDeBusca.push(`${BASE_URL}/produtos?status=INATIVO&termo_busca=${codEnc}`);
+  }
+  if (descricao && descricao.trim()) {
+    rotasDeBusca.push(`${BASE_URL}/produtos?termo_busca=${encodeURIComponent(descricao.trim())}`);
+  }
+  rotasDeBusca.push(`${BASE_URL}/produtos`);
+
+  for (const rotaBase of rotasDeBusca) {
+    const maxPages = rotaBase === `${BASE_URL}/produtos` ? 5 : 2;
+    for (let page = 1; page <= maxPages; page++) {
+      const sep = rotaBase.includes('?') ? '&' : '?';
+      const urlBusca = `${rotaBase}${sep}tamanho_pagina=100&pagina=${page}`;
+      try {
+        const busca = await fetchCA(urlBusca, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+        if (!busca.ok) break;
+
+        const data = await busca.json();
+        const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : []);
+        if (lista.length === 0) break;
+
+        // 1. Prioridade absoluta: match por SKU/código
+        if (codigoTrim) {
+          const rec = lista.find((p: any) => {
+            const pSku = (p.codigo_sku || p.codigo || p.sku || '').trim().toLowerCase();
+            return pSku === codigoTrim;
+          });
+          if (rec) {
+            console.log(`[recuperarProdutoPorCodigo] Produto localizado por SKU/código na rota ${rotaBase}. ID: ${rec.id || rec.uuid}`);
+            return rec.id || rec.uuid;
+          }
+        }
+
+        // 2. Se não achou por código e temos descrição, match por nome exato
+        if (searchName) {
+          const recNome = lista.find((p: any) => {
+            const pNome = (p.nome || p.name || '').trim().toLowerCase();
+            return pNome === searchName;
+          });
+          if (recNome) {
+            console.log(`[recuperarProdutoPorCodigo] Produto localizado por descrição na rota ${rotaBase}. ID: ${recNome.id || recNome.uuid}`);
+            return recNome.id || recNome.uuid;
+          }
+        }
+
+        if (lista.length < 100) break;
+      } catch (errRec) {
+        console.warn(`[recuperarProdutoPorCodigo] Erro na rota ${urlBusca}:`, errRec);
+        break;
+      }
+    }
+  }
+
+  return null;
 }
 
 export class OAuthError extends Error {
@@ -762,58 +886,31 @@ export async function buscarOuCriarProduto(
     } else {
       const errBody = await criar.text()
       console.error(`[buscarOuCriarProduto] falha ao criar produto "${descricao}" (${codigo}):`, criar.status, errBody)
+
+      // Verificação de recuperação após erro 502/503/504 ou 409 (SKU duplicado):
+      // Muitas vezes o Conta Azul grava o produto no banco, mas o gateway sofre timeout e responde 503, ou o SKU já existia inativo.
+      const ehErroTransitorio = criar.status === 502 || criar.status === 503 || criar.status === 504;
+      const ehSkuConflito = criar.status === 409 && errBody.includes('SKU');
+
+      if (ehErroTransitorio || ehSkuConflito) {
+        console.log(`[buscarOuCriarProduto] Status ${criar.status} recebido. Verificando se o produto '${codigo || descricao}' foi gravado no Conta Azul antes de abortar...`);
+        
+        // Pausa preventiva de 1.5s para consistência eventual do catálogo do Conta Azul
+        if (ehErroTransitorio) {
+          await new Promise(r => setTimeout(r, 1500));
+        }
+
+        const produtoRecuperadoId = await recuperarProdutoPorCodigo(accessToken, codigo, descricao);
+        if (produtoRecuperadoId) {
+          console.log(`[buscarOuCriarProduto] Produto recuperado com sucesso após status ${criar.status}! ID: ${produtoRecuperadoId}`);
+          return produtoRecuperadoId;
+        }
+      }
       
       let msg = `Não foi possível criar o produto "${descricao}" no Conta Azul: [${criar.status}] ${errBody}`
       if (errBody.includes('unidade de medida')) {
         msg = `Erro no Conta Azul: Para cadastrar o produto "${descricao}", é obrigatório enviar o ID da Unidade de Medida. Verifique se a unidade "${metadata?.unidade_medida || 'UN'}" existe no seu Conta Azul.`
-      } else if (criar.status === 409 && errBody.includes('SKU')) {
-        console.log(`[buscarOuCriarProduto] 409 SKU duplicado para '${codigo}'. Tentando recuperar produto exaustivamente...`);
-        if (codigo) {
-           const codigoTrim = codigo.trim();
-           const rotasDeBusca = [
-             `${BASE_URL}/produtos?codigo_sku=${encodeURIComponent(codigo)}`,
-             `${BASE_URL}/produtos?busca=${encodeURIComponent(codigo)}`,
-             `${BASE_URL}/produtos?status=INATIVO&termo_busca=${encodeURIComponent(codigo)}`,
-             `${BASE_URL}/produtos?status=TODOS&termo_busca=${encodeURIComponent(codigo)}`,
-             // Uma tentativa sem filtros, iterando as primeiras 10 páginas
-             `${BASE_URL}/produtos`
-           ];
-           
-           let produtoRecuperado = null;
-           for (const rotaBase of rotasDeBusca) {
-             if (produtoRecuperado) break;
-             const maxPages = rotaBase === `${BASE_URL}/produtos` ? 10 : 3;
-             for (let page = 1; page <= maxPages; page++) {
-                const sep = rotaBase.includes('?') ? '&' : '?';
-                const urlBusca = `${rotaBase}${sep}tamanho_pagina=100&pagina=${page}`;
-                try {
-                  const busca = await fetchCA(urlBusca, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-                  if (!busca.ok) break;
-                  
-                  const data = await busca.json();
-                  const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : []);
-                  if (lista.length === 0) break;
-                  
-                  const rec = lista.find((p: any) => p.codigo_sku?.trim() === codigoTrim || p.codigo?.trim() === codigoTrim);
-                  if (rec) {
-                    produtoRecuperado = rec;
-                    console.log(`[buscarOuCriarProduto] Produto recuperado na rota ${rotaBase}. ID: ${rec.id || rec.uuid}`);
-                    break;
-                  }
-                  if (lista.length < 100) break;
-                } catch (errRec) {
-                  console.warn(`[buscarOuCriarProduto] Erro na recuperacao na rota ${urlBusca}:`, errRec);
-                  break;
-                }
-             }
-           }
-           
-           if (produtoRecuperado) {
-             const recId = produtoRecuperado.id || produtoRecuperado.uuid;
-             // Se o produto está inativo, a criação da venda com ele pode falhar depois, mas retornamos o ID para reaproveitamento.
-             return recId;
-           }
-        }
+      } else if (ehSkuConflito) {
         msg = `O produto "${descricao}" tem o código/SKU "${codigo}", que JÁ EXISTE no Conta Azul cadastrado em outro produto, ou está Inativo. Mude o código no Datacar ou no Conta Azul para resolver o conflito.`;
       }
       

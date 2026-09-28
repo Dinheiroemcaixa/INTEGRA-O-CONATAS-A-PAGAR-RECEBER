@@ -549,7 +549,7 @@ export default function NotasEmitidasPage() {
       {/* ─── Header ─────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Database className="text-blue-500" />
             Notas Emitidas
           </h1>
@@ -558,36 +558,36 @@ export default function NotasEmitidasPage() {
       </div>
 
       {/* ─── Sub-abas: Produtos / Serviços ──────────────────────────── */}
-      <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden">
-        <div className="flex border-b border-dark-700">
+      <div className="bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 rounded-xl overflow-hidden shadow-xs dark:shadow-none">
+        <div className="flex border-b border-slate-200 dark:border-dark-700">
           <button
             onClick={() => setAbaAtiva('servicos')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-semibold transition-all ${
+            className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-semibold transition-all cursor-pointer ${
               abaAtiva === 'servicos'
-                ? 'bg-blue-600/15 text-blue-400 border-b-2 border-blue-500'
-                : 'text-dark-400 hover:text-white hover:bg-dark-700/50'
+                ? 'bg-blue-600/15 text-blue-600 dark:text-blue-400 border-b-2 border-blue-500'
+                : 'text-slate-600 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-dark-700/50'
             }`}
           >
             <FileText size={18} />
             Serviços (Gov.br / NFS-e)
             {notasServicos.length > 0 && (
-              <span className="bg-blue-500/20 text-blue-400 text-[10px] px-2 py-0.5 rounded-full font-bold">
+              <span className="bg-blue-500/20 text-blue-600 dark:text-blue-400 text-[10px] px-2 py-0.5 rounded-full font-bold">
                 {notasServicos.length}
               </span>
             )}
           </button>
           <button
             onClick={() => setAbaAtiva('produtos')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-semibold transition-all ${
+            className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-semibold transition-all cursor-pointer ${
               abaAtiva === 'produtos'
-                ? 'bg-emerald-600/15 text-emerald-400 border-b-2 border-emerald-500'
-                : 'text-dark-400 hover:text-white hover:bg-dark-700/50'
+                ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-500'
+                : 'text-slate-600 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-dark-700/50'
             }`}
           >
             <ShoppingCart size={18} />
             Produtos (Conta Azul / NF-e)
             {notasProdutos.length > 0 && (
-              <span className="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-bold">
+              <span className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-bold">
                 {notasProdutos.length}
               </span>
             )}
@@ -595,37 +595,37 @@ export default function NotasEmitidasPage() {
         </div>
 
         {/* ─── Toolbar / Filtros ─────────────────────────────────────── */}
-        <div className="p-4 flex flex-wrap gap-3 items-end border-b border-dark-700/50">
+        <div className="p-4 flex flex-wrap gap-3 items-end border-b border-slate-200 dark:border-dark-700/50">
           {/* Busca */}
           <div className="flex-1 min-w-[220px] relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" size={16} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400" size={16} />
             <input
               type="text"
               placeholder="Pesquisar pessoa física ou jurídica..."
               value={busca}
               onChange={e => setBusca(e.target.value)}
-              className="w-full bg-dark-900 border border-dark-700 rounded-lg pl-9 pr-4 py-2 text-sm text-white placeholder-dark-500 focus:border-brand-500 outline-none transition-colors"
+              className="w-full bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 rounded-lg pl-9 pr-4 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-dark-500 focus:border-brand-500 outline-none transition-colors"
             />
           </div>
 
           {/* Data Inicial */}
           <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400 pointer-events-none" size={14} />
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400 pointer-events-none" size={14} />
             <input
               type="date"
               value={dataInicio}
               onChange={e => setDataInicio(e.target.value)}
-              className="bg-dark-900 border border-dark-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:border-brand-500 outline-none"
+              className="bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-900 dark:text-white focus:border-brand-500 outline-none"
             />
           </div>
-          <span className="text-dark-500 text-sm">até</span>
+          <span className="text-slate-500 dark:text-dark-500 text-sm">até</span>
           <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400 pointer-events-none" size={14} />
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400 pointer-events-none" size={14} />
             <input
               type="date"
               value={dataFim}
               onChange={e => setDataFim(e.target.value)}
-              className="bg-dark-900 border border-dark-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:border-brand-500 outline-none"
+              className="bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-900 dark:text-white focus:border-brand-500 outline-none"
             />
           </div>
 
@@ -633,7 +633,7 @@ export default function NotasEmitidasPage() {
           <button
             onClick={() => buscarNotas(abaAtiva)}
             disabled={carregando}
-            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors"
+            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors cursor-pointer"
           >
             {carregando ? <Loader2 size={16} className="animate-spin" /> : <Filter size={16} />}
             Filtrar
@@ -643,7 +643,7 @@ export default function NotasEmitidasPage() {
           <button
             onClick={() => buscarNotas(abaAtiva)}
             disabled={carregando}
-            className="bg-dark-700 hover:bg-dark-600 border border-dark-600 text-white p-2 rounded-lg transition-colors"
+            className="bg-slate-100 hover:bg-slate-200 dark:bg-dark-700 dark:hover:bg-dark-600 border border-slate-200 dark:border-dark-600 text-slate-700 dark:text-white p-2 rounded-lg transition-colors cursor-pointer"
             title="Recarregar"
           >
             <RefreshCw size={16} className={carregando ? 'animate-spin' : ''} />
@@ -651,47 +651,47 @@ export default function NotasEmitidasPage() {
         </div>
 
         {/* ─── Painel Superior de Resumo (4 Cards Estilo Conta Azul) ─── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 bg-dark-850/90 border-b border-dark-700/80 divide-y sm:divide-y-0 sm:divide-x divide-dark-700/60 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 bg-slate-50 dark:bg-dark-850/90 border-b border-slate-200 dark:border-dark-700/80 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 dark:divide-dark-700/60 text-xs">
           {/* Card 1: Notas Canceladas */}
           <div className="p-3.5 text-center">
-            <div className="text-[11px] font-medium text-dark-300 flex items-center justify-center gap-1">
+            <div className="text-[11px] font-medium text-slate-600 dark:text-dark-300 flex items-center justify-center gap-1">
               <span>Notas canceladas</span>
-              <span className="text-dark-400 font-semibold">({totalCanceladas})</span>
+              <span className="text-slate-500 dark:text-dark-400 font-semibold">({totalCanceladas})</span>
             </div>
-            <div className="text-base font-bold text-dark-200 mt-1 tabular-nums">
+            <div className="text-base font-bold text-slate-700 dark:text-dark-200 mt-1 tabular-nums">
               {formatCurrency(notasAtivas.filter(n => n.status === 'cancelado').reduce((s, n) => s + (n.valor_total || 0), 0))}
             </div>
           </div>
 
           {/* Card 2: Pendentes */}
           <div className="p-3.5 text-center">
-            <div className="text-[11px] font-medium text-amber-400/90 flex items-center justify-center gap-1">
+            <div className="text-[11px] font-medium text-amber-600 dark:text-amber-400/90 flex items-center justify-center gap-1">
               <span>Pendentes</span>
-              <span className="text-amber-400/70 font-semibold">(0)</span>
+              <span className="text-amber-600/70 dark:text-amber-400/70 font-semibold">(0)</span>
             </div>
-            <div className="text-base font-bold text-amber-400 mt-1 tabular-nums">
+            <div className="text-base font-bold text-amber-600 dark:text-amber-400 mt-1 tabular-nums">
               R$ 0,00
             </div>
           </div>
 
           {/* Card 3: Emitidas */}
           <div className="p-3.5 text-center">
-            <div className="text-[11px] font-medium text-emerald-400/90 flex items-center justify-center gap-1">
+            <div className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400/90 flex items-center justify-center gap-1">
               <span>Emitidas</span>
-              <span className="text-emerald-400/70 font-semibold">({totalEmitidas})</span>
+              <span className="text-emerald-600/70 dark:text-emerald-400/70 font-semibold">({totalEmitidas})</span>
             </div>
-            <div className="text-base font-bold text-emerald-400 mt-1 tabular-nums">
+            <div className="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">
               {formatCurrency(notasAtivas.filter(n => n.status === 'enviado').reduce((s, n) => s + (n.valor_total || 0), 0))}
             </div>
           </div>
 
           {/* Card 4: Total do Período */}
-          <div className="p-3.5 text-center border-t-2 border-t-blue-500 bg-blue-500/[0.02]">
-            <div className="text-[11px] font-medium text-blue-400/90 flex items-center justify-center gap-1">
+          <div className="p-3.5 text-center border-t-2 border-t-blue-500 bg-blue-500/[0.04] dark:bg-blue-500/[0.02]">
+            <div className="text-[11px] font-medium text-blue-600 dark:text-blue-400/90 flex items-center justify-center gap-1">
               <span>Total do período</span>
-              <span className="text-blue-400/70 font-semibold">({notasAtivas.length})</span>
+              <span className="text-blue-600/70 dark:text-blue-400/70 font-semibold">({notasAtivas.length})</span>
             </div>
-            <div className="text-base font-bold text-blue-400 mt-1 tabular-nums">
+            <div className="text-base font-bold text-blue-600 dark:text-blue-400 mt-1 tabular-nums">
               {formatCurrency(totalValor)}
             </div>
           </div>
@@ -700,7 +700,7 @@ export default function NotasEmitidasPage() {
         {/* ─── Tabela ─────────────────────────────────────────────────── */}
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="bg-dark-900/50 text-dark-400 border-b border-dark-700">
+            <thead className="bg-slate-50 dark:bg-dark-900/50 text-slate-600 dark:text-dark-400 border-b border-slate-200 dark:border-dark-700">
               <tr>
                 <th className="px-4 py-3 font-medium w-28">Geração</th>
                 <th className="px-4 py-3 font-medium">Emitida para</th>
@@ -711,7 +711,7 @@ export default function NotasEmitidasPage() {
                 <th className="px-4 py-3 w-14" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-dark-700/50">
+            <tbody className="divide-y divide-slate-200 dark:divide-dark-700/50">
               {carregando && notasAtivas.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-16 text-center text-dark-400">
@@ -738,16 +738,16 @@ export default function NotasEmitidasPage() {
                     ? `${nota.data_venda.slice(5, 7)}/${nota.data_venda.slice(0, 4)}`
                     : '—'
                   return (
-                    <tr key={nota.id} className="hover:bg-dark-700/30 transition-colors group">
+                    <tr key={nota.id} className="hover:bg-slate-50 dark:hover:bg-dark-700/30 transition-colors group">
                       {/* Data Geração */}
-                      <td className="px-4 py-3.5 text-dark-300 text-xs tabular-nums">
+                      <td className="px-4 py-3.5 text-slate-600 dark:text-dark-300 text-xs tabular-nums">
                         {formatDate(nota.data_venda)}
                       </td>
 
                       {/* Cliente */}
-                      <td className="px-4 py-3.5 font-medium text-white max-w-[340px]">
+                      <td className="px-4 py-3.5 font-medium text-slate-900 dark:text-white max-w-[340px]">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="inline-flex items-center justify-center w-5 h-5 bg-blue-500/20 text-blue-400 text-center rounded text-[10px] font-bold leading-5 flex-shrink-0">
+                          <span className="inline-flex items-center justify-center w-5 h-5 bg-blue-500/20 text-blue-600 dark:text-blue-400 text-center rounded text-[10px] font-bold leading-5 flex-shrink-0">
                             T
                           </span>
                           <span className="truncate">
@@ -757,29 +757,29 @@ export default function NotasEmitidasPage() {
                       </td>
 
                       {/* Competência */}
-                      <td className="px-4 py-3.5 text-dark-300 text-center text-xs tabular-nums">
+                      <td className="px-4 py-3.5 text-slate-600 dark:text-dark-300 text-center text-xs tabular-nums">
                         {competencia}
                       </td>
 
                       {/* Município */}
-                      <td className="px-4 py-3.5 text-dark-300 text-xs">
+                      <td className="px-4 py-3.5 text-slate-600 dark:text-dark-300 text-xs">
                         Belo Horizonte/MG
                       </td>
 
                       {/* Valor */}
-                      <td className="px-4 py-3.5 text-white font-semibold text-right tabular-nums">
+                      <td className="px-4 py-3.5 text-slate-900 dark:text-white font-semibold text-right tabular-nums">
                         {formatCurrency(nota.valor_total)}
                       </td>
 
                       {/* Status */}
                       <td className="px-4 py-3.5 text-center">
                         {nota.status === 'enviado' ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                             <CheckCircle size={12} />
                             Emitida
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-400">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400">
                             <XCircle size={12} />
                             Cancelada
                           </span>
@@ -790,25 +790,25 @@ export default function NotasEmitidasPage() {
                       <td className="px-4 py-3.5 relative">
                         <button
                           onClick={() => setDropdownAberto(dropdownAberto === nota.id ? null : nota.id)}
-                          className="p-1.5 text-dark-400 hover:text-white hover:bg-dark-700 rounded transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 dark:text-dark-400 dark:hover:text-white dark:hover:bg-dark-700 rounded transition-colors cursor-pointer"
                         >
                           <MoreVertical size={16} />
                         </button>
 
                         {/* Dropdown de ações */}
                         {dropdownAberto === nota.id && (
-                          <div className="absolute right-10 top-2 w-52 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-50 py-1.5 flex flex-col animate-in fade-in zoom-in duration-150">
+                          <div className="absolute right-10 top-2 w-52 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl z-50 py-1.5 flex flex-col animate-in fade-in zoom-in duration-150">
                             {/* Visualizar */}
                             <button
                               onClick={() => { setNotaVisualizar(nota); setDropdownAberto(null) }}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-dark-300 hover:text-white hover:bg-dark-700 transition-colors text-left"
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-dark-700 transition-colors text-left cursor-pointer"
                             >
-                              <Eye size={15} className="text-blue-400" /> Visualizar
+                              <Eye size={15} className="text-blue-500 dark:text-blue-400" /> Visualizar
                             </button>
 
                             {/* Substituir (futuro) */}
                             <button
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-dark-500 cursor-not-allowed text-left"
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-400 dark:text-dark-500 cursor-not-allowed text-left"
                               disabled
                               title="Funcionalidade disponível na integração completa com a Receita"
                             >
@@ -819,13 +819,13 @@ export default function NotasEmitidasPage() {
                             {nota.status === 'enviado' && (
                               <button
                                 onClick={() => { setConfirmandoCancelar(nota); setDropdownAberto(null) }}
-                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors text-left"
+                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors text-left cursor-pointer"
                               >
                                 <XCircle size={15} /> Cancelar NFS-e
                               </button>
                             )}
 
-                            <div className="h-px bg-dark-700 my-1" />
+                            <div className="h-px bg-slate-200 dark:bg-dark-700 my-1" />
 
                             {/* Download XML */}
                             <button
@@ -835,9 +835,9 @@ export default function NotasEmitidasPage() {
                                 setDropdownAberto(null)
                                 toast.success('XML baixado com sucesso!')
                               }}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-dark-300 hover:text-white hover:bg-dark-700 transition-colors text-left"
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-dark-700 transition-colors text-left cursor-pointer"
                             >
-                              <FileCode size={15} className="text-emerald-500" /> Download XML
+                              <FileCode size={15} className="text-emerald-600 dark:text-emerald-500" /> Download XML
                             </button>
 
                             {/* Download DANFS-e */}
@@ -848,9 +848,9 @@ export default function NotasEmitidasPage() {
                                 setDropdownAberto(null)
                                 toast.success('DANFS-e baixado!')
                               }}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-dark-300 hover:text-white hover:bg-dark-700 transition-colors text-left"
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-dark-700 transition-colors text-left cursor-pointer"
                             >
-                              <Download size={15} className="text-blue-400" /> Download DANFS-e
+                              <Download size={15} className="text-blue-500 dark:text-blue-400" /> Download DANFS-e
                             </button>
 
                             {/* Imprimir */}
@@ -859,9 +859,9 @@ export default function NotasEmitidasPage() {
                                 imprimirDanfse(nota)
                                 setDropdownAberto(null)
                               }}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-dark-300 hover:text-white hover:bg-dark-700 transition-colors text-left"
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-dark-700 transition-colors text-left cursor-pointer"
                             >
-                              <Printer size={15} className="text-amber-400" /> Imprimir DANFS-e
+                              <Printer size={15} className="text-amber-500 dark:text-amber-400" /> Imprimir DANFS-e
                             </button>
                           </div>
                         )}
@@ -876,9 +876,9 @@ export default function NotasEmitidasPage() {
 
         {/* Rodapé da tabela */}
         {notasAtivas.length > 0 && (
-          <div className="px-4 py-3 border-t border-dark-700 flex items-center justify-between text-xs text-dark-400">
+          <div className="px-4 py-3 border-t border-slate-200 dark:border-dark-700 flex items-center justify-between text-xs text-slate-600 dark:text-dark-400">
             <span>{notasAtivas.length} nota{notasAtivas.length !== 1 ? 's' : ''} encontrada{notasAtivas.length !== 1 ? 's' : ''}</span>
-            <span className="text-dark-500">Últimos 30 dias • {abaAtiva === 'servicos' ? 'Gov.br NFS-e' : 'Conta Azul NF-e'}</span>
+            <span className="text-slate-500 dark:text-dark-500">Últimos 30 dias • {abaAtiva === 'servicos' ? 'Gov.br NFS-e' : 'Conta Azul NF-e'}</span>
           </div>
         )}
       </div>
@@ -1218,33 +1218,33 @@ export default function NotasEmitidasPage() {
       {/* ═══════════════════════════════════════════════════════════════ */}
       {confirmandoCancelar && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-dark-800 border border-dark-700 rounded-2xl w-full max-w-md shadow-2xl">
+          <div className="bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 rounded-2xl w-full max-w-md shadow-2xl">
             <div className="p-6 text-center space-y-4">
               <div className="w-16 h-16 bg-rose-500/15 rounded-full flex items-center justify-center mx-auto">
-                <AlertTriangle size={32} className="text-rose-400" />
+                <AlertTriangle size={32} className="text-rose-500 dark:text-rose-400" />
               </div>
-              <h2 className="text-lg font-bold text-white">Cancelar NFS-e?</h2>
-              <p className="text-dark-400 text-sm">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Cancelar NFS-e?</h2>
+              <p className="text-slate-600 dark:text-dark-400 text-sm">
                 Tem certeza que deseja cancelar a nota da{' '}
-                <strong className="text-white">OS #{confirmandoCancelar.os_numero}</strong> do cliente{' '}
-                <strong className="text-white">{confirmandoCancelar.cliente}</strong>?
+                <strong className="text-slate-900 dark:text-white">OS #{confirmandoCancelar.os_numero}</strong> do cliente{' '}
+                <strong className="text-slate-900 dark:text-white">{confirmandoCancelar.cliente}</strong>?
               </p>
-              <p className="text-rose-400/80 text-xs bg-rose-500/5 border border-rose-500/20 rounded-lg p-3">
+              <p className="text-rose-700 dark:text-rose-400/80 text-xs bg-rose-50 dark:bg-rose-500/5 border border-rose-200 dark:border-rose-500/20 rounded-lg p-3">
                 ⚠️ Esta ação não pode ser desfeita. A nota ficará marcada como cancelada no sistema.
               </p>
             </div>
-            <div className="border-t border-dark-700 px-6 py-4 flex gap-3 justify-end">
+            <div className="border-t border-slate-200 dark:border-dark-700 px-6 py-4 flex gap-3 justify-end">
               <button
                 onClick={() => setConfirmandoCancelar(null)}
                 disabled={cancelando}
-                className="px-4 py-2 bg-dark-700 text-dark-300 hover:text-white rounded-lg text-sm font-medium transition-colors"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-dark-700 text-slate-700 dark:text-dark-300 dark:hover:text-white rounded-lg text-sm font-medium transition-colors cursor-pointer"
               >
                 Voltar
               </button>
               <button
                 onClick={() => handleCancelar(confirmandoCancelar)}
                 disabled={cancelando}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white rounded-lg text-sm font-bold flex items-center gap-2 transition-colors cursor-pointer"
               >
                 {cancelando ? <Loader2 size={15} className="animate-spin" /> : <XCircle size={15} />}
                 {cancelando ? 'Cancelando...' : 'Confirmar Cancelamento'}

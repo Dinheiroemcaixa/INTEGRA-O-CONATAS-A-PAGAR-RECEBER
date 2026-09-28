@@ -607,22 +607,22 @@ export default function VendasServicosPage() {
               )}
 
               {/* Formulário de Busca do Datacar */}
-              <div className="bg-dark-800 border border-dark-700 rounded-xl p-5 animate-fade-in">
-                <div className="flex items-center justify-between flex-wrap gap-3 mb-4 pb-3 border-b border-dark-700/50">
-                  <div className="flex items-center gap-2 text-white font-semibold">
-                    <Database size={18} className="text-blue-400" />
+              <div className="bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 rounded-xl p-5 animate-fade-in shadow-xs dark:shadow-none">
+                <div className="flex items-center justify-between flex-wrap gap-3 mb-4 pb-3 border-b border-slate-200 dark:border-dark-700/50">
+                  <div className="flex items-center gap-2 text-slate-900 dark:text-white font-semibold">
+                    <Database size={18} className="text-blue-500 dark:text-blue-400" />
                     <h3>Buscar Serviços do Datacar {empresaAtiva ? `— ${empresaAtiva.nome}` : ''}</h3>
                   </div>
 
                   {/* Seletor rápido de tipo de itens */}
-                  <div className="flex items-center gap-1 bg-dark-900/80 p-1 rounded-xl border border-dark-700/60">
+                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-dark-900/80 p-1 rounded-xl border border-slate-200 dark:border-dark-700/60">
                     <button
                       type="button"
                       onClick={() => setFiltroTipoItens('tudo')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                         filtroTipoItens === 'tudo'
                           ? 'bg-brand-600 text-white shadow-md'
-                          : 'text-dark-400 hover:text-white'
+                          : 'text-slate-600 hover:text-slate-900 dark:text-dark-400 dark:hover:text-white'
                       }`}
                     >
                       🛍️ Todos os Itens
@@ -630,10 +630,10 @@ export default function VendasServicosPage() {
                     <button
                       type="button"
                       onClick={() => setFiltroTipoItens('servicos')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                         filtroTipoItens === 'servicos'
                           ? 'bg-emerald-600 text-white shadow-md'
-                          : 'text-dark-400 hover:text-white'
+                          : 'text-slate-600 hover:text-slate-900 dark:text-dark-400 dark:hover:text-white'
                       }`}
                     >
                       🔧 Apenas Serviços
@@ -644,12 +644,12 @@ export default function VendasServicosPage() {
                 <div className="flex items-end gap-4 flex-wrap">
                   {/* Tipo Período */}
                   <div>
-                    <label className="text-xs font-medium mb-1 block text-dark-400">Tipo período:</label>
+                    <label className="text-xs font-medium mb-1 block text-slate-600 dark:text-dark-400">Tipo período:</label>
                     <select
                       value={tipoPeriodoVendas}
                       onChange={(e) => setTipoPeriodoVendas(e.target.value as any)}
                       disabled={!!numeroOS}
-                      className={`bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none ${numeroOS ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      className={`bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none cursor-pointer ${numeroOS ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <option value="criacao">Criação/Abertura</option>
                       <option value="previsao">Previsão</option>
@@ -661,37 +661,37 @@ export default function VendasServicosPage() {
 
                   {/* Datas */}
                   <div>
-                    <label className="text-xs font-medium mb-1 block text-dark-400">Data Início</label>
+                    <label className="text-xs font-medium mb-1 block text-slate-600 dark:text-dark-400">Data Início</label>
                     <div className="relative">
-                      <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+                      <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400" />
                       <input
                         type="date"
                         value={dtIni}
                         onChange={(e) => setDtIni(e.target.value)}
-                        className="bg-dark-900 border border-dark-600 rounded-lg pl-10 pr-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-40"
+                        className="bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-600 rounded-lg pl-10 pr-3 py-2 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-40"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-medium mb-1 block text-dark-400">Data Fim</label>
+                    <label className="text-xs font-medium mb-1 block text-slate-600 dark:text-dark-400">Data Fim</label>
                     <div className="relative">
-                      <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+                      <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400" />
                       <input
                         type="date"
                         value={dtFim}
                         onChange={(e) => setDtFim(e.target.value)}
-                        className="bg-dark-900 border border-dark-600 rounded-lg pl-10 pr-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-40"
+                        className="bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-600 rounded-lg pl-10 pr-3 py-2 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-40"
                       />
                     </div>
                   </div>
 
                   {/* Situação e OS */}
                   <div>
-                    <label className="text-xs font-medium mb-1 block text-dark-400">Situação:</label>
+                    <label className="text-xs font-medium mb-1 block text-slate-600 dark:text-dark-400">Situação:</label>
                     <select
                       value={situacaoVendas}
                       onChange={(e) => setSituacaoVendas(e.target.value as any)}
-                      className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
+                      className="bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none cursor-pointer"
                     >
                       <option value="todas">Todas</option>
                       <option value="em_andamento">Em Andamento</option>
@@ -702,13 +702,13 @@ export default function VendasServicosPage() {
                   </div>
                   
                   <div>
-                    <label className="text-xs font-medium mb-1 block text-dark-400">Buscar por OS/Pedido:</label>
+                    <label className="text-xs font-medium mb-1 block text-slate-600 dark:text-dark-400">Buscar por OS/Pedido:</label>
                     <input
                       type="text"
                       placeholder="Ex: 12345"
                       value={numeroOS}
                       onChange={(e) => setNumeroOS(e.target.value)}
-                      className="bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-32"
+                      className="bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none w-32"
                     />
                   </div>
 
@@ -716,7 +716,7 @@ export default function VendasServicosPage() {
                   <button
                     onClick={buscarDatacar}
                     disabled={buscando}
-                    className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-colors shadow-lg"
+                    className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-colors shadow-lg cursor-pointer"
                   >
                     {buscando ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
                     {buscando ? 'Buscando...' : 'Buscar'}
@@ -727,15 +727,15 @@ export default function VendasServicosPage() {
               {/* Loading */}
               {buscando && (
                 <div className="flex items-center justify-center py-16">
-                  <Loader2 size={28} className="animate-spin text-blue-400" />
+                  <Loader2 size={28} className="animate-spin text-blue-500 dark:text-blue-400" />
                 </div>
               )}
 
               {/* Sem vendas */}
               {!buscando && vendasDatacar.length === 0 && (
-                <div className="bg-dark-800 border border-dark-700 rounded-xl p-12 text-center">
-                  <Database size={40} className="text-dark-600 mx-auto mb-3" />
-                  <p className="text-dark-400 text-sm font-medium">
+                <div className="bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 rounded-xl p-12 text-center shadow-xs dark:shadow-none">
+                  <Database size={40} className="text-slate-300 dark:text-dark-600 mx-auto mb-3" />
+                  <p className="text-slate-600 dark:text-dark-400 text-sm font-medium">
                     Faça uma busca para ver as ordens de serviços do Datacar.
                   </p>
                 </div>
@@ -744,16 +744,15 @@ export default function VendasServicosPage() {
               {/* Título de Resultados da Busca */}
               {!buscando && vendasDatacar.length > 0 && (
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-white font-bold text-sm tracking-wide">Resultados da Busca ({vendasDatacar.length})</h3>
+                  <h3 className="text-slate-900 dark:text-white font-bold text-sm tracking-wide">Resultados da Busca ({vendasDatacar.length})</h3>
                 </div>
               )}
 
-              
               {/* Lista de vendas com Layout Rico de Alta Densidade */}
               {!buscando && vendasDatacar.length > 0 && (
                 <div className="space-y-3">
                   {/* Barra de Controle de Seleção */}
-                  <div className="flex items-center justify-between px-4 py-3 bg-dark-850 border border-dark-700/80 rounded-2xl shadow-sm">
+                  <div className="flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-dark-850 border border-slate-200 dark:border-dark-700/80 rounded-2xl shadow-xs">
                     <div className="flex items-center gap-3">
                       <input
                         type="checkbox"
@@ -762,10 +761,10 @@ export default function VendasServicosPage() {
                           selecionadosDatacar.size === vendasDatacar.filter(v => v.status === 'pendente').length
                         }
                         onChange={toggleTodosDatacar}
-                        className="w-4 h-4 rounded border-dark-600 bg-dark-900 text-emerald-500 focus:ring-emerald-500"
+                        className="w-4 h-4 rounded border-slate-300 dark:border-dark-600 bg-white dark:bg-dark-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
                       />
-                      <span className="text-xs text-dark-300 font-semibold">
-                        Selecionar todas as pendentes (<strong className="text-white">{selecionadosDatacar.size}</strong> de {vendasDatacar.length})
+                      <span className="text-xs text-slate-600 dark:text-dark-300 font-semibold">
+                        Selecionar todas as pendentes (<strong className="text-slate-900 dark:text-white">{selecionadosDatacar.size}</strong> de {vendasDatacar.length})
                       </span>
                     </div>
 
@@ -773,7 +772,7 @@ export default function VendasServicosPage() {
                       <button
                         onClick={() => setShowPreviewEmissao(true)}
                         disabled={enviandoDatacar}
-                        className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-600/25 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-lg"
+                        className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-600/25 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-lg cursor-pointer"
                       >
                         {enviandoDatacar ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
                         {enviandoDatacar ? 'Aguarde...' : `⚡ Pré-visualizar & Emitir NFS-e (${selecionadosDatacar.size})`}
@@ -798,8 +797,8 @@ export default function VendasServicosPage() {
                           key={venda.id}
                           className={`border rounded-2xl transition-all duration-200 overflow-hidden ${
                             isSelected 
-                              ? 'border-emerald-500/40 bg-dark-850/95 shadow-[0_0_15px_rgba(16,185,129,0.1)]' 
-                              : 'border-dark-700/80 bg-dark-850/80 hover:border-dark-600'
+                              ? 'border-emerald-500/40 bg-emerald-50/50 dark:bg-dark-850/95 shadow-[0_0_15px_rgba(16,185,129,0.1)]' 
+                              : 'border-slate-200 dark:border-dark-700/80 bg-white dark:bg-dark-850/80 hover:border-slate-300 dark:hover:border-dark-600 shadow-xs dark:shadow-none'
                           }`}
                         >
                           {/* Cabeçalho Principal do Card da OS */}
@@ -814,37 +813,37 @@ export default function VendasServicosPage() {
                                     type="checkbox"
                                     checked={isSelected}
                                     onChange={() => toggleSelecionadoDatacar(venda.id)}
-                                    className="w-4 h-4 rounded border-dark-600 bg-dark-900 text-emerald-500 focus:ring-emerald-500"
+                                    className="w-4 h-4 rounded border-slate-300 dark:border-dark-600 bg-white dark:bg-dark-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
                                   />
                                 ) : (
-                                  <CheckCircle size={18} className="text-emerald-400 flex-shrink-0" />
+                                  <CheckCircle size={18} className="text-emerald-500 dark:text-emerald-400 flex-shrink-0" />
                                 )}
                               </div>
 
                               <div className="space-y-1.5 flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-mono font-bold text-white text-sm">
+                                  <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">
                                     OS #{venda.os_numero}
                                   </span>
                                   {veiculo && (
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                                       🚗 {veiculo}
                                     </span>
                                   )}
                                   
                                   {venda.forma_pagamento && (
-                                    <span className="text-[11px] text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20 font-medium">
+                                    <span className="text-[11px] text-cyan-700 dark:text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20 font-medium">
                                       💳 {venda.forma_pagamento}
                                     </span>
                                   )}
                                 </div>
 
                                 <div className="flex items-center gap-2 text-xs">
-                                  <span className="text-white font-bold truncate max-w-[280px]">
+                                  <span className="text-slate-900 dark:text-white font-bold truncate max-w-[280px]">
                                     {venda.cliente}
                                   </span>
                                   {venda.cliente_cpf_cnpj && (
-                                    <span className="text-dark-400 font-mono text-[11px]">
+                                    <span className="text-slate-500 dark:text-dark-400 font-mono text-[11px]">
                                       • {venda.cliente_cpf_cnpj}
                                     </span>
                                   )}
@@ -853,19 +852,19 @@ export default function VendasServicosPage() {
                             </div>
 
                             {/* Resumo Financeiro da OS */}
-                            <div className="flex items-center justify-between lg:justify-end gap-6 border-t lg:border-t-0 border-dark-700/50 pt-3 lg:pt-0">
+                            <div className="flex items-center justify-between lg:justify-end gap-6 border-t lg:border-t-0 border-slate-200 dark:border-dark-700/50 pt-3 lg:pt-0">
                               <div className="text-left lg:text-right space-y-0.5">
-                                <div className="flex items-center gap-2 text-[11px] text-dark-400">
-                                  <span>Peças: <strong className="text-white">{formatCurrency(totalProdutos)}</strong></span>
+                                <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-dark-400">
+                                  <span>Peças: <strong className="text-slate-900 dark:text-white">{formatCurrency(totalProdutos)}</strong></span>
                                   <span>•</span>
-                                  <span>Serviços: <strong className="text-white">{formatCurrency(totalServicos)}</strong></span>
+                                  <span>Serviços: <strong className="text-slate-900 dark:text-white">{formatCurrency(totalServicos)}</strong></span>
                                 </div>
                                 {totalDesconto > 0 && (
-                                  <p className="text-[11px] text-rose-400 font-semibold">
+                                  <p className="text-[11px] text-rose-600 dark:text-rose-400 font-semibold">
                                     Desconto: -{formatCurrency(totalDesconto)}
                                   </p>
                                 )}
-                                <p className="text-base font-black text-white tabular-nums drop-shadow-sm">
+                                <p className="text-base font-black text-slate-900 dark:text-white tabular-nums drop-shadow-sm">
                                   {formatCurrency(venda.valor_total)}
                                 </p>
                               </div>
@@ -874,7 +873,7 @@ export default function VendasServicosPage() {
                                 <button
                                   type="button"
                                   onClick={() => setEditandoDatacarId(venda.id)}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-300 bg-blue-600/15 hover:bg-blue-600/25 border border-blue-500/30 rounded-xl transition-all"
+                                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-300 bg-blue-600/10 hover:bg-blue-600/20 dark:bg-blue-600/15 dark:hover:bg-blue-600/25 border border-blue-500/30 rounded-xl transition-all cursor-pointer"
                                   title="Editar Dados e Descontos da Venda"
                                 >
                                   Editar
@@ -882,7 +881,7 @@ export default function VendasServicosPage() {
                                 <button
                                   type="button"
                                   onClick={() => removerVendaDatacar(venda.id)}
-                                  className="p-2 text-dark-500 hover:text-rose-400 bg-dark-900 hover:bg-rose-500/10 border border-dark-700 hover:border-rose-500/30 rounded-xl transition-all"
+                                  className="p-2 text-slate-400 hover:text-rose-600 dark:text-dark-500 dark:hover:text-rose-400 bg-slate-100 hover:bg-rose-50 dark:bg-dark-900 dark:hover:bg-rose-500/10 border border-slate-200 hover:border-rose-300 dark:border-dark-700 dark:hover:border-rose-500/30 rounded-xl transition-all cursor-pointer"
                                   title="Remover OS da lista"
                                 >
                                   <Trash2 size={14} />
@@ -893,12 +892,12 @@ export default function VendasServicosPage() {
 
                           {/* Seção Expandida com Tabela de Itens e Descontos */}
                           {isExpanded && (
-                            <div className="bg-dark-950/60 border-t border-dark-700/80 p-5 space-y-4 animate-fade-in">
+                            <div className="bg-slate-50 dark:bg-dark-950/60 border-t border-slate-200 dark:border-dark-700/80 p-5 space-y-4 animate-fade-in">
                               <div className="flex items-center justify-between">
-                                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                                   📦 Detalhamento de Peças e Serviços ({venda.itens?.length || 0})
                                 </h4>
-                                <span className="text-xs text-dark-400 font-mono">
+                                <span className="text-xs text-slate-500 dark:text-dark-400 font-mono">
                                   Data da OS: {formatDate(venda.data_venda)}
                                 </span>
                               </div>
@@ -962,15 +961,15 @@ export default function VendasServicosPage() {
                   </div>
 
                   {/* Rodapé da Lista com Ações em Lote */}
-                  <div className="flex items-center justify-between px-5 py-4 bg-dark-850 border border-dark-700/80 rounded-2xl shadow-sm text-sm">
-                    <p className="text-dark-400">
-                      <strong className="text-white">{selecionadosDatacar.size}</strong> de <strong className="text-white">{vendasDatacar.length}</strong> OS selecionadas
+                  <div className="flex items-center justify-between px-5 py-4 bg-slate-50 dark:bg-dark-850 border border-slate-200 dark:border-dark-700/80 rounded-2xl shadow-xs text-sm">
+                    <p className="text-slate-600 dark:text-dark-400">
+                      <strong className="text-slate-900 dark:text-white">{selecionadosDatacar.size}</strong> de <strong className="text-slate-900 dark:text-white">{vendasDatacar.length}</strong> OS selecionadas
                     </p>
                     {selecionadosDatacar.size > 0 && (
                       <button
                         onClick={() => setShowPreviewEmissao(true)}
                         disabled={enviandoDatacar}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-600/25 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-lg"
+                        className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-600/25 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-lg cursor-pointer"
                       >
                         {enviandoDatacar ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                         {enviandoDatacar ? 'Aguarde...' : `⚡ Pré-visualizar & Emitir NFS-e (${selecionadosDatacar.size})`}

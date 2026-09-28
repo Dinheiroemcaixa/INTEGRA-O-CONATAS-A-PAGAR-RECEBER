@@ -248,16 +248,16 @@ function EmpresasPageContent() {
   return (
     <div className="max-w-5xl mx-auto px-3.5 sm:px-6 py-5 space-y-4">
       {/* CABEÇALHO COMPACTO DA PÁGINA */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-dark-700/60">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-dark-700/60">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary-500/15 border border-primary-500/30 flex items-center justify-center text-primary-400">
+          <div className="w-8 h-8 rounded-lg bg-primary-500/15 border border-primary-500/30 flex items-center justify-center text-primary-600 dark:text-primary-400">
             <Building2 size={18} />
           </div>
           <div>
-            <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-tight">
+            <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">
               Empresas & Configurações
             </h1>
-            <p className="text-xs text-dark-400">
+            <p className="text-xs text-slate-500 dark:text-dark-400">
               Gestão de filiais, credenciais e integrações
             </p>
           </div>
@@ -269,7 +269,7 @@ function EmpresasPageContent() {
             type="button"
             onClick={handleCriarVazio}
             title="Criar card rápido em branco"
-            className="px-3 py-1.5 bg-dark-800 hover:bg-dark-700 text-dark-300 hover:text-white border border-dark-700 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
+            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-dark-800 dark:hover:bg-dark-700 text-slate-700 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white border border-slate-200 dark:border-dark-700 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
           >
             <FileText size={13} />
             <span>Card Rápido</span>
@@ -289,22 +289,22 @@ function EmpresasPageContent() {
       {/* BARRA DE BUSCA E STATUS */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
         <div className="relative flex-1 max-w-sm">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dark-400 pointer-events-none" />
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400 pointer-events-none" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por nome, razão social ou CNPJ..."
-            className="w-full h-10 bg-dark-900 border border-dark-700 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 rounded-lg pl-9 pr-3.5 text-sm text-white placeholder-dark-500 outline-none transition-colors font-normal"
+            className="w-full h-10 bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-700 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 rounded-lg pl-9 pr-3.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-dark-500 outline-none transition-colors font-normal"
           />
         </div>
 
-        <div className="flex items-center gap-2.5 text-xs text-dark-400">
+        <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-dark-400">
           <span>
-            Total: <strong className="text-white">{empresas.length}</strong> {empresas.length === 1 ? 'empresa' : 'empresas'}
+            Total: <strong className="text-slate-900 dark:text-white">{empresas.length}</strong> {empresas.length === 1 ? 'empresa' : 'empresas'}
           </span>
           {empresaAtiva && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
               <Sparkles size={11} />
               <span>Ativa: <strong>{empresaAtiva.nome}</strong></span>
             </span>
@@ -335,10 +335,10 @@ function EmpresasPageContent() {
             />
           ))
         ) : (
-          <div className="bg-dark-850/60 border border-dark-700/60 rounded-xl p-8 text-center space-y-2.5">
-            <Building2 size={32} className="mx-auto text-dark-500" />
-            <p className="text-sm font-semibold text-white">Nenhuma empresa encontrada</p>
-            <p className="text-xs text-dark-400 max-w-sm mx-auto">
+          <div className="bg-white dark:bg-dark-850/60 border border-slate-200 dark:border-dark-700/60 rounded-xl p-8 text-center space-y-2.5">
+            <Building2 size={32} className="mx-auto text-slate-400 dark:text-dark-500" />
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">Nenhuma empresa encontrada</p>
+            <p className="text-xs text-slate-500 dark:text-dark-400 max-w-sm mx-auto">
               {searchTerm
                 ? 'Nenhum resultado para os termos digitados.'
                 : 'Cadastre sua primeira empresa para começar.'}

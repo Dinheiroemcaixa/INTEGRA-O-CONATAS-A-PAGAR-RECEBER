@@ -529,20 +529,20 @@ export default function AuditoriaCategoriasPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 select-none">
       {/* Topo / Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-dark-900 border border-dark-700/80 p-6 rounded-2xl shadow-xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-700/80 p-6 rounded-2xl shadow-xl">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-400">
+            <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-500 dark:text-amber-400">
               <ShieldCheck size={26} />
             </div>
             <div>
-              <h1 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+              <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
                 Auditoria de Categorias
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30">
                   Inteligência Histórica
                 </span>
               </h1>
-              <p className="text-xs text-dark-400">
+              <p className="text-xs text-slate-500 dark:text-dark-400">
                 Aprende o padrão dos fornecedores nos 6 meses anteriores e identifica desvios de categorização no Conta Azul.
               </p>
             </div>
@@ -558,53 +558,53 @@ export default function AuditoriaCategoriasPage() {
       {empresaAtiva && (
         <div className={`p-5 rounded-2xl border transition-all shadow-lg ${
           statusEspelho.totalEspelhados === 0
-            ? 'bg-amber-950/30 border-amber-500/40'
-            : 'bg-dark-900 border-dark-700/80'
+            ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-500/40'
+            : 'bg-white dark:bg-dark-900 border-slate-200 dark:border-dark-700/80'
         }`}>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-start sm:items-center gap-3.5">
               <div className={`p-2.5 rounded-xl border flex-shrink-0 ${
                 statusEspelho.totalEspelhados === 0
-                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-400'
-                  : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400'
+                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-600 dark:text-amber-400'
+                  : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-600 dark:text-indigo-400'
               }`}>
                 <Database size={22} />
               </div>
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-sm font-bold text-white">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                     Base Espelho de Contas a Pagar
                   </h3>
                   {statusEspelho.carregando ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-dark-800 text-dark-300 border border-dark-700">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-dark-800 text-slate-600 dark:text-dark-300 border border-slate-200 dark:border-dark-700">
                       <RefreshCw size={10} className="animate-spin" /> Verificando...
                     </span>
                   ) : statusEspelho.totalEspelhados === 0 ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40">
                       <AlertCircle size={10} /> Base Vazia
                     </span>
                   ) : statusEspelho.totalEspelhados > 0 ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40">
                       <CheckCircle2 size={10} /> Sincronizada
                     </span>
                   ) : null}
                 </div>
 
                 {statusEspelho.totalEspelhados === 0 ? (
-                  <p className="text-xs text-amber-200/90 font-medium leading-relaxed">
+                  <p className="text-xs text-amber-800 dark:text-amber-200/90 font-medium leading-relaxed">
                     Esta empresa ainda não possui lançamentos sincronizados do Conta Azul. Clique em <strong>Sincronizar Conta Azul</strong> para carregar o histórico contábil.
                   </p>
                 ) : (
-                  <p className="text-xs text-dark-300">
+                  <p className="text-xs text-slate-600 dark:text-dark-300">
                     Lançamentos sincronizados e preparados para auditoria estatística.
                   </p>
                 )}
 
                 {/* Métricas e Detalhes de Sincronização */}
-                <div className="flex flex-wrap items-center gap-4 text-xs text-dark-400 pt-1">
+                <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-dark-400 pt-1">
                   <span>
                     Registros espelhados:{' '}
-                    <strong className="text-slate-200">
+                    <strong className="text-slate-800 dark:text-slate-200">
                       {statusEspelho.totalEspelhados === -1
                         ? '...'
                         : statusEspelho.totalEspelhados.toLocaleString('pt-BR')}
@@ -613,7 +613,7 @@ export default function AuditoriaCategoriasPage() {
                   <span>•</span>
                   <span>
                     Última sincronização:{' '}
-                    <strong className="text-slate-200">
+                    <strong className="text-slate-800 dark:text-slate-200">
                       {statusEspelho.ultimaSincronizacao
                         ? new Date(statusEspelho.ultimaSincronizacao).toLocaleString('pt-BR')
                         : 'Nunca realizada'}
@@ -622,7 +622,7 @@ export default function AuditoriaCategoriasPage() {
                   {statusEspelho.totalEspelhados > 0 && (
                     <>
                       <span>•</span>
-                      <span className="text-emerald-400 font-medium">Status: Operacional</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">Status: Operacional</span>
                     </>
                   )}
                 </div>
@@ -637,7 +637,7 @@ export default function AuditoriaCategoriasPage() {
                 className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shadow-lg transition-all ${
                   statusEspelho.totalEspelhados === 0
                     ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20'
-                    : 'bg-dark-800 hover:bg-dark-700 text-slate-200 border border-dark-600 hover:border-dark-500'
+                    : 'bg-slate-100 hover:bg-slate-200 dark:bg-dark-800 dark:hover:bg-dark-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-dark-600 hover:border-slate-300 dark:hover:border-dark-500'
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 <RefreshCw size={15} className={sincronizando ? 'animate-spin text-slate-950' : ''} />
@@ -648,8 +648,8 @@ export default function AuditoriaCategoriasPage() {
 
           {/* Feedback de Progresso Ativo */}
           {sincronizando && progressoSync && (
-            <div className="mt-4 pt-3 border-t border-dark-700/60 flex items-center gap-2.5 text-xs text-amber-300 animate-pulse">
-              <RefreshCw size={14} className="animate-spin text-amber-400" />
+            <div className="mt-4 pt-3 border-t border-slate-200 dark:border-dark-700/60 flex items-center gap-2.5 text-xs text-amber-700 dark:text-amber-300 animate-pulse">
+              <RefreshCw size={14} className="animate-spin text-amber-500 dark:text-amber-400" />
               <span>{progressoSync}</span>
             </div>
           )}
@@ -657,30 +657,30 @@ export default function AuditoriaCategoriasPage() {
       )}
 
       {/* Painel de Filtros e Disparo */}
-      <div className="bg-dark-900 border border-dark-700/80 p-6 rounded-2xl space-y-4 shadow-lg">
-        <div className="flex items-center justify-between border-b border-dark-700/60 pb-3">
-          <div className="flex items-center gap-2 text-sm font-bold text-slate-200">
-            <Calendar size={18} className="text-amber-400" />
+      <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-700/80 p-6 rounded-2xl space-y-4 shadow-lg">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-dark-700/60 pb-3">
+          <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-200">
+            <Calendar size={18} className="text-amber-500 dark:text-amber-400" />
             <span>Período a Auditar</span>
           </div>
 
           <div className="flex items-center gap-1.5 text-xs">
-            <span className="text-dark-400 mr-1 hidden sm:inline">Atalhos:</span>
+            <span className="text-slate-400 dark:text-dark-400 mr-1 hidden sm:inline">Atalhos:</span>
             <button
               onClick={() => aplicarPreset('mes_atual')}
-              className="px-2.5 py-1 rounded-lg bg-dark-800 hover:bg-dark-700 border border-dark-600 text-dark-300 hover:text-white transition-all text-xs"
+              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-700 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white transition-all text-xs"
             >
               Mês Atual
             </button>
             <button
               onClick={() => aplicarPreset('mes_anterior')}
-              className="px-2.5 py-1 rounded-lg bg-dark-800 hover:bg-dark-700 border border-dark-600 text-dark-300 hover:text-white transition-all text-xs"
+              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-700 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white transition-all text-xs"
             >
               Mês Anterior
             </button>
             <button
               onClick={() => aplicarPreset('ultimos_30d')}
-              className="px-2.5 py-1 rounded-lg bg-dark-800 hover:bg-dark-700 border border-dark-600 text-dark-300 hover:text-white transition-all text-xs"
+              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-700 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white transition-all text-xs"
             >
               Últimos 30d
             </button>
@@ -689,26 +689,26 @@ export default function AuditoriaCategoriasPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <div>
-            <label className="block text-xs font-semibold text-dark-300 mb-1.5">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-dark-300 mb-1.5">
               Data Inicial (Competência)
             </label>
             <input
               type="date"
               value={dataInicio}
               onChange={(e) => setDataInicio(e.target.value)}
-              className="w-full px-3 py-2.5 bg-dark-800 border border-dark-600 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-amber-500 transition-colors"
+              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl text-slate-900 dark:text-slate-200 text-sm focus:outline-none focus:border-amber-500 transition-colors"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-dark-300 mb-1.5">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-dark-300 mb-1.5">
               Data Final (Competência)
             </label>
             <input
               type="date"
               value={dataFim}
               onChange={(e) => setDataFim(e.target.value)}
-              className="w-full px-3 py-2.5 bg-dark-800 border border-dark-600 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-amber-500 transition-colors"
+              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl text-slate-900 dark:text-slate-200 text-sm focus:outline-none focus:border-amber-500 transition-colors"
             />
           </div>
 
@@ -734,12 +734,12 @@ export default function AuditoriaCategoriasPage() {
         </div>
 
         {resultado && (
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs text-dark-400 border-t border-dark-700/40">
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs text-slate-500 dark:text-dark-400 border-t border-slate-200 dark:border-dark-700/40">
             <div className="flex items-center gap-2">
-              <Database size={14} className="text-indigo-400" />
+              <Database size={14} className="text-indigo-500 dark:text-indigo-400" />
               <span>
                 Base de Aprendizado Histórico:{' '}
-                <strong className="text-slate-300">
+                <strong className="text-slate-800 dark:text-slate-300">
                   {formatDate(resultado.periodoHistoricoAprendizado.inicio)} até {formatDate(resultado.periodoHistoricoAprendizado.fim)}
                 </strong>{' '}
                 (últimos 6 meses)

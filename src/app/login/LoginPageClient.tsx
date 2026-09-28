@@ -86,25 +86,25 @@ export default function LoginPageClient() {
       titulo: 'Integração Datacar DMS',
       descricao: 'Captura automática de ordens de serviço, peças aplicadas e movimentações diárias sem digitação.',
       icon: Car,
-      corIcon: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
+      corIcon: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20',
     },
     {
       titulo: 'Integração Conta Azul API v2',
       descricao: 'Sincronização bidirecional de lançamentos financeiros, centros de custos e conciliação bancária.',
       icon: Building2,
-      corIcon: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
+      corIcon: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
     },
     {
       titulo: 'Emissão Automática de NF-e & NFS-e',
       descricao: 'Faturamento em lote de peças com DANFE oficial e transmissão direta ao Emissor Nacional Gov.br.',
       icon: Receipt,
-      corIcon: 'text-purple-400 bg-purple-400/10 border-purple-400/20',
+      corIcon: 'text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20',
     },
     {
       titulo: 'Gestão Financeira Centralizada',
       descricao: 'Semáforo de consistência de fornecedores, agendamento de pagamentos e DDA unificado por loja.',
       icon: BarChart3,
-      corIcon: 'text-blue-400 bg-blue-400/10 border-blue-400/20',
+      corIcon: 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20',
     },
   ]
 
@@ -114,12 +114,12 @@ export default function LoginPageClient() {
       {/* ========================================================================= */}
       {/* COLUNA ESQUERDA — BRANDING & BENEFÍCIOS INSTITUCIONAIS (DESKTOP)          */}
       {/* ========================================================================= */}
-      <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between p-12 xl:p-16 overflow-hidden bg-[#070b14] text-white border-r border-slate-200/10 dark:border-white/[0.06]">
+      <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between p-12 xl:p-16 overflow-hidden bg-slate-100 dark:bg-[#070b14] text-slate-900 dark:text-white border-r border-slate-200 dark:border-white/[0.06]">
         
         {/* Glows e Ambient Lights decorativos */}
-        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-emerald-500/15 filter blur-3xl pointer-events-none" />
-        <div className="absolute top-1/2 -right-24 w-96 h-96 rounded-full bg-blue-500/10 filter blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 left-1/3 w-96 h-96 rounded-full bg-purple-500/10 filter blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 filter blur-3xl pointer-events-none" />
+        <div className="absolute top-1/2 -right-24 w-96 h-96 rounded-full bg-blue-500/5 dark:bg-blue-500/10 filter blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 left-1/3 w-96 h-96 rounded-full bg-purple-500/5 dark:bg-purple-500/10 filter blur-3xl pointer-events-none" />
 
         {/* Topo: Logo */}
         <div className="relative z-10">
@@ -128,10 +128,10 @@ export default function LoginPageClient() {
               C
             </div>
             <div className="flex flex-col">
-              <span className="text-xl font-extrabold tracking-wider leading-none">
-                CONNECTA<span className="text-[#2ee88a] ml-1">AI</span>
+              <span className="text-xl font-extrabold tracking-wider leading-none text-slate-900 dark:text-white">
+                CONNECTA<span className="text-emerald-600 dark:text-[#2ee88a] ml-1">AI</span>
               </span>
-              <span className="text-[10px] text-slate-400 font-medium tracking-widest uppercase mt-0.5">
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-widest uppercase mt-0.5">
                 BPO Financeiro & Automação Fiscal
               </span>
             </div>
@@ -140,16 +140,16 @@ export default function LoginPageClient() {
 
         {/* Centro: Título Institucional e Benefícios */}
         <div className="relative z-10 my-auto py-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold mb-6">
-            <Sparkles size={13} className="text-emerald-400 animate-pulse" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-xs font-semibold mb-6">
+            <Sparkles size={13} className="text-emerald-600 dark:text-emerald-400 animate-pulse" />
             <span>PLATAFORMA MULTI-TENANT DE ALTA PERFORMANCE</span>
           </div>
 
-          <h1 className="text-3xl xl:text-4xl font-black tracking-tight leading-tight text-white mb-4">
-            Gestão financeira e fiscal integrada, <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#2ee88a] via-emerald-400 to-teal-300">sem retrabalho.</span>
+          <h1 className="text-3xl xl:text-4xl font-black tracking-tight leading-tight text-slate-900 dark:text-white mb-4">
+            Gestão financeira e fiscal integrada, <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 dark:from-[#2ee88a] dark:via-emerald-400 dark:to-teal-300">sem retrabalho.</span>
           </h1>
 
-          <p className="text-sm xl:text-base text-slate-300 leading-relaxed mb-8 max-w-xl">
+          <p className="text-sm xl:text-base text-slate-600 dark:text-slate-300 leading-relaxed mb-8 max-w-xl">
             Conecte seu ERP ao ecossistema Conta Azul e Gov.br. Monitore pagamentos, audite categorias e emita notas fiscais com total conformidade.
           </p>
 
@@ -160,16 +160,16 @@ export default function LoginPageClient() {
               return (
                 <div 
                   key={idx}
-                  className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-xs hover:bg-white/[0.06] hover:border-emerald-500/30 transition-all duration-200"
+                  className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-white/70 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.06] backdrop-blur-xs hover:bg-white dark:hover:bg-white/[0.06] hover:border-emerald-500/30 transition-all duration-200 shadow-xs dark:shadow-none"
                 >
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${b.corIcon}`}>
                     <IconComp size={18} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white leading-snug">
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">
                       {b.titulo}
                     </h3>
-                    <p className="text-xs text-slate-400 leading-relaxed mt-0.5">
+                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mt-0.5">
                       {b.descricao}
                     </p>
                   </div>
@@ -180,9 +180,9 @@ export default function LoginPageClient() {
         </div>
 
         {/* Rodapé da Coluna Esquerda */}
-        <div className="relative z-10 flex items-center justify-between pt-6 border-t border-white/[0.08] text-xs text-slate-400">
+        <div className="relative z-10 flex items-center justify-between pt-6 border-t border-slate-200 dark:border-white/[0.08] text-xs text-slate-500 dark:text-slate-400">
           <div className="flex items-center gap-2">
-            <ShieldCheck size={16} className="text-emerald-400" />
+            <ShieldCheck size={16} className="text-emerald-600 dark:text-emerald-400" />
             <span>Conexão Criptografada SSL 256-bit</span>
           </div>
           <div>© 2026 Connecta AI</div>
