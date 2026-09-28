@@ -27,9 +27,18 @@ export const THEME_STORAGE_KEY = 'connecta_theme'
 export function loadThemeShared(): boolean {
   if (typeof window === 'undefined') return false
   try {
+    // 1. Tentar ler do cookie primeiro (síncrono e compartilhado entre sessões)
+    const match = document.cookie.match(/(?:^|; )connecta_theme=([^;]*)/)
+    if (match && match[1] === 'dark') return true
+    if (match && match[1] === 'light') return false
+
+    // 2. Fallback para localStorage
     const saved = localStorage.getItem(THEME_STORAGE_KEY)
     if (saved === 'dark') return true
     if (saved === 'light') return false
+
+    // 3. Fallback para classe já aplicada no <html> pelo script do layout
+    if (document.documentElement.classList.contains('dark')) return true
   } catch { /* empty */ }
   return false // Padrão: light
 }
@@ -37,7 +46,9 @@ export function loadThemeShared(): boolean {
 export function saveThemeShared(darkMode: boolean) {
   if (typeof window === 'undefined') return
   try {
-    localStorage.setItem(THEME_STORAGE_KEY, darkMode ? 'dark' : 'light')
+    const val = darkMode ? 'dark' : 'light'
+    localStorage.setItem(THEME_STORAGE_KEY, val)
+    document.cookie = `${THEME_STORAGE_KEY}=${val}; path=/; max-age=31536000; SameSite=Lax`
   } catch { /* empty */ }
 }
 
@@ -103,10 +114,26 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
     darkMode: loadThemeShared(),
   }))
   const userIdRef = useRef<string | null>(null)
+  const isMountedRef = useRef(false)
   const supabase = createClient()
 
-  // Aplica classe no HTML e persiste na chave pública connecta_theme
+  // Aplica classe no HTML e persiste somente em interações reais do usuário
   useEffect(() => {
+    if (!isMountedRef.current) {
+      isMountedRef.current = true
+      // Na montagem inicial no cliente, garante que o estado reflita o que já estava salvo
+      const initial = loadThemeShared()
+      if (initial !== config.darkMode) {
+        setConfig(prev => ({ ...prev, darkMode: initial }))
+      }
+      if (initial) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+      return
+    }
+
     if (config.darkMode) {
       document.documentElement.classList.add('dark')
     } else {
@@ -145,6 +172,7 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
           ...prev,
           accentColor: cache.accentColor || prev.accentColor,
           nomeExibicao: cache.nomeExibicao || prev.nomeExibicao,
+          darkMode: cache.darkMode !== undefined ? cache.darkMode : prev.darkMode,
         }))
       }
 

@@ -23,7 +23,8 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                var t = localStorage.getItem('connecta_theme');
+                var match = document.cookie.match(/(?:^|; )connecta_theme=([^;]*)/);
+                var t = match ? match[1] : localStorage.getItem('connecta_theme');
                 if (t === 'dark') {
                   document.documentElement.classList.add('dark');
                 } else {
