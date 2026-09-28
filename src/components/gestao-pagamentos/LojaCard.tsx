@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Trash2, Upload, Search, Calendar, RefreshCw, ChevronDown, ChevronLeft, ChevronRight,
   ArrowRightLeft, Sparkles, Edit2, X, Paperclip, FileText, Send,
-  Copy, CheckCircle2
+  Copy, CheckCircle2, ArrowDownRight, ArrowUpRight, TrendingUp, TrendingDown, Clock, ShieldCheck, Wallet, Plus
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ModalAgendamento from '@/components/agendamento/ModalAgendamento'
@@ -906,34 +906,54 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   }
 
   return (
-    <div className="bg-[#11141c] border border-dark-700 rounded-2xl overflow-hidden shadow-2xl animate-fade-in">
-      <div className="p-6 border-b border-dark-700 flex flex-col md:flex-row justify-between items-center gap-4">
+    <div className="bg-white dark:bg-dark-850/90 border border-slate-200/80 dark:border-dark-700/70 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-shadow">
+      <div className="p-6 border-b border-slate-200/80 dark:border-dark-700 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-slate-50/60 dark:bg-dark-900/40">
         <div className="flex items-center gap-4 flex-wrap">
-          <h2 className="text-2xl font-black text-white uppercase tracking-tight">
-            {empresa.nome}
-          </h2>
-          <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full">
-            <Calendar size={12} className="text-amber-500" />
-            <span className="text-xs font-bold text-amber-500 uppercase tracking-wider">
-              Filtrado: {labelPeriodoAtivo()}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-brand-500/10 dark:bg-brand-500/15 border border-brand-500/20 dark:border-brand-500/30 flex items-center justify-center text-brand-600 dark:text-brand-400 font-bold shadow-xs">
+              {empresa.nome.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                  {empresa.nome}
+                </h2>
+                {/* Selo de Status Ativo */}
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-xs">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  ATIVA
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500 dark:text-dark-400">
+                <Clock size={12} className="text-slate-400 dark:text-dark-500" />
+                <span>Última atualização: {new Date().toLocaleDateString('pt-BR')}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl shadow-xs">
+            <Calendar size={13} className="text-amber-600 dark:text-amber-500" />
+            <span className="text-xs font-bold text-amber-700 dark:text-amber-500 uppercase tracking-wider">
+              {labelPeriodoAtivo()}
             </span>
           </div>
+
           <div className="relative">
-            <button onClick={() => setMenuExcluirAberto(!menuExcluirAberto)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-dark-800 text-dark-300 hover:text-rose-400 hover:bg-rose-500/10 transition-colors">
+            <button onClick={() => setMenuExcluirAberto(!menuExcluirAberto)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 dark:bg-dark-800 dark:text-dark-300 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-colors cursor-pointer" title="Opções da loja">
               <Trash2 size={16} />
             </button>
 
             {menuExcluirAberto && (
-              <div className="absolute top-full mt-2 left-0 w-64 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
+              <div className="absolute top-full mt-2 left-0 w-64 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-100 dark:divide-dark-700/50">
                 <button
                   onClick={() => { setMenuExcluirAberto(false); handleLimparRegistrosDoDia() }}
-                  className="w-full text-left px-4 py-3 text-sm font-semibold text-dark-200 hover:bg-dark-700 transition-colors border-b border-dark-700/50"
+                  className="w-full text-left px-4 py-3 text-sm font-semibold text-slate-700 dark:text-dark-200 hover:bg-slate-50 dark:hover:bg-dark-700 transition-colors cursor-pointer"
                 >
                   Excluir lançamentos do período
                 </button>
                 <button
                   onClick={handleRemoverLojaDoGrupo}
-                  className="w-full text-left px-4 py-3 text-sm font-semibold text-rose-400 hover:bg-rose-500/10 transition-colors"
+                  className="w-full text-left px-4 py-3 text-sm font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
                 >
                   Remover loja deste grupo
                 </button>
@@ -945,7 +965,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             <button
               onClick={navegarPeriodoAnterior}
               title="Voltar período (anterior)"
-              className="p-2 bg-dark-800 border border-dark-600 hover:bg-dark-700 text-dark-300 hover:text-white rounded-lg transition-colors flex items-center justify-center"
+              className="p-2 bg-white dark:bg-dark-800 hover:bg-slate-100 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-700 text-slate-600 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white rounded-xl transition-colors flex items-center justify-center cursor-pointer shadow-xs"
             >
               <ChevronLeft size={16} />
             </button>
@@ -953,24 +973,24 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             <div className="relative">
               <button
                 onClick={() => setMenuPeriodoAberto(!menuPeriodoAberto)}
-                className="flex items-center gap-2 bg-dark-800 border border-dark-600 hover:bg-dark-700 text-white rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors min-w-[160px] justify-between"
+                className="flex items-center gap-2 bg-white dark:bg-dark-800 hover:bg-slate-50 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-700 text-slate-800 dark:text-white rounded-xl px-4 py-2 text-sm font-semibold transition-all min-w-[160px] justify-between cursor-pointer shadow-xs"
               >
                 <span className="flex items-center gap-2">
-                  <Calendar size={14} className="text-dark-400" />
+                  <Calendar size={14} className="text-slate-500 dark:text-dark-400" />
                   {labelPeriodoAtivo()}
                 </span>
                 <ChevronDown size={14} className={menuPeriodoAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
               </button>
 
               {menuPeriodoAberto && (
-                <div className="absolute top-full mt-2 left-0 w-52 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
+                <div className="absolute top-full mt-2 left-0 w-52 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
                   {OPCOES_PERIODO.map(op => (
                     <button
                       key={op.key}
                       onClick={() => aplicarPeriodo(op.key)}
-                      className={`w-full text-left px-4 py-2.5 text-sm font-semibold transition-colors ${
-                        periodoAtivo === op.key ? 'bg-blue-600 text-white' : 'text-dark-200 hover:bg-dark-700'
-                      } ${op.key === 'personalizado' ? 'border-t border-dark-700' : ''}`}
+                      className={`w-full text-left px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer ${
+                        periodoAtivo === op.key ? 'bg-brand-600 text-white' : 'text-slate-700 dark:text-dark-200 hover:bg-slate-100 dark:hover:bg-dark-700'
+                      } ${op.key === 'personalizado' ? 'border-t border-slate-200 dark:border-dark-700' : ''}`}
                     >
                       {op.label}
                     </button>
@@ -982,7 +1002,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             <button
               onClick={navegarPeriodoProximo}
               title="Avançar período (próximo)"
-              className="p-2 bg-dark-800 border border-dark-600 hover:bg-dark-700 text-dark-300 hover:text-white rounded-lg transition-colors flex items-center justify-center"
+              className="p-2 bg-white dark:bg-dark-800 hover:bg-slate-100 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-700 text-slate-600 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white rounded-xl transition-colors flex items-center justify-center cursor-pointer shadow-xs"
             >
               <ChevronRight size={16} />
             </button>
@@ -998,84 +1018,103 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                   setDataInicio(novaDataInicio)
                   if (dataFim < novaDataInicio) setDataFim(novaDataInicio)
                 }}
-                className="bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-1.5 text-sm outline-none w-36"
+                className="bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-sm outline-none w-36 focus:border-brand-500"
               />
-              <span className="text-dark-500 text-sm">até</span>
+              <span className="text-slate-400 dark:text-dark-500 text-sm">até</span>
               <input
                 type="date"
                 value={dataFim}
                 min={dataInicio}
                 onChange={e => setDataFim(e.target.value)}
-                className="bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-1.5 text-sm outline-none w-36"
+                className="bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-sm outline-none w-36 focus:border-brand-500"
               />
-              <button onClick={carregarPagamentos} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-blue-900/20">
+              <button onClick={carregarPagamentos} className="flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-colors shadow-xs cursor-pointer">
                 <Search size={14} /> Filtrar
               </button>
             </div>
           )}
         </div>
 
-        <div className="bg-dark-800/60 border border-dark-700 rounded-xl px-5 py-3 text-right">
-          <p className="text-[10px] font-bold text-dark-400 uppercase tracking-widest mb-1">Saldo em Caixa</p>
-          <div className="flex items-baseline gap-1 justify-end">
-            <span className="text-dark-500 font-bold text-sm">R$</span>
-            <InputMoeda
-              value={saldoCaixaPendente}
-              onChange={setSaldoCaixaPendente}
-              disabled={salvandoSaldo}
-              onBlur={handleSalvarSaldoCaixa}
-              permiteNegativo
-              title="Digite o saldo real da conta desta loja (pode ser negativo)"
-              className={`text-xl font-bold bg-transparent text-right w-56 outline-none border-b-2 border-transparent focus:border-blue-500 transition-colors disabled:opacity-50 ${
-                saldoCaixaPendente < 0 ? 'text-rose-400' : 'text-emerald-400'
-              }`}
-            />
+        {/* Card Saldo em Caixa - Destaque Principal com Glow Verde Suave (Padrão Stripe/Ramp) */}
+        <div className="relative group w-full lg:w-auto">
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-2xl blur-md opacity-70 group-hover:opacity-100 transition duration-300" />
+          <div className="relative bg-white dark:bg-dark-850 border border-emerald-500/30 dark:border-emerald-500/40 rounded-2xl px-6 py-4 text-right shadow-sm hover:shadow-emerald-500/10 transition-all flex flex-col justify-between min-w-[280px]">
+            <div className="flex items-center justify-between gap-3 mb-1.5">
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <Wallet size={11} /> Saldo em Caixa
+              </span>
+              <span className="text-[10px] font-semibold text-slate-400 dark:text-dark-400">
+                {salvandoSaldo ? 'Salvando...' : 'Clique para editar'}
+              </span>
+            </div>
+
+            <div className="flex items-baseline gap-1.5 justify-end my-0.5">
+              <span className="text-emerald-600/70 dark:text-emerald-400/70 font-extrabold text-base">R$</span>
+              <InputMoeda
+                value={saldoCaixaPendente}
+                onChange={setSaldoCaixaPendente}
+                disabled={salvandoSaldo}
+                onBlur={handleSalvarSaldoCaixa}
+                permiteNegativo
+                title="Digite o saldo real da conta desta loja (pode ser negativo)"
+                className={`text-2xl sm:text-3xl font-black bg-transparent text-right w-60 outline-none border-b-2 border-transparent hover:border-emerald-500/30 focus:border-emerald-500 transition-colors disabled:opacity-50 font-mono tabular-nums tracking-tight ${
+                  saldoCaixaPendente < 0 ? 'text-rose-500 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
+                }`}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-1.5 mt-1 pt-1.5 border-t border-slate-100 dark:border-dark-750">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <p className="text-[11px] font-medium text-slate-500 dark:text-dark-400">
+                Disponível para operação
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="p-4 bg-[#0d1017] border-b border-dark-700 flex flex-col md:flex-row items-center gap-4 justify-between">
-        <div className="flex items-center gap-3">
+      <div className="p-4 bg-slate-50 dark:bg-[#0d1017] border-b border-slate-200/80 dark:border-dark-700 flex flex-col md:flex-row items-center gap-4 justify-between transition-colors">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="relative">
             <button
               onClick={() => setMenuImportarAberto(!menuImportarAberto)}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-lg shadow-blue-900/20"
+              className="flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-xs cursor-pointer"
             >
               <Upload size={16} /> Importar Arquivos <ChevronDown size={14} className={menuImportarAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
             </button>
 
             {menuImportarAberto && (
-              <div className="absolute top-full mt-2 left-0 w-56 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
-                <label className="flex items-center gap-3 px-4 py-3 hover:bg-dark-700 cursor-pointer transition-colors border-b border-dark-700/50">
-                  <FileText size={16} className="text-blue-400" />
-                  <span className="text-sm font-semibold text-white">DDA</span>
+              <div className="absolute top-full mt-2 left-0 w-56 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-100 dark:divide-dark-700/50">
+                <label className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-dark-700 cursor-pointer transition-colors">
+                  <FileText size={16} className="text-blue-500 dark:text-blue-400" />
+                  <span className="text-sm font-semibold text-slate-800 dark:text-white">DDA</span>
                   <input data-loja={empresa.id} type="file" accept="image/*,application/pdf" className="hidden" onChange={e => handleImportarArquivo(e, 'dda')} disabled={importando} />
                 </label>
-                <label className="flex items-center gap-3 px-4 py-3 hover:bg-dark-700 cursor-pointer transition-colors">
-                  <FileText size={16} className="text-emerald-400" />
-                  <span className="text-sm font-semibold text-white">Folha de Pagamento</span>
+                <label className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-dark-700 cursor-pointer transition-colors">
+                  <FileText size={16} className="text-emerald-500 dark:text-emerald-400" />
+                  <span className="text-sm font-semibold text-slate-800 dark:text-white">Folha de Pagamento</span>
                   <input data-loja={empresa.id} type="file" accept="application/pdf" className="hidden" onChange={e => handleImportarArquivo(e, 'folha')} disabled={importando} />
                 </label>
               </div>
             )}
           </div>
 
-          <button onClick={() => setModalAgendamentoAberto(true)} className="flex items-center gap-2 bg-transparent border border-dark-600 hover:bg-dark-800 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all">
-            <Calendar size={16} className="text-blue-400" /> Agendamento
+          <button onClick={() => setModalAgendamentoAberto(true)} className="flex items-center gap-2 bg-white dark:bg-transparent border border-slate-200 dark:border-dark-600 hover:bg-slate-100 dark:hover:bg-dark-800 text-slate-700 dark:text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-xs cursor-pointer">
+            <Calendar size={16} className="text-blue-500 dark:text-blue-400" /> Agendamento
           </button>
-          <button onClick={() => setModalTransferenciaAberto(true)} className="flex items-center gap-2 bg-transparent border border-dark-600 hover:bg-dark-800 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all">
-            <ArrowRightLeft size={16} className="text-emerald-400" /> Transferência
+          <button onClick={() => setModalTransferenciaAberto(true)} className="flex items-center gap-2 bg-white dark:bg-transparent border border-slate-200 dark:border-dark-600 hover:bg-slate-100 dark:hover:bg-dark-800 text-slate-700 dark:text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-xs cursor-pointer">
+            <ArrowRightLeft size={16} className="text-emerald-500 dark:text-emerald-400" /> Transferência
           </button>
         </div>
       </div>
 
       {selecionadosIndividuais.length > 0 && (
-        <div className="p-3 bg-blue-950/40 border-b border-blue-500/30 flex flex-wrap items-center justify-between gap-3 animate-fade-in">
+        <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border-b border-blue-200 dark:border-blue-500/30 flex flex-wrap items-center justify-between gap-3 animate-fade-in">
           <div className="flex items-center gap-3">
-            <span className="bg-blue-600 text-white text-xs font-black px-2.5 py-1 rounded-full shadow">
+            <span className="bg-brand-600 text-white text-xs font-black px-2.5 py-1 rounded-full shadow-xs">
               {selecionadosIndividuais.length} selecionado{selecionadosIndividuais.length > 1 ? 's' : ''}
             </span>
-            <span className="text-sm font-bold text-blue-200">
+            <span className="text-sm font-bold text-blue-900 dark:text-blue-200">
               Total: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                 pagamentosIndividuais
                   .filter(p => selecionadosIndividuais.includes(p.id))
@@ -1091,7 +1130,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                 const itens = pagamentosIndividuais.filter(p => selecionadosIndividuais.includes(p.id))
                 handleEnviarParaContasAPagar(itens)
               }}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-black transition-all shadow-lg shadow-blue-900/30"
+              className="flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-xl text-xs font-black transition-all shadow-xs cursor-pointer"
             >
               <Send size={14} /> Enviar p/ Contas a Pagar (Conta Azul)
             </button>
@@ -1102,7 +1141,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                 handleAgendarEmLote(selecionadosIndividuais)
                 setSelecionadosIndividuais([])
               }}
-              className="flex items-center gap-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-400 px-3 py-2 rounded-lg text-xs font-bold transition-all"
+              className="flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer"
             >
               <CheckCircle2 size={14} /> Agendar
             </button>
@@ -1113,7 +1152,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                 const itens = pagamentosIndividuais.filter(p => selecionadosIndividuais.includes(p.id))
                 abrirEdicaoEmMassa(itens)
               }}
-              className="flex items-center gap-1.5 bg-dark-700 hover:bg-dark-600 text-white px-3 py-2 rounded-lg text-xs font-semibold transition-all border border-dark-600"
+              className="flex items-center gap-1.5 bg-white hover:bg-slate-100 dark:bg-dark-700 dark:hover:bg-dark-600 text-slate-800 dark:text-white px-3 py-2 rounded-xl text-xs font-semibold transition-all border border-slate-200 dark:border-dark-600 cursor-pointer shadow-xs"
             >
               <Edit2 size={14} /> Editar em Massa
             </button>
@@ -1124,7 +1163,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                 const itens = pagamentosIndividuais.filter(p => selecionadosIndividuais.includes(p.id))
                 abrirModalTransferir(itens)
               }}
-              className="flex items-center gap-1.5 bg-dark-700 hover:bg-dark-600 text-emerald-400 px-3 py-2 rounded-lg text-xs font-semibold transition-all border border-dark-600"
+              className="flex items-center gap-1.5 bg-white hover:bg-slate-100 dark:bg-dark-700 dark:hover:bg-dark-600 text-emerald-600 dark:text-emerald-400 px-3 py-2 rounded-xl text-xs font-semibold transition-all border border-slate-200 dark:border-dark-600 cursor-pointer shadow-xs"
             >
               <ArrowRightLeft size={14} /> Transferir Loja
             </button>
@@ -1135,7 +1174,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                 handleExcluirEmLote(selecionadosIndividuais)
                 setSelecionadosIndividuais([])
               }}
-              className="flex items-center gap-1.5 bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-400 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
+              className="flex items-center gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-600 dark:text-rose-400 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer"
             >
               <Trash2 size={14} /> Excluir
             </button>
@@ -1143,7 +1182,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             <button
               type="button"
               onClick={() => setSelecionadosIndividuais([])}
-              className="text-dark-400 hover:text-white px-2 py-1 text-xs transition-colors"
+              className="text-slate-500 hover:text-slate-900 dark:text-dark-400 dark:hover:text-white px-2 py-1 text-xs transition-colors cursor-pointer"
             >
               Desmarcar
             </button>
@@ -1151,10 +1190,10 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         </div>
       )}
 
-      <div className="overflow-x-auto min-h-[150px]">
-        <table className="w-full text-left border-collapse">
+      <div className="overflow-x-auto min-h-[150px] custom-scrollbar">
+        <table className="w-full min-w-[850px] text-left border-collapse">
           <thead>
-            <tr className="bg-[#0b0e14] border-b border-dark-700 text-[10px] uppercase font-bold tracking-widest text-dark-400">
+            <tr className="bg-slate-100/95 dark:bg-dark-900/95 backdrop-blur-md border-b border-slate-200 dark:border-dark-700/80 text-[10px] uppercase font-bold tracking-widest text-slate-500 dark:text-dark-400">
               <th className="w-10 px-3 py-2.5 text-center">
                 {pagamentosIndividuais.filter(p => p.origem !== 'Transferência' && p.origem !== 'Transferência Recebida').length > 0 && (
                   <input
@@ -1166,7 +1205,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         .every(p => selecionadosIndividuais.includes(p.id))
                     }
                     onChange={toggleSelecionarTodosIndividuais}
-                    className="rounded bg-dark-800 border-dark-600 text-blue-600 focus:ring-0 cursor-pointer w-3.5 h-3.5"
+                    className="rounded bg-white dark:bg-dark-800 border-slate-300 dark:border-dark-600 text-brand-600 focus:ring-0 cursor-pointer w-3.5 h-3.5"
                     title="Selecionar / Desmarcar todos os agendamentos"
                   />
                 )}
@@ -1181,98 +1220,122 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
               <th className="px-4 py-2.5 text-center">AÇÕES</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-dark-700/50">
+          <tbody className="divide-y divide-slate-100 dark:divide-dark-700/50">
             {carregando ? (
               <tr>
-                <td colSpan={9} className="p-12 text-center text-dark-500 font-semibold text-sm">
-                  <RefreshCw className="animate-spin mx-auto mb-3" size={24} />
-                  Carregando...
+                <td colSpan={9} className="p-12 text-center text-slate-400 dark:text-dark-500 font-semibold text-sm">
+                  <RefreshCw className="animate-spin mx-auto mb-3 text-brand-500" size={24} />
+                  Carregando lançamentos...
                 </td>
               </tr>
             ) : pagamentos.length === 0 ? (
               <tr>
-                <td colSpan={9} className="p-12 text-center text-dark-500 font-semibold text-sm uppercase tracking-wider">
-                  Nenhum lançamento ativo para esta loja.
+                <td colSpan={9} className="py-14 px-4 text-center">
+                  <div className="max-w-md mx-auto flex flex-col items-center">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 dark:border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-3 shadow-xs">
+                      <CheckCircle2 size={24} />
+                    </div>
+                    <h4 className="text-slate-900 dark:text-white font-bold text-base">
+                      Nenhum pagamento agendado
+                    </h4>
+                    <p className="text-slate-500 dark:text-dark-400 text-xs sm:text-sm mt-1 mb-5">
+                      Tudo conciliado para esta loja no período selecionado.
+                    </p>
+                    <div className="flex items-center gap-2.5 flex-wrap justify-center">
+                      <button
+                        onClick={() => setMenuImportarAberto(true)}
+                        className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                      >
+                        <Upload size={14} /> Importar Arquivo
+                      </button>
+                      <button
+                        onClick={() => setModalAgendamentoAberto(true)}
+                        className="inline-flex items-center gap-2 bg-white dark:bg-dark-800 hover:bg-slate-50 dark:hover:bg-dark-700 text-slate-700 dark:text-white border border-slate-200 dark:border-dark-700 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                      >
+                        <Plus size={14} className="text-brand-500" /> Criar Agendamento
+                      </button>
+                    </div>
+                  </div>
                 </td>
               </tr>
             ) : (
               <>
                 {pagamentosDda.length > 0 && (
-                  <tr className="bg-dark-800/20 hover:bg-dark-800/40 transition-colors border-l-4 border-l-blue-500">
+                  <tr className="bg-blue-50/50 dark:bg-dark-800/20 hover:bg-blue-100/50 dark:hover:bg-dark-800/40 transition-colors border-l-4 border-l-blue-500">
                     <td className="w-10 px-3 py-2.5 text-center"></td>
                     <td className="px-4 py-2.5">
-                      <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-blue-500/10 text-blue-400">DDA</span>
+                      <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">DDA</span>
                     </td>
-                    <td className="px-4 py-2.5 font-bold text-white text-sm max-w-[140px] truncate">Lançamentos DDA</td>
-                    <td className="px-4 py-2.5 text-sm text-dark-300 max-w-[110px] truncate">{categoriaDda}</td>
-                    <td className="px-4 py-2.5 text-sm text-dark-300 max-w-[320px] xl:max-w-[500px] truncate">Total de {pagamentosDda.length} itens importados</td>
+                    <td className="px-4 py-2.5 font-bold text-slate-900 dark:text-white text-sm max-w-[140px] truncate">Lançamentos DDA</td>
+                    <td className="px-4 py-2.5 text-sm text-slate-600 dark:text-dark-300 max-w-[110px] truncate">{categoriaDda}</td>
+                    <td className="px-4 py-2.5 text-sm text-slate-600 dark:text-dark-300 max-w-[320px] xl:max-w-[500px] truncate">Total de {pagamentosDda.length} itens importados</td>
                     <td className="px-4 py-2.5">
                       <span className={`text-[10px] font-bold px-3 py-1 rounded border uppercase tracking-wider ${situacaoDda.classe}`}>{situacaoDda.label}</span>
                     </td>
-                    <td className="px-4 py-2.5 text-sm text-dark-300 font-semibold">—</td>
-                    <td className="px-4 py-2.5 font-black text-rose-400 text-sm text-right tabular-nums">
+                    <td className="px-4 py-2.5 text-sm text-slate-500 dark:text-dark-300 font-semibold">—</td>
+                    <td className="px-4 py-2.5 font-black text-rose-600 dark:text-rose-400 text-sm text-right tabular-nums">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pagamentosDda.reduce((acc, curr) => acc + Number(curr.valor), 0))}
                     </td>
                     <td className="px-4 py-2.5 text-center">
-                      <button onClick={() => setModalDetalhesDda(true)} className="bg-dark-800 hover:bg-dark-700 border border-dark-600 text-white rounded p-1.5 transition-colors" title="Visualizar Lançamentos">
-                        <Search size={16} className="text-dark-300" />
+                      <button onClick={() => setModalDetalhesDda(true)} className="bg-white hover:bg-slate-100 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-700 dark:text-white rounded-lg p-1.5 transition-colors cursor-pointer shadow-xs" title="Visualizar Lançamentos">
+                        <Search size={16} className="text-slate-500 dark:text-dark-300" />
                       </button>
                     </td>
                   </tr>
                 )}
 
                 {pagamentosFolha.length > 0 && (
-                  <tr className="bg-dark-800/10 hover:bg-dark-800/30 transition-colors border-l-4 border-l-emerald-500">
+                  <tr className="bg-emerald-50/50 dark:bg-dark-800/10 hover:bg-emerald-100/50 dark:hover:bg-dark-800/30 transition-colors border-l-4 border-l-emerald-500">
                     <td className="w-10 px-3 py-2.5 text-center"></td>
                     <td className="px-4 py-2.5">
-                      <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-emerald-500/10 text-emerald-400">FOLHA</span>
+                      <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">FOLHA</span>
                     </td>
-                    <td className="px-4 py-2.5 font-bold text-white text-sm max-w-[140px] truncate">Folha de Pagamento</td>
-                    <td className="px-4 py-2.5 text-sm text-dark-300 max-w-[110px] truncate">{categoriaFolha}</td>
-                    <td className="px-4 py-2.5 text-sm text-dark-300 max-w-[320px] xl:max-w-[500px] truncate">Total de {pagamentosFolha.length} colaboradores</td>
+                    <td className="px-4 py-2.5 font-bold text-slate-900 dark:text-white text-sm max-w-[140px] truncate">Folha de Pagamento</td>
+                    <td className="px-4 py-2.5 text-sm text-slate-600 dark:text-dark-300 max-w-[110px] truncate">{categoriaFolha}</td>
+                    <td className="px-4 py-2.5 text-sm text-slate-600 dark:text-dark-300 max-w-[320px] xl:max-w-[500px] truncate">Total de {pagamentosFolha.length} colaboradores</td>
                     <td className="px-4 py-2.5">
                       <span className={`text-[10px] font-bold px-3 py-1 rounded border uppercase tracking-wider ${situacaoFolha.classe}`}>{situacaoFolha.label}</span>
                     </td>
-                    <td className="px-4 py-2.5 text-sm text-dark-300 font-semibold">—</td>
-                    <td className="px-4 py-2.5 font-black text-rose-400 text-sm text-right tabular-nums">
+                    <td className="px-4 py-2.5 text-sm text-slate-500 dark:text-dark-300 font-semibold">—</td>
+                    <td className="px-4 py-2.5 font-black text-rose-600 dark:text-rose-400 text-sm text-right tabular-nums">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pagamentosFolha.reduce((acc, curr) => acc + Number(curr.valor), 0))}
                     </td>
                     <td className="px-4 py-2.5 text-center">
-                      <button onClick={() => setModalDetalhesFolha(true)} className="bg-dark-800 hover:bg-dark-700 border border-dark-600 text-white rounded p-1.5 transition-colors" title="Visualizar Lançamentos">
-                        <Search size={16} className="text-dark-300" />
+                      <button onClick={() => setModalDetalhesFolha(true)} className="bg-white hover:bg-slate-100 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-700 dark:text-white rounded-lg p-1.5 transition-colors cursor-pointer shadow-xs" title="Visualizar Lançamentos">
+                        <Search size={16} className="text-slate-500 dark:text-dark-300" />
                       </button>
                     </td>
                   </tr>
                 )}
 
                 {pagamentosIndividuais.map((pag, idx) => (
-                  <tr key={pag.id || idx} className={cn("hover:bg-dark-800/30 transition-colors border-b border-dark-700/50", selecionadosIndividuais.includes(pag.id) ? "bg-blue-950/20" : "bg-[#11141c]")}>
+                  <tr key={pag.id || idx} className={cn("hover:bg-slate-100/60 dark:hover:bg-white/[0.035] transition-colors border-b border-slate-100 dark:border-dark-700/50 even:bg-slate-50/50 dark:even:bg-white/[0.015]", selecionadosIndividuais.includes(pag.id) ? "bg-blue-50/70 dark:bg-blue-950/20" : "bg-transparent")}>
                     <td className="w-10 px-3 py-2.5 text-center">
                       {pag.origem !== 'Transferência' && pag.origem !== 'Transferência Recebida' ? (
                         <input
                           type="checkbox"
                           checked={selecionadosIndividuais.includes(pag.id)}
                           onChange={() => toggleItemIndividual(pag.id)}
-                          className="rounded bg-dark-800 border-dark-600 text-blue-600 focus:ring-0 cursor-pointer w-3.5 h-3.5"
+                          className="rounded bg-white dark:bg-dark-800 border-slate-300 dark:border-dark-600 text-brand-600 focus:ring-0 cursor-pointer w-3.5 h-3.5"
                         />
                       ) : null}
                     </td>
                     <td className="px-4 py-2.5">
                       <span className={`text-[10px] font-black uppercase px-2 py-1 rounded ${
-                        pag.origem === 'Transferência Recebida' ? 'bg-emerald-500/10 text-emerald-400'
-                        : pag.origem === 'Transferência' ? 'bg-dark-700 text-dark-300'
-                        : 'bg-violet-500/10 text-violet-400'
+                        pag.origem === 'Transferência Recebida' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        : pag.origem === 'Transferência' ? 'bg-slate-100 dark:bg-dark-700 text-slate-600 dark:text-dark-300'
+                        : 'bg-violet-500/10 text-violet-600 dark:text-violet-400'
                       }`}>
                         {pag.origem === 'Agendamento' ? 'AGEND' : pag.origem === 'Transferência Recebida' ? 'TRANSF. RECEB.' : pag.origem}
                       </span>
                     </td>
-                    <td className="px-4 py-2.5 font-bold text-white text-sm max-w-[140px] truncate" title={pag.fornecedor || pag.beneficiario || ''}>
+                    <td className="px-4 py-2.5 font-bold text-slate-900 dark:text-white text-sm max-w-[140px] truncate" title={pag.fornecedor || pag.beneficiario || ''}>
                       {pag.fornecedor || pag.beneficiario || '—'}
                     </td>
-                    <td className="px-4 py-2.5 text-sm text-dark-300 max-w-[110px] truncate" title={pag.categoria || ''}>
+                    <td className="px-4 py-2.5 text-sm text-slate-600 dark:text-dark-300 max-w-[110px] truncate" title={pag.categoria || ''}>
                       {pag.categoria || '—'}
                     </td>
-                    <td className="px-4 py-2.5 text-sm text-dark-300 max-w-[320px] xl:max-w-[500px]">
+                    <td className="px-4 py-2.5 text-sm text-slate-600 dark:text-dark-300 max-w-[320px] xl:max-w-[500px]">
                       <div className="truncate" title={
                         pag.descricao
                           ? `${String(pag.descricao).toUpperCase()}${pag.documento ? ' - DOC: ' + pag.documento : ''}`
@@ -1284,7 +1347,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                       </div>
                       {pag.codigo_barras && (
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[10px] text-dark-400 font-mono truncate max-w-[180px]">
+                          <span className="text-[10px] text-slate-400 dark:text-dark-400 font-mono truncate max-w-[180px]">
                             {pag.codigo_barras}
                           </span>
                           <button
@@ -1293,7 +1356,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                               navigator.clipboard.writeText(pag.codigo_barras)
                               toast.success('Código/PIX copiado com sucesso!')
                             }}
-                            className="p-1 hover:bg-dark-700 text-brand-400 hover:text-brand-300 rounded transition-colors flex-shrink-0"
+                            className="p-1 hover:bg-slate-100 dark:hover:bg-dark-700 text-brand-600 dark:text-brand-400 hover:text-brand-500 rounded transition-colors flex-shrink-0 cursor-pointer"
                             title="Copiar Código de Barras / PIX"
                           >
                             <Copy size={11} />
@@ -1302,27 +1365,27 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                       )}
                     </td>
                     <td className="px-4 py-2.5">
-                      <button onClick={() => toggleStatus(pag)} className={`text-[10px] font-bold px-2 py-1 rounded border uppercase tracking-wider transition-colors ${
+                      <button onClick={() => toggleStatus(pag)} className={`text-[10px] font-bold px-2 py-1 rounded border uppercase tracking-wider transition-colors cursor-pointer ${
                         pag.status === 'agendado'
-                          ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20'
-                          : 'bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20'
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20'
+                          : 'bg-amber-500/10 text-amber-600 dark:text-amber-500 border-amber-500/20 hover:bg-amber-500/20'
                       }`}>
                         {pag.status === 'agendado' ? 'AGENDADO' : 'EM ABERTO'}
                       </button>
                     </td>
-                    <td className="px-4 py-2.5 text-sm text-dark-300">
+                    <td className="px-4 py-2.5 text-sm text-slate-600 dark:text-dark-300">
                       {pag.data_pagamento ? pag.data_pagamento.split('-').reverse().join('/') : (pag.data_vencimento ? pag.data_vencimento.split('-').reverse().join('/') : '—')}
                     </td>
-                    <td className={`px-4 py-2.5 font-bold text-sm text-right tabular-nums ${pag.origem === 'Transferência Recebida' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    <td className={`px-4 py-2.5 font-bold text-sm text-right tabular-nums ${pag.origem === 'Transferência Recebida' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pag.valor)}
                     </td>
                     <td className="px-4 py-2.5 text-center">
                       <button
                         onClick={() => abrirAcoesLancamento(pag)}
-                        className="bg-dark-800 hover:bg-dark-700 border border-dark-600 text-white rounded p-1.5 transition-colors"
+                        className="bg-white hover:bg-slate-100 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-700 dark:text-white rounded-lg p-1.5 transition-colors cursor-pointer shadow-xs"
                         title="Ações do Lançamento"
                       >
-                        <Search size={16} className="text-dark-300" />
+                        <Search size={16} className="text-slate-500 dark:text-dark-300" />
                       </button>
                     </td>
                   </tr>
@@ -1333,24 +1396,55 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         </table>
       </div>
 
-      <div className="bg-[#0b0e14] border-t border-dark-700 px-6 py-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-dark-800/60 border border-dark-700 rounded-xl p-4">
-          <p className="text-[10px] font-bold text-dark-400 uppercase tracking-widest mb-1">Total Despesas</p>
-          <p className="text-lg font-black text-rose-500 tabular-nums">
-            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalDespesas)}
-          </p>
+      {/* KPIs da Loja Modernizados (Padrão Fintech Stripe/Brex) */}
+      <div className="bg-slate-50/80 dark:bg-dark-900/60 border-t border-slate-200/80 dark:border-dark-700 px-6 py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 transition-colors">
+        <div className="bg-white dark:bg-dark-850 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl p-4 shadow-xs hover:border-rose-500/30 transition-all flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-1">Total Despesas</p>
+            <p className="text-xl font-black text-rose-600 dark:text-rose-400 tabular-nums font-mono">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalDespesas)}
+            </p>
+            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5">Saídas programadas</p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center shadow-xs flex-shrink-0">
+            <ArrowDownRight size={20} />
+          </div>
         </div>
-        <div className="bg-dark-800/60 border border-dark-700 rounded-xl p-4">
-          <p className="text-[10px] font-bold text-dark-400 uppercase tracking-widest mb-1">Entradas (Transf)</p>
-          <p className="text-lg font-black text-emerald-500 tabular-nums">
-            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalEntradas)}
-          </p>
+
+        <div className="bg-white dark:bg-dark-850 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl p-4 shadow-xs hover:border-emerald-500/30 transition-all flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-1">Entradas (Transf)</p>
+            <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums font-mono">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalEntradas)}
+            </p>
+            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5">Aportes e transferências</p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs flex-shrink-0">
+            <ArrowUpRight size={20} />
+          </div>
         </div>
-        <div className="bg-dark-800/60 border border-dark-700 rounded-xl p-4">
-          <p className="text-[10px] font-bold text-dark-400 uppercase tracking-widest mb-1">Saldo Final Estimado</p>
-          <p className={`text-lg font-black tabular-nums ${saldoFinalEstimado < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(saldoFinalEstimado)}
-          </p>
+
+        <div className={`bg-white dark:bg-dark-850 border rounded-2xl p-4 shadow-xs transition-all flex items-center justify-between ${
+          saldoFinalEstimado < 0
+            ? 'border-rose-500/30 dark:border-rose-500/40 hover:border-rose-500/50'
+            : 'border-emerald-500/30 dark:border-emerald-500/40 hover:border-emerald-500/50'
+        }`}>
+          <div>
+            <p className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-1">Saldo Final Estimado</p>
+            <p className={`text-xl font-black tabular-nums font-mono ${
+              saldoFinalEstimado < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
+            }`}>
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(saldoFinalEstimado)}
+            </p>
+            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5">Caixa + Entradas - Despesas</p>
+          </div>
+          <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shadow-xs flex-shrink-0 ${
+            saldoFinalEstimado < 0
+              ? 'bg-rose-500/10 dark:bg-rose-500/15 border-rose-500/20 text-rose-600 dark:text-rose-400'
+              : 'bg-emerald-500/10 dark:bg-emerald-500/15 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+          }`}>
+            {saldoFinalEstimado < 0 ? <TrendingDown size={20} /> : <TrendingUp size={20} />}
+          </div>
         </div>
       </div>
 
@@ -1370,27 +1464,27 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       />
 
       {modalFolhaAberto && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#11141c] border border-dark-600 rounded-2xl p-6 w-full max-w-md shadow-2xl relative overflow-hidden">
-            <h2 className="text-xl font-bold text-white mb-4">Importar Folha de Pagamento</h2>
-            <p className="text-dark-300 text-sm mb-6">Por favor, informe a data de vencimento desta folha. A competência será calculada automaticamente.</p>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white dark:bg-[#11141c] border border-slate-200 dark:border-dark-600 rounded-2xl p-6 w-full max-w-md shadow-2xl relative overflow-hidden transition-colors">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Importar Folha de Pagamento</h2>
+            <p className="text-slate-500 dark:text-dark-300 text-sm mb-6 leading-relaxed">Por favor, informe a data de vencimento desta folha. A competência será calculada automaticamente.</p>
 
             <div className="mb-6">
-              <label className="block text-xs font-bold text-dark-400 uppercase tracking-widest mb-2">
+              <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase tracking-widest mb-2">
                 Data de Vencimento
               </label>
               <input
                 type="date"
                 value={vencimentoFolha}
                 onChange={e => setVencimentoFolha(e.target.value)}
-                className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-4 py-3 outline-none focus:border-emerald-500 transition-colors"
+                className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-4 py-2.5 outline-none focus:border-brand-500 transition-all text-sm"
               />
             </div>
 
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setModalFolhaAberto(false)}
-                className="px-4 py-2 text-dark-300 hover:text-white transition-colors text-sm font-semibold"
+                className="px-4 py-2 text-slate-600 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white transition-colors text-sm font-semibold cursor-pointer"
               >
                 Cancelar
               </button>
@@ -1400,7 +1494,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                     processarArquivo(arquivoFolha, 'folha', vencimentoFolha)
                   }
                 }}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-emerald-900/20"
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-xl text-sm font-bold transition-all shadow-xs cursor-pointer"
               >
                 Confirmar
               </button>
@@ -1462,20 +1556,20 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       />
 
       {modalEdicaoAberto && itemEditando && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <form onSubmit={handleSalvarEdicao} className="bg-[#11141c] border border-dark-600 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-5 border-b border-dark-700 flex items-center justify-between shrink-0">
-              <h3 className="text-white font-bold text-lg">Editar Lançamento</h3>
-              <button type="button" onClick={() => setModalEdicaoAberto(false)} className="text-dark-400 hover:text-white">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
+          <form onSubmit={handleSalvarEdicao} className="bg-white dark:bg-[#11141c] border border-slate-200 dark:border-dark-600 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-colors">
+            <div className="p-5 border-b border-slate-200 dark:border-dark-700 flex items-center justify-between shrink-0 bg-slate-50/50 dark:bg-transparent">
+              <h3 className="text-slate-900 dark:text-white font-bold text-lg">Editar Lançamento</h3>
+              <button type="button" onClick={() => setModalEdicaoAberto(false)} className="text-slate-400 hover:text-slate-700 dark:text-dark-400 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-dark-800 transition-colors cursor-pointer">
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6 space-y-4 overflow-y-auto">
+            <div className="p-6 space-y-4 overflow-y-auto custom-scrollbar">
               {itemEditando.origem === 'DDA' ? (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Beneficiário <span className="text-rose-400">*</span></label>
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Beneficiário <span className="text-rose-500">*</span></label>
                       {editandoFornecedorEdicao ? (
                         <SelectorFornecedor
                           valorInicial={itemEditando.beneficiario || ''}
@@ -1487,20 +1581,20 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         <button
                           type="button"
                           onClick={() => setEditandoFornecedorEdicao(true)}
-                          className="w-full text-left bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm hover:border-blue-500 transition-all truncate"
+                          className="w-full text-left bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl px-3 py-2 text-slate-900 dark:text-white text-sm hover:border-brand-500 transition-all truncate cursor-pointer shadow-xs"
                         >
-                          {itemEditando.beneficiario || <span className="text-dark-500">Clique para buscar...</span>}
+                          {itemEditando.beneficiario || <span className="text-slate-400 dark:text-dark-500">Clique para buscar...</span>}
                         </button>
                       )}
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Documento</label>
-                      <input type="text" value={itemEditando.documento || ''} onChange={e => setItemEditando({ ...itemEditando, documento: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Nº do documento" />
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Documento</label>
+                      <input type="text" value={itemEditando.documento || ''} onChange={e => setItemEditando({ ...itemEditando, documento: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" placeholder="Nº do documento" />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Categoria <span className="text-rose-400">*</span></label>
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Categoria <span className="text-rose-500">*</span></label>
                       {editandoCategoriaEdicao ? (
                         <SelectorCategoria
                           valorInicial={itemEditando.categoria || ''}
@@ -1512,14 +1606,14 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         <button
                           type="button"
                           onClick={() => setEditandoCategoriaEdicao(true)}
-                          className="w-full text-left bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm hover:border-blue-500 transition-all truncate"
+                          className="w-full text-left bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl px-3 py-2 text-slate-900 dark:text-white text-sm hover:border-brand-500 transition-all truncate cursor-pointer shadow-xs"
                         >
-                          {itemEditando.categoria || <span className="text-dark-500">Clique para buscar...</span>}
+                          {itemEditando.categoria || <span className="text-slate-400 dark:text-dark-500">Clique para buscar...</span>}
                         </button>
                       )}
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Conta de Pagamento</label>
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Conta de Pagamento</label>
                       {editandoContaEdicao ? (
                         <SelectorContaFinanceira
                           valorInicial={itemEditando.conta_pagamento || ''}
@@ -1531,37 +1625,37 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         <button
                           type="button"
                           onClick={() => setEditandoContaEdicao(true)}
-                          className="w-full text-left bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm hover:border-blue-500 transition-all truncate"
+                          className="w-full text-left bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl px-3 py-2 text-slate-900 dark:text-white text-sm hover:border-brand-500 transition-all truncate cursor-pointer shadow-xs"
                         >
-                          {itemEditando.conta_pagamento || <span className="text-dark-500">Clique para buscar...</span>}
+                          {itemEditando.conta_pagamento || <span className="text-slate-400 dark:text-dark-500">Clique para buscar...</span>}
                         </button>
                       )}
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Descrição</label>
-                    <input type="text" value={itemEditando.descricao || ''} onChange={e => setItemEditando({ ...itemEditando, descricao: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Detalhes..." />
+                    <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Descrição</label>
+                    <input type="text" value={itemEditando.descricao || ''} onChange={e => setItemEditando({ ...itemEditando, descricao: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" placeholder="Detalhes..." />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Valor (R$) <span className="text-rose-400">*</span></label>
-                      <InputMoeda value={Number(itemEditando.valor) || 0} onChange={v => setItemEditando({ ...itemEditando, valor: v })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Valor (R$) <span className="text-rose-500">*</span></label>
+                      <InputMoeda value={Number(itemEditando.valor) || 0} onChange={v => setItemEditando({ ...itemEditando, valor: v })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Vencimento <span className="text-rose-400">*</span></label>
-                      <input type="date" value={itemEditando.data_vencimento || ''} onChange={e => setItemEditando({ ...itemEditando, data_vencimento: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Vencimento <span className="text-rose-500">*</span></label>
+                      <input type="date" value={itemEditando.data_vencimento || ''} onChange={e => setItemEditando({ ...itemEditando, data_vencimento: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Data Pagamento</label>
-                      <input type="date" value={itemEditando.data_pagamento || ''} onChange={e => setItemEditando({ ...itemEditando, data_pagamento: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Data Pagamento</label>
+                      <input type="date" value={itemEditando.data_pagamento || ''} onChange={e => setItemEditando({ ...itemEditando, data_pagamento: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Competência</label>
-                      <input type="date" value={itemEditando.competencia || ''} onChange={e => setItemEditando({ ...itemEditando, competencia: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Competência</label>
+                      <input type="date" value={itemEditando.competencia || ''} onChange={e => setItemEditando({ ...itemEditando, competencia: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Situação</label>
-                      <select value={itemEditando.status || 'aberto'} onChange={e => setItemEditando({ ...itemEditando, status: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500">
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Situação</label>
+                      <select value={itemEditando.status || 'aberto'} onChange={e => setItemEditando({ ...itemEditando, status: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm cursor-pointer">
                         <option value="aberto">Em aberto</option>
                         <option value="agendado">Agendado</option>
                       </select>
@@ -1572,7 +1666,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Fornecedor / Colaborador</label>
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Fornecedor / Colaborador</label>
                       {editandoFornecedorEdicao ? (
                         <SelectorFornecedor
                           valorInicial={itemEditando.fornecedor || ''}
@@ -1584,15 +1678,15 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         <button
                           type="button"
                           onClick={() => setEditandoFornecedorEdicao(true)}
-                          className="w-full text-left bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm hover:border-blue-500 transition-all truncate"
+                          className="w-full text-left bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl px-3 py-2 text-slate-900 dark:text-white text-sm hover:border-brand-500 transition-all truncate cursor-pointer shadow-xs"
                         >
-                          {itemEditando.fornecedor || <span className="text-dark-500">Clique para buscar...</span>}
+                          {itemEditando.fornecedor || <span className="text-slate-400 dark:text-dark-500">Clique para buscar...</span>}
                         </button>
                       )}
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Forma de Pagamento</label>
-                      <select value={itemEditando.tipo || 'Outros'} onChange={e => setItemEditando({ ...itemEditando, tipo: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500">
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Forma de Pagamento</label>
+                      <select value={itemEditando.tipo || 'Outros'} onChange={e => setItemEditando({ ...itemEditando, tipo: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm cursor-pointer">
                         <option value="PIX">PIX</option>
                         <option value="Boleto">Boleto</option>
                         <option value="TED">TED</option>
@@ -1607,7 +1701,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Categoria <span className="text-rose-400">*</span></label>
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Categoria <span className="text-rose-500">*</span></label>
                       {editandoCategoriaEdicao ? (
                         <SelectorCategoria
                           valorInicial={itemEditando.categoria || ''}
@@ -1619,17 +1713,17 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         <button
                           type="button"
                           onClick={() => setEditandoCategoriaEdicao(true)}
-                          className="w-full text-left bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm hover:border-blue-500 transition-all truncate flex items-center justify-between"
+                          className="w-full text-left bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl px-3 py-2 text-slate-900 dark:text-white text-sm hover:border-brand-500 transition-all truncate flex items-center justify-between cursor-pointer shadow-xs"
                         >
-                          <span className={itemEditando.categoria ? "text-white" : "text-dark-500"}>
+                          <span className={itemEditando.categoria ? "text-slate-900 dark:text-white" : "text-slate-400 dark:text-dark-500"}>
                             {itemEditando.categoria || 'Clique para buscar categoria do Conta Azul...'}
                           </span>
-                          <ChevronDown size={14} className="text-dark-500" />
+                          <ChevronDown size={14} className="text-slate-400 dark:text-dark-500" />
                         </button>
                       )}
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Conta de Pagamento</label>
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Conta de Pagamento</label>
                       {editandoContaEdicao ? (
                         <SelectorContaFinanceira
                           valorInicial={itemEditando.conta_pagamento || ''}
@@ -1641,47 +1735,47 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         <button
                           type="button"
                           onClick={() => setEditandoContaEdicao(true)}
-                          className="w-full text-left bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm hover:border-blue-500 transition-all truncate"
+                          className="w-full text-left bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl px-3 py-2 text-slate-900 dark:text-white text-sm hover:border-brand-500 transition-all truncate cursor-pointer shadow-xs"
                         >
-                          {itemEditando.conta_pagamento || <span className="text-dark-500">Clique para buscar...</span>}
+                          {itemEditando.conta_pagamento || <span className="text-slate-400 dark:text-dark-500">Clique para buscar...</span>}
                         </button>
                       )}
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Descrição</label>
-                    <input type="text" value={itemEditando.descricao || ''} onChange={e => setItemEditando({ ...itemEditando, descricao: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Detalhes..." />
+                    <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Descrição</label>
+                    <input type="text" value={itemEditando.descricao || ''} onChange={e => setItemEditando({ ...itemEditando, descricao: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" placeholder="Detalhes..." />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Valor (R$) <span className="text-rose-400">*</span></label>
-                      <InputMoeda value={Number(itemEditando.valor) || 0} onChange={v => setItemEditando({ ...itemEditando, valor: v })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Valor (R$) <span className="text-rose-500">*</span></label>
+                      <InputMoeda value={Number(itemEditando.valor) || 0} onChange={v => setItemEditando({ ...itemEditando, valor: v })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Vencimento <span className="text-rose-400">*</span></label>
-                      <input type="date" value={itemEditando.data_vencimento || ''} onChange={e => setItemEditando({ ...itemEditando, data_vencimento: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Vencimento <span className="text-rose-500">*</span></label>
+                      <input type="date" value={itemEditando.data_vencimento || ''} onChange={e => setItemEditando({ ...itemEditando, data_vencimento: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Data Pagamento</label>
-                      <input type="date" value={itemEditando.data_pagamento || ''} onChange={e => setItemEditando({ ...itemEditando, data_pagamento: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Data Pagamento</label>
+                      <input type="date" value={itemEditando.data_pagamento || ''} onChange={e => setItemEditando({ ...itemEditando, data_pagamento: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Competência</label>
-                      <input type="date" value={itemEditando.competencia || ''} onChange={e => setItemEditando({ ...itemEditando, competencia: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Competência</label>
+                      <input type="date" value={itemEditando.competencia || ''} onChange={e => setItemEditando({ ...itemEditando, competencia: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">CPF/CNPJ</label>
-                      <input type="text" value={itemEditando.cpf_cnpj || ''} onChange={e => setItemEditando({ ...itemEditando, cpf_cnpj: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">CPF/CNPJ</label>
+                      <input type="text" value={itemEditando.cpf_cnpj || ''} onChange={e => setItemEditando({ ...itemEditando, cpf_cnpj: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Chave PIX</label>
-                      <input type="text" value={itemEditando.chave_pix || ''} onChange={e => setItemEditando({ ...itemEditando, chave_pix: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Chave PIX</label>
+                      <input type="text" value={itemEditando.chave_pix || ''} onChange={e => setItemEditando({ ...itemEditando, chave_pix: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Situação</label>
-                      <select value={itemEditando.status || 'aberto'} onChange={e => setItemEditando({ ...itemEditando, status: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500">
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Situação</label>
+                      <select value={itemEditando.status || 'aberto'} onChange={e => setItemEditando({ ...itemEditando, status: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm cursor-pointer">
                         <option value="aberto">Em aberto</option>
                         <option value="agendado">Agendado</option>
                       </select>
@@ -1689,15 +1783,15 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                   </div>
                   {(itemEditando.tipo === 'Boleto' || itemEditando.tipo === 'Imposto') && (
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Código de Barras</label>
-                      <input type="text" value={itemEditando.codigo_barras || ''} onChange={e => setItemEditando({ ...itemEditando, codigo_barras: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Código de barras ou linha digitável" />
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Código de Barras</label>
+                      <input type="text" value={itemEditando.codigo_barras || ''} onChange={e => setItemEditando({ ...itemEditando, codigo_barras: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" placeholder="Código de barras ou linha digitável" />
                     </div>
                   )}
                   {itemEditando.anexo_url && (
                     <button
                       type="button"
                       onClick={() => visualizarAnexo(itemEditando.anexo_url)}
-                      className="inline-flex items-center gap-2 text-xs text-emerald-400 hover:text-emerald-300 font-semibold"
+                      className="inline-flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-semibold cursor-pointer"
                     >
                       <Paperclip size={14} /> Ver anexo
                     </button>
@@ -1705,11 +1799,11 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                 </>
               )}
             </div>
-            <div className="p-5 border-t border-dark-700 flex justify-end gap-3 bg-[#0b0e14] shrink-0">
-              <button type="button" onClick={() => setModalEdicaoAberto(false)} className="px-4 py-2 text-dark-300 hover:text-white font-semibold text-sm">
+            <div className="p-5 border-t border-slate-200 dark:border-dark-700 flex justify-end gap-3 bg-slate-50/50 dark:bg-[#0b0e14] shrink-0">
+              <button type="button" onClick={() => setModalEdicaoAberto(false)} className="px-4 py-2 text-slate-600 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white font-semibold text-sm cursor-pointer">
                 Cancelar
               </button>
-              <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-blue-900/20">
+              <button type="submit" className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-xs cursor-pointer">
                 Salvar
               </button>
             </div>
@@ -1717,12 +1811,12 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         </div>
       )}
       {modalAcoesAberto && itemAcoes && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-[#11141c] border border-dark-600 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white dark:bg-[#11141c] border border-slate-200 dark:border-dark-600 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col transition-colors">
             
-            <div className="p-5 border-b border-dark-700 flex items-center justify-between shrink-0">
-              <h3 className="text-white font-bold text-lg">Ações do Lançamento</h3>
-              <button onClick={() => setModalAcoesAberto(false)} className="text-dark-400 hover:text-white p-1 rounded hover:bg-dark-800 transition-colors">
+            <div className="p-5 border-b border-slate-200 dark:border-dark-700 flex items-center justify-between shrink-0 bg-slate-50/50 dark:bg-transparent">
+              <h3 className="text-slate-900 dark:text-white font-bold text-lg">Ações do Lançamento</h3>
+              <button onClick={() => setModalAcoesAberto(false)} className="text-slate-400 hover:text-slate-700 dark:text-dark-400 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-dark-800 transition-colors cursor-pointer">
                 <X size={20} />
               </button>
             </div>
@@ -1731,35 +1825,35 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
               <div>
                 <div className="flex justify-between items-start mb-2">
                   <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded ${
-                    itemAcoes.origem === 'Transferência Recebida' ? 'bg-emerald-500/10 text-emerald-400'
-                    : itemAcoes.origem === 'Transferência' ? 'bg-dark-700 text-dark-300'
-                    : 'bg-violet-500/10 text-violet-400'
+                    itemAcoes.origem === 'Transferência Recebida' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    : itemAcoes.origem === 'Transferência' ? 'bg-slate-100 dark:bg-dark-700 text-slate-600 dark:text-dark-300'
+                    : 'bg-violet-500/10 text-violet-600 dark:text-violet-400'
                   }`}>
                     {itemAcoes.origem === 'Agendamento' ? 'Agendamento' : itemAcoes.origem}
                   </span>
-                  <span className={`text-lg font-black ${itemAcoes.origem === 'Transferência Recebida' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  <span className={`text-lg font-black ${itemAcoes.origem === 'Transferência Recebida' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemAcoes.valor)}
                   </span>
                 </div>
-                <h4 className="text-white font-bold text-base truncate">{itemAcoes.fornecedor || itemAcoes.beneficiario || 'Sem Fornecedor'}</h4>
-                <p className="text-dark-400 text-xs mt-1">Categoria: <span className="text-dark-200 font-semibold">{itemAcoes.categoria || '—'}</span></p>
+                <h4 className="text-slate-900 dark:text-white font-bold text-base truncate">{itemAcoes.fornecedor || itemAcoes.beneficiario || 'Sem Fornecedor'}</h4>
+                <p className="text-slate-500 dark:text-dark-400 text-xs mt-1">Categoria: <span className="text-slate-800 dark:text-dark-200 font-semibold">{itemAcoes.categoria || '—'}</span></p>
                 {itemAcoes.descricao && (
-                  <p className="text-dark-300 text-sm mt-3 bg-dark-800/40 p-3 rounded-lg border border-dark-700/50 italic">
+                  <p className="text-slate-600 dark:text-dark-300 text-sm mt-3 bg-slate-50 dark:bg-dark-800/40 p-3 rounded-xl border border-slate-200 dark:border-dark-700/50 italic">
                     "{itemAcoes.descricao}"
                   </p>
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4 text-xs bg-dark-850 p-3 rounded-xl border border-dark-700/50">
+              <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 dark:bg-dark-850 p-3 rounded-xl border border-slate-200 dark:border-dark-700/50">
                 <div>
-                  <span className="text-dark-500 uppercase font-bold block mb-1">Vencimento</span>
-                  <span className="text-white font-semibold">
+                  <span className="text-slate-400 dark:text-dark-500 uppercase font-bold block mb-1">Vencimento</span>
+                  <span className="text-slate-900 dark:text-white font-semibold">
                     {itemAcoes.data_vencimento ? itemAcoes.data_vencimento.split('-').reverse().join('/') : '—'}
                   </span>
                 </div>
                 <div>
-                  <span className="text-dark-500 uppercase font-bold block mb-1">Data Pagamento</span>
-                  <span className="text-white font-semibold">
+                  <span className="text-slate-400 dark:text-dark-500 uppercase font-bold block mb-1">Data Pagamento</span>
+                  <span className="text-slate-900 dark:text-white font-semibold">
                     {itemAcoes.data_pagamento ? itemAcoes.data_pagamento.split('-').reverse().join('/') : '—'}
                   </span>
                 </div>
@@ -1768,44 +1862,44 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
               {itemAcoes.codigo_barras ? (
                 <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Código de Barras</span>
+                    <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Código de Barras</span>
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(itemAcoes.codigo_barras)
                         toast.success('Código de barras copiado!')
                       }}
-                      className="flex items-center gap-1 text-[10px] font-black text-blue-400 hover:text-blue-300 transition-colors bg-blue-500/10 px-2.5 py-1 rounded"
+                      className="flex items-center gap-1 text-[10px] font-black text-blue-600 dark:text-blue-400 hover:text-blue-500 transition-colors bg-blue-500/10 px-2.5 py-1 rounded-lg cursor-pointer"
                       title="Copiar Código de Barras"
                     >
                       <Copy size={12} /> Copiar
                     </button>
                   </div>
-                  <div className="font-mono text-xs text-white break-all bg-dark-900/60 p-2.5 rounded border border-dark-700/50 tabular-nums tracking-widest select-all">
+                  <div className="font-mono text-xs text-slate-900 dark:text-white break-all bg-slate-100 dark:bg-dark-900/60 p-2.5 rounded-lg border border-slate-200 dark:border-dark-700/50 tabular-nums tracking-widest select-all">
                     {itemAcoes.codigo_barras}
                   </div>
                 </div>
               ) : (
                 (itemAcoes.tipo === 'Boleto' || itemAcoes.tipo === 'Imposto') && (
-                  <p className="text-dark-500 text-xs italic text-center">Nenhum código de barras cadastrado.</p>
+                  <p className="text-slate-400 dark:text-dark-500 text-xs italic text-center">Nenhum código de barras cadastrado.</p>
                 )
               )}
 
-              <div className="space-y-2 pt-2 border-t border-dark-700/50">
-                <span className="text-[10px] font-bold text-dark-500 uppercase tracking-widest block mb-1">Ações disponíveis</span>
+              <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-dark-700/50">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-dark-500 uppercase tracking-widest block mb-1">Ações disponíveis</span>
                 
                 <div className="grid grid-cols-2 gap-2.5">
                   {itemAcoes.anexo_url ? (
                     <button
                       type="button"
                       onClick={() => visualizarAnexo(itemAcoes.anexo_url)}
-                      className="flex items-center justify-center gap-2 bg-dark-800 hover:bg-dark-700 border border-dark-600 text-emerald-400 hover:text-emerald-300 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all"
+                      className="flex items-center justify-center gap-2 bg-slate-50 hover:bg-slate-100 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-600 text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs"
                     >
                       <Paperclip size={14} /> Ver Anexo
                     </button>
                   ) : (
                     <button
                       disabled
-                      className="flex items-center justify-center gap-2 bg-dark-800/40 border border-dark-700/30 text-dark-500 py-2.5 px-3 rounded-xl text-xs font-semibold cursor-not-allowed"
+                      className="flex items-center justify-center gap-2 bg-slate-100/50 dark:bg-dark-800/40 border border-slate-200 dark:border-dark-700/30 text-slate-400 dark:text-dark-500 py-2.5 px-3 rounded-xl text-xs font-semibold cursor-not-allowed"
                     >
                       <Paperclip size={14} /> Sem Anexo
                     </button>
@@ -1820,7 +1914,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                       setEditandoContaEdicao(false)
                       setEditandoFornecedorEdicao(false)
                     }}
-                    className="flex items-center justify-center gap-2 bg-dark-800 hover:bg-dark-700 border border-dark-600 text-white py-2.5 px-3 rounded-xl text-xs font-semibold transition-all"
+                    className="flex items-center justify-center gap-2 bg-slate-50 hover:bg-slate-100 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-800 dark:text-white py-2.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs"
                   >
                     <Edit2 size={14} /> Editar
                   </button>
@@ -1831,12 +1925,12 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         setModalAcoesAberto(false)
                         handleEnviarParaContasAPagar([itemAcoes])
                       }}
-                      className="flex items-center justify-center gap-2 bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/20 text-blue-400 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all"
+                      className="flex items-center justify-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-600 dark:text-blue-400 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer"
                     >
                       <Send size={14} /> Enviar p/ CP
                     </button>
                   ) : (
-                    <div className="flex items-center justify-center text-dark-500 text-xs italic bg-dark-800/20 rounded-xl border border-dark-700/20">
+                    <div className="flex items-center justify-center text-slate-400 dark:text-dark-500 text-xs italic bg-slate-100 dark:bg-dark-800/20 rounded-xl border border-slate-200 dark:border-dark-700/20">
                       Transf. externa
                     </div>
                   )}
@@ -1846,7 +1940,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                       setModalAcoesAberto(false)
                       handleExcluirIndividual(itemAcoes.id, itemAcoes.origem)
                     }}
-                    className="flex items-center justify-center gap-2 bg-rose-600/10 hover:bg-rose-600/20 border border-rose-500/20 text-rose-400 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all"
+                    className="flex items-center justify-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-600 dark:text-rose-400 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer"
                   >
                     <Trash2 size={14} /> Excluir
                   </button>

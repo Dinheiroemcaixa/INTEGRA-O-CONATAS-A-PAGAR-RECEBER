@@ -101,16 +101,16 @@ export default function Sidebar() {
           isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        {/* Logo do app + Botão Fechar Mobile (Logo ampliado e refinado) */}
-        <div className="p-4 flex items-center justify-between min-h-[96px] lg:min-h-[112px] border-b border-slate-200/70 dark:border-white/[0.06] mb-1 bg-gradient-to-b from-slate-50/50 to-transparent dark:from-white/[0.02]">
+        {/* Logo da Marca Dinheiro em Caixa */}
+        <div className="relative px-3.5 py-3 flex items-center justify-center bg-slate-50/80 dark:bg-[#1e293b] border-b border-slate-200/70 dark:border-white/[0.08] mb-1 transition-colors">
           <img 
             src="/images/dinheiro-em-caixa-logo.png" 
             alt="Dinheiro em Caixa" 
-            className="w-full max-w-[155px] lg:max-w-[185px] h-auto object-contain drop-shadow-sm transition-transform duration-300 hover:scale-[1.03]" 
+            className="w-full max-w-[228px] h-auto object-contain transition-transform duration-300 hover:scale-[1.02]" 
           />
           <button
             onClick={closeMobile}
-            className="lg:hidden p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-dark-800 transition-colors cursor-pointer"
+            className="absolute right-3 top-3 lg:hidden p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-dark-800 transition-colors cursor-pointer"
             title="Fechar menu"
           >
             <X size={18} />
