@@ -344,6 +344,11 @@ export default function VendasPage() {
     setEnviandoDatacar(true)
     setMostrarErrosProgresso(false)
 
+    // Garante que o usuário visualize imediatamente o card de progresso
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+
     setProgressoEnvio({
       ativo: true,
       origem: 'datacar',
@@ -1406,6 +1411,9 @@ export default function VendasPage() {
                     })}
                   </div>
 
+                  {/* Card de Progresso no Rodapé da Lista (visível mesmo ao rolar até o final) */}
+                  {renderCardProgresso('datacar')}
+
                   {/* Rodapé da Lista com Ações em Lote */}
                   <div className="flex items-center justify-between px-5 py-4 bg-slate-50 dark:bg-dark-850 border border-slate-200 dark:border-dark-700/80 rounded-2xl shadow-xs text-sm">
                     <p className="text-slate-600 dark:text-dark-400">
@@ -1418,7 +1426,9 @@ export default function VendasPage() {
                         className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-blue-600/25 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-lg cursor-pointer"
                       >
                         {enviandoDatacar ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                        {enviandoDatacar ? 'Aguarde...' : `⚡ Enviar para Conta Azul (${selecionadosDatacar.size})`}
+                        {enviandoDatacar 
+                          ? `Enviando (${progressoEnvio?.processados || 0}/${progressoEnvio?.total || selecionadosDatacar.size})...` 
+                          : `⚡ Enviar para Conta Azul (${selecionadosDatacar.size})`}
                       </button>
                     )}
                   </div>
@@ -1887,6 +1897,41 @@ export default function VendasPage() {
           empresaId={empresaAtiva?.id || ''}
           onClose={() => setModalVendasCliente({ open: false, cpfCnpj: '' })}
         />
+      )}
+
+      {/* Banner Flutuante de Progresso (Sticky na tela caso o operador role a página) */}
+      {progressoEnvio?.ativo && !progressoEnvio.concluido && (
+        <div className="fixed bottom-5 right-5 left-5 md:left-72 md:right-8 z-50 bg-slate-900/95 backdrop-blur-md border border-blue-500/50 rounded-2xl p-4 shadow-2xl animate-fade-in text-white flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center flex-shrink-0">
+              <Loader2 size={18} className="animate-spin text-blue-400" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-xs truncate">Sincronizando com Conta Azul...</span>
+                <span className="font-mono text-xs text-blue-400 font-bold px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20">
+                  {Math.min(100, Math.round(((progressoEnvio.processados || 0) / (progressoEnvio.total || 1)) * 100))}%
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300 truncate mt-0.5">
+                Venda <strong>{progressoEnvio.processados}</strong> de <strong>{progressoEnvio.total}</strong> • OS #{progressoEnvio.osAtual || 'S/N'} ({progressoEnvio.clienteAtual || 'Cliente'})
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="font-mono text-xs text-slate-300 bg-slate-800 px-2.5 py-1.5 rounded-xl border border-slate-700 flex items-center gap-1.5">
+              <Clock size={12} className="text-blue-400" />
+              {formatTempoDecorrido(progressoEnvio.segundosDecorridos)}
+            </span>
+            <button
+              type="button"
+              onClick={() => { abortEnvioRef.current = true }}
+              className="px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold transition-all cursor-pointer"
+            >
+              Parar
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )

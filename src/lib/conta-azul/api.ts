@@ -11,22 +11,19 @@ const BASE_URL = 'https://api-v2.contaazul.com/v1'
 const AUTH_URL = 'https://auth.contaazul.com/oauth2/token'
 const AUTHORIZE_URL = 'https://auth.contaazul.com/login'
 
-const DEFAULT_TIMEOUT_MS = 30000; // 30 segundos por requisição
+const DEFAULT_TIMEOUT_MS = 15000; // 15 segundos defensivos para Serverless Functions da Vercel
 
 /**
  * Helper resiliente para lidar com a API do Conta Azul:
- * 1. Timeout explícito via AbortController (30s) para evitar travamentos silenciosos de rede.
+ * 1. Timeout explícito via AbortController (15s) para evitar travamentos silenciosos de rede.
  * 2. Intercepta erros transitórios: 429 (Rate limit / Spike Arrest), 502 (Bad Gateway), 503 (Service Unavailable) e 504 (Gateway Timeout).
- * 3. Aplica backoff exponencial estrito:
- *    - tentativa 1 -> aguardar 1 segundo (1000ms)
- *    - tentativa 2 -> aguardar 2 segundos (2000ms)
- *    - tentativa 3 -> aguardar 4 segundos (4000ms)
+ * 3. Aplica retry com backoff exponencial seguro para funções serverless (limite de 60s).
  * 4. NÃO retenta erros determinísticos de cliente:
  *    - 400 (Bad Request), 401 (Unauthorized), 403 (Forbidden), 404 (Not Found), 409 (Conflict), 422 (Unprocessable Entity).
  */
 async function fetchCA(url: string | URL | Request, options?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<Response> {
-  const maxTentativas = 4; // 1 tentativa inicial + até 3 retries (1s, 2s, 4s)
-  const delaisPorTentativa = [1000, 2000, 4000];
+  const maxTentativas = 2; // 1 tentativa inicial + 1 retry rápido para proteger o ciclo da função serverless
+  const delaisPorTentativa = [1500];
   let res: Response | null = null;
 
   for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {

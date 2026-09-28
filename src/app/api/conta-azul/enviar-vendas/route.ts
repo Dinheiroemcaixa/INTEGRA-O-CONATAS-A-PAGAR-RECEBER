@@ -119,6 +119,12 @@ export async function POST(req: NextRequest) {
         let totalLiquidoItens = 0
 
         for (const item of venda.itens) {
+          // Proteção preventiva intra-venda: evita que múltiplos itens novos estourem o timeout da Vercel
+          if (Date.now() - inicioExecucao > 35000) {
+            timeoutServerlessAtingido = true
+            throw new Error(`Tempo limite de 35s do servidor atingido ao cadastrar itens da OS ${venda.os_numero || 'S/N'}. O lote foi interrompido com segurança.`)
+          }
+
           const valorUnitarioOriginal = parseFloat(Number(item.valor_unitario_original ?? item.valor_unitario).toFixed(4))
           
           // Chave de cache estritamente pelo código (ou descrição caso o item não tenha código)
