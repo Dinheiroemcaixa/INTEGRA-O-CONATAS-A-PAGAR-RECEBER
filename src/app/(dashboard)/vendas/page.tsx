@@ -366,19 +366,23 @@ export default function VendasPage() {
 
     let sucessosTotais = 0
     let errosTotais = 0
+    let processadosTotais = 0
+    let proximoIndice = 0
     const detalhesErros: string[] = []
     const idsSucesso = new Set<string>()
     const idsClientesExistentes = new Set<string>()
 
-    try {
-      for (let i = 0; i < vendasParaEnviar.length; i++) {
+    const CONCORRENCIA_MAXIMA = 3
+
+    const workerEnvio = async (workerId: number) => {
+      while (proximoIndice < vendasParaEnviar.length) {
         if (abortEnvioRef.current) {
-          toast('Envio interrompido pelo usuário.', { icon: '🛑' })
-          setProgressoEnvio(prev => prev ? { ...prev, cancelado: true } : null)
           break
         }
 
+        const i = proximoIndice++
         const venda = vendasParaEnviar[i]
+        if (!venda) break
 
         setProgressoEnvio(prev => prev ? {
           ...prev,
@@ -450,27 +454,38 @@ export default function VendasPage() {
           detalhesErros.push(`OS ${venda.os_numero || 'S/N'}: ${msg}`)
         }
 
-        // Atualização em tempo real do estado de progresso
+        processadosTotais++
+
+        // Atualização em tempo real do estado de progresso de forma atômica e consistente
         setProgressoEnvio(prev => prev ? {
           ...prev,
-          processados: i + 1,
+          processados: processadosTotais,
           sucessos: sucessosTotais,
           erros: errosTotais,
           detalhesErros: [...detalhesErros]
         } : null)
 
-        if (i < vendasParaEnviar.length - 1 && !abortEnvioRef.current) {
-          await new Promise(r => setTimeout(r, 200))
+        if (abortEnvioRef.current) break
+      }
+    }
+
+    try {
+      const qtdWorkers = Math.min(CONCORRENCIA_MAXIMA, vendasParaEnviar.length)
+      const workers = Array.from({ length: qtdWorkers }, (_, id) => workerEnvio(id + 1))
+      await Promise.all(workers)
+
+      if (abortEnvioRef.current) {
+        toast('Envio interrompido pelo usuário.', { icon: '🛑' })
+        setProgressoEnvio(prev => prev ? { ...prev, cancelado: true } : null)
+      } else {
+        if (sucessosTotais > 0) {
+          toast.success(`${sucessosTotais} de ${vendasParaEnviar.length} vendas sincronizadas com sucesso!`)
+          carregarNotasEmitidas()
         }
-      }
 
-      if (sucessosTotais > 0) {
-        toast.success(`${sucessosTotais} de ${vendasParaEnviar.length} vendas sincronizadas com sucesso!`)
-        carregarNotasEmitidas()
-      }
-
-      if (errosTotais > 0) {
-        toast.error(`${errosTotais} vendas com erro ou timeout. Confira o detalhamento no card.`)
+        if (errosTotais > 0) {
+          toast.error(`${errosTotais} vendas com erro ou timeout. Confira o detalhamento no card.`)
+        }
       }
 
     } catch (err: unknown) {
@@ -595,18 +610,20 @@ export default function VendasPage() {
 
     let sucessosTotais = 0
     let errosTotais = 0
+    let processadosTotais = 0
+    let proximoIndice = 0
     const detalhesErros: string[] = []
     const indicesSucesso = new Set<number>()
 
-    try {
-      for (let i = 0; i < itensParaEnviar.length; i++) {
-        if (abortEnvioRef.current) {
-          toast('Envio da planilha interrompido pelo usuário.', { icon: '🛑' })
-          setProgressoEnvio(prev => prev ? { ...prev, cancelado: true } : null)
-          break
-        }
+    const CONCORRENCIA_MAXIMA = 3
 
+    const workerEnvioPlanilha = async (workerId: number) => {
+      while (proximoIndice < itensParaEnviar.length) {
+        if (abortEnvioRef.current) break
+
+        const i = proximoIndice++
         const venda = itensParaEnviar[i]
+        if (!venda) break
 
         setProgressoEnvio(prev => prev ? {
           ...prev,
@@ -662,37 +679,48 @@ export default function VendasPage() {
           detalhesErros.push(`OS ${venda.os_numero || 'S/N'}: ${msg}`)
         }
 
+        processadosTotais++
+
         setProgressoEnvio(prev => prev ? {
           ...prev,
-          processados: i + 1,
+          processados: processadosTotais,
           sucessos: sucessosTotais,
           erros: errosTotais,
           detalhesErros: [...detalhesErros]
         } : null)
 
-        if (i < itensParaEnviar.length - 1 && !abortEnvioRef.current) {
-          await new Promise(r => setTimeout(r, 200))
-        }
+        if (abortEnvioRef.current) break
       }
+    }
 
-      if (sucessosTotais > 0) {
-        toast.success(`${sucessosTotais} de ${itensParaEnviar.length} vendas da planilha enviadas com sucesso!`)
-        carregarNotasEmitidas()
+    try {
+      const qtdWorkers = Math.min(CONCORRENCIA_MAXIMA, itensParaEnviar.length)
+      const workers = Array.from({ length: qtdWorkers }, (_, id) => workerEnvioPlanilha(id + 1))
+      await Promise.all(workers)
 
-        if (indicesSucesso.size >= dadosEditados.length) {
-          setEtapa('upload')
-          setResultado(null)
-          setDadosEditados([])
-          setSelecionados(new Set())
-        } else {
-          // Remove apenas os itens que tiveram sucesso para o usuário reprocessar com facilidade
-          setDadosEditados(prev => prev.filter((_, idx) => !indicesSucesso.has(idx)))
-          setSelecionados(new Set())
+      if (abortEnvioRef.current) {
+        toast('Envio da planilha interrompido pelo usuário.', { icon: '🛑' })
+        setProgressoEnvio(prev => prev ? { ...prev, cancelado: true } : null)
+      } else {
+        if (sucessosTotais > 0) {
+          toast.success(`${sucessosTotais} de ${itensParaEnviar.length} vendas da planilha enviadas com sucesso!`)
+          carregarNotasEmitidas()
+
+          if (indicesSucesso.size >= dadosEditados.length) {
+            setEtapa('upload')
+            setResultado(null)
+            setDadosEditados([])
+            setSelecionados(new Set())
+          } else {
+            // Remove apenas os itens que tiveram sucesso para o usuário reprocessar com facilidade
+            setDadosEditados(prev => prev.filter((_, idx) => !indicesSucesso.has(idx)))
+            setSelecionados(new Set())
+          }
         }
-      }
 
-      if (errosTotais > 0) {
-        toast.error(`${errosTotais} vendas com falha ou timeout. Confira o detalhamento no card.`)
+        if (errosTotais > 0) {
+          toast.error(`${errosTotais} vendas com falha ou timeout. Confira o detalhamento no card.`)
+        }
       }
 
     } catch (err: unknown) {
