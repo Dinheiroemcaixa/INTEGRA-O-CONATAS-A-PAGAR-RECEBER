@@ -624,14 +624,38 @@ export async function criarVenda(accessToken: string, payload: VendaPayload): Pr
   delete (payload as any).vendedorResponsavel
   delete (payload as any).id_vendedor_responsavel
 
-  const res = await fetchCA(`${BASE_URL}/venda`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-  if (res.status === 401) throw new Error('TOKEN_EXPIRADO')
-  if (!res.ok) { const errBody = await res.text(); throw new Error(`[${res.status}] ${errBody}`) }
-  return res.json()
+  const MAX_TENTATIVAS_NUMERO = 2
+  let tentativaNumero = 0
+
+  while (true) {
+    const res = await fetchCA(`${BASE_URL}/venda`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (res.status === 401) throw new Error('TOKEN_EXPIRADO')
+    if (res.ok) {
+      return res.json()
+    }
+
+    const errBody = await res.text()
+
+    // Resiliência de concorrência: extrai o número sugerido quando há colisão simultânea
+    // Exemplo do erro da API Conta Azul:
+    // "O número da venda informado já foi utilizado em outra venda. O nº 9853 é o próximo disponível"
+    if (res.status === 400 && tentativaNumero < MAX_TENTATIVAS_NUMERO) {
+      const match = errBody.match(/O nº (\d+) é o próximo disponível/) || errBody.match(/n[ºo°]\s*(\d+)\s*é o próximo disponível/i)
+      if (match && match[1]) {
+        tentativaNumero++
+        const novoNumero = Number(match[1])
+        console.warn(`[Conta Azul] Colisão de concorrência detectada no número de venda. Atualizando de ${payload.numero} para ${novoNumero} (Tentativa ${tentativaNumero}/${MAX_TENTATIVAS_NUMERO})`)
+        payload.numero = novoNumero
+        continue
+      }
+    }
+
+    throw new Error(`[${res.status}] ${errBody}`)
+  }
 }
 
 // Cache em memória para evitar chamadas redundantes a metadados fiscais estáticos do Conta Azul
