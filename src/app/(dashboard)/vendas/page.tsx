@@ -1411,9 +1411,6 @@ export default function VendasPage() {
                     })}
                   </div>
 
-                  {/* Card de Progresso no Rodapé da Lista (visível mesmo ao rolar até o final) */}
-                  {renderCardProgresso('datacar')}
-
                   {/* Rodapé da Lista com Ações em Lote */}
                   <div className="flex items-center justify-between px-5 py-4 bg-slate-50 dark:bg-dark-850 border border-slate-200 dark:border-dark-700/80 rounded-2xl shadow-xs text-sm">
                     <p className="text-slate-600 dark:text-dark-400">

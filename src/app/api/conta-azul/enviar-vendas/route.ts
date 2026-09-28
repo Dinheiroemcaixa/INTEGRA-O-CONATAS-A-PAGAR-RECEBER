@@ -81,12 +81,12 @@ export async function POST(req: NextRequest) {
 
     for (const venda of vendas as VendaPreview[]) {
       // Proteção de tempo limite (Vercel Serverless Function Timeout Guard):
-      // Se a execução atingir 40 segundos, encerra o processamento para garantir resposta 200 JSON
-      // e evitar que a Vercel aborte a requisição com FUNCTION_INVOCATION_TIMEOUT
-      if (Date.now() - inicioExecucao > 40000) {
-        console.warn(`[enviar-vendas] Timeout de segurança de 40s atingido. Interrompendo lote graciosamente.`)
+      // Se a execução atingir 38 segundos ou se a venda anterior já atingiu o limite intra-lote,
+      // encerra o processamento para garantir resposta 200 JSON e evitar FUNCTION_INVOCATION_TIMEOUT
+      if (timeoutServerlessAtingido || (Date.now() - inicioExecucao > 38000)) {
+        console.warn(`[enviar-vendas] Timeout de segurança atingido. Interrompendo lote graciosamente.`)
         timeoutServerlessAtingido = true
-        detalhesErros.push(`Limite de 40s atingido no servidor. As vendas restantes serão processadas no próximo lote.`)
+        detalhesErros.push(`Limite de tempo de segurança atingido no servidor. As vendas restantes serão processadas no próximo lote.`)
         break
       }
 
