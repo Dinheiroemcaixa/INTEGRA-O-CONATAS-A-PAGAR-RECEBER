@@ -199,7 +199,7 @@ export default function Sidebar() {
               </div>
             </div>
 
-            <ThemeSwitcher compact={true} align="left" className="flex-shrink-0 ml-1" />
+            <ThemeSwitcher compact={true} align="left" placement="top" className="flex-shrink-0 ml-1" />
           </div>
 
           <button

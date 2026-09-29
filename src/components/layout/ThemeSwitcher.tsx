@@ -9,6 +9,7 @@ interface ThemeSwitcherProps {
   className?: string
   align?: 'left' | 'right'
   compact?: boolean
+  placement?: 'top' | 'bottom'
 }
 
 const OPCOES: Array<{
@@ -45,6 +46,7 @@ export default function ThemeSwitcher({
   className,
   align = 'right',
   compact = false,
+  placement = 'bottom',
 }: ThemeSwitcherProps) {
   const { config, setThemeMode } = useAppConfig()
   const [aberto, setAberto] = useState(false)
@@ -103,7 +105,8 @@ export default function ThemeSwitcher({
       {aberto && (
         <div
           className={cn(
-            'absolute mt-1.5 w-52 rounded-2xl border p-1.5 shadow-xl z-50 animate-fade-in backdrop-blur-md',
+            'absolute w-52 rounded-2xl border p-1.5 shadow-xl z-50 animate-fade-in backdrop-blur-md max-h-[80vh] overflow-y-auto',
+            placement === 'top' ? 'bottom-full mb-2' : 'mt-1.5',
             'bg-white/95 dark:bg-dark-850/95 border-slate-200/90 dark:border-dark-700/80',
             align === 'right' ? 'right-0' : 'left-0'
           )}
