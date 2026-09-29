@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import { createClient } from '@/lib/supabase/client'
@@ -9,6 +9,7 @@ import ContasPreviewSection from '@/components/upload/ContasPreviewSection'
 import TabelaContas from '@/components/upload/TabelaContas'
 import SelectorEmpresa from '@/components/layout/SelectorEmpresa'
 import PainelAgendamento from '@/components/agendamento/PainelAgendamento'
+import PainelProgressoLote, { type ProgressoLoteData } from '@/components/ui/PainelProgressoLote'
 import type { ContaPagarPreview, ResultadoImportacao } from '@/types'
 import type { Empresa } from '@/types'
 import {
@@ -286,13 +287,21 @@ export default function ContasPagarPage() {
   const [refreshContas, setRefreshContas] = useState(0)
   const [showModalEnvio, setShowModalEnvio] = useState(false)
   const [userEmail, setUserEmail] = useState('')
-  const [statusProgresso, setStatusProgresso] = useState<{
-    total: number
-    enviados: number
-    erros: number
-    restantes: number
-    emExecucao: boolean
-  } | null>(null)
+  const [progressoEnvio, setProgressoEnvio] = useState<ProgressoLoteData | null>(null)
+  const abortEnvioRef = useRef(false)
+
+  // Cronômetro para o tempo decorrido do envio em lote
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null
+    if (progressoEnvio?.ativo && !progressoEnvio.concluido && !progressoEnvio.cancelado) {
+      interval = setInterval(() => {
+        setProgressoEnvio(prev => prev ? { ...prev, segundosDecorridos: prev.segundosDecorridos + 1 } : null)
+      }, 1000)
+    }
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [progressoEnvio?.ativo, progressoEnvio?.concluido, progressoEnvio?.cancelado])
 
   // Estados Datacar (Datas determinísticas timezone-safe)
   const agora = new Date()
@@ -597,16 +606,35 @@ export default function ContasPagarPage() {
     let totalGeral = totalInicial
     let tentativasErroConsecutivas = 0
 
-    setStatusProgresso({
+    abortEnvioRef.current = false
+    const detalhesErrosTotais: string[] = []
+
+    setProgressoEnvio({
+      ativo: true,
+      concluido: false,
+      cancelado: false,
       total: totalGeral > 0 ? totalGeral : 1,
-      enviados: 0,
+      processados: 0,
+      sucessos: 0,
       erros: 0,
-      restantes: totalGeral > 0 ? totalGeral : 1,
-      emExecucao: true
+      itemAtual: 'Iniciando sincronização',
+      detalheItemAtual: `${totalGeral} contas a pagar na fila`,
+      segundosDecorridos: 0,
+      detalhesErros: [],
+      tituloModulo: 'Contas a Pagar',
+      unidadeItem: 'contas'
     })
 
     while (loopRestantes > 0 && tentativasErroConsecutivas < 3) {
+      if (abortEnvioRef.current) break
+
       try {
+        setProgressoEnvio(prev => prev ? {
+          ...prev,
+          itemAtual: `Enviando lote (${Math.min(50, loopRestantes)} contas)`,
+          detalheItemAtual: 'Processando com API Conta Azul...'
+        } : null)
+
         const res = await fetch('/api/conta-azul/enviar', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -626,6 +654,16 @@ export default function ContasPagarPage() {
         acumuladoEnviados += loteEnviados
         acumuladoErros += loteErros
 
+        // Coleta mensagens de erros individuais para o accordion
+        if (Array.isArray(data.resultados)) {
+          for (const r of data.resultados) {
+            if (r.status === 'erro' && r.detalhe) {
+              const idCurto = r.id ? String(r.id).slice(0, 8) : 'Conta'
+              detalhesErrosTotais.push(`Conta #${idCurto}: ${r.detalhe}`)
+            }
+          }
+        }
+
         if (typeof data.pendentes_restantes === 'number') {
           loopRestantes = data.pendentes_restantes
         } else {
@@ -636,13 +674,16 @@ export default function ContasPagarPage() {
           totalGeral = acumuladoEnviados + acumuladoErros + loopRestantes
         }
 
-        setStatusProgresso({
+        setProgressoEnvio(prev => prev ? {
+          ...prev,
           total: totalGeral,
-          enviados: acumuladoEnviados,
+          processados: acumuladoEnviados + acumuladoErros,
+          sucessos: acumuladoEnviados,
           erros: acumuladoErros,
-          restantes: loopRestantes,
-          emExecucao: true
-        })
+          itemAtual: `Lote concluído (${loteEnviados + loteErros} contas)`,
+          detalheItemAtual: `${acumuladoEnviados} enviadas, ${acumuladoErros} com erro`,
+          detalhesErros: [...detalhesErrosTotais]
+        } : null)
 
         setRefreshContas(prev => prev + 1)
 
@@ -651,8 +692,12 @@ export default function ContasPagarPage() {
           break
         }
 
+        if (abortEnvioRef.current) break
+
         // Delay de segurança de 1.5 segundos entre lotes para evitar estouro da API Conta Azul
         await new Promise(r => setTimeout(r, 1500))
+
+        if (abortEnvioRef.current) break
 
       } catch (err: any) {
         tentativasErroConsecutivas++
@@ -661,6 +706,7 @@ export default function ContasPagarPage() {
           toast(`Aguardando para retentar lote (${tentativasErroConsecutivas}/3)...`, { icon: '⏳' })
           await new Promise(r => setTimeout(r, 3000))
         } else {
+          detalhesErrosTotais.push(`Falha fatal no lote: ${err.message || err}`)
           toast.error(`Falha no envio do lote automático: ${err.message || err}`)
           break
         }
@@ -668,17 +714,41 @@ export default function ContasPagarPage() {
     }
 
     setEnviandoCA(false)
-    setStatusProgresso(prev => prev ? { ...prev, emExecucao: false, restantes: 0 } : null)
     setRefreshContas(prev => prev + 1)
+
+    if (abortEnvioRef.current) {
+      toast('Envio de contas a pagar interrompido pelo usuário.', { icon: '🛑' })
+      setProgressoEnvio(prev => prev ? {
+        ...prev,
+        cancelado: true,
+        concluido: false,
+        processados: acumuladoEnviados + acumuladoErros,
+        sucessos: acumuladoEnviados,
+        erros: acumuladoErros,
+        detalhesErros: [...detalhesErrosTotais]
+      } : null)
+    } else {
+      setProgressoEnvio(prev => prev ? {
+        ...prev,
+        concluido: true,
+        cancelado: false,
+        processados: totalGeral,
+        sucessos: acumuladoEnviados,
+        erros: acumuladoErros,
+        detalhesErros: [...detalhesErrosTotais]
+      } : null)
+    }
 
     if (empresaEnvio && empresaAtiva?.id !== empresaEnvio.id) {
       setEmpresaAtiva(empresaEnvio)
     }
 
-    if (acumuladoEnviados > 0 || acumuladoErros > 0) {
-      toast.success(`Integração finalizada! Enviados: ${acumuladoEnviados}, Erros: ${acumuladoErros}`, { duration: 6000 })
-    } else {
-      toast('Nenhuma conta pendente para enviar.', { icon: 'ℹ️' })
+    if (!abortEnvioRef.current) {
+      if (acumuladoEnviados > 0 || acumuladoErros > 0) {
+        toast.success(`Integração finalizada! Enviados: ${acumuladoEnviados}, Erros: ${acumuladoErros}`, { duration: 6000 })
+      } else {
+        toast('Nenhuma conta pendente para enviar.', { icon: 'ℹ️' })
+      }
     }
   }
 
@@ -934,6 +1004,17 @@ export default function ContasPagarPage() {
                 )}
               </div>
 
+              {/* Painel de Progresso Operacional do Lote (Card Superior + KPIs + Timer + Accordion + Sticky) */}
+              <PainelProgressoLote
+                progresso={progressoEnvio}
+                onInterromper={() => {
+                  abortEnvioRef.current = true
+                }}
+                onFechar={() => setProgressoEnvio(null)}
+                renderSticky={true}
+                className="mb-4"
+              />
+
               <TabelaContas
                 key={refreshContas}
                 empresaId={empresaAtiva?.id}
@@ -941,6 +1022,7 @@ export default function ContasPagarPage() {
                 onExportarXls={handleBaixarXls}
                 enviandoCA={enviandoCA}
                 gerandoXls={gerandoXls}
+                progressoEnvio={progressoEnvio}
               />
             </>
           )}

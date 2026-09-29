@@ -9,12 +9,15 @@ import toast from 'react-hot-toast'
 import SelectorContaFinanceira, { type ContaFinanceiraOpcao } from '@/components/upload/SelectorContaFinanceira'
 import SelectorCategoria from '@/components/upload/SelectorCategoria'
 
+import type { ProgressoLoteData } from '@/components/ui/PainelProgressoLote'
+
 interface Props {
   empresaId?: string
   onEnviarContaAzul?: () => void
   onExportarXls?: () => void
   enviandoCA?: boolean
   gerandoXls?: boolean
+  progressoEnvio?: ProgressoLoteData | null
 }
 
 const STATUS_CONFIG = {
@@ -30,6 +33,7 @@ export default function TabelaContas({
   onExportarXls,
   enviandoCA = false,
   gerandoXls = false,
+  progressoEnvio = null,
 }: Props) {
   const { empresas, setEmpresaAtiva } = useEmpresa()
   const [contas, setContas] = useState<ContaPagarImportada[]>([])
@@ -341,7 +345,11 @@ export default function TabelaContas({
                 className="h-10 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-xs cursor-pointer"
               >
                 {enviandoCA ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                <span>{enviandoCA ? 'Enviando...' : 'Enviar ao Conta Azul'}</span>
+                <span>
+                  {enviandoCA 
+                    ? `Enviando (${progressoEnvio?.processados || 0}/${progressoEnvio?.total || qtdPendente})...` 
+                    : `Enviar ao Conta Azul (${qtdPendente})`}
+                </span>
               </button>
             )}
             {onExportarXls && (
