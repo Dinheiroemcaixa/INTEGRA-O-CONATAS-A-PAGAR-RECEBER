@@ -7,12 +7,10 @@ import toast from 'react-hot-toast'
 import {
   Mail, Lock, Eye, EyeOff, LogIn, Loader2, ArrowLeft,
   Car, Building2, Receipt, ShieldCheck, CheckCircle2,
-  Sun, Moon, Zap, BarChart3, Layers, Sparkles
+  Zap, BarChart3, Layers, Sparkles
 } from 'lucide-react'
-import { useAppConfig } from '@/contexts/AppConfigContext'
 
 export default function LoginPageClient() {
-  const { config, update } = useAppConfig()
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [mostrarSenha, setMostrarSenha] = useState(false)
@@ -204,13 +202,10 @@ export default function LoginPageClient() {
             <span>Voltar ao início</span>
           </Link>
 
-          <button
-            onClick={() => update({ darkMode: !config.darkMode })}
-            title={config.darkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
-            className="p-2 rounded-xl border border-slate-200 dark:border-white/[0.1] bg-white dark:bg-[#121622] hover:bg-slate-100 dark:hover:bg-[#1a2030] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer shadow-xs"
-          >
-            {config.darkMode ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} className="text-indigo-500" />}
-          </button>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-400">
+            <ShieldCheck size={14} className="text-emerald-400" />
+            <span>Ambiente Seguro</span>
+          </div>
         </div>
 
         {/* Bloco Central do Formulário */}

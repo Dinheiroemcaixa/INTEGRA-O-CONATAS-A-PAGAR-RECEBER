@@ -7,11 +7,12 @@ import {
   LayoutDashboard, ArrowDownCircle, ArrowUpCircle,
   Building2, Settings, ChevronRight, User, LogOut,
   ShoppingBag, Receipt, FileCheck2, Link2, Layers,
-  ShieldCheck, Sun, Moon, X
+  ShieldCheck, X
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useAppConfig } from '@/contexts/AppConfigContext'
 import { useSidebar } from '@/contexts/SidebarContext'
+import ThemeSwitcher from '@/components/layout/ThemeSwitcher'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 
@@ -73,12 +74,6 @@ export default function Sidebar() {
     toast.success('Saindo...')
     router.push('/')
     router.refresh()
-  }
-
-  const toggleTema = () => {
-    const novoModo = !config.darkMode
-    update({ darkMode: novoModo })
-    toast.success(novoModo ? 'Modo Escuro ativado 🌙' : 'Modo Claro ativado ☀️')
   }
 
   return (
@@ -204,13 +199,7 @@ export default function Sidebar() {
               </div>
             </div>
 
-            <button
-              onClick={toggleTema}
-              title={config.darkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
-              className="p-1.5 hover:bg-slate-100 dark:hover:bg-dark-700/80 rounded-xl text-slate-500 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white transition-all flex-shrink-0 ml-1 cursor-pointer"
-            >
-              {config.darkMode ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} className="text-indigo-500" />}
-            </button>
+            <ThemeSwitcher compact={true} align="left" className="flex-shrink-0 ml-1" />
           </div>
 
           <button

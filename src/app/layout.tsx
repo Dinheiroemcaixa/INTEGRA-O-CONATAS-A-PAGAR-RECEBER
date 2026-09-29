@@ -22,15 +22,33 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              try {
-                var match = document.cookie.match(/(?:^|; )connecta_theme=([^;]*)/);
-                var t = match ? match[1] : localStorage.getItem('connecta_theme');
-                if (t === 'dark') {
-                  document.documentElement.classList.add('dark');
-                } else {
-                  document.documentElement.classList.remove('dark');
-                }
-              } catch (e) {}
+              (function() {
+                try {
+                  var p = window.location.pathname || '';
+                  if (p.startsWith('/login')) {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.style.colorScheme = 'dark';
+                    return;
+                  }
+                  var match = document.cookie.match(/(?:^|; )connecta_theme=([^;]*)/);
+                  var t = match ? match[1] : (localStorage.getItem('connecta_theme') || 'system');
+                  var isDark = false;
+                  if (t === 'dark') {
+                    isDark = true;
+                  } else if (t === 'light') {
+                    isDark = false;
+                  } else {
+                    isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  }
+                  if (isDark) {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.style.colorScheme = 'dark';
+                  } else {
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.style.colorScheme = 'light';
+                  }
+                } catch (e) {}
+              })();
             `,
           }}
         />
