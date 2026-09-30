@@ -664,6 +664,11 @@ const cacheNCM = new Map<string, number>()
 const cacheCEST = new Map<string, number>()
 const cacheProdutosAtualizados = new Set<string>()
 
+// Locks de promessas em voo para evitar requisições duplicadas em execuções paralelas
+const promessasUnidadesMedida = new Map<string, Promise<number | undefined>>()
+const promessasNCM = new Map<string, Promise<number | undefined>>()
+const promessasCEST = new Map<string, Promise<number | undefined>>()
+
 export async function buscarOuCriarProduto(
   accessToken: string,
   codigo: string,
@@ -679,28 +684,40 @@ export async function buscarOuCriarProduto(
     if (cacheUnidadesMedida.has(sigla)) {
       return cacheUnidadesMedida.get(sigla)
     }
-    try {
-      const res = await fetchCA(`${BASE_URL}/produtos/unidades-medida?busca_textual=${encodeURIComponent(sigla)}&tamanho_pagina=100`, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
-      })
-      if (res.ok) {
-        const data = await res.json()
-        const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : [])
-        // Tenta match exato pela sigla, senão pega o primeiro
-        const exato = lista.find((u: any) => 
-          (u.sigla || u.descricao || '').toUpperCase().trim() === sigla
-        )
-        const alvo = exato || lista[0]
-        if (alvo?.id) {
-          cacheUnidadesMedida.set(sigla, alvo.id)
-          console.log(`[buscarOuCriarProduto] Unidade '${sigla}' => ID ${alvo.id}`)
-          return alvo.id
-        }
-      }
-    } catch (e) {
-      console.warn('[buscarOuCriarProduto] Falha ao buscar unidade de medida:', e)
+
+    if (promessasUnidadesMedida.has(sigla)) {
+      return promessasUnidadesMedida.get(sigla)
     }
-    return undefined
+
+    const promessa = (async () => {
+      try {
+        const res = await fetchCA(`${BASE_URL}/produtos/unidades-medida?busca_textual=${encodeURIComponent(sigla)}&tamanho_pagina=100`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : [])
+          // Tenta match exato pela sigla, senão pega o primeiro
+          const exato = lista.find((u: any) => 
+            (u.sigla || u.descricao || '').toUpperCase().trim() === sigla
+          )
+          const alvo = exato || lista[0]
+          if (alvo?.id) {
+            cacheUnidadesMedida.set(sigla, alvo.id)
+            console.log(`[buscarOuCriarProduto] Unidade '${sigla}' => ID ${alvo.id}`)
+            return alvo.id
+          }
+        }
+      } catch (e) {
+        console.warn('[buscarOuCriarProduto] Falha ao buscar unidade de medida:', e)
+      } finally {
+        promessasUnidadesMedida.delete(sigla)
+      }
+      return undefined
+    })()
+
+    promessasUnidadesMedida.set(sigla, promessa)
+    return promessa
   }
 
   // Monta o objeto fiscal completo conforme a API v2 do Conta Azul
@@ -708,59 +725,89 @@ export async function buscarOuCriarProduto(
     if (!metadata) return undefined
     const fiscal: any = {}
 
-    // 1. Busca ID do NCM pela API (com cache)
+    // 1. Busca ID do NCM pela API (com cache e lock concorrente)
     if (metadata.ncm) {
       const ncmCode = metadata.ncm.replace(/\D/g, '')
       if (cacheNCM.has(ncmCode)) {
         fiscal.ncm = { id: cacheNCM.get(ncmCode)! }
       } else {
-        try {
-          const res = await fetchCA(`${BASE_URL}/produtos/ncm?busca_textual=${ncmCode}&tamanho_pagina=50`, {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-          })
-          if (res.ok) {
-            const data = await res.json()
-            const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : [])
-            const match = lista.find((n: any) => (n.codigo || '').replace(/\D/g, '') === ncmCode)
-            if (match?.id) {
-              cacheNCM.set(ncmCode, match.id)
-              fiscal.ncm = { id: match.id }
-              console.log(`[montarFiscal] NCM '${ncmCode}' => ID ${match.id}`)
-            } else if (lista.length > 0 && lista[0].id) {
-              cacheNCM.set(ncmCode, lista[0].id)
-              fiscal.ncm = { id: lista[0].id }
-              console.log(`[montarFiscal] NCM '${ncmCode}' => fallback ID ${lista[0].id} (${lista[0].codigo})`)
+        let promessaNcm = promessasNCM.get(ncmCode)
+        if (!promessaNcm) {
+          promessaNcm = (async () => {
+            try {
+              const res = await fetchCA(`${BASE_URL}/produtos/ncm?busca_textual=${ncmCode}&tamanho_pagina=50`, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+              })
+              if (res.ok) {
+                const data = await res.json()
+                const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : [])
+                const match = lista.find((n: any) => (n.codigo || '').replace(/\D/g, '') === ncmCode)
+                if (match?.id) {
+                  cacheNCM.set(ncmCode, match.id)
+                  console.log(`[montarFiscal] NCM '${ncmCode}' => ID ${match.id}`)
+                  return match.id
+                } else if (lista.length > 0 && lista[0].id) {
+                  cacheNCM.set(ncmCode, lista[0].id)
+                  console.log(`[montarFiscal] NCM '${ncmCode}' => fallback ID ${lista[0].id} (${lista[0].codigo})`)
+                  return lista[0].id
+                }
+              }
+            } catch (e) { 
+              console.warn('[montarFiscal] Erro busca NCM:', e) 
+            } finally {
+              promessasNCM.delete(ncmCode)
             }
-          }
-        } catch (e) { console.warn('[montarFiscal] Erro busca NCM:', e) }
+            return undefined
+          })()
+          promessasNCM.set(ncmCode, promessaNcm)
+        }
+        const ncmId = await promessaNcm
+        if (ncmId) {
+          fiscal.ncm = { id: ncmId }
+        }
       }
     }
 
-    // 2. Busca ID do CEST pela API (com cache)
+    // 2. Busca ID do CEST pela API (com cache e lock concorrente)
     if (metadata.cest) {
       const cestCode = metadata.cest.replace(/\D/g, '')
       if (cacheCEST.has(cestCode)) {
         fiscal.cest = { id: cacheCEST.get(cestCode)! }
       } else {
-        try {
-          const res = await fetchCA(`${BASE_URL}/produtos/cest?busca_textual=${cestCode}&tamanho_pagina=50`, {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-          })
-          if (res.ok) {
-            const data = await res.json()
-            const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : [])
-            const match = lista.find((c: any) => (c.codigo || '').replace(/\D/g, '') === cestCode)
-            if (match?.id) {
-              cacheCEST.set(cestCode, match.id)
-              fiscal.cest = { id: match.id }
-              console.log(`[montarFiscal] CEST '${cestCode}' => ID ${match.id}`)
-            } else if (lista.length > 0 && lista[0].id) {
-              cacheCEST.set(cestCode, lista[0].id)
-              fiscal.cest = { id: lista[0].id }
-              console.log(`[montarFiscal] CEST '${cestCode}' => fallback ID ${lista[0].id}`)
+        let promessaCest = promessasCEST.get(cestCode)
+        if (!promessaCest) {
+          promessaCest = (async () => {
+            try {
+              const res = await fetchCA(`${BASE_URL}/produtos/cest?busca_textual=${cestCode}&tamanho_pagina=50`, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+              })
+              if (res.ok) {
+                const data = await res.json()
+                const lista: any[] = data.itens || data.items || (Array.isArray(data) ? data : [])
+                const match = lista.find((c: any) => (c.codigo || '').replace(/\D/g, '') === cestCode)
+                if (match?.id) {
+                  cacheCEST.set(cestCode, match.id)
+                  console.log(`[montarFiscal] CEST '${cestCode}' => ID ${match.id}`)
+                  return match.id
+                } else if (lista.length > 0 && lista[0].id) {
+                  cacheCEST.set(cestCode, lista[0].id)
+                  console.log(`[montarFiscal] CEST '${cestCode}' => fallback ID ${lista[0].id}`)
+                  return lista[0].id
+                }
+              }
+            } catch (e) { 
+              console.warn('[montarFiscal] Erro busca CEST:', e) 
+            } finally {
+              promessasCEST.delete(cestCode)
             }
-          }
-        } catch (e) { console.warn('[montarFiscal] Erro busca CEST:', e) }
+            return undefined
+          })()
+          promessasCEST.set(cestCode, promessaCest)
+        }
+        const cestId = await promessaCest
+        if (cestId) {
+          fiscal.cest = { id: cestId }
+        }
       }
     }
 

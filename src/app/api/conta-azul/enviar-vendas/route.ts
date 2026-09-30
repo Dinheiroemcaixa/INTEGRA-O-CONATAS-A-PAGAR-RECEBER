@@ -16,6 +16,32 @@ const supabaseAdmin = createClient(
 // URL base da API v2 do Conta Azul (sem duplicação de /v1)
 const CA_BASE = 'https://api-v2.contaazul.com/v1'
 
+/**
+ * Executa mapeamento assíncrono com paralelismo controlado (pool de concorrência).
+ * Preserva estritamente a ordem dos resultados original.
+ */
+async function pMap<T, R>(
+  items: T[],
+  fn: (item: T, index: number) => Promise<R>,
+  concurrency = 4
+): Promise<R[]> {
+  if (!items || items.length === 0) return []
+  const results: R[] = new Array(items.length)
+  let nextIndex = 0
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    async () => {
+      while (nextIndex < items.length) {
+        const currentIndex = nextIndex++
+        results[currentIndex] = await fn(items[currentIndex], currentIndex)
+      }
+    }
+  )
+
+  await Promise.all(workers)
+  return results
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -113,12 +139,10 @@ export async function POST(req: NextRequest) {
           detalhesClientesExistentes.push(`OS ${venda.os_numero || 'S/N'}: Cliente já cadastrado no Conta Azul: ${nomeExibicao}${infoDoc}`)
         }
         
-        // 2. Busca/Cria Produtos com cache estrito por CÓDIGO
-        const itensPayload = []
-        let totalBrutoItens = 0
-        let totalLiquidoItens = 0
+        // 2. Busca/Cria Produtos com paralelismo controlado (pool = 4) e deduplicação estrita de concorrência
+        const promessasProdutosEmVoo = new Map<string, Promise<string | undefined>>()
 
-        for (const item of venda.itens) {
+        const resolverItemProduto = async (item: (typeof venda.itens)[0]) => {
           // Proteção preventiva intra-venda: evita que múltiplos itens novos estourem o timeout da Vercel
           if (Date.now() - inicioExecucao > 35000) {
             timeoutServerlessAtingido = true
@@ -133,40 +157,72 @@ export async function POST(req: NextRequest) {
             : `DESC:${(item.descricao || '').toLowerCase().trim()}`
 
           let idProduto = cacheProdutosPorCodigo.get(chaveProduto)
+          
           if (!idProduto) {
-            idProduto = await buscarOuCriarProduto(
-              accessToken, 
-              item.codigo, 
-              item.descricao, 
-              valorUnitarioOriginal,
-              {
-                ncm: item.ncm,
-                origem: item.origem,
-                cest: item.cest,
-                unidade_medida: item.unidade_medida || 'UN',
-                tipo_produto: item.tipo_produto
-              }
-            )
-            if (idProduto) {
-              cacheProdutosPorCodigo.set(chaveProduto, idProduto)
+            // Deduplicação concorrente: se outro worker já está resolvendo este mesmo produto, aguarda a mesma Promise
+            let promessaEmVoo = promessasProdutosEmVoo.get(chaveProduto)
+            if (!promessaEmVoo) {
+              promessaEmVoo = (async () => {
+                const id = await buscarOuCriarProduto(
+                  accessToken, 
+                  item.codigo, 
+                  item.descricao, 
+                  valorUnitarioOriginal,
+                  {
+                    ncm: item.ncm,
+                    origem: item.origem,
+                    cest: item.cest,
+                    unidade_medida: item.unidade_medida || 'UN',
+                    tipo_produto: item.tipo_produto
+                  }
+                )
+                if (id) {
+                  cacheProdutosPorCodigo.set(chaveProduto, id)
+                }
+                return id
+              })()
+              promessasProdutosEmVoo.set(chaveProduto, promessaEmVoo)
+            }
+
+            try {
+              idProduto = await promessaEmVoo
+            } finally {
+              promessasProdutosEmVoo.delete(chaveProduto)
             }
           }
 
           if (!idProduto) {
             throw new Error(`Produto "${item.descricao}" (código: ${item.codigo || 'sem código'}) não encontrado e não pôde ser criado no Conta Azul. Verifique o cadastro do produto.`)
           }
-          
+
+          return {
+            idProduto,
+            valorUnitarioOriginal,
+            quantidade: item.quantidade,
+            valor_unitario: item.valor_unitario
+          }
+        }
+
+        // Executa com concorrência máxima de 4 itens simultâneos
+        const POOL_CONCORRENCIA_ITENS = 4
+        const itensResolvidos = await pMap(venda.itens, resolverItemProduto, POOL_CONCORRENCIA_ITENS)
+
+        const itensPayload = []
+        let totalBrutoItens = 0
+        let totalLiquidoItens = 0
+
+        for (const resolvido of itensResolvidos) {
           itensPayload.push({
             descricao: '', // Deixar em branco - o produto já é identificado pelo id
-            quantidade: item.quantidade,
-            valor: valorUnitarioOriginal,
-            id: idProduto
+            quantidade: resolvido.quantidade,
+            valor: resolvido.valorUnitarioOriginal,
+            id: resolvido.idProduto
           })
           
-          const totalItemBruto = item.quantidade * valorUnitarioOriginal
+          const totalItemBruto = resolvido.quantidade * resolvido.valorUnitarioOriginal
           totalBrutoItens += totalItemBruto
           
-          const totalItem = item.quantidade * item.valor_unitario
+          const totalItem = resolvido.quantidade * resolvido.valor_unitario
           totalLiquidoItens += totalItem
         }
         
