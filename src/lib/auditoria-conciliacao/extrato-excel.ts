@@ -2,8 +2,9 @@
  * MÓDULO: Auditoria Inteligente de Conciliação Bancária
  * CAMINHO: src/lib/auditoria-conciliacao/extrato-excel.ts
  * 
- * Parser para extratos bancários em formato Excel (.xlsx, .xls) com detecção
- * inteligente de abas, cabeçalhos dinâmicos e conversão canônica.
+ * Parser resiliente para extratos bancários em formato Excel (.xlsx, .xls) com
+ * recálculo automático de dimensões reais de planilha (!ref truncado por bancos),
+ * normalização NFD de acentos em cabeçalhos dinâmicos e conversão canônica de lançamentos.
  */
 
 import * as XLSX from 'xlsx';
@@ -21,10 +22,48 @@ export interface OpcoesParserExcel {
 }
 
 /**
+ * Remove acentos, pontuações residuais e coloca em maiúsculas para comparações flexíveis
+ */
+function normalizarTexto(txt: any): string {
+  return String(txt || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase();
+}
+
+/**
+ * Recalcula o range real (!ref) da planilha a partir de todas as células presentes.
+ * Resolve o problema comum de extratos de bancos (ex.: Itaú) que definem !ref com
+ * metadados truncados (ex.: A1:F13), ocultando centenas de linhas reais subsequentes.
+ */
+function recalcularRangeReal(worksheet: XLSX.WorkSheet): void {
+  let minRow = Infinity, maxRow = -1;
+  let minCol = Infinity, maxCol = -1;
+
+  for (const key of Object.keys(worksheet)) {
+    if (key.startsWith('!')) continue;
+    try {
+      const cell = XLSX.utils.decode_cell(key);
+      if (cell.r < minRow) minRow = cell.r;
+      if (cell.r > maxRow) maxRow = cell.r;
+      if (cell.c < minCol) minCol = cell.c;
+      if (cell.c > maxCol) maxCol = cell.c;
+    } catch {
+      // Ignora chaves inválidas
+    }
+  }
+
+  if (maxRow >= 0 && maxCol >= 0) {
+    worksheet['!ref'] = XLSX.utils.encode_range({
+      s: { r: minRow === Infinity ? 0 : minRow, c: minCol === Infinity ? 0 : minCol },
+      e: { r: maxRow, c: maxCol }
+    });
+  }
+}
+
+/**
  * Normaliza e processa o conteúdo de um extrato em Excel (Buffer)
- * Utiliza o SheetJS (xlsx) para máxima compatibilidade com planilhas geradas por
- * Microsoft Excel, LibreOffice, Google Sheets e extratos bancários de diversos bancos,
- * evitando erros de parsing XML (ex.: lastModifiedBy) do ExcelJS.
  */
 export async function parsearExtratoExcel(
   buffer: Buffer,
@@ -50,6 +89,9 @@ export async function parsearExtratoExcel(
 
   const worksheet = workbook.Sheets[sheetName];
 
+  // 2. Garante que o range cobrirá todas as células reais do arquivo
+  recalcularRangeReal(worksheet);
+
   // Matriz de dados 0-based: linhas x colunas
   const matrizLinhas: any[][] = XLSX.utils.sheet_to_json(worksheet, {
     header: 1,
@@ -64,7 +106,7 @@ export async function parsearExtratoExcel(
 
   const transacoes: TransacaoExtratoCanonica[] = [];
 
-  // 2. Localiza a linha do cabeçalho procurando termos-chave
+  // 3. Localiza a linha do cabeçalho procurando termos-chave normalizados (sem acentos)
   let linhaCabecalhoIdx = -1;
   let mapaColunas: Record<string, number> = {};
 
@@ -72,22 +114,36 @@ export async function parsearExtratoExcel(
     const linha = matrizLinhas[r];
     if (!Array.isArray(linha)) continue;
 
-    const textosLinha = linha.map(v => String(v || '').trim().toUpperCase());
+    const textosLinha = linha.map(normalizarTexto);
 
-    const temData = textosLinha.some(t => /^(DATA|DT|DATA[\s_]MOV|DATA[\s_]LANC)/i.test(t));
-    const temDescricao = textosLinha.some(t => /^(HISTORICO|DESCRICAO|LANCAMENTO|HIST|DETALHE|MOVIMENTACAO)/i.test(t));
-    const temValor = textosLinha.some(t => /^(VALOR|VL|DEBITO|CREDITO)/i.test(t));
+    const idxData = textosLinha.findIndex(t => /^(DATA|DT|DATA[\s_]MOV|DATA[\s_]LANC)/i.test(t) || t === 'DATA');
+    const idxDesc = textosLinha.findIndex(t => /^(LANCAMENTO|HISTORICO|DESCRICAO|DETALHE|MOVIMENTACAO|HIST|MOVIMENTO)/i.test(t));
+    const idxValor = textosLinha.findIndex(t => (/VALOR|VL/i.test(t)) && !/SALDO/i.test(t));
+    const idxDebito = textosLinha.findIndex(t => /^(DEBITO|DEB|SAIDA)/i.test(t));
+    const idxCredito = textosLinha.findIndex(t => /^(CREDITO|CRED|ENTRADA)/i.test(t));
 
-    if (temData && (temDescricao || temValor)) {
+    // Se encontrou Data e (Descrição ou Valor ou Débito/Crédito)
+    if (idxData !== -1 && (idxDesc !== -1 || idxValor !== -1 || (idxDebito !== -1 && idxCredito !== -1))) {
       linhaCabecalhoIdx = r;
+
       textosLinha.forEach((texto, colIdx) => {
-        if (/^(DATA|DT|DATA[\s_]MOV|DATA[\s_]LANC)/i.test(texto)) mapaColunas['data'] = colIdx;
-        else if (/^(HISTORICO|DESCRICAO|LANCAMENTO|HIST|DETALHE|MOVIMENTACAO)/i.test(texto)) mapaColunas['descricao'] = colIdx;
-        else if (/^(DOCTO|DOC|NUM[\s_]DOC|DOCUMENTO|AUTENTICACAO)/i.test(texto)) mapaColunas['documento'] = colIdx;
-        else if (/^(VALOR|VL|VALOR[\s_]LANC)/i.test(texto)) mapaColunas['valor'] = colIdx;
-        else if (/^(DEBITO|DEB|SAIDA)/i.test(texto)) mapaColunas['debito'] = colIdx;
-        else if (/^(CREDITO|CRED|ENTRADA)/i.test(texto)) mapaColunas['credito'] = colIdx;
-        else if (/^(TIPO|D\/C|DC|OPERACAO)/i.test(texto)) mapaColunas['tipo'] = colIdx;
+        if (/^(DATA|DT|DATA[\s_]MOV|DATA[\s_]LANC)/i.test(texto) || texto === 'DATA') {
+          if (mapaColunas['data'] === undefined) mapaColunas['data'] = colIdx;
+        } else if (/^(LANCAMENTO|HISTORICO|DESCRICAO|DETALHE|MOVIMENTACAO|HIST|MOVIMENTO)/i.test(texto)) {
+          if (mapaColunas['descricao'] === undefined) mapaColunas['descricao'] = colIdx;
+        } else if (/^(RAZAO[\s_]SOCIAL|FORNECEDOR|CLIENTE|BENEFICIARIO|NOME)/i.test(texto)) {
+          if (mapaColunas['razaoSocial'] === undefined) mapaColunas['razaoSocial'] = colIdx;
+        } else if (/^(DOCTO|DOC|NUM[\s_]DOC|DOCUMENTO|CPF|CNPJ|AUTENTICACAO)/i.test(texto)) {
+          if (mapaColunas['documento'] === undefined) mapaColunas['documento'] = colIdx;
+        } else if ((/VALOR|VL/i.test(texto)) && !/SALDO/i.test(texto)) {
+          if (mapaColunas['valor'] === undefined) mapaColunas['valor'] = colIdx;
+        } else if (/^(DEBITO|DEB|SAIDA)/i.test(texto)) {
+          if (mapaColunas['debito'] === undefined) mapaColunas['debito'] = colIdx;
+        } else if (/^(CREDITO|CRED|ENTRADA)/i.test(texto)) {
+          if (mapaColunas['credito'] === undefined) mapaColunas['credito'] = colIdx;
+        } else if (/^(TIPO|D\/C|DC|OPERACAO)/i.test(texto)) {
+          if (mapaColunas['tipo'] === undefined) mapaColunas['tipo'] = colIdx;
+        }
       });
       break;
     }
@@ -99,7 +155,7 @@ export async function parsearExtratoExcel(
     linhaCabecalhoIdx = 0;
   }
 
-  // 3. Itera sobre as linhas de dados
+  // 4. Itera sobre as linhas de dados
   for (let r = linhaCabecalhoIdx + 1; r < matrizLinhas.length; r++) {
     const rowValues = matrizLinhas[r];
     if (!Array.isArray(rowValues)) continue;
@@ -108,17 +164,21 @@ export async function parsearExtratoExcel(
     const celulaDesc = rowValues[mapaColunas['descricao']];
 
     const dataIso = parsearDataExtrato(celulaData);
-    const descricaoOrig = celulaDesc ? String(celulaDesc).trim() : '';
+    let descricaoOrig = celulaDesc ? String(celulaDesc).trim() : '';
 
     if (!dataIso || !descricaoOrig) continue;
 
-    // Ignora linhas de saldo e consolidação
-    const descUpper = descricaoOrig.toUpperCase();
+    // Ignora linhas de saldo e controle bancário
+    const descUpper = normalizarTexto(descricaoOrig);
     if (
       descUpper.includes('SALDO ANTERIOR') ||
-      descUpper.includes('SALDO ATUAL') ||
+      descUpper.includes('SALDO TOTAL') ||
       descUpper.includes('SALDO FINAL') ||
-      descUpper.includes('TOTAL')
+      descUpper.includes('SALDO DISPONIVEL') ||
+      descUpper.includes('SALDO DO DIA') ||
+      descUpper.includes('TOTAL DISPONIVEL') ||
+      descUpper === 'SALDO' ||
+      descUpper.includes('S A L D O')
     ) {
       continue;
     }
@@ -139,8 +199,14 @@ export async function parsearExtratoExcel(
         tipo = 'CREDITO';
       }
     } else if (mapaColunas['valor'] !== undefined) {
-      // Cenário B: Coluna única de valor
-      const resVal = parsearValorMonetario(rowValues[mapaColunas['valor']]);
+      // Cenário B: Coluna única de valor (valores positivos = crédito, negativos = débito)
+      const valorCelula = rowValues[mapaColunas['valor']];
+      if (valorCelula === '' || valorCelula === null || valorCelula === undefined) {
+        // Célula vazia na coluna de valor (ex.: linha de saldo ou rodapé)
+        continue;
+      }
+
+      const resVal = parsearValorMonetario(valorCelula);
       valor = resVal.valor;
 
       if (mapaColunas['tipo'] !== undefined && rowValues[mapaColunas['tipo']]) {
@@ -149,12 +215,38 @@ export async function parsearExtratoExcel(
         else if (tipoStr.startsWith('C')) tipo = 'CREDITO';
       } else if (resVal.tipoSugerido) {
         tipo = resVal.tipoSugerido;
+      } else {
+        // Em coluna única com sinal: valor numérico com sinal negativo é DÉBITO, positivo é CRÉDITO
+        const numOriginal = typeof valorCelula === 'number' 
+          ? valorCelula 
+          : parseFloat(String(valorCelula).replace(/[^\d.,-]/g, '').replace(',', '.'));
+        
+        tipo = numOriginal < 0 ? 'DEBITO' : 'CREDITO';
+      }
+
+      // Inferência semântica de reforço a partir do histórico/descrição
+      const descNorm = normalizarTexto(descricaoOrig);
+      if (/^(RECEBIMENTO|PIX RECEBIDO|PIX QR CODE RECEBIDO|CREDITO|DEPOSITO|RESGATE)/i.test(descNorm)) {
+        tipo = 'CREDITO';
+      } else if (/^(BOLETO PAGO|PIX ENVIADO|PAGTO|PAGAMENTO|DEBITO|DEB AUT|TARIFA|IOF)/i.test(descNorm)) {
+        tipo = 'DEBITO';
       }
     }
 
+    // Se o valor for nulo ou zero, ignora
     if (valor <= 0) continue;
 
-    const documento = mapaColunas['documento'] !== undefined && rowValues[mapaColunas['documento']]
+    // Enriquece a descrição com Razão Social / Fornecedor se existir
+    const razaoSocial = mapaColunas['razaoSocial'] !== undefined && rowValues[mapaColunas['razaoSocial']]
+      ? String(rowValues[mapaColunas['razaoSocial']]).trim()
+      : '';
+
+    if (razaoSocial && !descricaoOrig.toUpperCase().includes(razaoSocial.toUpperCase())) {
+      descricaoOrig = `${descricaoOrig} - ${razaoSocial}`;
+    }
+
+    // Identifica documento ou CPF/CNPJ
+    let documento = mapaColunas['documento'] !== undefined && rowValues[mapaColunas['documento']]
       ? String(rowValues[mapaColunas['documento']]).trim()
       : null;
 
