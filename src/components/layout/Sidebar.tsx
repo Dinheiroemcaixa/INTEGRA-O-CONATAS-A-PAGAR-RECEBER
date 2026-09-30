@@ -7,7 +7,7 @@ import {
   LayoutDashboard, ArrowDownCircle, ArrowUpCircle,
   Building2, Settings, ChevronRight, User, LogOut,
   ShoppingBag, Receipt, FileCheck2, Link2, Layers,
-  ShieldCheck, X
+  ShieldCheck, Landmark, X
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useAppConfig } from '@/contexts/AppConfigContext'
@@ -41,6 +41,7 @@ const navSections: NavSection[] = [
       { label: 'Vendas Serviços', href: '/vendas-servicos', icon: Receipt, badge: 'EM BREVE', badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30' },
       { label: 'Notas Emitidas', href: '/notas-emitidas', icon: FileCheck2 },
       { label: 'Contas a Pagar', href: '/contas-pagar', icon: ArrowDownCircle },
+      { label: 'Auditoria de Conciliação', href: '/auditoria-conciliacao', icon: Landmark, badge: 'NOVO', badgeColor: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' },
       { label: 'Auditoria de Categorias', href: '/auditoria-categorias', icon: ShieldCheck, badge: 'EM BREVE', badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30' },
       { label: 'Gestão Pagamentos', href: '/gestao-pagamentos', icon: Layers },
       { label: 'Contas a Receber', href: '/contas-receber', icon: ArrowUpCircle, badge: 'EM BREVE', disabled: true },
