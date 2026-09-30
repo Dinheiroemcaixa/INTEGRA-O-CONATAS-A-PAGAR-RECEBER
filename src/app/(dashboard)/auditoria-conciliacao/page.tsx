@@ -134,26 +134,39 @@ export default function AuditoriaConciliacaoPage() {
     }
   }, [empresaAtiva?.id]);
 
-  // 2. Carregar Sessões da Empresa
-  const carregarSessoes = useCallback(async () => {
+  // 2. Carregar Sessões da Empresa com Suporte a Seleção Direta
+  const carregarSessoes = useCallback(async (idParaSelecionar?: string) => {
     if (!empresaAtiva?.id) return;
     setCarregandoSessoes(true);
     try {
-      const res = await fetch(`/api/auditoria-conciliacao/sessoes?empresaId=${empresaAtiva.id}&limit=20`);
+      const res = await fetch(`/api/auditoria-conciliacao/sessoes?empresaId=${empresaAtiva.id}&limit=50&_t=${Date.now()}`, {
+        cache: 'no-store'
+      });
       if (res.ok) {
         const data = await res.json();
-        const listaSessoes = data.sessoes || [];
+        const listaSessoes: SessaoAuditoria[] = data.sessoes || [];
         setSessoes(listaSessoes);
-        if (listaSessoes.length > 0 && !sessaoSelecionada) {
-          setSessaoSelecionada(listaSessoes[0]);
-        }
+
+        setSessaoSelecionada(prev => {
+          if (idParaSelecionar) {
+            const achada = listaSessoes.find(s => s.id === idParaSelecionar);
+            if (achada) return achada;
+          }
+          if (listaSessoes.length === 0) return null;
+          // Se já tem uma sessão válida pertencente a esta empresa, mantém
+          if (prev && listaSessoes.some(s => s.id === prev.id)) {
+            return prev;
+          }
+          // Caso contrário, seleciona a primeira (mais recente)
+          return listaSessoes[0];
+        });
       }
     } catch (err: any) {
       toast.error('Erro ao carregar histórico de auditorias');
     } finally {
       setCarregandoSessoes(false);
     }
-  }, [empresaAtiva?.id, sessaoSelecionada]);
+  }, [empresaAtiva?.id]);
 
   // 3. Carregar Itens da Sessão Selecionada com Filtros
   const carregarItensSessao = useCallback(async () => {
@@ -163,7 +176,8 @@ export default function AuditoriaConciliacaoPage() {
       const params = new URLSearchParams({
         page: String(pagina),
         limit: String(limite),
-        ordenar_por: ordenarPor
+        ordenar_por: ordenarPor,
+        _t: String(Date.now())
       });
 
       if (filtroStatus !== 'TODOS') params.set('status_auditoria', filtroStatus);
@@ -179,7 +193,9 @@ export default function AuditoriaConciliacaoPage() {
         params.set('score_max', '69.99');
       }
 
-      const res = await fetch(`/api/auditoria-conciliacao/sessoes/${sessaoSelecionada.id}?${params.toString()}`);
+      const res = await fetch(`/api/auditoria-conciliacao/sessoes/${sessaoSelecionada.id}?${params.toString()}`, {
+        cache: 'no-store'
+      });
       if (res.ok) {
         const data = await res.json();
         setItens(data.itens || []);
@@ -196,8 +212,13 @@ export default function AuditoriaConciliacaoPage() {
     }
   }, [sessaoSelecionada?.id, pagina, limite, filtroStatus, filtroGovernanca, filtroScoreFaixa, filtroBusca, ordenarPor]);
 
+  // Efeito ao trocar empresa ativa: reseta seleção e recarrega
   useEffect(() => {
     if (empresaAtiva?.id) {
+      setSessaoSelecionada(null);
+      setItens([]);
+      setTotalItens(0);
+      setPagina(1);
       carregarSessoes();
       carregarContasFinanceiras();
     }
@@ -291,8 +312,31 @@ export default function AuditoriaConciliacaoPage() {
       setPreviewImportacao(null);
       setArquivoUpload(null);
 
-      // Recarrega sessões e seleciona a recém-criada
-      await carregarSessoes();
+      // Recarrega sessões e seleciona deterministicamente a recém-criada
+      const novoId = data.sessaoId;
+      if (novoId) {
+        setPagina(1);
+        try {
+          const resDetalhes = await fetch(`/api/auditoria-conciliacao/sessoes/${novoId}?page=1&limit=${limite}&_t=${Date.now()}`, {
+            cache: 'no-store'
+          });
+          if (resDetalhes.ok) {
+            const dataDetalhes = await resDetalhes.json();
+            if (dataDetalhes.sessao) {
+              setSessaoSelecionada(dataDetalhes.sessao);
+            }
+            if (dataDetalhes.itens) {
+              setItens(dataDetalhes.itens);
+              setTotalItens(dataDetalhes.paginacao?.total || 0);
+              setTotalPaginas(dataDetalhes.paginacao?.totalPages || 1);
+            }
+          }
+        } catch (e) {
+          console.warn('Erro ao carregar detalhes imediatos da nova sessão:', e);
+        }
+      }
+
+      await carregarSessoes(novoId);
     } catch (err: any) {
       toast.error(err.message || 'Erro durante a conciliação');
     } finally {
