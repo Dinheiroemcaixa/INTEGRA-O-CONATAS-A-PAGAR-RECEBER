@@ -107,17 +107,47 @@ export class ContaAzulReadonlyClient implements IContaAzulReadonlyClient {
     const TAMANHO_PAGINA = 100;
     let pagina = 1;
 
+    // A API Conta Azul v2 exige obrigatoriamente data_vencimento_de e data_vencimento_ate.
+    // Estendemos a janela em 45 dias para capturar vencimentos de meses anteriores quitados no período do extrato.
+    const dtIniObj = new Date(dtIni);
+    const dtFimObj = new Date(dtFim);
+    const vencDeObj = new Date(dtIniObj);
+    vencDeObj.setDate(vencDeObj.getDate() - 45);
+    const vencAteObj = new Date(dtFimObj);
+    vencAteObj.setDate(vencAteObj.getDate() + 15);
+
+    const vencDe = vencDeObj.toISOString().slice(0, 10);
+    const vencAte = vencAteObj.toISOString().slice(0, 10);
+
+    let usarFiltroConta = true;
+
     while (pagina <= 50) {
-      const url = `${endpoint}?pagina=${pagina}&tamanho_pagina=${TAMANHO_PAGINA}&data_pagamento_de=${dtIni}&data_pagamento_ate=${dtFim}&ids_contas_financeiras=${this.contaFinanceiraId}&status=QUITADO`;
+      let url = `${endpoint}?pagina=${pagina}&tamanho_pagina=${TAMANHO_PAGINA}&data_vencimento_de=${vencDe}&data_vencimento_ate=${vencAte}&status=ACQUITTED`;
+      if (usarFiltroConta && this.contaFinanceiraId) {
+        url += `&ids_contas_financeiras=${this.contaFinanceiraId}`;
+      }
+
       const data = await executarCaGetSeguro(url, accessToken, 'GET', orcamento);
       if (!data) break;
 
-      const itens: any[] = data.itens || data.items || [];
+      let itens: any[] = data.itens || data.items || [];
+
+      // Fallback: se com ids_contas_financeiras vier vazio na pág 1, busca ampla sem o filtro de URL
+      if (pagina === 1 && itens.length === 0 && usarFiltroConta) {
+        usarFiltroConta = false;
+        continue;
+      }
+
       if (itens.length === 0) break;
 
       for (const item of itens) {
         const catObj = (Array.isArray(item.categorias) && item.categorias[0]) || item.categoria;
         const fornObj = item.fornecedor || item.contato;
+
+        // Data de pagamento: prioriza data_pagamento, depois a data da baixa em data_alteracao, depois vencimento
+        const dataPagamentoCalculada = item.data_pagamento || 
+          (item.data_alteracao ? String(item.data_alteracao).slice(0, 10) : null) || 
+          item.data_vencimento;
 
         lancamentos.push({
           parcelaId: item.id || item.uuid,
@@ -134,8 +164,8 @@ export class ContaAzulReadonlyClient implements IContaAzulReadonlyClient {
           valorPago: typeof item.pago === 'number' ? item.pago : (item.valor_pago || item.total || 0),
           dataVencimento: item.data_vencimento || item.vencimento,
           dataCompetencia: item.data_competencia || null,
-          dataPagamento: item.data_pagamento || item.pagamento || null,
-          status: item.status || 'QUITADO',
+          dataPagamento: dataPagamentoCalculada,
+          status: 'QUITADO',
           conciliado: Boolean(item.conciliado),
           baixas: []
         });
@@ -162,17 +192,43 @@ export class ContaAzulReadonlyClient implements IContaAzulReadonlyClient {
     const TAMANHO_PAGINA = 100;
     let pagina = 1;
 
+    const dtIniObj = new Date(dtIni);
+    const dtFimObj = new Date(dtFim);
+    const vencDeObj = new Date(dtIniObj);
+    vencDeObj.setDate(vencDeObj.getDate() - 45);
+    const vencAteObj = new Date(dtFimObj);
+    vencAteObj.setDate(vencAteObj.getDate() + 15);
+
+    const vencDe = vencDeObj.toISOString().slice(0, 10);
+    const vencAte = vencAteObj.toISOString().slice(0, 10);
+
+    let usarFiltroConta = true;
+
     while (pagina <= 50) {
-      const url = `${endpoint}?pagina=${pagina}&tamanho_pagina=${TAMANHO_PAGINA}&data_pagamento_de=${dtIni}&data_pagamento_ate=${dtFim}&ids_contas_financeiras=${this.contaFinanceiraId}&status=RECEBIDO`;
+      let url = `${endpoint}?pagina=${pagina}&tamanho_pagina=${TAMANHO_PAGINA}&data_vencimento_de=${vencDe}&data_vencimento_ate=${vencAte}&status=ACQUITTED`;
+      if (usarFiltroConta && this.contaFinanceiraId) {
+        url += `&ids_contas_financeiras=${this.contaFinanceiraId}`;
+      }
+
       const data = await executarCaGetSeguro(url, accessToken, 'GET', orcamento);
       if (!data) break;
 
-      const itens: any[] = data.itens || data.items || [];
+      let itens: any[] = data.itens || data.items || [];
+
+      if (pagina === 1 && itens.length === 0 && usarFiltroConta) {
+        usarFiltroConta = false;
+        continue;
+      }
+
       if (itens.length === 0) break;
 
       for (const item of itens) {
         const catObj = (Array.isArray(item.categorias) && item.categorias[0]) || item.categoria;
         const clienteObj = item.cliente || item.contato;
+
+        const dataPagamentoCalculada = item.data_pagamento || 
+          (item.data_alteracao ? String(item.data_alteracao).slice(0, 10) : null) || 
+          item.data_vencimento;
 
         lancamentos.push({
           parcelaId: item.id || item.uuid,
@@ -189,8 +245,8 @@ export class ContaAzulReadonlyClient implements IContaAzulReadonlyClient {
           valorPago: typeof item.pago === 'number' ? item.pago : (item.valor_pago || item.total || 0),
           dataVencimento: item.data_vencimento || item.vencimento,
           dataCompetencia: item.data_competencia || null,
-          dataPagamento: item.data_pagamento || item.pagamento || null,
-          status: item.status || 'RECEBIDO',
+          dataPagamento: dataPagamentoCalculada,
+          status: 'RECEBIDO',
           conciliado: Boolean(item.conciliado),
           baixas: []
         });
