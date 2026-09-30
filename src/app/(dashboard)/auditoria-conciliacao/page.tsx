@@ -17,7 +17,10 @@ import toast from 'react-hot-toast';
 
 interface ContaFinanceira {
   id: string;
-  name: string;
+  descricao?: string;
+  nome?: string;
+  name?: string;
+  tipo?: string;
   type?: string;
   bankName?: string;
 }
@@ -122,14 +125,14 @@ export default function AuditoriaConciliacaoPage() {
         const data = await res.json();
         const lista = data.contas || [];
         setContasFinanceiras(lista);
-        if (lista.length > 0 && !contaSelecionadaId) {
-          setContaSelecionadaId(lista[0].id);
+        if (lista.length > 0) {
+          setContaSelecionadaId(prev => (prev && lista.some((c: any) => c.id === prev) ? prev : lista[0].id));
         }
       }
     } catch (err) {
       console.warn('Não foi possível listar contas financeiras:', err);
     }
-  }, [empresaAtiva?.id, contaSelecionadaId]);
+  }, [empresaAtiva?.id]);
 
   // 2. Carregar Sessões da Empresa
   const carregarSessoes = useCallback(async () => {
@@ -201,6 +204,12 @@ export default function AuditoriaConciliacaoPage() {
   }, [empresaAtiva?.id, carregarSessoes, carregarContasFinanceiras]);
 
   useEffect(() => {
+    if (modalUploadAberto && empresaAtiva?.id) {
+      carregarContasFinanceiras();
+    }
+  }, [modalUploadAberto, empresaAtiva?.id, carregarContasFinanceiras]);
+
+  useEffect(() => {
     if (sessaoSelecionada?.id) {
       carregarItensSessao();
     } else {
@@ -259,7 +268,7 @@ export default function AuditoriaConciliacaoPage() {
         body: JSON.stringify({
           empresaId: empresaAtiva.id,
           contaFinanceiraId: contaSelecionadaId,
-          bancoNome: contaObj?.name || 'Conta Financeira',
+          bancoNome: contaObj?.descricao || contaObj?.nome || contaObj?.name || 'Conta Financeira',
           arquivoNome: previewImportacao.arquivo.nome,
           arquivoTipo: previewImportacao.arquivo.formato,
           arquivoHash: previewImportacao.arquivo.hashSha256,
@@ -881,11 +890,11 @@ export default function AuditoriaConciliacaoPage() {
                 className="w-full bg-dark-950 border border-dark-800 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
               >
                 {contasFinanceiras.length === 0 ? (
-                  <option value="">Nenhuma conta financeira localizada</option>
+                  <option value="CONTA_PRINCIPAL">Conta Bancária Principal / Padrão</option>
                 ) : (
                   contasFinanceiras.map(c => (
                     <option key={c.id} value={c.id}>
-                      {c.name} {c.bankName ? `(${c.bankName})` : ''}
+                      {c.descricao || c.nome || c.name || (c.tipo ? `${c.id} (${c.tipo})` : c.id)}
                     </option>
                   ))
                 )}
