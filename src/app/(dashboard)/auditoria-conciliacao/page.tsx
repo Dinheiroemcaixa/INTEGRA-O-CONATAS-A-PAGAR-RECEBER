@@ -506,7 +506,7 @@ export default function AuditoriaConciliacaoPage() {
             >
               {sessoes.map(s => (
                 <option key={s.id} value={s.id}>
-                  {s.arquivo_nome} • {s.banco_nome} ({formatDate(s.created_at)})
+                  {s.arquivo_nome} • {s.banco_nome} ({formatDate(s.created_at)}) — Saúde: {typeof s.saude_conciliacao === 'number' ? s.saude_conciliacao.toFixed(1) : s.saude_conciliacao}%
                 </option>
               ))}
             </select>
