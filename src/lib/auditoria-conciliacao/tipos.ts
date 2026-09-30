@@ -25,6 +25,10 @@ export type StatusAuditoriaConciliacao =
   | 'LANCAMENTO_AUSENTE'          // 🔴 Movimentação no extrato sem contrapartida no ERP
   | 'DUPLICIDADE'                 // 🟣 Mais de um lançamento no ERP para uma saída bancária
   | 'DIVERGENCIA_VALOR'           // 🟠 Valor difere (centavos, juros ou tarifas retidas)
+  | 'DIVERGENCIA_DATA'            // 📅 Data de baixa diverge além da tolerância bancária
+  | 'DIVERGENCIA_CONTA'           // 🏦 Lançamento baixado em conta financeira diferente da auditada
+  | 'DIVERGENCIA_CENTRO_CUSTO'    // 🏢 Centro de custo diverge ou está ausente
+  | 'DIVERGENCIA_MULTIPLA'        // ⚡ Divergência simultânea em múltiplos campos críticos
   | 'CONCILIADO_BAIXA_CONFIANCA'; // ⚪ Conciliado no ERP, porém com score de confiança duvidoso
 
 /**
@@ -70,6 +74,7 @@ export interface BaixaContaAzulAuditavel {
   metodoPagamento?: string | null;
   origem?: string | null;
   observacao?: string | null;
+  contaFinanceiraId?: string | null;
 }
 
 /**
@@ -86,6 +91,8 @@ export interface LancamentoContaAzulAuditavel {
   categoriaId?: string | null;
   categoriaNome: string;
   centroCustoNome?: string | null;
+  contaFinanceiraId?: string | null;
+  contaFinanceiraNome?: string | null;
   valorTotal: number;
   valorPago: number;
   dataVencimento: string;
@@ -97,6 +104,17 @@ export interface LancamentoContaAzulAuditavel {
 }
 
 /**
+ * Campo divergente individual detectado na reconciliação
+ */
+export interface CampoDivergenteConciliacao {
+  campo: 'VALOR' | 'DATA' | 'FORNECEDOR' | 'CATEGORIA' | 'CENTRO_CUSTO' | 'CONTA_FINANCEIRA';
+  label: string;
+  esperado: string;
+  encontrado: string;
+  detalhe?: string;
+}
+
+/**
  * Detalhes diagnósticos da reconciliação para rastreabilidade
  */
 export interface DetalhesDiagnosticoConciliacao {
@@ -105,10 +123,20 @@ export interface DetalhesDiagnosticoConciliacao {
   categoriaAtual?: string;
   fornecedorEsperado?: string;
   fornecedorAtual?: string;
+  contaFinanceiraEsperada?: string;
+  contaFinanceiraAtual?: string;
+  centroCustoEsperado?: string;
+  centroCustoAtual?: string;
+  dataEsperada?: string;
+  dataAtual?: string;
   duplicidadesIds?: string[];
   diferencaDias?: number;
   diferencaValor?: number;
   justificativaHistorica?: string;
+  tipoDivergencia?: string;
+  camposDivergentes?: CampoDivergenteConciliacao[];
+  regraDeparaAplicada?: string;
+  tipoRegraDepara?: 'FORNECEDOR' | 'CATEGORIA' | 'CENTRO_CUSTO';
 }
 
 /**

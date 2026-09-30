@@ -78,3 +78,33 @@ export async function salvarCacheContaAzul(
       }
     );
 }
+
+/**
+ * Invalida/remove registros do cache satélite no Supabase para forçar reprocessamento com dados frescos
+ */
+export async function invalidarCacheContaAzul(
+  empresaId: string,
+  contaFinanceiraId?: string,
+  chaveRegistro?: string
+): Promise<void> {
+  const supabase = getSupabase();
+  let query = supabase
+    .from('auditoria_conciliacao_cache_ca')
+    .delete()
+    .eq('empresa_id', empresaId);
+
+  if (contaFinanceiraId) {
+    query = query.eq('conta_financeira_id', contaFinanceiraId);
+  }
+
+  if (chaveRegistro) {
+    query = query.eq('chave_registro', chaveRegistro);
+  }
+
+  const { error } = await query;
+  if (error) {
+    console.warn('[invalidarCacheContaAzul] Aviso ao invalidar cache satélite:', error.message);
+  } else {
+    console.log(`[invalidarCacheContaAzul] Cache satélite invalidado com sucesso para empresa ${empresaId}.`);
+  }
+}

@@ -23,7 +23,10 @@ export interface OpcoesExecucaoMatching {
   toleranciaDias?: number; // Padrão: 3 dias
   toleranciaValorCentavos?: number; // Padrão: 0.05
   ignorarTarifasBancariasMenoresQue?: number; // Padrão: 0.00
-  deparaFornecedores?: Map<string, string>; // Fase 5 - Objetivo 3 e 4: De-Para Nome Banco -> Fornecedor Conta Azul
+  deparaFornecedores?: Map<string, string>; // Fase 3: De-Para Fornecedor
+  deparaCategorias?: Map<string, string>; // Fase 3: De-Para Categoria
+  contaFinanceiraIdAuditada?: string; // Fase 2: Conta auditada
+  nomeContaFinanceiraAuditada?: string;
   adquirentesCartaoConhecidas?: string[]; // Fase 5 - Objetivo 1: Operadoras de cartão
   toleranciaPercentualTaxaCartao?: { min: number; max: number }; // Fase 5 - Objetivo 2: Taxa MDR plausível
 }
@@ -262,7 +265,12 @@ export class MotorMatching implements IMotorMatching {
       };
       let melhoresRegras: ResultadoInspecaoRegras = {
         fornecedorCoerente: true,
-        categoriaCoerente: true
+        categoriaCoerente: true,
+        centroCustoCoerente: true,
+        contaFinanceiraCoerente: true,
+        valorCoerente: true,
+        dataCoerente: true,
+        camposDivergentes: []
       };
 
       const candidatosComMesmoValorEData: LancamentoContaAzulAuditavel[] = [];
@@ -281,7 +289,8 @@ export class MotorMatching implements IMotorMatching {
             diasToleranciaCompensacao: toleranciaDias,
             centavosToleranciaArredondamento: toleranciaValor
           },
-          opcoes?.deparaFornecedores
+          opcoes?.deparaFornecedores,
+          opcoes?.deparaCategorias
         );
 
         // Contabiliza duplicidades no ERP
@@ -296,11 +305,18 @@ export class MotorMatching implements IMotorMatching {
         if (scores.scoreGlobal > melhorScores.scoreGlobal) {
           melhorScores = scores;
           melhorCandidato = ca;
-          melhoresRegras = this.regras.avaliarCoerencia(extrato, ca, opcoes?.deparaFornecedores);
+          melhoresRegras = this.regras.avaliarCoerencia(extrato, ca, {
+            deparaFornecedores: opcoes?.deparaFornecedores,
+            deparaCategorias: opcoes?.deparaCategorias,
+            contaFinanceiraIdAuditada: opcoes?.contaFinanceiraIdAuditada,
+            nomeContaFinanceiraAuditada: opcoes?.nomeContaFinanceiraAuditada,
+            toleranciaDias,
+            toleranciaValor
+          });
         }
       }
 
-      // 3. Classificação Determinística nos 8 Cenários Oficiais
+      // 3. Classificação Determinística nos 8 Cenários Oficiais + Detalhamento Fase 2
       let statusAuditoria: StatusAuditoriaConciliacao;
       let diferencaValor = 0;
       let motivoClassificacao = '';
@@ -322,7 +338,6 @@ export class MotorMatching implements IMotorMatching {
         melhorScores.scoreGlobal = 0;
         totalAusentes++;
         somaGapDesconciliado += extrato.valor;
-        // Garantir que nenhum candidato descartado/espúrio seja persistido ou exibido como vínculo
         melhorCandidato = null;
       }
       // Cenário 2: DUPLICIDADE (múltiplos lançamentos no ERP para a mesma transação do extrato)
@@ -331,36 +346,54 @@ export class MotorMatching implements IMotorMatching {
         motivoClassificacao = `Identificados ${candidatosComMesmoValorEData.length} lançamentos com mesmo valor e data baixados no ERP.`;
         totalDuplicidades++;
       }
-      // Cenário 3: DIVERGENCIA_VALOR (lançamento plausível localizado, mas com diferença monetária acima da tolerância)
-      else if (ehDivergenciaValorPlausivel) {
-        statusAuditoria = 'DIVERGENCIA_VALOR';
-        diferencaValor = diferencaMonetaria;
-        motivoClassificacao = `Diferença monetária de R$ ${diferencaValor.toFixed(2)} entre extrato e ERP (possível retenção de tarifa/juros).`;
-        totalDivergenciasValor++;
-        somaDivergenciasFinanceiras += diferencaValor;
+      // Cenário 3: Divergência detectada pelas regras dos 6 campos críticos (Fase 2)
+      else if (melhoresRegras.tipoDivergencia) {
+        if (melhoresRegras.tipoDivergencia === 'DIVERGENCIA_VALOR') {
+          statusAuditoria = 'DIVERGENCIA_VALOR';
+          diferencaValor = diferencaMonetaria;
+          motivoClassificacao = `Diferença monetária de R$ ${diferencaValor.toFixed(2)} entre extrato e ERP (possível retenção de tarifa/juros).`;
+          totalDivergenciasValor++;
+          somaDivergenciasFinanceiras += diferencaValor;
+        } else if (melhoresRegras.tipoDivergencia === 'FORNECEDOR_INCORRETO') {
+          statusAuditoria = 'FORNECEDOR_INCORRETO';
+          motivoClassificacao = melhoresRegras.motivoFornecedor || 'Fornecedor cadastrado no ERP diverge do beneficiário do extrato.';
+          totalFornecedorIncorreto++;
+        } else if (melhoresRegras.tipoDivergencia === 'CATEGORIA_INCORRETA') {
+          statusAuditoria = 'CATEGORIA_INCORRETA';
+          motivoClassificacao = melhoresRegras.motivoCategoria || 'Categoria contábil/financeira incompatível com a transação.';
+          totalCategoriaIncorreta++;
+        } else if (melhoresRegras.tipoDivergencia === 'DIVERGENCIA_DATA') {
+          statusAuditoria = 'NAO_CONCILIADO';
+          motivoClassificacao = `Divergência de data: ${melhoresRegras.camposDivergentes.find(c => c.campo === 'DATA')?.detalhe || 'Data de baixa no ERP difere do extrato além da tolerância.'}`;
+          totalNaoConciliados++;
+        } else if (melhoresRegras.tipoDivergencia === 'DIVERGENCIA_CONTA') {
+          statusAuditoria = 'NAO_CONCILIADO';
+          motivoClassificacao = 'Divergência de conta financeira: lançamento baixado em conta diferente da auditada.';
+          totalNaoConciliados++;
+        } else if (melhoresRegras.tipoDivergencia === 'DIVERGENCIA_CENTRO_CUSTO') {
+          statusAuditoria = 'NAO_CONCILIADO';
+          motivoClassificacao = 'Divergência de centro de custo com as diretrizes contábeis.';
+          totalNaoConciliados++;
+        } else {
+          // DIVERGENCIA_MULTIPLA
+          statusAuditoria = 'NAO_CONCILIADO';
+          const camposStr = melhoresRegras.camposDivergentes.map(c => c.label).join(', ');
+          motivoClassificacao = `Divergência múltipla identificada em: ${camposStr}.`;
+          totalNaoConciliados++;
+        }
       }
-      // Cenário 4: CATEGORIA_INCORRETA (categoria incompatível com a governança contábil)
-      else if (!melhoresRegras.categoriaCoerente) {
-        statusAuditoria = 'CATEGORIA_INCORRETA';
-        motivoClassificacao = melhoresRegras.motivoCategoria || 'Categoria contábil/financeira incompatível com a transação.';
-        totalCategoriaIncorreta++;
-      }
-      // Cenário 5: FORNECEDOR_INCORRETO (fornecedor diverge flagrantemente do beneficiário do extrato)
-      else if (!melhoresRegras.fornecedorCoerente) {
-        statusAuditoria = 'FORNECEDOR_INCORRETO';
-        motivoClassificacao = melhoresRegras.motivoFornecedor || 'Fornecedor cadastrado no ERP diverge do beneficiário do extrato.';
-        totalFornecedorIncorreto++;
-      }
-      // Cenário 6: CONCILIADO_BAIXA_CONFIANCA por distância temporal (> 5 dias) ou score limítrofe (< 65)
+      // Cenário 4: CONCILIADO_BAIXA_CONFIANCA por distância temporal (> 5 dias) ou score limítrofe (< 65)
       else if (melhorScores.scoreData < 50 || melhorScores.scoreGlobal < 65) {
         statusAuditoria = 'CONCILIADO_BAIXA_CONFIANCA';
         motivoClassificacao = 'Contrapartida localizada no ERP, mas com aderência limítrofe de data ou descrição.';
         totalBaixaConfianca++;
       }
-      // Cenário 7: CONFORME (perfeitamente conciliado no ERP com dados coerentes e score robusto)
+      // Cenário 5: CONFORME (perfeitamente conciliado no ERP com dados coerentes e score robusto)
       else {
         statusAuditoria = 'CONFORME';
-        motivoClassificacao = 'Lançamento conciliado em perfeita conformidade com o extrato bancário.';
+        motivoClassificacao = melhoresRegras.regraDeparaAplicada
+          ? `Lançamento conciliado via ${melhoresRegras.regraDeparaAplicada}.`
+          : 'Lançamento conciliado em perfeita conformidade com o extrato bancário.';
         totalConformes++;
       }
 
@@ -379,7 +412,10 @@ export class MotorMatching implements IMotorMatching {
           categoriaAtual: melhorCandidato?.categoriaNome,
           categoriaEsperada: melhoresRegras.sugestaoCategoriaNome,
           fornecedorAtual: melhorCandidato?.fornecedorClienteNome,
-          diferencaValor: diferencaValor > 0 ? diferencaValor : undefined
+          diferencaValor: diferencaValor > 0 ? diferencaValor : undefined,
+          tipoDivergencia: melhoresRegras.tipoDivergencia,
+          camposDivergentes: melhoresRegras.camposDivergentes.length > 0 ? melhoresRegras.camposDivergentes : undefined,
+          regraDeparaAplicada: melhoresRegras.regraDeparaAplicada
         }
       });
     }

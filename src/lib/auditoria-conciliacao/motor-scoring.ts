@@ -280,13 +280,41 @@ export function calcularScoreDocumento(
   return 70;
 }
 
+export interface IMotorScoring {
+  calcularScores(
+    extrato: TransacaoExtratoCanonica,
+    ca: LancamentoContaAzulAuditavel,
+    tolerancia?: Partial<ParametrosToleranciaScoring>,
+    deparaFornecedores?: Map<string, string>,
+    deparaCategorias?: Map<string, string>
+  ): SubScoresCalculados;
+}
+
 /**
  * 6. Score de Coerência de Categoria (Peso 5%)
  */
 export function calcularScoreCategoria(
   categoriaCaNome?: string | null,
-  tipoEventoCa?: string | null
+  tipoEventoCa?: string | null,
+  descricaoExtrato?: string | null,
+  fornecedorCa?: string | null,
+  deparaCategorias?: Map<string, string>
 ): number {
+  if (deparaCategorias && deparaCategorias.size > 0 && categoriaCaNome) {
+    const descUp = (descricaoExtrato || '').toUpperCase();
+    const fornUp = (fornecedorCa || '').toUpperCase();
+    const catUp = categoriaCaNome.toUpperCase();
+
+    for (const [termo, catEsperada] of deparaCategorias.entries()) {
+      const termoUp = termo.toUpperCase();
+      if (descUp.includes(termoUp) || fornUp.includes(termoUp)) {
+        if (catUp.includes(catEsperada.toUpperCase())) {
+          return 100;
+        }
+      }
+    }
+  }
+
   if (!categoriaCaNome || categoriaCaNome === 'Sem Categoria') {
     return 40;
   }
@@ -301,7 +329,8 @@ export class MotorScoring implements IMotorScoring {
     extrato: TransacaoExtratoCanonica,
     ca: LancamentoContaAzulAuditavel,
     tolerancia?: Partial<ParametrosToleranciaScoring>,
-    deparaFornecedores?: Map<string, string>
+    deparaFornecedores?: Map<string, string>,
+    deparaCategorias?: Map<string, string>
   ): SubScoresCalculados {
     const config = { ...TOLERANCIA_PADRAO, ...tolerancia };
 
@@ -333,10 +362,16 @@ export class MotorScoring implements IMotorScoring {
       ca.parcelaId || ca.eventoId
     );
 
-    const scoreCategoria = calcularScoreCategoria(ca.categoriaNome, ca.tipoEvento);
+    const scoreCategoria = calcularScoreCategoria(
+      ca.categoriaNome,
+      ca.tipoEvento,
+      extrato.descricaoOriginal,
+      ca.fornecedorClienteNome,
+      deparaCategorias
+    );
 
     // Média Ponderada Oficial: 35% valor + 20% data + 20% fornecedor + 10% desc + 10% doc + 5% cat
-    const scoreGlobal = Math.round(
+    let scoreGlobal = Math.round(
       0.35 * scoreValor +
       0.20 * scoreData +
       0.20 * scoreFornecedor +
@@ -344,6 +379,11 @@ export class MotorScoring implements IMotorScoring {
       0.10 * scoreDocumento +
       0.05 * scoreCategoria
     );
+
+    // Se ambos fornecedor e valor tiverem aderência perfeita através de De-Para ou exatidão
+    if (scoreValor === 100 && scoreFornecedor === 100 && scoreData >= 75) {
+      scoreGlobal = Math.max(scoreGlobal, 95);
+    }
 
     return {
       scoreValor,

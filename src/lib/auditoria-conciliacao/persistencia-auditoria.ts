@@ -49,10 +49,11 @@ export interface IPersistenciaAuditoria {
     motivo: string
   ): Promise<void>;
 
-  buscarSessaoPorHash(
+  reprocessarSessaoExistente(
+    sessaoId: string,
     empresaId: string,
-    arquivoHash: string
-  ): Promise<{ id: string; statusAuditoria: string } | null>;
+    resultadoMatching: ResultadoAuditoriaConciliacao
+  ): Promise<{ sessaoId: string; totalItensGravados: number }>;
 }
 
 export class PersistenciaAuditoria implements IPersistenciaAuditoria {
@@ -209,6 +210,104 @@ export class PersistenciaAuditoria implements IPersistenciaAuditoria {
     return {
       id: data.id,
       statusAuditoria: data.status_auditoria
+    };
+  }
+
+  /**
+   * Reprocessa atômica e integralmente uma sessão existente (Fase 1):
+   * 1. Remove os itens antigos da sessão
+   * 2. Grava os novos itens recalculados em chunks de 250
+   * 3. Atualiza os 4 KPIs e métricas da sessão
+   */
+  public async reprocessarSessaoExistente(
+    sessaoId: string,
+    empresaId: string,
+    resultadoMatching: ResultadoAuditoriaConciliacao
+  ): Promise<{ sessaoId: string; totalItensGravados: number }> {
+    const supabase = getSupabase();
+    const kpis = resultadoMatching.kpis;
+
+    // 1. Remover itens antigos da sessão
+    const { error: errDelete } = await supabase
+      .from('auditoria_conciliacao_itens')
+      .delete()
+      .eq('sessao_id', sessaoId);
+
+    if (errDelete) {
+      console.warn(`[PersistenciaAuditoria] Aviso ao limpar itens antigos da sessão ${sessaoId}:`, errDelete);
+    }
+
+    // 2. Mapeamento dos novos itens
+    const itensParaGravar = resultadoMatching.itens.map((item: ItemAuditoriaProcessado) => {
+      const ca = item.statusAuditoria === 'LANCAMENTO_AUSENTE' ? null : item.lancamentoCaCorrespondente;
+      return {
+        sessao_id: sessaoId,
+        empresa_id: empresaId,
+        data_transacao: item.transacaoExtrato.data,
+        descricao_extrato: item.transacaoExtrato.descricaoOriginal,
+        descricao_sanitizada: item.transacaoExtrato.descricaoSanitizada,
+        documento_extrato: item.transacaoExtrato.documento || null,
+        tipo_transacao: item.transacaoExtrato.tipo,
+        valor_extrato: item.transacaoExtrato.valor,
+        
+        conta_azul_parcela_id: ca?.parcelaId || null,
+        conta_azul_evento_id: ca?.eventoId || null,
+        conta_azul_baixa_id: ca?.baixas?.[0]?.id || null,
+        conciliado_no_ca: Boolean(ca?.conciliado),
+        fornecedor_cliente_ca: ca?.fornecedorClienteNome || null,
+        fornecedor_ca_id: ca?.fornecedorClienteId || null,
+        categoria_ca: ca?.categoriaNome || null,
+        categoria_ca_id: ca?.categoriaId || null,
+        valor_ca: ca ? (ca.valorPago || ca.valorTotal) : null,
+        data_pagamento_ca: ca?.dataPagamento || ca?.dataVencimento || null,
+        
+        status_auditoria: item.statusAuditoria,
+        score_confianca: item.scoreConfianca,
+        diferenca_valor: item.diferencaValor,
+        detalhes_diagnostico: item.diagnostico,
+        status_governanca: 'PENDENTE'
+      };
+    });
+
+    // 3. Inserção em Lotes (Chunks de 250 itens)
+    const TAMANHO_LOTE = 250;
+    for (let i = 0; i < itensParaGravar.length; i += TAMANHO_LOTE) {
+      const lote = itensParaGravar.slice(i, i + TAMANHO_LOTE);
+      const { error: erroLote } = await supabase
+        .from('auditoria_conciliacao_itens')
+        .insert(lote);
+
+      if (erroLote) {
+        console.error(`[PersistenciaAuditoria] Erro ao regravar lote (${i} a ${i + lote.length}):`, erroLote);
+        throw new Error(`Falha ao persistir itens reprocessados: ${erroLote.message}`);
+      }
+    }
+
+    // 4. Atualização dos KPIs e Metadados da Sessão
+    const { error: erroAtualizaSessao } = await supabase
+      .from('auditoria_conciliacao_sessoes')
+      .update({
+        total_transacoes: kpis.totalTransacoes,
+        total_debitos: resultadoMatching.itens.filter(i => i.transacaoExtrato.tipo === 'DEBITO').length,
+        total_creditos: resultadoMatching.itens.filter(i => i.transacaoExtrato.tipo === 'CREDITO').length,
+        valor_total_debitos: kpis.valorTotalDebitos,
+        valor_total_creditos: kpis.valorTotalCreditos,
+        status_auditoria: 'EM_ANALISE',
+        saude_conciliacao: kpis.saudeConciliacao,
+        gap_desconciliado: kpis.gapDesconciliadoValor,
+        total_riscos_contabeis: kpis.totalRiscosContabeis,
+        valor_divergencias: kpis.divergenciasFinanceirasValor,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', sessaoId);
+
+    if (erroAtualizaSessao) {
+      console.warn(`[PersistenciaAuditoria] Aviso ao atualizar cabeçalho da sessão ${sessaoId}:`, erroAtualizaSessao);
+    }
+
+    return {
+      sessaoId,
+      totalItensGravados: itensParaGravar.length
     };
   }
 }

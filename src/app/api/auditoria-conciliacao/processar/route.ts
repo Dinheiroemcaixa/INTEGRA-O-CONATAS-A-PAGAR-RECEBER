@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuditoriaConciliacaoHabilitada } from '@/lib/auditoria-conciliacao/feature-flags';
 import { sincronizarLancamentosContaAzul } from '@/lib/auditoria-conciliacao/sincronizador';
+import { invalidarCacheContaAzul } from '@/lib/auditoria-conciliacao/cache';
 import { MotorMatching } from '@/lib/auditoria-conciliacao/motor-matching';
 import { PersistenciaAuditoria } from '@/lib/auditoria-conciliacao/persistencia-auditoria';
 import { TransacaoExtratoCanonica, FormatoArquivoExtrato } from '@/lib/auditoria-conciliacao/tipos';
@@ -24,6 +25,7 @@ interface RequestProcessamentoAuditoria {
   somenteCache?: boolean;
   orcamentoRequisicoes?: number;
   forcarReprocessamento?: boolean;
+  ignorarCache?: boolean;
 }
 
 export async function POST(req: NextRequest) {
@@ -49,20 +51,25 @@ export async function POST(req: NextRequest) {
     const persistencia = new PersistenciaAuditoria();
 
     // 2. Verificação de Idempotência (Hash do Arquivo)
-    if (!body.forcarReprocessamento) {
-      const sessaoExistente = await persistencia.buscarSessaoPorHash(body.empresaId, body.arquivoHash);
-      if (sessaoExistente) {
-        return NextResponse.json({
-          aviso: 'Este arquivo de extrato já foi auditado para esta empresa.',
-          sessaoId: sessaoExistente.id,
-          statusAuditoria: sessaoExistente.statusAuditoria,
-          jaProcessado: true
-        });
-      }
+    const sessaoExistente = await persistencia.buscarSessaoPorHash(body.empresaId, body.arquivoHash);
+    if (sessaoExistente && !body.forcarReprocessamento) {
+      return NextResponse.json({
+        aviso: 'Este arquivo de extrato já foi auditado para esta empresa.',
+        sessaoId: sessaoExistente.id,
+        statusAuditoria: sessaoExistente.statusAuditoria,
+        jaProcessado: true
+      });
+    }
+
+    // FASE 1: Se solicitado forçar reprocessamento ou ignorar cache, invalida o cache satélite
+    const deveForcarAtualizacao = Boolean(body.forcarReprocessamento || body.ignorarCache);
+    if (deveForcarAtualizacao) {
+      console.log(`[API /auditoria-conciliacao/processar] Reprocessamento completo solicitado. Invalidando cache satélite para empresa ${body.empresaId}...`);
+      await invalidarCacheContaAzul(body.empresaId, body.contaFinanceiraId);
     }
 
     // 3. Sincronização Segura e Somente-Leitura com a API Conta Azul
-    console.log(`[API /auditoria-conciliacao/processar] Sincronizando ERP para conta ${body.contaFinanceiraId} (${body.periodoInicio} a ${body.periodoFim})...`);
+    console.log(`[API /auditoria-conciliacao/processar] Sincronizando ERP para conta ${body.contaFinanceiraId} (${body.periodoInicio} a ${body.periodoFim}) [forcarAtualizacao=${deveForcarAtualizacao}]...`);
     
     let caItens: any[] = [];
     try {
@@ -73,71 +80,106 @@ export async function POST(req: NextRequest) {
         body.periodoFim,
         {
           modoCacheOnly: body.somenteCache ?? false,
+          forcarAtualizacao: deveForcarAtualizacao,
           limiteRequisicoes: body.orcamentoRequisicoes ?? 60
         }
       );
     } catch (syncError: any) {
       console.warn('[API /auditoria-conciliacao/processar] Aviso na sincronização Conta Azul:', syncError?.message);
-      // Se falhar e não for erro fatal de validação, continua com os lançamentos disponíveis do cache
     }
 
-    // 4. Carregar regras de De-Para (específicas da empresa + globais do grupo)
+    // 4. Carregar regras de De-Para (Fornecedores e Categorias)
     const supabaseAdmin = (await import('@supabase/supabase-js')).createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    const mapaDepara = new Map<string, string>();
+    const mapaDeparaFornecedores = new Map<string, string>();
+    const mapaDeparaCategorias = new Map<string, string>();
+
     try {
-      const [{ data: regrasEmpresa }, { data: regrasGlobais }] = await Promise.all([
+      const [
+        { data: regrasFornEmpresa },
+        { data: regrasFornGlobais },
+        { data: regrasCatEmpresa }
+      ] = await Promise.all([
         supabaseAdmin.from('fornecedor_depara').select('nome_original, nome_original_normalizado, nome_corrigido').eq('empresa_id', body.empresaId),
-        supabaseAdmin.from('fornecedor_depara').select('nome_original, nome_original_normalizado, nome_corrigido').neq('empresa_id', body.empresaId)
+        supabaseAdmin.from('fornecedor_depara').select('nome_original, nome_original_normalizado, nome_corrigido').neq('empresa_id', body.empresaId),
+        supabaseAdmin.from('fornecedor_regras').select('fornecedor_nome, categoria_nome').eq('empresa_id', body.empresaId).eq('ativo', true)
       ]);
 
-      // Globais primeiro
-      (regrasGlobais || []).forEach(r => {
-        if (r.nome_original) mapaDepara.set(r.nome_original.trim().toUpperCase(), r.nome_corrigido.trim().toUpperCase());
-        if (r.nome_original_normalizado) mapaDepara.set(r.nome_original_normalizado.trim().toUpperCase(), r.nome_corrigido.trim().toUpperCase());
+      // Regras Globais de Fornecedor
+      (regrasFornGlobais || []).forEach(r => {
+        if (r.nome_original) mapaDeparaFornecedores.set(r.nome_original.trim().toUpperCase(), r.nome_corrigido.trim().toUpperCase());
+        if (r.nome_original_normalizado) mapaDeparaFornecedores.set(r.nome_original_normalizado.trim().toUpperCase(), r.nome_corrigido.trim().toUpperCase());
       });
-      // Da empresa sobrescreve (prioridade)
-      (regrasEmpresa || []).forEach(r => {
-        if (r.nome_original) mapaDepara.set(r.nome_original.trim().toUpperCase(), r.nome_corrigido.trim().toUpperCase());
-        if (r.nome_original_normalizado) mapaDepara.set(r.nome_original_normalizado.trim().toUpperCase(), r.nome_corrigido.trim().toUpperCase());
+
+      // Regras da Empresa de Fornecedor (prioridade)
+      (regrasFornEmpresa || []).forEach(r => {
+        if (r.nome_original) mapaDeparaFornecedores.set(r.nome_original.trim().toUpperCase(), r.nome_corrigido.trim().toUpperCase());
+        if (r.nome_original_normalizado) mapaDeparaFornecedores.set(r.nome_original_normalizado.trim().toUpperCase(), r.nome_corrigido.trim().toUpperCase());
+      });
+
+      // Regras de Categoria aprendidas
+      (regrasCatEmpresa || []).forEach(r => {
+        if (r.fornecedor_nome && r.categoria_nome) {
+          mapaDeparaCategorias.set(r.fornecedor_nome.trim().toUpperCase(), r.categoria_nome.trim());
+        }
       });
     } catch (errDepara) {
-      console.warn('[API /auditoria-conciliacao/processar] Aviso ao carregar De-Para de fornecedores:', errDepara);
+      console.warn('[API /auditoria-conciliacao/processar] Aviso ao carregar De-Para:', errDepara);
     }
 
-    // 5. Execução do Motor de Matching O(N) com Suporte a Cartões e De-Para (Fase 5)
-    console.log(`[API /auditoria-conciliacao/processar] Executando cruzamento analítico (${body.transacoes.length} extrato x ${caItens.length} ERP | ${mapaDepara.size} regras De-Para)...`);
+    // 5. Execução do Motor de Matching O(N) com os 6 campos críticos e De-Para
+    console.log(`[API /auditoria-conciliacao/processar] Executando cruzamento analítico (${body.transacoes.length} extrato x ${caItens.length} ERP | ${mapaDeparaFornecedores.size} regras Forn | ${mapaDeparaCategorias.size} regras Cat)...`);
     const motor = new MotorMatching();
     const resultadoMatching = motor.executarCruzamento(body.transacoes, caItens, {
       toleranciaDias: body.toleranciaDias ?? 3,
       toleranciaValorCentavos: body.toleranciaValorCentavos ?? 0.05,
-      deparaFornecedores: mapaDepara
+      deparaFornecedores: mapaDeparaFornecedores,
+      deparaCategorias: mapaDeparaCategorias,
+      contaFinanceiraIdAuditada: body.contaFinanceiraId,
+      nomeContaFinanceiraAuditada: body.bancoNome
     });
 
-    // 6. Persistência Atômica no Supabase em Lotes
-    const { sessaoId, totalItensGravados } = await persistencia.salvarSessaoEItens(
-      {
-        empresaId: body.empresaId,
-        contaFinanceiraId: body.contaFinanceiraId,
-        bancoNome: body.bancoNome || 'Conta Financeira',
-        arquivoNome: body.arquivoNome,
-        arquivoTipo: body.arquivoTipo,
-        arquivoHash: body.arquivoHash,
-        arquivoTamanho: body.arquivoTamanho,
-        periodoInicio: body.periodoInicio,
-        periodoFim: body.periodoFim
-      },
-      resultadoMatching
-    );
+    // 6. Persistência Atômica no Supabase: Reprocessamento ou Nova Sessão
+    let sessaoIdFinal: string;
+    let totalGravados: number;
+
+    if (sessaoExistente && body.forcarReprocessamento) {
+      console.log(`[API /auditoria-conciliacao/processar] Atualizando sessão existente ${sessaoExistente.id} com novo resultado recalculado...`);
+      const resReproc = await persistencia.reprocessarSessaoExistente(
+        sessaoExistente.id,
+        body.empresaId,
+        resultadoMatching
+      );
+      sessaoIdFinal = resReproc.sessaoId;
+      totalGravados = resReproc.totalItensGravados;
+    } else {
+      const resNova = await persistencia.salvarSessaoEItens(
+        {
+          empresaId: body.empresaId,
+          contaFinanceiraId: body.contaFinanceiraId,
+          bancoNome: body.bancoNome || 'Conta Financeira',
+          arquivoNome: body.arquivoNome,
+          arquivoTipo: body.arquivoTipo,
+          arquivoHash: body.arquivoHash,
+          arquivoTamanho: body.arquivoTamanho,
+          periodoInicio: body.periodoInicio,
+          periodoFim: body.periodoFim
+        },
+        resultadoMatching
+      );
+      sessaoIdFinal = resNova.sessaoId;
+      totalGravados = resNova.totalItensGravados;
+    }
 
     return NextResponse.json({
       sucesso: true,
-      sessaoId,
-      totalItensGravados,
+      sessaoId: sessaoIdFinal,
+      totalItensGravados: totalGravados,
       totalContaAzulConsultado: caItens.length,
+      reprocessado: Boolean(sessaoExistente && body.forcarReprocessamento),
       kpis: resultadoMatching.kpis
     });
 
