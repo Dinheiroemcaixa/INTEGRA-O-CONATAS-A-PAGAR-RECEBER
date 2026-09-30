@@ -810,7 +810,13 @@ export default function AuditoriaConciliacaoPage() {
 
                         {/* Status da Auditoria */}
                         <td className="py-3 px-3 whitespace-nowrap">
-                          {renderBadgeStatus(item.status_auditoria)}
+                          {item.detalhes_diagnostico?.motivo?.includes('CONCILIADO POR CARTÃO') ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30" title={item.detalhes_diagnostico.motivo}>
+                              Conciliado por Cartão
+                            </span>
+                          ) : (
+                            renderBadgeStatus(item.status_auditoria)
+                          )}
                           {item.diferenca_valor > 0 && (
                             <div className="text-[10px] text-rose-400 font-mono mt-0.5">
                               Dif: {formatCurrency(item.diferenca_valor)}

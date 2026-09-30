@@ -23,6 +23,9 @@ export interface OpcoesExecucaoMatching {
   toleranciaDias?: number; // Padrão: 3 dias
   toleranciaValorCentavos?: number; // Padrão: 0.05
   ignorarTarifasBancariasMenoresQue?: number; // Padrão: 0.00
+  deparaFornecedores?: Map<string, string>; // Fase 5 - Objetivo 3 e 4: De-Para Nome Banco -> Fornecedor Conta Azul
+  adquirentesCartaoConhecidas?: string[]; // Fase 5 - Objetivo 1: Operadoras de cartão
+  toleranciaPercentualTaxaCartao?: { min: number; max: number }; // Fase 5 - Objetivo 2: Taxa MDR plausível
 }
 
 export interface ItemAuditoriaProcessado {
@@ -103,6 +106,26 @@ export class MotorMatching implements IMotorMatching {
     let valorTotalDebitos = 0;
     let valorTotalCreditos = 0;
 
+    const adquirentesCartao = opcoes?.adquirentesCartaoConhecidas ?? [
+      'STONE', 'REDE', 'REDECARD', 'GETNET', 'CIELO', 'SAFRA', 'SAFRAPAY', 'PAGSEGURO', 'PAGBANK', 'MERCADO PAGO', 'CARTAO', 'CARTÕES'
+    ];
+    const tolTaxaMin = opcoes?.toleranciaPercentualTaxaCartao?.min ?? 0.05; // 0.05%
+    const tolTaxaMax = opcoes?.toleranciaPercentualTaxaCartao?.max ?? 40.0;  // 40.0%
+
+    // Pré-filtrar todas as despesas de taxa/tarifa de cartão no ERP para matching O(1) temporal
+    const despesasTaxaCartaoErp = caItens.filter(c => {
+      if (c.tipoEvento !== 'DESPESA') return false;
+      const cat = (c.categoriaNome || '').toUpperCase();
+      const desc = ((c.descricao || '') + ' ' + (c.fornecedorClienteNome || '')).toUpperCase();
+      return (
+        cat.includes('TARIFA') ||
+        cat.includes('TAXA') ||
+        cat.includes('CART') ||
+        desc.includes('RECEBIMENTO') ||
+        adquirentesCartao.some(adq => desc.includes(adq))
+      );
+    });
+
     // 2. Processamento de Cada Transação do Extrato
     for (const extrato of extratoItens) {
       if (extrato.tipo === 'DEBITO') {
@@ -112,6 +135,73 @@ export class MotorMatching implements IMotorMatching {
       }
 
       const valorCentavosExtrato = Math.round(extrato.valor * 100);
+
+      // OBJETIVO 1 E 2: Conciliação Inteligente de Cartões (Líquido x Bruto com Taxa de Adquirente)
+      const descExtratoUpper = (extrato.descricaoOriginal + ' ' + (extrato.descricaoSanitizada || '')).toUpperCase();
+      const ehCreditoCartao = extrato.tipo === 'CREDITO' && adquirentesCartao.some(adq => descExtratoUpper.includes(adq));
+      let matchCartaoEncontrado: { taxaCa: LancamentoContaAzulAuditavel; valorBruto: number; taxaMdr: number; taxaPct: number } | null = null;
+
+      if (ehCreditoCartao) {
+        const dataBaseExt = new Date(extrato.data);
+        const janelaCartao = Math.max(toleranciaDias + 3, 6); // +-6 dias
+
+        for (const taxaCa of despesasTaxaCartaoErp) {
+          if (lancamentosUtilizados.has(taxaCa.parcelaId || taxaCa.eventoId)) continue;
+
+          const dataTaxaStr = (taxaCa.dataPagamento || taxaCa.dataVencimento)?.slice(0, 10);
+          if (!dataTaxaStr) continue;
+
+          const diffDias = Math.abs((new Date(dataTaxaStr).getTime() - dataBaseExt.getTime()) / (1000 * 60 * 60 * 24));
+          if (diffDias > janelaCartao) continue;
+
+          // Validação de adquirente compatível
+          const descTaxa = ((taxaCa.descricao || '') + ' ' + (taxaCa.fornecedorClienteNome || '')).toUpperCase();
+          const adqCoincidente = adquirentesCartao.find(a => descExtratoUpper.includes(a));
+          if (adqCoincidente && !descTaxa.includes(adqCoincidente) && !descTaxa.includes('CART')) {
+            continue;
+          }
+
+          const valorTaxa = taxaCa.valorPago || taxaCa.valorTotal;
+          if (valorTaxa <= 0) continue;
+
+          // Fórmula contábil: Receita Bruta = Valor Líquido Depositado + Despesa de Taxa
+          // Valor Bruto - Taxa = Valor Líquido
+          const valorBruto = Number((extrato.valor + valorTaxa).toFixed(2));
+          const taxaPct = Number(((valorTaxa / valorBruto) * 100).toFixed(2));
+
+          if (taxaPct >= tolTaxaMin && taxaPct <= tolTaxaMax) {
+            matchCartaoEncontrado = {
+              taxaCa,
+              valorBruto,
+              taxaMdr: valorTaxa,
+              taxaPct
+            };
+            break;
+          }
+        }
+      }
+
+      // Se identificado match de cartão
+      if (matchCartaoEncontrado) {
+        const { taxaCa, valorBruto, taxaMdr, taxaPct } = matchCartaoEncontrado;
+        lancamentosUtilizados.add(taxaCa.parcelaId || taxaCa.eventoId);
+        totalConformes++;
+
+        itensProcessados.push({
+          transacaoExtrato: extrato,
+          lancamentoCaCorrespondente: taxaCa,
+          statusAuditoria: 'CONFORME',
+          scoreConfianca: 100,
+          diferencaValor: 0,
+          diagnostico: {
+            motivo: `CONCILIADO POR CARTÃO: Receita Bruta R$ ${valorBruto.toFixed(2)} - Taxa MDR R$ ${taxaMdr.toFixed(2)} (${taxaPct}%) = Líquido Depositado R$ ${extrato.valor.toFixed(2)}.`,
+            categoriaAtual: taxaCa.categoriaNome || 'Tarifas de Cartões de Crédito',
+            categoriaEsperada: 'Tarifas de Cartões de Crédito',
+            fornecedorAtual: taxaCa.fornecedorClienteNome
+          }
+        });
+        continue;
+      }
 
       // Busca candidatos na mesma faixa de valor (exato ou centavos próximos)
       const candidatos: LancamentoContaAzulAuditavel[] = [];
@@ -125,7 +215,6 @@ export class MotorMatching implements IMotorMatching {
       }
 
       // Se não encontrou candidatos de valor próximo, busca em janela temporal restrita (+-5 dias)
-      // evitando varredura exaustiva O(N*M) na base inteira
       let poolCandidatos: LancamentoContaAzulAuditavel[];
       if (candidatos.length > 0) {
         poolCandidatos = candidatos;
@@ -185,10 +274,15 @@ export class MotorMatching implements IMotorMatching {
 
         if (!tipoCompravel) continue;
 
-        const scores = this.scoring.calcularScores(extrato, ca, {
-          diasToleranciaCompensacao: toleranciaDias,
-          centavosToleranciaArredondamento: toleranciaValor
-        });
+        const scores = this.scoring.calcularScores(
+          extrato,
+          ca,
+          {
+            diasToleranciaCompensacao: toleranciaDias,
+            centavosToleranciaArredondamento: toleranciaValor
+          },
+          opcoes?.deparaFornecedores
+        );
 
         // Contabiliza duplicidades no ERP
         const dataCa = ca.dataPagamento || ca.dataVencimento;
@@ -202,7 +296,7 @@ export class MotorMatching implements IMotorMatching {
         if (scores.scoreGlobal > melhorScores.scoreGlobal) {
           melhorScores = scores;
           melhorCandidato = ca;
-          melhoresRegras = this.regras.avaliarCoerencia(extrato, ca);
+          melhoresRegras = this.regras.avaliarCoerencia(extrato, ca, opcoes?.deparaFornecedores);
         }
       }
 

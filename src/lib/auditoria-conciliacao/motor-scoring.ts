@@ -36,7 +36,8 @@ export interface IMotorScoring {
   calcularScores(
     extrato: TransacaoExtratoCanonica,
     ca: LancamentoContaAzulAuditavel,
-    tolerancia?: Partial<ParametrosToleranciaScoring>
+    tolerancia?: Partial<ParametrosToleranciaScoring>,
+    deparaFornecedores?: Map<string, string>
   ): SubScoresCalculados;
 }
 
@@ -182,14 +183,30 @@ export function calcularScoreFornecedor(
   nomeBeneficiarioExtrato: string,
   nomeContatoCa: string,
   cpfCnpjExtrato?: string | null,
-  cpfCnpjCa?: string | null
+  cpfCnpjCa?: string | null,
+  deparaFornecedores?: Map<string, string>
 ): number {
-  // Se ambos possuem CNPJ/CPF e coincidem
-  if (cpfCnpjExtrato && cpfCnpjCa) {
-    const cleanDoc1 = cpfCnpjExtrato.replace(/\D/g, '');
-    const cleanDoc2 = cpfCnpjCa.replace(/\D/g, '');
-    if (cleanDoc1 && cleanDoc1 === cleanDoc2) {
-      return 100;
+  // Extrai dígitos de CPF/CNPJ de strings
+  const extrairDigitos = (txt?: string | null) => (txt || '').match(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b|\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/)?.[0]?.replace(/\D/g, '') || (txt || '').replace(/\D/g, '');
+  const doc1 = cpfCnpjExtrato ? extrairDigitos(cpfCnpjExtrato) : extrairDigitos(nomeBeneficiarioExtrato);
+  const doc2 = cpfCnpjCa ? extrairDigitos(cpfCnpjCa) : extrairDigitos(nomeContatoCa);
+
+  // Se ambos possuem CNPJ/CPF válidos (>= 8 dígitos) e coincidem, Score Fornecedor é 100%
+  if (doc1 && doc2 && doc1.length >= 8 && doc2.length >= 8 && doc1 === doc2) {
+    return 100;
+  }
+
+  // Se houver regra de De-Para de Fornecedores cadastrada, Score Fornecedor é 100%
+  if (deparaFornecedores && deparaFornecedores.size > 0) {
+    const nomeExtUpper = (nomeBeneficiarioExtrato || '').toUpperCase();
+    const nomeCaUpper = (nomeContatoCa || '').toUpperCase();
+
+    for (const [orig, corr] of deparaFornecedores.entries()) {
+      if (nomeExtUpper.includes(orig)) {
+        if (nomeCaUpper.includes(corr) || corr.includes(nomeCaUpper)) {
+          return 100;
+        }
+      }
     }
   }
 
@@ -198,6 +215,18 @@ export function calcularScoreFornecedor(
   if (!s1 || !s2) return 30; // Baixo se um dos lados não tiver nome claro
 
   if (s1 === s2) return 100;
+
+  // Interseção de tokens corporativos significativos (Razão Social x Nome Fantasia)
+  const stopTokens = new Set(['PAGO', 'PAGAMENTO', 'BOLETO', 'TITULO', 'DOC', 'TED', 'PIX', 'ENVIADO', 'RECEBIDO', 'LTDA', 'SA', 'ME', 'EPP', 'PARA', 'COM', 'CIA']);
+  const tokens1 = new Set(s1.split(/\s+/).filter(t => t.length >= 4 && !stopTokens.has(t)));
+  const tokens2 = new Set(s2.split(/\s+/).filter(t => t.length >= 4 && !stopTokens.has(t)));
+  let comuns = 0;
+  for (const t of tokens1) {
+    if (tokens2.has(t)) comuns++;
+  }
+  if (comuns >= 1) {
+    return Math.max(85, Math.min(100, 70 + comuns * 15));
+  }
 
   const jw = calcularSimilaridadeJaroWinkler(s1, s2);
   const lev = calcularSimilaridadeLevenshtein(s1, s2);
@@ -271,7 +300,8 @@ export class MotorScoring implements IMotorScoring {
   public calcularScores(
     extrato: TransacaoExtratoCanonica,
     ca: LancamentoContaAzulAuditavel,
-    tolerancia?: Partial<ParametrosToleranciaScoring>
+    tolerancia?: Partial<ParametrosToleranciaScoring>,
+    deparaFornecedores?: Map<string, string>
   ): SubScoresCalculados {
     const config = { ...TOLERANCIA_PADRAO, ...tolerancia };
 
@@ -288,8 +318,9 @@ export class MotorScoring implements IMotorScoring {
     const scoreFornecedor = calcularScoreFornecedor(
       extrato.descricaoSanitizada || extrato.descricaoOriginal,
       ca.fornecedorClienteNome,
-      null,
-      ca.fornecedorCpfCnpj
+      extrato.documento,
+      ca.fornecedorCpfCnpj,
+      deparaFornecedores
     );
 
     const scoreDescricao = calcularScoreDescricao(

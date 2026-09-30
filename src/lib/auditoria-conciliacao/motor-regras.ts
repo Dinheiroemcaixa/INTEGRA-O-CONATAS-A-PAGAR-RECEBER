@@ -23,7 +23,8 @@ export interface ResultadoInspecaoRegras {
 export interface IMotorRegrasContabeis {
   avaliarCoerencia(
     extrato: TransacaoExtratoCanonica,
-    ca: LancamentoContaAzulAuditavel
+    ca: LancamentoContaAzulAuditavel,
+    deparaFornecedores?: Map<string, string>
   ): ResultadoInspecaoRegras;
 }
 
@@ -70,7 +71,8 @@ const PADROES_CATEGORIAS_CONHECIDAS: Array<{
 export class MotorRegrasContabeis implements IMotorRegrasContabeis {
   public avaliarCoerencia(
     extrato: TransacaoExtratoCanonica,
-    ca: LancamentoContaAzulAuditavel
+    ca: LancamentoContaAzulAuditavel,
+    deparaFornecedores?: Map<string, string>
   ): ResultadoInspecaoRegras {
     let fornecedorCoerente = true;
     let motivoFornecedor: string | undefined;
@@ -83,13 +85,43 @@ export class MotorRegrasContabeis implements IMotorRegrasContabeis {
     const nomeContatoCaSanitizado = sanitizarDescricao(ca.fornecedorClienteNome).toUpperCase();
     const categoriaCaNome = (ca.categoriaNome || '').trim();
 
-    // 1. Validação de Coerência de Fornecedor / Beneficiário
-    if (textoExtratoSanitizado && nomeContatoCaSanitizado) {
+    // 1. Validação de Coerência de Fornecedor / Beneficiário (Fase 5 - Objetivos 3 e 4)
+    // Extrai CNPJ/CPF em formato puramente numérico
+    const extrairDigitos = (txt?: string | null) => (txt || '').match(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b|\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/)?.[0]?.replace(/\D/g, '') || (txt || '').replace(/\D/g, '');
+    const cnpjExtrato = extrato.documento ? extrairDigitos(extrato.documento) : extrairDigitos(extrato.descricaoOriginal);
+    const cnpjCa = ca.fornecedorCpfCnpj ? extrairDigitos(ca.fornecedorCpfCnpj) : extrairDigitos(`${ca.fornecedorClienteNome} ${ca.descricao}`);
+
+    let ehEquivalentePorDePara = false;
+    if (deparaFornecedores && deparaFornecedores.size > 0) {
+      const descUpper = extrato.descricaoOriginal.toUpperCase();
+      const descSan = textoExtratoSanitizado;
+      const fornCaUpper = ca.fornecedorClienteNome.toUpperCase();
+
+      for (const [orig, corr] of deparaFornecedores.entries()) {
+        if (descUpper.includes(orig) || descSan.includes(orig)) {
+          if (fornCaUpper.includes(corr) || corr.includes(fornCaUpper) || nomeContatoCaSanitizado.includes(corr)) {
+            ehEquivalentePorDePara = true;
+            break;
+          }
+        }
+      }
+    }
+
+    // Se houver equivalência direta no De-Para, valida imediatamente como coerente
+    if (ehEquivalentePorDePara) {
+      fornecedorCoerente = true;
+    }
+    // Se ambos possuem CNPJ/CPF válidos (mínimo 8 dígitos) e coincidem, valida como coerente (Razão Social x Fantasia)
+    else if (cnpjExtrato && cnpjCa && cnpjExtrato.length >= 8 && cnpjCa.length >= 8 && cnpjExtrato === cnpjCa) {
+      fornecedorCoerente = true;
+    }
+    else if (textoExtratoSanitizado && nomeContatoCaSanitizado) {
       const similaridade = calcularSimilaridadeJaroWinkler(textoExtratoSanitizado, nomeContatoCaSanitizado);
       
-      // Se similaridade for menor que 60% e não houver tokens significativos em comum
-      const tokensExtrato = new Set(textoExtratoSanitizado.split(/\s+/).filter(t => t.length >= 3));
-      const tokensCa = new Set(nomeContatoCaSanitizado.split(/\s+/).filter(t => t.length >= 3));
+      // Tokens significativos (ignora stopwords e termos genéricos comuns de pagamentos)
+      const stopTokens = new Set(['PAGO', 'PAGAMENTO', 'BOLETO', 'TITULO', 'DOC', 'TED', 'PIX', 'ENVIADO', 'RECEBIDO', 'LTDA', 'SA', 'ME', 'EPP', 'PARA', 'COM', 'CIA']);
+      const tokensExtrato = new Set(textoExtratoSanitizado.split(/\s+/).filter(t => t.length >= 3 && !stopTokens.has(t)));
+      const tokensCa = new Set(nomeContatoCaSanitizado.split(/\s+/).filter(t => t.length >= 3 && !stopTokens.has(t)));
       let temTokenComum = false;
       for (const t of tokensExtrato) {
         if (tokensCa.has(t)) {
