@@ -103,7 +103,7 @@ export class PersistenciaAuditoria implements IPersistenciaAuditoria {
 
     // 2. Mapeamento dos Itens da Sessão
     const itensParaGravar = resultadoMatching.itens.map((item: ItemAuditoriaProcessado) => {
-      const ca = item.lancamentoCaCorrespondente;
+      const ca = item.statusAuditoria === 'LANCAMENTO_AUSENTE' ? null : item.lancamentoCaCorrespondente;
       return {
         sessao_id: sessaoId,
         empresa_id: parametrosSessao.empresaId,

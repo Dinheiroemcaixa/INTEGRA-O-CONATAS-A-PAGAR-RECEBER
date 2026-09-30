@@ -213,11 +213,12 @@ export class MotorMatching implements IMotorMatching {
 
       const diferencaMonetaria = melhorCandidato ? Math.abs((melhorCandidato.valorPago || melhorCandidato.valorTotal) - extrato.valor) : 0;
       const desvioPercentual = extrato.valor > 0 ? (diferencaMonetaria / extrato.valor) : 1;
+      // Divergência de valor plausível: desvio <= 25% E aderência semântica de fornecedor/descrição
       const ehDivergenciaValorPlausivel = Boolean(
         melhorCandidato &&
         diferencaMonetaria > toleranciaValor &&
         desvioPercentual <= 0.25 &&
-        (melhorScores.scoreFornecedor >= 50 || melhorScores.scoreDescricao >= 50 || diferencaMonetaria <= 25.00)
+        (melhorScores.scoreFornecedor >= 45 || melhorScores.scoreDescricao >= 45)
       );
 
       // Cenário 1: LANCAMENTO_AUSENTE (nenhum candidato, score insignificante ou valor completamente desconexo)
@@ -227,6 +228,8 @@ export class MotorMatching implements IMotorMatching {
         melhorScores.scoreGlobal = 0;
         totalAusentes++;
         somaGapDesconciliado += extrato.valor;
+        // Garantir que nenhum candidato descartado/espúrio seja persistido ou exibido como vínculo
+        melhorCandidato = null;
       }
       // Cenário 2: DUPLICIDADE (múltiplos lançamentos no ERP para a mesma transação do extrato)
       else if (candidatosComMesmoValorEData.length >= 2) {
@@ -242,38 +245,25 @@ export class MotorMatching implements IMotorMatching {
         totalDivergenciasValor++;
         somaDivergenciasFinanceiras += diferencaValor;
       }
-      // Cenário 4: CONCILIADO_BAIXA_CONFIANCA por distância temporal (data distante do extrato > 5 dias)
-      else if (melhorCandidato.conciliado && melhorScores.scoreData < 60) {
-        statusAuditoria = 'CONCILIADO_BAIXA_CONFIANCA';
-        motivoClassificacao = 'Conciliado no ERP, mas com data de baixa excessivamente distante da data do extrato.';
-        totalBaixaConfianca++;
-      }
-      // Cenário 5: CATEGORIA_INCORRETA (conciliado, mas categoria incompatível com a governança)
-      else if (melhorCandidato.conciliado && !melhoresRegras.categoriaCoerente) {
+      // Cenário 4: CATEGORIA_INCORRETA (categoria incompatível com a governança contábil)
+      else if (!melhoresRegras.categoriaCoerente) {
         statusAuditoria = 'CATEGORIA_INCORRETA';
         motivoClassificacao = melhoresRegras.motivoCategoria || 'Categoria contábil/financeira incompatível com a transação.';
         totalCategoriaIncorreta++;
       }
-      // Cenário 6: FORNECEDOR_INCORRETO (conciliado, mas fornecedor diverge flagrantemente)
-      else if (melhorCandidato.conciliado && !melhoresRegras.fornecedorCoerente) {
+      // Cenário 5: FORNECEDOR_INCORRETO (fornecedor diverge flagrantemente do beneficiário do extrato)
+      else if (!melhoresRegras.fornecedorCoerente) {
         statusAuditoria = 'FORNECEDOR_INCORRETO';
         motivoClassificacao = melhoresRegras.motivoFornecedor || 'Fornecedor cadastrado no ERP diverge do beneficiário do extrato.';
         totalFornecedorIncorreto++;
       }
-      // Cenário 7: CONCILIADO_BAIXA_CONFIANCA por score geral baixo (< 70)
-      else if (melhorCandidato.conciliado && melhorScores.scoreGlobal < 70) {
+      // Cenário 6: CONCILIADO_BAIXA_CONFIANCA por distância temporal (> 5 dias) ou score limítrofe (< 65)
+      else if (melhorScores.scoreData < 50 || melhorScores.scoreGlobal < 65) {
         statusAuditoria = 'CONCILIADO_BAIXA_CONFIANCA';
-        motivoClassificacao = 'Conciliado no ERP, mas com baixa aderência cadastral ou documental com o extrato.';
+        motivoClassificacao = 'Contrapartida localizada no ERP, mas com aderência limítrofe de data ou descrição.';
         totalBaixaConfianca++;
       }
-      // Cenário 8: NAO_CONCILIADO (baixado no ERP com score alto, mas flag conciliado = false)
-      else if (!melhorCandidato.conciliado && melhorScores.scoreGlobal >= 80) {
-        statusAuditoria = 'NAO_CONCILIADO';
-        motivoClassificacao = 'Lançamento existente e baixado no ERP, pendente de conciliação bancária.';
-        totalNaoConciliados++;
-        somaGapDesconciliado += extrato.valor;
-      }
-      // Cenário 9: CONFORME (perfeitamente conciliado no ERP com dados coerentes)
+      // Cenário 7: CONFORME (perfeitamente conciliado no ERP com dados coerentes e score robusto)
       else {
         statusAuditoria = 'CONFORME';
         motivoClassificacao = 'Lançamento conciliado em perfeita conformidade com o extrato bancário.';
