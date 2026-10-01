@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseDDAFromOCR, parseFolhaFromOCR } from '@/lib/parsers/ocrParsers';
 import { extrairDDAComGemini, extrairFolhaComGemini, ItemDDA } from '@/lib/parsers/geminiExtractor';
+import { parseItauDDAXlsx } from '@/lib/parsers/itauDdaXlsxParser';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -55,6 +56,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Nenhum arquivo enviado.' }, { status: 400 });
     }
 
+    const fileName = file.name || '';
+    const ext = fileName.split('.').pop()?.toLowerCase() || '';
+    const isXlsx = ext === 'xlsx' || ext === 'xls' || file.type?.includes('spreadsheet') || file.type?.includes('excel');
+
+    // Suporte nativo ao novo formato DDA em Excel (.xlsx / .xls) do Itaú
+    if (tipo === 'dda' && isXlsx) {
+      try {
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const dados = parseItauDDAXlsx(buffer);
+        const dadosEnriquecidos = await enriquecerBeneficiariosPorCnpj(dados);
+        return NextResponse.json({ dados: dadosEnriquecidos, fonte: 'xlsx-itau' });
+      } catch (xlsxError: any) {
+        console.error('[Conversor DDA XLSX] Erro no processamento:', xlsxError);
+        return NextResponse.json({
+          error: `Falha ao processar planilha DDA: ${xlsxError?.message || 'Arquivo inválido'}`
+        }, { status: 400 });
+      }
+    }
+
     if (process.env.GEMINI_API_KEY) {
       try {
         if (tipo === 'dda') {
@@ -75,7 +95,6 @@ export async function POST(req: NextRequest) {
     }
 
     let parsedText = ''
-    const ext = file.name.split('.').pop()?.toLowerCase() || ''
     
     if (ext === 'pdf') {
        const { extrairTextoPDF } = await import('@/lib/parsers/pdfExtractor')

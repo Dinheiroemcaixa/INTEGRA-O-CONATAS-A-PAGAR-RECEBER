@@ -418,7 +418,8 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   async function processarArquivo(file: File, tipo: 'dda' | 'folha', vencimentoEspecifico?: string) {
     setImportando(true)
     const toastId = `import-${empresa.id}`
-    toast.loading('Enviando arquivo e extraindo dados com IA...', { id: toastId })
+    const ehExcel = file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')
+    toast.loading(ehExcel ? 'Processando planilha Excel DDA...' : 'Enviando arquivo e extraindo dados com IA...', { id: toastId })
     setMenuImportarAberto(false)
     setModalFolhaAberto(false)
 
@@ -426,7 +427,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
     const intervaloProgress = setInterval(() => {
       etapa++
       if (etapa === 2) {
-        toast.loading('Gemini analisando o documento e extraindo dados...', { id: toastId })
+        toast.loading(ehExcel ? 'Lendo linhas da tabela de boletos DDA...' : 'Gemini analisando o documento e extraindo dados...', { id: toastId })
       } else if (etapa === 3) {
         toast.loading('Enriquecendo dados (consultando CNPJs na Brasil API)...', { id: toastId })
       } else if (etapa === 4) {
@@ -434,7 +435,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       } else if (etapa >= 5) {
         toast.loading('Salvando lançamentos no banco de dados...', { id: toastId })
       }
-    }, 4500)
+    }, ehExcel ? 1500 : 4500)
 
     const formData = new FormData()
     formData.append('file', file)
@@ -466,6 +467,13 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
           const categoriaAprendida = categoriasAprendidas.get(normalizarNome(item.beneficiario || ''))
           const dtVenc = item.data_vencimento || dataInicio
 
+          let descricaoFinal = item.descricao || null
+          if (!descricaoFinal && (item.tipo_boleto || item.observacoes)) {
+            descricaoFinal = item.observacoes
+              ? `${item.tipo_boleto ? item.tipo_boleto + ' - ' : ''}${item.observacoes}`
+              : (item.tipo_boleto || null)
+          }
+
           return {
             empresa_id: empresa.id,
             beneficiario: item.beneficiario,
@@ -473,7 +481,9 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             valor: parseFloat(String(item.valor).replace(',', '.')),
             data_vencimento: dtVenc,
             data_pagamento: dataInicio || dataInclusaoHoje,
-            categoria: categoriaAprendida || null
+            categoria: categoriaAprendida || null,
+            codigo_barras: item.codigo_barras || null,
+            descricao: descricaoFinal
           }
         })
         if (registros.length > 0) {
@@ -1088,7 +1098,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                 <label className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-dark-700 cursor-pointer transition-colors">
                   <FileText size={16} className="text-blue-500 dark:text-blue-400" />
                   <span className="text-sm font-semibold text-slate-800 dark:text-white">DDA</span>
-                  <input data-loja={empresa.id} type="file" accept="image/*,application/pdf" className="hidden" onChange={e => handleImportarArquivo(e, 'dda')} disabled={importando} />
+                  <input data-loja={empresa.id} type="file" accept="image/*,application/pdf,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden" onChange={e => handleImportarArquivo(e, 'dda')} disabled={importando} />
                 </label>
                 <label className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-dark-700 cursor-pointer transition-colors">
                   <FileText size={16} className="text-emerald-500 dark:text-emerald-400" />

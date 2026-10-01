@@ -6,6 +6,10 @@ export interface ItemDDA {
   cpf_cnpj: string
   valor: number
   data_vencimento: string
+  banco?: string
+  tipo_boleto?: string
+  codigo_barras?: string
+  observacoes?: string
 }
 
 export interface ItemFolha {
