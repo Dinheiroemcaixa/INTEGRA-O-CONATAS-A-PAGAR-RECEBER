@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Edit2, ArrowRightLeft, Trash2, Send, Tags } from 'lucide-react'
+import { X, Edit2, ArrowRightLeft, Trash2, Send, Tags, Copy, Barcode } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 interface ModalDetalhesProps {
   open: boolean
@@ -35,6 +36,7 @@ export default function ModalDetalhesLancamentos({
   onEditarEmMassa
 }: ModalDetalhesProps) {
   const [selecionados, setSelecionados] = useState<string[]>([])
+  const [itemCodigoBarras, setItemCodigoBarras] = useState<any | null>(null)
 
   if (!open) return null
 
@@ -176,8 +178,17 @@ export default function ModalDetalhesLancamentos({
                   </tr>
                 ) : (
                   lancamentos.map((pag, idx) => {
-                     const docStr = pag.documento || pag.cpf_cnpj ? `DOC: ${pag.documento || pag.cpf_cnpj}` : ''
-                     const descFinal = pag.descricao ? `${String(pag.descricao).toUpperCase()}${docStr ? ' - ' + docStr : ''}` : (docStr || '—')
+                     const desc = pag.descricao ? String(pag.descricao).trim().toUpperCase() : ''
+                     const doc = pag.documento && pag.documento !== 'S/N' ? String(pag.documento).trim().toUpperCase() : ''
+                     let descFinal = '—'
+                     if (desc) {
+                       descFinal = doc && !desc.includes(doc) ? `${desc} - DOC: ${pag.documento}` : desc
+                     } else if (doc) {
+                       descFinal = `DOC: ${pag.documento}`
+                     } else if (pag.cpf_cnpj) {
+                       descFinal = `CNPJ: ${pag.cpf_cnpj}`
+                     }
+
                      const nome = pag.fornecedor || pag.beneficiario || '—'
                      
                      return (
@@ -191,7 +202,30 @@ export default function ModalDetalhesLancamentos({
                               />
                            </td>
                            <td className="px-6 py-4 font-semibold text-white text-sm">
-                              {nome}
+                              <div>{nome}</div>
+                              {pag.codigo_barras && (
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setItemCodigoBarras(pag)}
+                                    className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 px-2 py-0.5 rounded transition-colors cursor-pointer"
+                                    title="Clique para visualizar o código de barras completo"
+                                  >
+                                    <Barcode size={11} /> Ver código de barras
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(pag.codigo_barras)
+                                      toast.success('Código de barras copiado!')
+                                    }}
+                                    className="p-1 hover:bg-dark-700 text-dark-400 hover:text-blue-400 rounded transition-colors"
+                                    title="Copiar Código de Barras"
+                                  >
+                                    <Copy size={11} />
+                                  </button>
+                                </div>
+                              )}
                            </td>
                            <td className="px-6 py-4 text-sm text-dark-300 max-w-[220px] truncate">
                               {pag.categoria || '—'}
@@ -276,6 +310,90 @@ export default function ModalDetalhesLancamentos({
          </div>
          
       </div>
+
+      {/* Modal de Código de Barras Expandido */}
+      {itemCodigoBarras && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-[#11141c] border border-dark-600 rounded-2xl p-6 w-full max-w-lg shadow-2xl relative overflow-hidden">
+            <div className="flex items-center justify-between pb-4 border-b border-dark-700 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center">
+                  <Barcode size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Código de Barras do Boleto</h3>
+                  <p className="text-xs text-dark-400">Linha digitável / código para pagamento</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setItemCodigoBarras(null)}
+                className="p-1 rounded-lg text-dark-400 hover:text-white hover:bg-dark-700 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-dark-800/60 rounded-xl p-3.5 border border-dark-700/60 grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-dark-500 block uppercase font-bold text-[10px]">Beneficiário</span>
+                  <span className="font-semibold text-white truncate block">
+                    {itemCodigoBarras.beneficiario || itemCodigoBarras.fornecedor || '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-dark-500 block uppercase font-bold text-[10px]">Valor</span>
+                  <span className="font-black text-rose-400 tabular-nums">
+                    {formatCurrency(itemCodigoBarras.valor || 0)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-dark-500 block uppercase font-bold text-[10px]">Vencimento</span>
+                  <span className="font-semibold text-white">
+                    {itemCodigoBarras.data_vencimento ? itemCodigoBarras.data_vencimento.split('-').reverse().join('/') : '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-dark-500 block uppercase font-bold text-[10px]">Nº Documento</span>
+                  <span className="font-semibold text-white">
+                    {itemCodigoBarras.documento || 'S/N'}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-dark-400 uppercase tracking-wider mb-1.5">
+                  Linha Digitável / Código Completo
+                </label>
+                <div className="font-mono text-sm text-white break-all bg-[#0b0e14] p-4 rounded-xl border border-dark-700 tabular-nums tracking-widest select-all leading-relaxed">
+                  {itemCodigoBarras.codigo_barras}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setItemCodigoBarras(null)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-dark-300 hover:bg-dark-700 transition-colors cursor-pointer"
+                >
+                  Fechar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(itemCodigoBarras.codigo_barras)
+                    toast.success('Código de barras copiado com sucesso!')
+                  }}
+                  className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                >
+                  <Copy size={14} /> Copiar Código de Barras
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

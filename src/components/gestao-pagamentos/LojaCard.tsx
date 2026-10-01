@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Trash2, Upload, Search, Calendar, RefreshCw, ChevronDown, ChevronLeft, ChevronRight,
   ArrowRightLeft, Sparkles, Edit2, X, Paperclip, FileText, Send,
-  Copy, CheckCircle2, ArrowDownRight, ArrowUpRight, TrendingUp, TrendingDown, Clock, ShieldCheck, Wallet, Plus
+  Copy, CheckCircle2, ArrowDownRight, ArrowUpRight, TrendingUp, TrendingDown, Clock, ShieldCheck, Wallet, Plus, Barcode
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ModalAgendamento from '@/components/agendamento/ModalAgendamento'
@@ -63,6 +63,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   const [modalDetalhesDda, setModalDetalhesDda] = useState(false)
   const [modalDetalhesFolha, setModalDetalhesFolha] = useState(false)
   const [modalDetalhesAgendamentos, setModalDetalhesAgendamentos] = useState(false)
+  const [itemCodigoBarras, setItemCodigoBarras] = useState<any | null>(null)
   const [selecionadosIndividuais, setSelecionadosIndividuais] = useState<string[]>([])
 
   const toggleItemIndividual = (id: string) => {
@@ -387,27 +388,45 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   async function buscarCategoriasAprendidas(): Promise<Map<string, string>> {
     const mapa = new Map<string, string>()
     try {
-      const { data } = await supabase
+      // 1. Prioridade A: Categorias aprendidas em fornecedores_contaazul (mesma base do Contas a Pagar)
+      const { data: caData } = await supabase
         .from('fornecedores_contaazul')
         .select('nome_normalizado, categoria_padrao')
         .eq('empresa_id', empresa.id)
         .not('categoria_padrao', 'is', null)
-      ;(data || []).forEach((f: any) => {
-        if (f.nome_normalizado && f.categoria_padrao) mapa.set(f.nome_normalizado, f.categoria_padrao)
+      ;(caData || []).forEach((f: any) => {
+        if (f.nome_normalizado && f.categoria_padrao) {
+          mapa.set(f.nome_normalizado, f.categoria_padrao)
+        }
       })
-    } catch {}
+
+      // 2. Prioridade B: Regras do motor De-Para de Fornecedores
+      const { data: deparaData } = await supabase
+        .from('fornecedor_depara')
+        .select('nome_original_normalizado, categoria_padrao')
+        .eq('empresa_id', empresa.id)
+        .not('categoria_padrao', 'is', null)
+      ;(deparaData || []).forEach((d: any) => {
+        if (d.nome_original_normalizado && d.categoria_padrao && !mapa.has(d.nome_original_normalizado)) {
+          mapa.set(d.nome_original_normalizado, d.categoria_padrao)
+        }
+      })
+    } catch (err) {
+      console.error('Erro ao carregar categorias aprendidas:', err)
+    }
     return mapa
   }
 
   async function aprenderCategoriaPorFornecedor(nomeFornecedor: string, categoria: string) {
     if (!nomeFornecedor || !categoria) return
+    const norm = normalizarNome(nomeFornecedor)
     try {
       await supabase
         .from('fornecedores_contaazul')
         .upsert({
           empresa_id: empresa.id,
           nome: nomeFornecedor,
-          nome_normalizado: normalizarNome(nomeFornecedor),
+          nome_normalizado: norm,
           categoria_padrao: categoria,
         }, { onConflict: 'empresa_id,nome_normalizado' })
     } catch (err) {
@@ -464,15 +483,13 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
       if (tipo === 'dda') {
         const registros = extraidos.map(item => {
-          const categoriaAprendida = categoriasAprendidas.get(normalizarNome(item.beneficiario || ''))
+          const nomeNorm = normalizarNome(item.beneficiario || '')
+          const categoriaAprendida = categoriasAprendidas.get(nomeNorm)
+          const categoriaFinal = categoriaAprendida || 'Material para Revenda'
           const dtVenc = item.data_vencimento || dataInicio
 
-          let descricaoFinal = item.descricao || null
-          if (!descricaoFinal && (item.tipo_boleto || item.observacoes)) {
-            descricaoFinal = item.observacoes
-              ? `${item.tipo_boleto ? item.tipo_boleto + ' - ' : ''}${item.observacoes}`
-              : (item.tipo_boleto || null)
-          }
+          const numDocValido = item.documento && item.documento !== 'S/N' ? item.documento : null
+          const descricaoFinal = item.descricao || (numDocValido ? `Nº Documento: ${numDocValido}` : (item.beneficiario ? `Boleto - ${item.beneficiario}` : 'Boleto DDA'))
 
           return {
             empresa_id: empresa.id,
@@ -481,7 +498,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             valor: parseFloat(String(item.valor).replace(',', '.')),
             data_vencimento: dtVenc,
             data_pagamento: dataInicio || dataInclusaoHoje,
-            categoria: categoriaAprendida || null,
+            categoria: categoriaFinal,
             codigo_barras: item.codigo_barras || null,
             descricao: descricaoFinal
           }
@@ -1346,33 +1363,51 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                       {pag.categoria || '—'}
                     </td>
                     <td className="px-4 py-2.5 text-sm text-slate-600 dark:text-dark-300 max-w-[320px] xl:max-w-[500px]">
-                      <div className="truncate" title={
-                        pag.descricao
-                          ? `${String(pag.descricao).toUpperCase()}${pag.documento ? ' - DOC: ' + pag.documento : ''}`
-                          : (pag.documento ? `DOC: ${pag.documento}` : '—')
-                      }>
-                        {pag.descricao
-                          ? `${String(pag.descricao).toUpperCase()}${pag.documento ? ' - DOC: ' + pag.documento : ''}`
-                          : (pag.documento ? `DOC: ${pag.documento}` : '—')}
-                      </div>
-                      {pag.codigo_barras && (
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[10px] text-slate-400 dark:text-dark-400 font-mono truncate max-w-[180px]">
-                            {pag.codigo_barras}
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              navigator.clipboard.writeText(pag.codigo_barras)
-                              toast.success('Código/PIX copiado com sucesso!')
-                            }}
-                            className="p-1 hover:bg-slate-100 dark:hover:bg-dark-700 text-brand-600 dark:text-brand-400 hover:text-brand-500 rounded transition-colors flex-shrink-0 cursor-pointer"
-                            title="Copiar Código de Barras / PIX"
-                          >
-                            <Copy size={11} />
-                          </button>
-                        </div>
-                      )}
+                      {(() => {
+                        const desc = pag.descricao ? String(pag.descricao).trim().toUpperCase() : ''
+                        const doc = pag.documento && pag.documento !== 'S/N' ? String(pag.documento).trim().toUpperCase() : ''
+                        let textoExibir = '—'
+                        if (desc) {
+                          textoExibir = doc && !desc.includes(doc) ? `${desc} - DOC: ${pag.documento}` : desc
+                        } else if (doc) {
+                          textoExibir = `DOC: ${pag.documento}`
+                        }
+
+                        return (
+                          <>
+                            <div className="truncate font-medium text-slate-800 dark:text-dark-200" title={textoExibir}>
+                              {textoExibir}
+                            </div>
+                            {pag.codigo_barras && (
+                              <div className="flex items-center gap-1.5 mt-1">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setItemCodigoBarras(pag)
+                                  }}
+                                  className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-500 bg-blue-500/10 hover:bg-blue-500/20 px-2 py-0.5 rounded transition-colors cursor-pointer"
+                                  title="Clique para visualizar o código de barras completo"
+                                >
+                                  <Barcode size={12} /> Ver código de barras
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    navigator.clipboard.writeText(pag.codigo_barras)
+                                    toast.success('Código de barras copiado com sucesso!')
+                                  }}
+                                  className="p-1 hover:bg-slate-100 dark:hover:bg-dark-700 text-slate-400 hover:text-blue-500 rounded transition-colors flex-shrink-0 cursor-pointer"
+                                  title="Copiar Código de Barras"
+                                >
+                                  <Copy size={11} />
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )
+                      })()}
                     </td>
                     <td className="px-4 py-2.5">
                       <button onClick={() => toggleStatus(pag)} className={`text-[10px] font-bold px-2 py-1 rounded border uppercase tracking-wider transition-colors cursor-pointer ${
@@ -1957,6 +1992,90 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                 </div>
               </div>
 
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Visualização Expandida de Código de Barras */}
+      {itemCodigoBarras && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white dark:bg-[#11141c] border border-slate-200 dark:border-dark-600 rounded-2xl p-6 w-full max-w-lg shadow-2xl relative overflow-hidden transition-colors">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-dark-700 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                  <Barcode size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Código de Barras do Boleto</h3>
+                  <p className="text-xs text-slate-500 dark:text-dark-400">Linha digitável / código para pagamento</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setItemCodigoBarras(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-dark-700 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-slate-50 dark:bg-dark-800/60 rounded-xl p-3.5 border border-slate-200 dark:border-dark-700/60 grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-slate-400 dark:text-dark-500 block uppercase font-bold text-[10px]">Beneficiário</span>
+                  <span className="font-semibold text-slate-900 dark:text-white truncate block">
+                    {itemCodigoBarras.beneficiario || itemCodigoBarras.fornecedor || '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 dark:text-dark-500 block uppercase font-bold text-[10px]">Valor</span>
+                  <span className="font-black text-rose-600 dark:text-rose-400 tabular-nums">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemCodigoBarras.valor || 0)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 dark:text-dark-500 block uppercase font-bold text-[10px]">Vencimento</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">
+                    {itemCodigoBarras.data_vencimento ? itemCodigoBarras.data_vencimento.split('-').reverse().join('/') : '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 dark:text-dark-500 block uppercase font-bold text-[10px]">Nº Documento</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">
+                    {itemCodigoBarras.documento || 'S/N'}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-dark-400 uppercase tracking-wider mb-1.5">
+                  Linha Digitável / Código Completo
+                </label>
+                <div className="font-mono text-sm text-slate-900 dark:text-white break-all bg-slate-100 dark:bg-dark-900/90 p-4 rounded-xl border border-slate-200 dark:border-dark-700 tabular-nums tracking-widest select-all leading-relaxed">
+                  {itemCodigoBarras.codigo_barras}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setItemCodigoBarras(null)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-dark-300 hover:bg-slate-100 dark:hover:bg-dark-700 transition-colors cursor-pointer"
+                >
+                  Fechar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(itemCodigoBarras.codigo_barras)
+                    toast.success('Código de barras copiado com sucesso!')
+                  }}
+                  className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                >
+                  <Copy size={14} /> Copiar Código de Barras
+                </button>
+              </div>
             </div>
           </div>
         </div>

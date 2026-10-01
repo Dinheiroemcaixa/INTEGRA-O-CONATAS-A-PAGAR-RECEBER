@@ -136,7 +136,7 @@ export default function GrupoDetalhe() {
           const pagamentos: PagamentoRelatorio[] = [
             ...ddasFiltrados.map((d: any) => ({
               origem: 'DDA' as const,
-              categoria: d.categoria || 'Diverso',
+              categoria: d.categoria || 'Material para Revenda',
               beneficiario: d.beneficiario,
               documento: d.documento,
               descricao: d.descricao,

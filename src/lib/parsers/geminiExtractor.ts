@@ -10,6 +10,7 @@ export interface ItemDDA {
   tipo_boleto?: string
   codigo_barras?: string
   observacoes?: string
+  descricao?: string
 }
 
 export interface ItemFolha {

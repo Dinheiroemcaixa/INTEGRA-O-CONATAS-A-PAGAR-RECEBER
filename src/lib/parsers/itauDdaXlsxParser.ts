@@ -207,6 +207,12 @@ export function parseItauDDAXlsx(buffer: Buffer | ArrayBuffer | Uint8Array): Ite
       colIndex.codigoBarras !== -1 ? String(row[colIndex.codigoBarras] || '').trim() : '';
     codigoBarras = codigoBarras.replace(/[^0-9]/g, '');
 
+    // Descrição prioritária baseada no Número do Documento (Nº Doc.)
+    const numDocValido = documento && documento !== 'S/N' ? documento : '';
+    const descricao = numDocValido
+      ? `Nº Documento: ${numDocValido}`
+      : (beneficiarioRaw ? `Boleto - ${beneficiarioRaw}` : 'Boleto DDA');
+
     itens.push({
       beneficiario: beneficiarioRaw || 'Não identificado',
       documento,
@@ -217,6 +223,7 @@ export function parseItauDDAXlsx(buffer: Buffer | ArrayBuffer | Uint8Array): Ite
       tipo_boleto: tipoBoleto || undefined,
       codigo_barras: codigoBarras || undefined,
       observacoes: observacoes || undefined,
+      descricao,
     });
   }
 
