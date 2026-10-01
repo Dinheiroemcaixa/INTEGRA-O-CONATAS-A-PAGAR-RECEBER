@@ -42,6 +42,7 @@ const navSections: NavSection[] = [
       { label: 'Notas Emitidas', href: '/notas-emitidas', icon: FileCheck2 },
       { label: 'Contas a Pagar', href: '/contas-pagar', icon: ArrowDownCircle },
       { label: 'Gestão Pagamentos', href: '/gestao-pagamentos', icon: Layers },
+      { label: 'Auditoria Conciliações', href: '/auditoria-conciliacoes-ca', icon: ShieldCheck, badge: 'FASE 2', badgeColor: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30' },
       { label: 'Contas a Receber', href: '/contas-receber', icon: ArrowUpCircle, badge: 'EM BREVE', disabled: true },
     ]
   },
