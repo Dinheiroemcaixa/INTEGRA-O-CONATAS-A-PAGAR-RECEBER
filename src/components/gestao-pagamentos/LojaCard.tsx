@@ -934,204 +934,218 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
   return (
     <div className="bg-white dark:bg-dark-850/90 border border-slate-200/80 dark:border-dark-700/70 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-shadow">
-      <div className="p-6 border-b border-slate-200/80 dark:border-dark-700 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-slate-50/60 dark:bg-dark-900/40">
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-500/10 dark:bg-brand-500/15 border border-brand-500/20 dark:border-brand-500/30 flex items-center justify-center text-brand-600 dark:text-brand-400 font-bold shadow-xs">
-              {empresa.nome.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                  {empresa.nome}
-                </h2>
-                {/* Selo de Status Ativo */}
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-xs">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  ATIVA
-                </span>
+      <div className="p-4 sm:p-5 border-b border-slate-200/80 dark:border-dark-700 bg-slate-50/60 dark:bg-dark-900/40">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 flex-wrap flex-1 min-w-0">
+            {/* Identificação da Loja */}
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-brand-500/10 dark:bg-brand-500/15 border border-brand-500/20 dark:border-brand-500/30 flex items-center justify-center text-brand-600 dark:text-brand-400 font-bold shadow-xs">
+                {empresa.nome.charAt(0).toUpperCase()}
               </div>
-              <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500 dark:text-dark-400">
-                <Clock size={12} className="text-slate-400 dark:text-dark-500" />
-                <span>Última atualização: {new Date().toLocaleDateString('pt-BR')}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl shadow-xs">
-            <Calendar size={13} className="text-amber-600 dark:text-amber-500" />
-            <span className="text-xs font-bold text-amber-700 dark:text-amber-500 uppercase tracking-wider">
-              {labelPeriodoAtivo()}
-            </span>
-          </div>
-
-          <div className="relative">
-            <button onClick={() => setMenuExcluirAberto(!menuExcluirAberto)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 dark:bg-dark-800 dark:text-dark-300 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-colors cursor-pointer" title="Opções da loja">
-              <Trash2 size={16} />
-            </button>
-
-            {menuExcluirAberto && (
-              <div className="absolute top-full mt-2 left-0 w-64 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-100 dark:divide-dark-700/50">
-                <button
-                  onClick={() => { setMenuExcluirAberto(false); handleLimparRegistrosDoDia() }}
-                  className="w-full text-left px-4 py-3 text-sm font-semibold text-slate-700 dark:text-dark-200 hover:bg-slate-50 dark:hover:bg-dark-700 transition-colors cursor-pointer"
-                >
-                  Excluir lançamentos do período
-                </button>
-                <button
-                  onClick={handleRemoverLojaDoGrupo}
-                  className="w-full text-left px-4 py-3 text-sm font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
-                >
-                  Remover loja deste grupo
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-1">
-            <button
-              onClick={navegarPeriodoAnterior}
-              title="Voltar período (anterior)"
-              className="p-2 bg-white dark:bg-dark-800 hover:bg-slate-100 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-700 text-slate-600 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white rounded-xl transition-colors flex items-center justify-center cursor-pointer shadow-xs"
-            >
-              <ChevronLeft size={16} />
-            </button>
-
-            <div className="relative">
-              <button
-                onClick={() => setMenuPeriodoAberto(!menuPeriodoAberto)}
-                className="flex items-center gap-2 bg-white dark:bg-dark-800 hover:bg-slate-50 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-700 text-slate-800 dark:text-white rounded-xl px-4 py-2 text-sm font-semibold transition-all min-w-[160px] justify-between cursor-pointer shadow-xs"
-              >
-                <span className="flex items-center gap-2">
-                  <Calendar size={14} className="text-slate-500 dark:text-dark-400" />
-                  {labelPeriodoAtivo()}
-                </span>
-                <ChevronDown size={14} className={menuPeriodoAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
-              </button>
-
-              {menuPeriodoAberto && (
-                <div className="absolute top-full mt-2 left-0 w-52 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
-                  {OPCOES_PERIODO.map(op => (
-                    <button
-                      key={op.key}
-                      onClick={() => aplicarPeriodo(op.key)}
-                      className={`w-full text-left px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer ${
-                        periodoAtivo === op.key ? 'bg-brand-600 text-white' : 'text-slate-700 dark:text-dark-200 hover:bg-slate-100 dark:hover:bg-dark-700'
-                      } ${op.key === 'personalizado' ? 'border-t border-slate-200 dark:border-dark-700' : ''}`}
-                    >
-                      {op.label}
-                    </button>
-                  ))}
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                    {empresa.nome}
+                  </h2>
+                  {/* Selo de Status Ativo */}
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    ATIVA
+                  </span>
                 </div>
-              )}
+                <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 dark:text-dark-400">
+                  <Clock size={11} className="text-slate-400 dark:text-dark-500" />
+                  <span>Última atualização: {new Date().toLocaleDateString('pt-BR')}</span>
+                </div>
+              </div>
             </div>
 
-            <button
-              onClick={navegarPeriodoProximo}
-              title="Avançar período (próximo)"
-              className="p-2 bg-white dark:bg-dark-800 hover:bg-slate-100 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-700 text-slate-600 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white rounded-xl transition-colors flex items-center justify-center cursor-pointer shadow-xs"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
+            {/* Período e Navegação */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={navegarPeriodoAnterior}
+                  title="Voltar período (anterior)"
+                  className="p-1.5 sm:p-2 bg-white dark:bg-dark-800 hover:bg-slate-100 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-700 text-slate-600 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white rounded-xl transition-colors flex items-center justify-center cursor-pointer shadow-xs"
+                >
+                  <ChevronLeft size={16} />
+                </button>
 
-          {periodoAtivo === 'personalizado' && (
-            <div className="flex items-center gap-3 animate-fade-in">
-              <input
-                type="date"
-                value={dataInicio}
-                onChange={e => {
-                  const novaDataInicio = e.target.value
-                  setDataInicio(novaDataInicio)
-                  if (dataFim < novaDataInicio) setDataFim(novaDataInicio)
-                }}
-                className="bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-sm outline-none w-36 focus:border-brand-500"
-              />
-              <span className="text-slate-400 dark:text-dark-500 text-sm">até</span>
-              <input
-                type="date"
-                value={dataFim}
-                min={dataInicio}
-                onChange={e => setDataFim(e.target.value)}
-                className="bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-sm outline-none w-36 focus:border-brand-500"
-              />
-              <button onClick={carregarPagamentos} className="flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-colors shadow-xs cursor-pointer">
-                <Search size={14} /> Filtrar
-              </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setMenuPeriodoAberto(!menuPeriodoAberto)}
+                    className="flex items-center gap-2 bg-white dark:bg-dark-800 hover:bg-slate-50 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-700 text-slate-800 dark:text-white rounded-xl px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-all min-w-[140px] sm:min-w-[155px] justify-between cursor-pointer shadow-xs"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Calendar size={13} className="text-slate-500 dark:text-dark-400" />
+                      {labelPeriodoAtivo()}
+                    </span>
+                    <ChevronDown size={13} className={menuPeriodoAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                  </button>
+
+                  {menuPeriodoAberto && (
+                    <div className="absolute top-full mt-2 left-0 w-52 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
+                      {OPCOES_PERIODO.map(op => (
+                        <button
+                          key={op.key}
+                          onClick={() => aplicarPeriodo(op.key)}
+                          className={`w-full text-left px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer ${
+                            periodoAtivo === op.key ? 'bg-brand-600 text-white' : 'text-slate-700 dark:text-dark-200 hover:bg-slate-100 dark:hover:bg-dark-700'
+                          } ${op.key === 'personalizado' ? 'border-t border-slate-200 dark:border-dark-700' : ''}`}
+                        >
+                          {op.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={navegarPeriodoProximo}
+                  title="Avançar período (próximo)"
+                  className="p-1.5 sm:p-2 bg-white dark:bg-dark-800 hover:bg-slate-100 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-700 text-slate-600 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white rounded-xl transition-colors flex items-center justify-center cursor-pointer shadow-xs"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+
+              {/* Botão de Excluir/Opções */}
+              <div className="relative">
+                <button
+                  onClick={() => setMenuExcluirAberto(!menuExcluirAberto)}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 hover:bg-rose-50 text-slate-500 hover:text-rose-600 dark:text-dark-300 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-colors cursor-pointer shadow-xs"
+                  title="Opções da loja"
+                >
+                  <Trash2 size={15} />
+                </button>
+
+                {menuExcluirAberto && (
+                  <div className="absolute top-full mt-2 left-0 w-64 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-100 dark:divide-dark-700/50">
+                    <button
+                      onClick={() => { setMenuExcluirAberto(false); handleLimparRegistrosDoDia() }}
+                      className="w-full text-left px-4 py-3 text-sm font-semibold text-slate-700 dark:text-dark-200 hover:bg-slate-50 dark:hover:bg-dark-700 transition-colors cursor-pointer"
+                    >
+                      Excluir lançamentos do período
+                    </button>
+                    <button
+                      onClick={handleRemoverLojaDoGrupo}
+                      className="w-full text-left px-4 py-3 text-sm font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
+                    >
+                      Remover loja deste grupo
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-          )}
-        </div>
 
-        {/* Card Saldo em Caixa - Destaque Principal com Glow Verde Suave (Padrão Stripe/Ramp) */}
-        <div className="relative group w-full lg:w-auto">
-          <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-2xl blur-md opacity-70 group-hover:opacity-100 transition duration-300" />
-          <div className="relative bg-white dark:bg-dark-850 border border-emerald-500/30 dark:border-emerald-500/40 rounded-2xl px-6 py-4 text-right shadow-sm hover:shadow-emerald-500/10 transition-all flex flex-col justify-between min-w-[280px]">
-            <div className="flex items-center justify-between gap-3 mb-1.5">
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                <Wallet size={11} /> Saldo em Caixa
-              </span>
-              <span className="text-[10px] font-semibold text-slate-400 dark:text-dark-400">
-                {salvandoSaldo ? 'Salvando...' : 'Clique para editar'}
-              </span>
-            </div>
-
-            <div className="flex items-baseline gap-1.5 justify-end my-0.5">
-              <span className="text-emerald-600/70 dark:text-emerald-400/70 font-extrabold text-base">R$</span>
-              <InputMoeda
-                value={saldoCaixaPendente}
-                onChange={setSaldoCaixaPendente}
-                disabled={salvandoSaldo}
-                onBlur={handleSalvarSaldoCaixa}
-                permiteNegativo
-                title="Digite o saldo real da conta desta loja (pode ser negativo)"
-                className={`text-2xl sm:text-3xl font-black bg-transparent text-right w-60 outline-none border-b-2 border-transparent hover:border-emerald-500/30 focus:border-emerald-500 transition-colors disabled:opacity-50 font-mono tabular-nums tracking-tight ${
-                  saldoCaixaPendente < 0 ? 'text-rose-500 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
-                }`}
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-1.5 mt-1 pt-1.5 border-t border-slate-100 dark:border-dark-750">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <p className="text-[11px] font-medium text-slate-500 dark:text-dark-400">
-                Disponível para operação
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="p-4 bg-slate-50 dark:bg-[#0d1017] border-b border-slate-200/80 dark:border-dark-700 flex flex-col md:flex-row items-center gap-4 justify-between transition-colors">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative">
-            <button
-              onClick={() => setMenuImportarAberto(!menuImportarAberto)}
-              className="flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-xs cursor-pointer"
-            >
-              <Upload size={16} /> Importar Arquivos <ChevronDown size={14} className={menuImportarAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
-            </button>
-
-            {menuImportarAberto && (
-              <div className="absolute top-full mt-2 left-0 w-56 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-100 dark:divide-dark-700/50">
-                <label className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-dark-700 cursor-pointer transition-colors">
-                  <FileText size={16} className="text-blue-500 dark:text-blue-400" />
-                  <span className="text-sm font-semibold text-slate-800 dark:text-white">DDA</span>
-                  <input data-loja={empresa.id} type="file" accept="image/*,application/pdf,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden" onChange={e => handleImportarArquivo(e, 'dda')} disabled={importando} />
-                </label>
-                <label className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-dark-700 cursor-pointer transition-colors">
-                  <FileText size={16} className="text-emerald-500 dark:text-emerald-400" />
-                  <span className="text-sm font-semibold text-slate-800 dark:text-white">Folha de Pagamento</span>
-                  <input data-loja={empresa.id} type="file" accept="application/pdf" className="hidden" onChange={e => handleImportarArquivo(e, 'folha')} disabled={importando} />
-                </label>
+            {/* Período Personalizado */}
+            {periodoAtivo === 'personalizado' && (
+              <div className="flex items-center gap-2 animate-fade-in">
+                <input
+                  type="date"
+                  value={dataInicio}
+                  onChange={e => {
+                    const novaDataInicio = e.target.value
+                    setDataInicio(novaDataInicio)
+                    if (dataFim < novaDataInicio) setDataFim(novaDataInicio)
+                  }}
+                  className="bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-lg px-2.5 py-1.5 text-xs outline-none w-32 focus:border-brand-500"
+                />
+                <span className="text-slate-400 dark:text-dark-500 text-xs">até</span>
+                <input
+                  type="date"
+                  value={dataFim}
+                  min={dataInicio}
+                  onChange={e => setDataFim(e.target.value)}
+                  className="bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-lg px-2.5 py-1.5 text-xs outline-none w-32 focus:border-brand-500"
+                />
+                <button onClick={carregarPagamentos} className="flex items-center gap-1.5 bg-brand-600 hover:bg-brand-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-xs cursor-pointer">
+                  <Search size={12} /> Filtrar
+                </button>
               </div>
             )}
+
+            {/* Separador sutil */}
+            <div className="hidden lg:block h-6 w-px bg-slate-200 dark:bg-dark-700/80 mx-1 shrink-0" />
+
+            {/* Botões Operacionais: Importar Arquivos, Agendamento, Transferência */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative">
+                <button
+                  onClick={() => setMenuImportarAberto(!menuImportarAberto)}
+                  className="flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs cursor-pointer"
+                >
+                  <Upload size={14} /> Importar Arquivos <ChevronDown size={13} className={menuImportarAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                </button>
+
+                {menuImportarAberto && (
+                  <div className="absolute top-full mt-2 left-0 w-56 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-100 dark:divide-dark-700/50">
+                    <label className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-dark-700 cursor-pointer transition-colors">
+                      <FileText size={16} className="text-blue-500 dark:text-blue-400" />
+                      <span className="text-sm font-semibold text-slate-800 dark:text-white">DDA</span>
+                      <input data-loja={empresa.id} type="file" accept="image/*,application/pdf,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden" onChange={e => handleImportarArquivo(e, 'dda')} disabled={importando} />
+                    </label>
+                    <label className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-dark-700 cursor-pointer transition-colors">
+                      <FileText size={16} className="text-emerald-500 dark:text-emerald-400" />
+                      <span className="text-sm font-semibold text-slate-800 dark:text-white">Folha de Pagamento</span>
+                      <input data-loja={empresa.id} type="file" accept="application/pdf" className="hidden" onChange={e => handleImportarArquivo(e, 'folha')} disabled={importando} />
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={() => setModalAgendamentoAberto(true)}
+                className="flex items-center gap-1.5 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 hover:bg-slate-100 dark:hover:bg-dark-750 text-slate-700 dark:text-white px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer"
+              >
+                <Calendar size={14} className="text-blue-500 dark:text-blue-400" /> Agendamento
+              </button>
+
+              <button
+                onClick={() => setModalTransferenciaAberto(true)}
+                className="flex items-center gap-1.5 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 hover:bg-slate-100 dark:hover:bg-dark-750 text-slate-700 dark:text-white px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer"
+              >
+                <ArrowRightLeft size={14} className="text-emerald-500 dark:text-emerald-400" /> Transferência
+              </button>
+            </div>
           </div>
 
-          <button onClick={() => setModalAgendamentoAberto(true)} className="flex items-center gap-2 bg-white dark:bg-transparent border border-slate-200 dark:border-dark-600 hover:bg-slate-100 dark:hover:bg-dark-800 text-slate-700 dark:text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-xs cursor-pointer">
-            <Calendar size={16} className="text-blue-500 dark:text-blue-400" /> Agendamento
-          </button>
-          <button onClick={() => setModalTransferenciaAberto(true)} className="flex items-center gap-2 bg-white dark:bg-transparent border border-slate-200 dark:border-dark-600 hover:bg-slate-100 dark:hover:bg-dark-800 text-slate-700 dark:text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-xs cursor-pointer">
-            <ArrowRightLeft size={16} className="text-emerald-500 dark:text-emerald-400" /> Transferência
-          </button>
+          {/* Card Saldo em Caixa Compacto */}
+          <div className="relative group shrink-0 self-start xl:self-center">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-xl blur-xs opacity-70 group-hover:opacity-100 transition duration-300" />
+            <div className="relative bg-white dark:bg-dark-850 border border-emerald-500/30 dark:border-emerald-500/40 rounded-xl px-3.5 py-2 text-right shadow-xs hover:shadow-emerald-500/10 transition-all flex flex-col justify-between min-w-[200px] sm:min-w-[210px]">
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  <Wallet size={10} /> Saldo em Caixa
+                </span>
+                <span className="text-[9px] font-semibold text-slate-400 dark:text-dark-400">
+                  {salvandoSaldo ? 'Salvando...' : 'Clique para editar'}
+                </span>
+              </div>
+
+              <div className="flex items-baseline gap-1 justify-end my-0.5">
+                <span className="text-emerald-600/70 dark:text-emerald-400/70 font-extrabold text-xs">R$</span>
+                <InputMoeda
+                  value={saldoCaixaPendente}
+                  onChange={setSaldoCaixaPendente}
+                  disabled={salvandoSaldo}
+                  onBlur={handleSalvarSaldoCaixa}
+                  permiteNegativo
+                  title="Digite o saldo real da conta desta loja (pode ser negativo)"
+                  className={`text-lg sm:text-xl font-black bg-transparent text-right w-32 sm:w-36 outline-none border-b border-transparent hover:border-emerald-500/30 focus:border-emerald-500 transition-colors disabled:opacity-50 font-mono tabular-nums tracking-tight ${
+                    saldoCaixaPendente < 0 ? 'text-rose-500 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
+                  }`}
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-slate-100 dark:border-dark-750">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                <p className="text-[10px] font-medium text-slate-500 dark:text-dark-400 leading-none">
+                  Disponível para operação
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
