@@ -1698,54 +1698,54 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         </table>
       </div>
 
-      {/* KPIs da Loja Modernizados (Padrão Fintech Stripe/Brex) */}
-      <div className="bg-slate-50/80 dark:bg-dark-900/60 border-t border-slate-200/80 dark:border-dark-700 px-6 py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 transition-colors">
-        <div className="bg-white dark:bg-dark-850 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl p-4 shadow-xs hover:border-rose-500/30 transition-all flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-1">Total Despesas</p>
-            <p className="text-xl font-black text-rose-600 dark:text-rose-400 tabular-nums font-mono">
+      {/* KPIs da Loja Modernizados Compactos (Padrão Fintech Stripe/Brex) */}
+      <div className="bg-slate-50/80 dark:bg-dark-900/60 border-t border-slate-200/80 dark:border-dark-700 px-4 sm:px-5 py-2.5 sm:py-3 grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 transition-colors">
+        <div className="bg-white dark:bg-dark-850 border border-slate-200/80 dark:border-dark-700/80 rounded-xl px-3.5 py-2.5 sm:py-3 shadow-xs hover:border-rose-500/30 transition-all flex items-center justify-between">
+          <div className="min-w-0 flex-1 pr-2">
+            <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-0.5 truncate">Total Despesas</p>
+            <p className="text-xl font-black text-rose-600 dark:text-rose-400 tabular-nums font-mono leading-tight">
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalDespesas)}
             </p>
-            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5">Saídas programadas</p>
+            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5 leading-none">Saídas programadas</p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center shadow-xs flex-shrink-0">
-            <ArrowDownRight size={20} />
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center shadow-xs flex-shrink-0">
+            <ArrowDownRight size={17} />
           </div>
         </div>
 
-        <div className="bg-white dark:bg-dark-850 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl p-4 shadow-xs hover:border-emerald-500/30 transition-all flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-1">Entradas (Transf)</p>
-            <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums font-mono">
+        <div className="bg-white dark:bg-dark-850 border border-slate-200/80 dark:border-dark-700/80 rounded-xl px-3.5 py-2.5 sm:py-3 shadow-xs hover:border-emerald-500/30 transition-all flex items-center justify-between">
+          <div className="min-w-0 flex-1 pr-2">
+            <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-0.5 truncate">Entradas (Transf)</p>
+            <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums font-mono leading-tight">
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalEntradas)}
             </p>
-            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5">Aportes e transferências</p>
+            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5 leading-none">Aportes e transferências</p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs flex-shrink-0">
-            <ArrowUpRight size={20} />
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs flex-shrink-0">
+            <ArrowUpRight size={17} />
           </div>
         </div>
 
-        <div className={`bg-white dark:bg-dark-850 border rounded-2xl p-4 shadow-xs transition-all flex items-center justify-between ${
+        <div className={`bg-white dark:bg-dark-850 border rounded-xl px-3.5 py-2.5 sm:py-3 shadow-xs transition-all flex items-center justify-between ${
           saldoFinalEstimado < 0
             ? 'border-rose-500/30 dark:border-rose-500/40 hover:border-rose-500/50'
             : 'border-emerald-500/30 dark:border-emerald-500/40 hover:border-emerald-500/50'
         }`}>
-          <div>
-            <p className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-1">Saldo Final Estimado</p>
-            <p className={`text-xl font-black tabular-nums font-mono ${
+          <div className="min-w-0 flex-1 pr-2">
+            <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-0.5 truncate">Saldo Final Estimado</p>
+            <p className={`text-xl font-black tabular-nums font-mono leading-tight ${
               saldoFinalEstimado < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
             }`}>
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(saldoFinalEstimado)}
             </p>
-            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5">Caixa + Entradas - Despesas</p>
+            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5 leading-none">Caixa + Entradas - Despesas</p>
           </div>
-          <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shadow-xs flex-shrink-0 ${
+          <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl border flex items-center justify-center shadow-xs flex-shrink-0 ${
             saldoFinalEstimado < 0
               ? 'bg-rose-500/10 dark:bg-rose-500/15 border-rose-500/20 text-rose-600 dark:text-rose-400'
               : 'bg-emerald-500/10 dark:bg-emerald-500/15 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
           }`}>
-            {saldoFinalEstimado < 0 ? <TrendingDown size={20} /> : <TrendingUp size={20} />}
+            {saldoFinalEstimado < 0 ? <TrendingDown size={17} /> : <TrendingUp size={17} />}
           </div>
         </div>
       </div>
