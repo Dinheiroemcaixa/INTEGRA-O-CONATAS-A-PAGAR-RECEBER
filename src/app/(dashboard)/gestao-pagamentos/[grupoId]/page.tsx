@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   ArrowLeft, FileText, Upload, ChevronDown, Plus,
-  Loader2, Building2, X
+  Loader2, Building2, X, Calendar, FileSpreadsheet
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import LojaCard from '@/components/gestao-pagamentos/LojaCard'
@@ -28,6 +28,10 @@ export default function GrupoDetalhe() {
   const [adicionandoId, setAdicionandoId] = useState<string | null>(null)
 
   const [menuExportarAberto, setMenuExportarAberto] = useState(false)
+  const [modalExportarAberto, setModalExportarAberto] = useState(false)
+  const [exportInicio, setExportInicio] = useState(() => new Date().toISOString().split('T')[0])
+  const [exportFim, setExportFim] = useState(() => new Date().toISOString().split('T')[0])
+  const [filtroExportAtivo, setFiltroExportAtivo] = useState<'hoje' | 'ontem' | '7dias' | 'esteMes' | 'mesAnterior' | 'personalizado'>('hoje')
   const [exportando, setExportando] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
 
@@ -65,20 +69,68 @@ export default function GrupoDetalhe() {
     setCarregandoDisponiveis(false)
   }
 
-  async function handleExportarGeral() {
+  function aplicarAtalhoExport(tipo: 'hoje' | 'ontem' | '7dias' | 'esteMes' | 'mesAnterior') {
+    const agora = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const fmtYmd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+
+    setFiltroExportAtivo(tipo)
+
+    if (tipo === 'hoje') {
+      const d = fmtYmd(agora)
+      setExportInicio(d)
+      setExportFim(d)
+    } else if (tipo === 'ontem') {
+      const ontem = new Date(agora)
+      ontem.setDate(ontem.getDate() - 1)
+      const d = fmtYmd(ontem)
+      setExportInicio(d)
+      setExportFim(d)
+    } else if (tipo === '7dias') {
+      const sete = new Date(agora)
+      sete.setDate(sete.getDate() - 6)
+      setExportInicio(fmtYmd(sete))
+      setExportFim(fmtYmd(agora))
+    } else if (tipo === 'esteMes') {
+      const primeiro = new Date(agora.getFullYear(), agora.getMonth(), 1)
+      const ultimo = new Date(agora.getFullYear(), agora.getMonth() + 1, 0)
+      setExportInicio(fmtYmd(primeiro))
+      setExportFim(fmtYmd(ultimo))
+    } else if (tipo === 'mesAnterior') {
+      const primeiro = new Date(agora.getFullYear(), agora.getMonth() - 1, 1)
+      const ultimo = new Date(agora.getFullYear(), agora.getMonth(), 0)
+      setExportInicio(fmtYmd(primeiro))
+      setExportFim(fmtYmd(ultimo))
+    }
+  }
+
+  function abrirModalExportar() {
+    setMenuExportarAberto(false)
+    aplicarAtalhoExport('hoje')
+    setModalExportarAberto(true)
+  }
+
+  async function handleExecutarExportacaoGeral() {
     if (!grupo) return
     if (lojas.length === 0) {
       toast.error('Esse grupo ainda não tem nenhuma loja.')
       return
     }
+    if (!exportInicio || !exportFim) {
+      toast.error('Informe a data inicial e final do período.')
+      return
+    }
+    if (exportInicio > exportFim) {
+      toast.error('A data inicial não pode ser posterior à data final.')
+      return
+    }
+
     setExportando(true)
-    setMenuExportarAberto(false)
-    toast.loading('Gerando relatório...', { id: 'export-geral' })
+    toast.loading('Gerando relatório pelo período de pagamento...', { id: 'export-geral' })
     try {
-      const hoje = new Date().toISOString().split('T')[0]
       const fmtBr = (iso: string) => iso.split('-').reverse().join('/')
 
-      // Re-busca as empresas atualizadas do banco garantindo ordem identica e saldo de caixa atualizado
+      // Re-busca as empresas atualizadas do banco garantindo ordem idêntica e saldo de caixa atualizado
       const { data: lojasAtualizadas } = await supabase
         .from('empresas')
         .select('*')
@@ -91,8 +143,6 @@ export default function GrupoDetalhe() {
 
       const lojasRelatorio: LojaRelatorio[] = await Promise.all(
         listaLojasParaExportar.map(async (loja) => {
-          const periodo = periodosPorLojaRef.current[loja.id] || { inicio: hoje, fim: hoje }
-
           let saldoInicial = Number(loja.saldo_caixa || 0)
 
           // Fallback: se saldo_caixa for 0, tenta consultar o saldo das contas financeiras do Conta Azul
@@ -122,16 +172,17 @@ export default function GrupoDetalhe() {
               .eq('empresa_id', loja.id),
           ])
 
+          // Filtra exclusivamente pela Data de Pagamento (Inclusão)
           const ddasFiltrados = (ddas || []).filter((d: any) => {
             const dt = d.data_pagamento || d.data_vencimento
             if (!dt) return false
-            return dt >= periodo.inicio && dt <= periodo.fim
+            return dt >= exportInicio && dt <= exportFim
           })
 
           const agendFiltrados = (agendamentos || []).filter((a: any) => {
             const dt = a.data_pagamento || a.data_vencimento
             if (!dt) return false
-            return dt >= periodo.inicio && dt <= periodo.fim
+            return dt >= exportInicio && dt <= exportFim
           })
 
           const pagamentos: PagamentoRelatorio[] = [
@@ -144,8 +195,8 @@ export default function GrupoDetalhe() {
               nosso_numero: d.nosso_numero,
               identificador_titulo: d.identificador_titulo,
               descricao: d.descricao,
-              data_vencimento: d.data_vencimento || d.data_pagamento,
               data_pagamento: d.data_pagamento || d.data_vencimento,
+              data_vencimento: d.data_vencimento || d.data_pagamento,
               valor: Number(d.valor || 0),
               status: d.status,
             })),
@@ -167,17 +218,17 @@ export default function GrupoDetalhe() {
                 nosso_numero: a.nosso_numero,
                 identificador_titulo: a.identificador_titulo,
                 descricao: a.descricao,
-                data_vencimento: a.data_vencimento || a.data_pagamento,
                 data_pagamento: a.data_pagamento || a.data_vencimento,
+                data_vencimento: a.data_vencimento || a.data_pagamento,
                 valor: Number(a.valor || 0),
                 status: a.status,
               }
             }),
           ]
 
-          const periodoLabel = periodo.inicio === periodo.fim
-            ? fmtBr(periodo.inicio)
-            : `${fmtBr(periodo.inicio)} até ${fmtBr(periodo.fim)}`
+          const periodoLabel = exportInicio === exportFim
+            ? fmtBr(exportInicio)
+            : `${fmtBr(exportInicio)} até ${fmtBr(exportFim)}`
 
           return { nome: loja.nome, pagamentos, saldoInicial, periodoLabel }
         })
@@ -185,7 +236,8 @@ export default function GrupoDetalhe() {
 
       const { exportarRelatorioGeralXlsx } = await import('@/lib/exporters/relatorio-grupo-xlsx')
       await exportarRelatorioGeralXlsx(grupo.nome, lojasRelatorio)
-      toast.success('Relatório exportado!', { id: 'export-geral' })
+      toast.success('Relatório exportado com sucesso!', { id: 'export-geral' })
+      setModalExportarAberto(false)
     } catch (err: any) {
       toast.error(err.message || 'Erro ao gerar relatório', { id: 'export-geral' })
     } finally {
@@ -263,12 +315,12 @@ export default function GrupoDetalhe() {
             </button>
 
             {menuExportarAberto && (
-              <div className="absolute top-full right-0 mt-2 w-56 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
-                <button onClick={handleExportarGeral} className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors cursor-pointer">
-                  <FileText size={16} className="text-emerald-400" />
+              <div className="absolute top-full right-0 mt-2 w-64 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
+                <button onClick={abrirModalExportar} className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors cursor-pointer">
+                  <FileSpreadsheet size={18} className="text-emerald-400" />
                   <div>
                     <span className="text-sm font-semibold text-white block">Excel Geral (.xlsx)</span>
-                    <span className="text-[11px] text-dark-400 block">Todas as lojas do grupo</span>
+                    <span className="text-[11px] text-dark-400 block">Filtrar por período de pagamento</span>
                   </div>
                 </button>
               </div>
@@ -345,6 +397,145 @@ export default function GrupoDetalhe() {
                   </button>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalExportarAberto && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-dark-900 border border-dark-700 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-dark-700 bg-dark-850">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                  <FileSpreadsheet size={20} />
+                </div>
+                <div>
+                  <h3 className="text-white font-bold text-base sm:text-lg">Exportar Relatório Geral</h3>
+                  <p className="text-dark-400 text-xs">Planilha Excel consolidada de todas as lojas do grupo</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setModalExportarAberto(false)}
+                disabled={exportando}
+                className="p-2 rounded-lg text-dark-400 hover:text-white hover:bg-dark-800 transition-all disabled:opacity-50"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-5">
+              {/* Filtros rápidos de período */}
+              <div>
+                <label className="text-xs font-semibold text-dark-300 uppercase tracking-wider block mb-2">
+                  Atalhos de Período (Data de Pagamento)
+                </label>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                  {(
+                    [
+                      { key: 'hoje', label: 'Hoje' },
+                      { key: 'ontem', label: 'Ontem' },
+                      { key: '7dias', label: '7 Dias' },
+                      { key: 'esteMes', label: 'Este Mês' },
+                      { key: 'mesAnterior', label: 'Mês Ant.' },
+                    ] as const
+                  ).map(item => {
+                    const ativo = filtroExportAtivo === item.key
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => aplicarAtalhoExport(item.key)}
+                        disabled={exportando}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all border text-center ${
+                          ativo
+                            ? 'bg-emerald-600/20 border-emerald-500 text-emerald-300 shadow-sm shadow-emerald-900/30'
+                            : 'bg-dark-800/80 border-dark-700 text-dark-300 hover:text-white hover:bg-dark-700'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Seleção de Datas */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-dark-300 block mb-1.5 flex items-center gap-1.5">
+                    <Calendar size={13} className="text-emerald-400" /> Data Inicial
+                  </label>
+                  <input
+                    type="date"
+                    value={exportInicio}
+                    onChange={e => {
+                      setExportInicio(e.target.value)
+                      setFiltroExportAtivo('personalizado')
+                    }}
+                    disabled={exportando}
+                    className="w-full bg-dark-800 border border-dark-600 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-white text-sm rounded-lg px-3 py-2 outline-none transition-all disabled:opacity-50"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-dark-300 block mb-1.5 flex items-center gap-1.5">
+                    <Calendar size={13} className="text-emerald-400" /> Data Final
+                  </label>
+                  <input
+                    type="date"
+                    value={exportFim}
+                    onChange={e => {
+                      setExportFim(e.target.value)
+                      setFiltroExportAtivo('personalizado')
+                    }}
+                    disabled={exportando}
+                    className="w-full bg-dark-800 border border-dark-600 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-white text-sm rounded-lg px-3 py-2 outline-none transition-all disabled:opacity-50"
+                  />
+                </div>
+              </div>
+
+              {/* Informação Operacional */}
+              <div className="bg-emerald-950/20 border border-emerald-800/30 rounded-xl p-3.5 flex items-start gap-3">
+                <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold">
+                  ✓
+                </div>
+                <div className="text-xs text-dark-300 leading-relaxed">
+                  <span className="font-semibold text-emerald-300 block mb-0.5">Critério de Filtragem Operacional</span>
+                  Os lançamentos serão filtrados estritamente pela <strong className="text-white">Data de Pagamento</strong> (data de inclusão no negócio). O arquivo Excel gerado incluirá as colunas <strong className="text-white">Data Pagamento</strong> e <strong className="text-white">Vencimento</strong> lado a lado.
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-dark-700 bg-dark-850">
+              <button
+                type="button"
+                onClick={() => setModalExportarAberto(false)}
+                disabled={exportando}
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-dark-400 hover:text-white hover:bg-dark-800 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleExecutarExportacaoGeral}
+                disabled={exportando}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-lg text-sm font-bold transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50"
+              >
+                {exportando ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Gerando Planilha...
+                  </>
+                ) : (
+                  <>
+                    <FileSpreadsheet size={16} />
+                    Exportar Excel (.xlsx)
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

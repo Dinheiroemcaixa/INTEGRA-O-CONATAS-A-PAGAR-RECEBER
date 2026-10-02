@@ -155,24 +155,25 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
     views: [{ showGridLines: true }],
   })
 
-  // Larguras ajustadas para 7 colunas (A..G) com Categoria inclusa
+  // Larguras ajustadas para 8 colunas (A..H) incluindo Data Pagamento e Vencimento
   ws.columns = [
     { width: 18 }, // A: Loja / Saldo Inicial | Tipo
     { width: 24 }, // B: DDA | Beneficiário
-    { width: 22 }, // C: Folha | Categoria (NOVA COLUNA)
+    { width: 22 }, // C: Folha | Categoria
     { width: 32 }, // D: Agendamento | Descrição
-    { width: 16 }, // E: Transferência | Data Vencimento
-    { width: 16 }, // F: Total Despesas | Valor
-    { width: 16 }, // G: Saldo Final | Situação
+    { width: 16 }, // E: Transferência | Data Pagamento
+    { width: 16 }, // F: Total Despesas | Vencimento
+    { width: 16 }, // G: Saldo Final | Valor
+    { width: 16 }, // H: Situação
   ]
 
-  ws.mergeCells('A1:G1')
+  ws.mergeCells('A1:H1')
   const tituloCell = ws.getCell('A1')
   tituloCell.value = `Relatório Financeiro – Pagamentos BPO (Grupo: ${nomeGrupo})`
   tituloCell.font = { bold: true, size: 14 }
   ws.getRow(1).height = 24
 
-  ws.mergeCells('A2:G2')
+  ws.mergeCells('A2:H2')
   const geradoCell = ws.getCell('A2')
   geradoCell.value = `Gerado em: ${formatarDataHoraAgora()}`
   geradoCell.font = { color: { argb: COR_CINZA_TEXTO }, size: 10 }
@@ -286,7 +287,7 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
     const secaoRowNum = ws.rowCount + 1
     const tituloSecao = loja.periodoLabel ? `${loja.nome} — Período: ${loja.periodoLabel}` : loja.nome
     const secaoRow = ws.addRow([tituloSecao])
-    ws.mergeCells(`A${secaoRowNum}:G${secaoRowNum}`)
+    ws.mergeCells(`A${secaoRowNum}:H${secaoRowNum}`)
     secaoRow.height = 24
     secaoRow.eachCell({ includeEmpty: true }, cell => {
       cell.fill = fillSolido(COR_SECAO)
@@ -296,7 +297,7 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
     })
 
     if (loja.pagamentos.length === 0) {
-      const vaziRow = ws.addRow(['Sem lançamentos no período', '—', '—', '—', '—', 0, '—'])
+      const vaziRow = ws.addRow(['Sem lançamentos no período', '—', '—', '—', '—', '—', 0, '—'])
       vaziRow.getCell(1).font = { italic: true, color: { argb: COR_CINZA_TEXTO } }
       continue
     }
@@ -320,14 +321,16 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
 
       const descricaoFmt = converterDatasTextoParaBr(descricaoBruta)
       const situacao = isTransfRecebida ? '' : (p.status === 'agendado' ? 'Agendado' : 'Em Aberto')
-      const dataVenc = formatarDataBr(p.data_vencimento || p.data_pagamento || '')
+      const dataPgto = formatarDataBr(p.data_pagamento || '')
+      const dataVenc = formatarDataBr(p.data_vencimento || '')
 
       tableRowsData.push([
         tipoLabel,
         beneficiario,
         p.categoria || '—',
         descricaoFmt,
-        dataVenc,
+        dataPgto || '—',
+        dataVenc || '—',
         Number(p.valor || 0),
         situacao,
       ])
@@ -339,7 +342,7 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
 
     ws.addTable({
       name: `Tabela_Loja_${tabelaIndex++}`,
-      ref: `A${startRowTable}:G${endRowTable}`,
+      ref: `A${startRowTable}:H${endRowTable}`,
       headerRow: true,
       totalsRow: false,
       style: {
@@ -351,7 +354,8 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
         { name: 'Beneficiário', filterButton: true },
         { name: 'Categoria', filterButton: true },
         { name: 'Descrição', filterButton: true },
-        { name: 'Data Vencimento', filterButton: true },
+        { name: 'Data Pagamento', filterButton: true },
+        { name: 'Vencimento', filterButton: true },
         { name: 'Valor', filterButton: true },
         { name: 'Situação', filterButton: true },
       ],
@@ -374,9 +378,9 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
           cell.alignment = { vertical: 'middle', horizontal: 'center' }
         } else if (colNumber === 2 || colNumber === 3 || colNumber === 4) {
           cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true }
-        } else if (colNumber === 5 || colNumber === 7) {
+        } else if (colNumber === 5 || colNumber === 6 || colNumber === 8) {
           cell.alignment = { vertical: 'middle', horizontal: 'center' }
-        } else if (colNumber === 6) {
+        } else if (colNumber === 7) {
           cell.numFmt = FMT_MOEDA
           cell.alignment = { vertical: 'middle', horizontal: 'right' }
         }

@@ -1477,7 +1477,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
               <th className="w-[13%] min-w-[120px] px-3 py-3">CATEGORIA</th>
               <th className="w-[27%] min-w-[210px] px-3 py-3">DESCRIÇÃO</th>
               <th className="w-28 px-3 py-3 text-center whitespace-nowrap">SITUAÇÃO</th>
-              <th className="w-28 px-3 py-3 whitespace-nowrap">VENCIMENTO</th>
+              <th className="w-32 px-3 py-3 whitespace-nowrap">DATA PAGAMENTO</th>
               <th className="w-32 px-3 py-3 text-right whitespace-nowrap">VALOR</th>
               <th className="w-[136px] min-w-[136px] max-w-[136px] px-2 py-3 text-center whitespace-nowrap">AÇÕES</th>
             </tr>
@@ -1678,17 +1678,28 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                     </td>
                     <td className="px-3 py-2.5 text-sm whitespace-nowrap">
                       {(() => {
-                        const dataRef = pag.data_vencimento || pag.data_pagamento
-                        const estilo = getEstiloVencimento(dataRef, pag.status)
-                        const dataFormatada = pag.data_pagamento ? pag.data_pagamento.split('-').reverse().join('/') : (pag.data_vencimento ? pag.data_vencimento.split('-').reverse().join('/') : '—')
+                        const dataPgto = pag.data_pagamento || pag.data_vencimento
+                        const dataVenc = pag.data_vencimento
+                        const estilo = getEstiloVencimento(dataPgto, pag.status)
+                        const dataPgtoFmt = dataPgto ? dataPgto.split('-').reverse().join('/') : '—'
+                        const dataVencFmt = dataVenc ? dataVenc.split('-').reverse().join('/') : null
+                        const temVencDiferente = Boolean(dataVencFmt && dataVenc !== dataPgto)
+
                         return (
-                          <div className="flex items-center gap-1.5 whitespace-nowrap">
-                            <span className={cn("w-2 h-2 rounded-full shrink-0", estilo.dot)} title={
-                              pag.status === 'agendado' ? 'Agendado' : (dataRef && dataRef < hoje ? 'Vencido' : dataRef === hoje ? 'Vence hoje' : 'A vencer')
-                            } />
-                            <span className={cn("text-xs tabular-nums", estilo.texto)}>
-                              {dataFormatada}
-                            </span>
+                          <div className="flex flex-col gap-0.5 justify-center">
+                            <div className="flex items-center gap-1.5 whitespace-nowrap">
+                              <span className={cn("w-2 h-2 rounded-full shrink-0", estilo.dot)} title={
+                                pag.status === 'agendado' ? 'Pagamento Agendado' : (dataPgto && dataPgto < hoje ? 'Data retroativa' : dataPgto === hoje ? 'Programado para hoje' : 'Programado')
+                              } />
+                              <span className={cn("text-xs font-semibold tabular-nums", estilo.texto)}>
+                                {dataPgtoFmt}
+                              </span>
+                            </div>
+                            {temVencDiferente && (
+                              <span className="text-[10px] text-slate-400 dark:text-dark-400 pl-3.5 tracking-tight font-normal" title={`Vencimento original: ${dataVencFmt}`}>
+                                Venc: {dataVencFmt}
+                              </span>
+                            )}
                           </div>
                         )
                       })()}
