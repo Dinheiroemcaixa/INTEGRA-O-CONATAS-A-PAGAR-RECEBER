@@ -872,10 +872,6 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
     const ehDda = itemEditando.origem === 'DDA'
     const tabela = ehDda ? 'pagamentos_dda' : 'agendamentos'
 
-    if (!itemEditando.categoria) {
-      toast.error('Preencha a Categoria.')
-      return
-    }
     const valorNumerico = Number(itemEditando.valor) || 0
     if (ehDda && (!itemEditando.beneficiario || !itemEditando.data_vencimento || !valorNumerico)) {
       toast.error('Preencha Beneficiário, Vencimento e Valor.')
@@ -891,7 +887,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         ? {
             beneficiario: itemEditando.beneficiario,
             documento: itemEditando.documento,
-            categoria: itemEditando.categoria,
+            categoria: itemEditando.categoria || null,
             descricao: itemEditando.descricao,
             conta_pagamento: itemEditando.conta_pagamento,
             valor: valorNumerico,
@@ -903,7 +899,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         : {
             fornecedor: itemEditando.fornecedor || null,
             tipo: itemEditando.tipo,
-            categoria: itemEditando.categoria,
+            categoria: itemEditando.categoria || null,
             descricao: itemEditando.descricao,
             valor: valorNumerico,
             data_vencimento: itemEditando.data_vencimento,
@@ -1653,7 +1649,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Categoria <span className="text-rose-500">*</span></label>
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Categoria</label>
                       {editandoCategoriaEdicao ? (
                         <SelectorCategoria
                           valorInicial={itemEditando.categoria || ''}
@@ -1760,7 +1756,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Categoria <span className="text-rose-500">*</span></label>
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Categoria</label>
                       {editandoCategoriaEdicao ? (
                         <SelectorCategoria
                           valorInicial={itemEditando.categoria || ''}
