@@ -1303,6 +1303,89 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         </div>
       </div>
 
+      {/* KPIs da Loja Modernizados (Padrão Fintech Stripe/Brex) */}
+      <div className="bg-slate-50/80 dark:bg-dark-900/60 border-b border-slate-200/80 dark:border-dark-700 px-4 sm:px-5 py-3 sm:py-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 transition-colors">
+        <div className="bg-white dark:bg-dark-850 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl p-3.5 sm:p-4 shadow-xs hover:border-rose-500/30 transition-all flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-0.5">Total Despesas</p>
+            <p className="text-lg sm:text-xl font-black text-rose-600 dark:text-rose-400 tabular-nums font-mono">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalDespesas)}
+            </p>
+            <p className="text-[10px] text-slate-400 dark:text-dark-500">Saídas programadas</p>
+          </div>
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center shadow-xs flex-shrink-0">
+            <ArrowDownRight size={18} />
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-dark-850 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl p-3.5 sm:p-4 shadow-xs hover:border-emerald-500/30 transition-all flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-0.5">Entradas (Transf)</p>
+            <p className="text-lg sm:text-xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums font-mono">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalEntradas)}
+            </p>
+            <p className="text-[10px] text-slate-400 dark:text-dark-500">Aportes e transferências</p>
+          </div>
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs flex-shrink-0">
+            <ArrowUpRight size={18} />
+          </div>
+        </div>
+
+        <div className={`bg-white dark:bg-dark-850 border rounded-2xl p-3.5 sm:p-4 shadow-xs transition-all flex items-center justify-between ${
+          saldoFinalEstimado < 0
+            ? 'border-rose-500/30 dark:border-rose-500/40 hover:border-rose-500/50'
+            : 'border-emerald-500/30 dark:border-emerald-500/40 hover:border-emerald-500/50'
+        }`}>
+          <div>
+            <p className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-0.5">Saldo Final Estimado</p>
+            <p className={`text-lg sm:text-xl font-black tabular-nums font-mono ${
+              saldoFinalEstimado < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
+            }`}>
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(saldoFinalEstimado)}
+            </p>
+            <p className="text-[10px] text-slate-400 dark:text-dark-500">Caixa + Entradas - Despesas</p>
+          </div>
+          <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl border flex items-center justify-center shadow-xs flex-shrink-0 ${
+            saldoFinalEstimado < 0
+              ? 'bg-rose-500/10 dark:bg-rose-500/15 border-rose-500/20 text-rose-600 dark:text-rose-400'
+              : 'bg-emerald-500/10 dark:bg-emerald-500/15 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+          }`}>
+            {saldoFinalEstimado < 0 ? <TrendingDown size={18} /> : <TrendingUp size={18} />}
+          </div>
+        </div>
+      </div>
+
+      {/* Barra de Busca Rápida Local */}
+      {pagamentos.length > 0 && (
+        <div className="px-4 sm:px-5 py-2.5 bg-slate-50/70 dark:bg-dark-900/60 border-b border-slate-200/80 dark:border-dark-700/70 flex flex-wrap items-center justify-between gap-3">
+          <div className="relative flex-1 min-w-[220px] max-w-md">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400" />
+            <input
+              type="text"
+              value={buscaLocal}
+              onChange={e => setBuscaLocal(e.target.value)}
+              placeholder="Busca rápida por fornecedor, descrição, conta ou valor..."
+              className="w-full bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl pl-8 pr-8 py-1.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:border-brand-500 transition-colors shadow-xs"
+            />
+            {buscaLocal && (
+              <button
+                type="button"
+                onClick={() => setBuscaLocal('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+                title="Limpar busca"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+          {buscaLocal && (
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-dark-400">
+              {pagamentosIndividuaisFiltrados.length} de {pagamentosIndividuais.length} resultado(s)
+            </span>
+          )}
+        </div>
+      )}
+
       {selecionadosIndividuais.length > 0 && (
         <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border-b border-blue-200 dark:border-blue-500/30 flex flex-wrap items-center justify-between gap-3 animate-fade-in">
           <div className="flex items-center gap-3">
@@ -1382,37 +1465,6 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
               Desmarcar
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Barra de Busca Rápida Local */}
-      {pagamentos.length > 0 && (
-        <div className="p-3 bg-slate-50/70 dark:bg-dark-900/60 border-b border-slate-200/80 dark:border-dark-700/70 flex flex-wrap items-center justify-between gap-3">
-          <div className="relative flex-1 min-w-[220px] max-w-md">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400" />
-            <input
-              type="text"
-              value={buscaLocal}
-              onChange={e => setBuscaLocal(e.target.value)}
-              placeholder="Busca rápida por fornecedor, descrição, conta ou valor..."
-              className="w-full bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl pl-8 pr-8 py-1.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:border-brand-500 transition-colors shadow-xs"
-            />
-            {buscaLocal && (
-              <button
-                type="button"
-                onClick={() => setBuscaLocal('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
-                title="Limpar busca"
-              >
-                <X size={13} />
-              </button>
-            )}
-          </div>
-          {buscaLocal && (
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-dark-400">
-              {pagamentosIndividuaisFiltrados.length} de {pagamentosIndividuais.length} resultado(s)
-            </span>
-          )}
         </div>
       )}
 
@@ -1696,58 +1748,6 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             )}
           </tbody>
         </table>
-      </div>
-
-      {/* KPIs da Loja Modernizados (Padrão Fintech Stripe/Brex) */}
-      <div className="bg-slate-50/80 dark:bg-dark-900/60 border-t border-slate-200/80 dark:border-dark-700 px-6 py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 transition-colors">
-        <div className="bg-white dark:bg-dark-850 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl p-4 shadow-xs hover:border-rose-500/30 transition-all flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-1">Total Despesas</p>
-            <p className="text-xl font-black text-rose-600 dark:text-rose-400 tabular-nums font-mono">
-              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalDespesas)}
-            </p>
-            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5">Saídas programadas</p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center shadow-xs flex-shrink-0">
-            <ArrowDownRight size={20} />
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-dark-850 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl p-4 shadow-xs hover:border-emerald-500/30 transition-all flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-1">Entradas (Transf)</p>
-            <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums font-mono">
-              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalEntradas)}
-            </p>
-            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5">Aportes e transferências</p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs flex-shrink-0">
-            <ArrowUpRight size={20} />
-          </div>
-        </div>
-
-        <div className={`bg-white dark:bg-dark-850 border rounded-2xl p-4 shadow-xs transition-all flex items-center justify-between ${
-          saldoFinalEstimado < 0
-            ? 'border-rose-500/30 dark:border-rose-500/40 hover:border-rose-500/50'
-            : 'border-emerald-500/30 dark:border-emerald-500/40 hover:border-emerald-500/50'
-        }`}>
-          <div>
-            <p className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-1">Saldo Final Estimado</p>
-            <p className={`text-xl font-black tabular-nums font-mono ${
-              saldoFinalEstimado < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
-            }`}>
-              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(saldoFinalEstimado)}
-            </p>
-            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5">Caixa + Entradas - Despesas</p>
-          </div>
-          <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shadow-xs flex-shrink-0 ${
-            saldoFinalEstimado < 0
-              ? 'bg-rose-500/10 dark:bg-rose-500/15 border-rose-500/20 text-rose-600 dark:text-rose-400'
-              : 'bg-emerald-500/10 dark:bg-emerald-500/15 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-          }`}>
-            {saldoFinalEstimado < 0 ? <TrendingDown size={20} /> : <TrendingUp size={20} />}
-          </div>
-        </div>
       </div>
 
       {modalAgendamentoAberto && (
