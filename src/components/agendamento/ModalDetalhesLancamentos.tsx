@@ -165,8 +165,7 @@ export default function ModalDetalhesLancamentos({
                   <th className="px-6 py-4">Beneficiário</th>
                   <th className="px-6 py-4">Categoria</th>
                   <th className="px-6 py-4">Descrição</th>
-                  <th className="px-6 py-4">Vencimento</th>
-                  <th className="px-6 py-4">Data Pagamento</th>
+                  <th className="px-6 py-4">DATA PAGAMENTO</th>
                   <th className="px-6 py-4">Competência</th>
                   <th className="px-6 py-4">Situação</th>
                   <th className="px-6 py-4">Valor</th>
@@ -176,7 +175,7 @@ export default function ModalDetalhesLancamentos({
               <tbody className="divide-y divide-dark-700/50">
                 {lancamentos.length === 0 ? (
                   <tr>
-                     <td colSpan={10} className="p-12 text-center text-dark-500 font-semibold text-sm">
+                     <td colSpan={9} className="p-12 text-center text-dark-500 font-semibold text-sm">
                        Nenhum lançamento encontrado.
                      </td>
                   </tr>
@@ -248,13 +247,27 @@ export default function ModalDetalhesLancamentos({
                            <td className="px-6 py-4 text-sm text-dark-300 max-w-[320px] truncate" title={descFinal}>
                               {descFinal}
                            </td>
-                           <td className="px-6 py-4 text-sm text-dark-300">
-                              {pag.data_vencimento ? pag.data_vencimento.split('-').reverse().join('/') : '—'}
-                           </td>
-                           <td className="px-6 py-4 text-sm text-dark-300">
-                              {(pag.data_pagamento || pag.data_vencimento || (pag.created_at ? pag.created_at.split('T')[0] : null))
-                                ? (pag.data_pagamento || pag.data_vencimento || pag.created_at.split('T')[0]).split('-').reverse().join('/')
-                                : '—'}
+                           <td className="px-6 py-4 text-sm whitespace-nowrap">
+                              {(() => {
+                                const dataPgto = pag.data_pagamento || pag.data_vencimento || (pag.created_at ? pag.created_at.split('T')[0] : null)
+                                const dataVenc = pag.data_vencimento
+                                const dataPgtoFmt = dataPgto ? dataPgto.split('-').reverse().join('/') : '—'
+                                const dataVencFmt = dataVenc ? dataVenc.split('-').reverse().join('/') : null
+                                const temVencDiferente = Boolean(dataVencFmt && dataVenc !== dataPgto)
+
+                                return (
+                                  <div className="flex flex-col gap-0.5 justify-center">
+                                    <span className="text-xs font-semibold tabular-nums text-white">
+                                      {dataPgtoFmt}
+                                    </span>
+                                    {temVencDiferente && (
+                                      <span className="text-[10px] text-slate-400 dark:text-dark-400 tracking-tight font-normal" title={`Vencimento original: ${dataVencFmt}`}>
+                                        Venc: {dataVencFmt}
+                                      </span>
+                                    )}
+                                  </div>
+                                )
+                              })()}
                            </td>
                            <td className="px-6 py-4 text-sm text-dark-300">
                               {pag.competencia ? pag.competencia.split('-').reverse().join('/') : '—'}

@@ -2016,12 +2016,12 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                       <InputMoeda value={Number(itemEditando.valor) || 0} onChange={v => setItemEditando({ ...itemEditando, valor: v })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Vencimento <span className="text-rose-500">*</span></label>
-                      <input type="date" value={itemEditando.data_vencimento || ''} onChange={e => setItemEditando({ ...itemEditando, data_vencimento: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" />
-                    </div>
-                    <div>
                       <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Data Pagamento</label>
                       <input type="date" value={itemEditando.data_pagamento || ''} onChange={e => setItemEditando({ ...itemEditando, data_pagamento: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Vencimento <span className="text-rose-500">*</span></label>
+                      <input type="date" value={itemEditando.data_vencimento || ''} onChange={e => setItemEditando({ ...itemEditando, data_vencimento: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Competência</label>
@@ -2126,12 +2126,12 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                       <InputMoeda value={Number(itemEditando.valor) || 0} onChange={v => setItemEditando({ ...itemEditando, valor: v })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Vencimento <span className="text-rose-500">*</span></label>
-                      <input type="date" value={itemEditando.data_vencimento || ''} onChange={e => setItemEditando({ ...itemEditando, data_vencimento: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" />
-                    </div>
-                    <div>
                       <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Data Pagamento</label>
                       <input type="date" value={itemEditando.data_pagamento || ''} onChange={e => setItemEditando({ ...itemEditando, data_pagamento: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Vencimento <span className="text-rose-500">*</span></label>
+                      <input type="date" value={itemEditando.data_vencimento || ''} onChange={e => setItemEditando({ ...itemEditando, data_vencimento: e.target.value })} className="w-full bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-brand-500 transition-all text-sm" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-600 dark:text-dark-400 uppercase mb-1">Competência</label>
@@ -2220,15 +2220,15 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
               <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 dark:bg-dark-850 p-3 rounded-xl border border-slate-200 dark:border-dark-700/50">
                 <div>
-                  <span className="text-slate-400 dark:text-dark-500 uppercase font-bold block mb-1">Vencimento</span>
-                  <span className="text-slate-900 dark:text-white font-semibold">
-                    {itemAcoes.data_vencimento ? itemAcoes.data_vencimento.split('-').reverse().join('/') : '—'}
-                  </span>
-                </div>
-                <div>
                   <span className="text-slate-400 dark:text-dark-500 uppercase font-bold block mb-1">Data Pagamento</span>
                   <span className="text-slate-900 dark:text-white font-semibold">
                     {itemAcoes.data_pagamento ? itemAcoes.data_pagamento.split('-').reverse().join('/') : '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 dark:text-dark-500 uppercase font-bold block mb-1">Vencimento</span>
+                  <span className="text-slate-900 dark:text-white font-semibold">
+                    {itemAcoes.data_vencimento ? itemAcoes.data_vencimento.split('-').reverse().join('/') : '—'}
                   </span>
                 </div>
               </div>
