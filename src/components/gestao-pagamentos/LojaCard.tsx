@@ -329,20 +329,78 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
     }
   }
 
+  // Colunas leves de agendamentos para não trafegar anexos pesados (PDFs em Base64) na abertura da tela
+  const COLUNAS_AGENDAMENTOS_LEVES = [
+    'id', 'empresa_id', 'tipo', 'ativo', 'acao', 'horario', 'dias_semana', 'periodo_dias',
+    'tipo_periodo', 'situacao', 'status_pagamento', 'local_pagamento', 'filtro_tipo_itens',
+    'ultima_execucao', 'ultimo_status', 'ultimo_log', 'created_at', 'updated_at',
+    'fornecedor', 'valor', 'data_vencimento', 'status', 'descricao', 'chave_pix',
+    'cpf_cnpj', 'categoria', 'conta_pagamento', 'competencia', 'transferencia_id',
+    'data_pagamento', 'codigo_barras', 'data_lancamento'
+  ].join(', ')
+
+  async function handleAbrirAnexo(item: any) {
+    if (!item?.anexo_url) return
+
+    // Se já tiver a URL ou Base64 carregado na memória, abre diretamente
+    if (item.anexo_url !== 'lazy') {
+      visualizarAnexo(item.anexo_url)
+      return
+    }
+
+    // Busca sob demanda o conteúdo do anexo apenas para o registro clicado
+    toast.loading('Carregando anexo...', { id: `anexo-${item.id}` })
+    try {
+      const { data, error } = await supabase
+        .from('agendamentos')
+        .select('anexo_url')
+        .eq('id', item.id)
+        .single()
+
+      if (error || !data?.anexo_url) {
+        toast.error('Anexo não encontrado', { id: `anexo-${item.id}` })
+        return
+      }
+
+      toast.dismiss(`anexo-${item.id}`)
+      
+      // Guarda em cache na memória do item para não precisar baixar novamente se o usuário clicar de novo
+      setPagamentos(prev => prev.map(p => p.id === item.id ? { ...p, anexo_url: data.anexo_url } : p))
+      if (itemEditando && itemEditando.id === item.id) {
+        setItemEditando({ ...itemEditando, anexo_url: data.anexo_url })
+      }
+      if (itemAcoes && itemAcoes.id === item.id) {
+        setItemAcoes({ ...itemAcoes, anexo_url: data.anexo_url })
+      }
+
+      visualizarAnexo(data.anexo_url)
+    } catch (err: any) {
+      toast.error('Erro ao abrir anexo', { id: `anexo-${item.id}` })
+    }
+  }
+
   async function carregarPagamentos() {
     setCarregando(true)
 
-    // Busca DDA e agendamentos em paralelo com Promise.all
-    const [{ data: ddas }, { data: agendamentos }] = await Promise.all([
+    // Busca DDA e agendamentos leves (sem o Base64 pesado) em paralelo com Promise.all
+    const [{ data: ddas }, { data: agendamentos }, { data: anexosIds }] = await Promise.all([
       supabase
         .from('pagamentos_dda')
         .select('*')
         .eq('empresa_id', empresa.id),
       supabase
         .from('agendamentos')
-        .select('*')
+        .select(COLUNAS_AGENDAMENTOS_LEVES)
         .eq('empresa_id', empresa.id),
+      supabase
+        .from('agendamentos')
+        .select('id')
+        .eq('empresa_id', empresa.id)
+        .not('anexo_url', 'is', null),
     ])
+
+    // Mapeia quais IDs possuem anexo sem precisar baixar 25MB de Base64
+    const setIdsComAnexo = new Set(((anexosIds as any[]) || []).map(x => x.id))
 
     // Filtra no frontend para garantir resiliencia contra campos nulos de data
     const ddasFiltrados = (ddas || []).filter(d => {
@@ -351,7 +409,8 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       return dt >= dataInicio && dt <= dataFim
     })
 
-    const agendFiltrados = (agendamentos || []).filter(a => {
+    const listaAgendamentos = (agendamentos as any[] || [])
+    const agendFiltrados = listaAgendamentos.filter(a => {
       const dt = a.data_pagamento || a.data_vencimento
       if (!dt) return true
       return dt >= dataInicio && dt <= dataFim
@@ -361,6 +420,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       ...ddasFiltrados.map(d => ({ ...d, origem: 'DDA' })),
       ...agendFiltrados.map(f => ({
         ...f,
+        anexo_url: setIdsComAnexo.has(f.id) ? 'lazy' : null,
         origem: f.tipo === 'Transferência'
           ? 'Transferência'
           : f.tipo === 'Transferência Recebida'
@@ -797,7 +857,22 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
     }
 
     try {
-      const linhas = itensValidos.map(item => ({
+      // Se algum item selecionado tiver anexo_url === 'lazy', busca o anexo real sob demanda antes de gravar/enviar
+      const itensComAnexoResolvido = await Promise.all(
+        itensValidos.map(async (item) => {
+          if (item.anexo_url === 'lazy') {
+            const { data } = await supabase
+              .from('agendamentos')
+              .select('anexo_url')
+              .eq('id', item.id)
+              .single()
+            return { ...item, anexo_url: data?.anexo_url || null }
+          }
+          return item
+        })
+      )
+
+      const linhas = itensComAnexoResolvido.map(item => ({
         empresa_id: empresa.id,
         fornecedor: String(item.fornecedor || item.beneficiario || 'Não Informado').trim(),
         valor: Number(item.valor),
@@ -822,7 +897,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       if (error) throw error
 
       // 2. Guardar em sessionStorage para exibição na tela de revisão
-      const itensRevisao = itensValidos.map(item => ({
+      const itensRevisao = itensComAnexoResolvido.map(item => ({
         fornecedor: String(item.fornecedor || item.beneficiario || 'Não Informado').trim(),
         valor: Number(item.valor),
         vencimento: item.data_vencimento || item.data_pagamento || hoje,
@@ -1579,7 +1654,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         {pag.anexo_url && (
                           <button
                             type="button"
-                            onClick={() => visualizarAnexo(pag.anexo_url)}
+                            onClick={() => handleAbrirAnexo(pag)}
                             className="bg-white hover:bg-blue-50 dark:bg-dark-800 dark:hover:bg-blue-500/10 border border-slate-200 dark:border-dark-600 text-blue-600 dark:text-blue-400 rounded-lg p-1.5 transition-colors cursor-pointer shadow-xs hover:border-blue-300"
                             title="Abrir anexo"
                           >
@@ -2029,7 +2104,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                   {itemEditando.anexo_url && (
                     <button
                       type="button"
-                      onClick={() => visualizarAnexo(itemEditando.anexo_url)}
+                      onClick={() => handleAbrirAnexo(itemEditando)}
                       className="inline-flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-semibold cursor-pointer"
                     >
                       <Paperclip size={14} /> Ver anexo
@@ -2130,7 +2205,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                   {itemAcoes.anexo_url ? (
                     <button
                       type="button"
-                      onClick={() => visualizarAnexo(itemAcoes.anexo_url)}
+                      onClick={() => handleAbrirAnexo(itemAcoes)}
                       className="flex items-center justify-center gap-2 bg-slate-50 hover:bg-slate-100 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-600 text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs"
                     >
                       <Paperclip size={14} /> Ver Anexo

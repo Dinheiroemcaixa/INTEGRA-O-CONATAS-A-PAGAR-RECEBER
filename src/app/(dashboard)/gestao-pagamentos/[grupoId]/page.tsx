@@ -118,7 +118,7 @@ export default function GrupoDetalhe() {
               .eq('empresa_id', loja.id),
             supabase
               .from('agendamentos')
-              .select('*')
+              .select('id, empresa_id, fornecedor, valor, data_vencimento, data_pagamento, competencia, descricao, documento, categoria, conta_pagamento, tipo, chave_pix, codigo_barras, status, transferencia_id, created_at, updated_at')
               .eq('empresa_id', loja.id),
           ])
 
