@@ -13,6 +13,9 @@ export interface PagamentoRelatorio {
   categoria?: string | null
   descricao?: string | null
   documento?: string | null
+  numero_documento?: string | null
+  nosso_numero?: string | null
+  identificador_titulo?: string | null
   data_vencimento: string
   data_pagamento?: string | null
   valor: number
@@ -73,6 +76,63 @@ function converterDatasTextoParaBr(texto: string): string {
     return match
   })
   return s
+}
+
+/**
+ * Monta a descrição do pagamento sem duplicar números de documento ou dados idênticos
+ */
+export function montarDescricaoSemDuplicacao(pagamento: PagamentoRelatorio): string {
+  let desc = (pagamento.descricao || '').trim()
+  const doc = (pagamento.documento || pagamento.numero_documento || '').trim()
+  const nossoNumero = (pagamento.nosso_numero || '').trim()
+  const identificadorTitulo = (pagamento.identificador_titulo || '').trim()
+
+  // 1. Limpeza de duplicações internas pré-existentes na descrição bruta (ex: "Nº Documento: 6113583 - Doc: 6113583")
+  if (desc) {
+    desc = desc.replace(/(N[ºo°]\s*Documento:\s*([^\s-]+))\s*-\s*Doc:\s*\2/gi, '$1')
+    desc = desc.replace(/(Doc:\s*([^\s-]+))\s*-\s*Doc:\s*\2/gi, '$1')
+    desc = desc.replace(/-\s*Doc:\s*S\/N/gi, '').trim()
+  }
+
+  // 2. Se não houver descrição inicial
+  if (!desc) {
+    if (doc && doc !== 'S/N' && doc !== '—') {
+      desc = `Nº Documento: ${doc}`
+    } else {
+      desc = '—'
+    }
+  } else {
+    // 3. Se houver descrição e houver doc válido
+    if (doc && doc !== 'S/N' && doc !== '—') {
+      const docLimpo = doc.replace(/^(Doc:\s*|N[ºo°]\s*Documento:\s*)/i, '').trim()
+      const descUpper = desc.toUpperCase()
+      const docLimpoUpper = docLimpo.toUpperCase()
+
+      // Verifica se o doc já está na descrição
+      const jaContemDoc = descUpper.includes(docLimpoUpper)
+
+      if (!jaContemDoc) {
+        desc = `${desc} - Doc: ${docLimpo}`
+      }
+    }
+  }
+
+  // 4. Campo adicional: Nosso Número (se existir e não estiver na descrição)
+  if (nossoNumero && nossoNumero !== 'S/N' && !desc.toUpperCase().includes(nossoNumero.toUpperCase())) {
+    desc = `${desc} - Nosso Número: ${nossoNumero}`
+  }
+
+  // 5. Campo adicional: Identificador do Título (se existir e não estiver na descrição)
+  if (
+    identificadorTitulo &&
+    identificadorTitulo !== 'S/N' &&
+    identificadorTitulo !== doc &&
+    !desc.toUpperCase().includes(identificadorTitulo.toUpperCase())
+  ) {
+    desc = `${desc} - Título: ${identificadorTitulo}`
+  }
+
+  return desc
 }
 
 function fillSolido(argb: string): ExcelJS.Fill {
@@ -256,9 +316,7 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
         isTransfRecebida ? 'TRANSF. RECEBIDA' :
         p.origem
       const beneficiario = p.fornecedor || p.beneficiario || '—'
-      let descricaoBruta = p.descricao
-        ? (p.documento ? `${p.descricao} - Doc: ${p.documento}` : p.descricao)
-        : (p.documento ? `Doc: ${p.documento}` : '—')
+      const descricaoBruta = montarDescricaoSemDuplicacao(p)
 
       const descricaoFmt = converterDatasTextoParaBr(descricaoBruta)
       const situacao = isTransfRecebida ? '' : (p.status === 'agendado' ? 'Agendado' : 'Em Aberto')

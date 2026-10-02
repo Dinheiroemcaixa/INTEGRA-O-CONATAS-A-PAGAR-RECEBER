@@ -102,6 +102,23 @@ export function formatCNPJ(cnpj: string): string {
   )
 }
 
+export function formatarDocumentoFiscal(doc?: string | null): string | null {
+  if (!doc) return null
+  const limpo = String(doc).replace(/\D/g, '')
+  if (limpo.length === 14) {
+    return `CNPJ: ${formatCNPJ(limpo)}`
+  }
+  if (limpo.length === 11) {
+    const cpfFormatado = limpo.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4')
+    return `CPF: ${cpfFormatado}`
+  }
+  const str = String(doc).trim()
+  if (/^(CNPJ|CPF):/i.test(str)) {
+    return str
+  }
+  return str ? `CNPJ: ${str}` : null
+}
+
 export function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }

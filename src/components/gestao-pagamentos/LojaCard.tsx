@@ -21,7 +21,7 @@ import SelectorFornecedor from '@/components/upload/SelectorFornecedor'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import { Empresa } from '@/types'
 import { normalizarNome } from '@/lib/parsers/fornecedores-contaazul'
-import { visualizarAnexo, cn } from '@/lib/utils'
+import { visualizarAnexo, cn, formatarDocumentoFiscal } from '@/lib/utils'
 
 interface LojaCardProps {
   empresa: Empresa
@@ -100,6 +100,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   }
 
   const [categoriasCA, setCategoriasCA] = useState<string[]>([])
+  const [mapaCnpjFornecedores, setMapaCnpjFornecedores] = useState<Record<string, string>>({})
 
   useEffect(() => {
     Promise.all([
@@ -431,6 +432,36 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
     setPagamentos(unificados)
     setCarregando(false)
+
+    // Busca CNPJs de fornecedores para itens que não possuem cpf_cnpj gravado
+    const nomesSemDoc = unificados
+      .filter(p => !p.cpf_cnpj && (p.fornecedor || p.beneficiario))
+      .map(p => normalizarNome(p.fornecedor || p.beneficiario))
+      .filter(Boolean)
+
+    const nomesUnicos = Array.from(new Set(nomesSemDoc))
+    if (nomesUnicos.length > 0) {
+      try {
+        const { data: fornsData } = await supabase
+          .from('fornecedores_contaazul')
+          .select('nome_normalizado, cnpj')
+          .eq('empresa_id', empresa.id)
+          .in('nome_normalizado', nomesUnicos)
+          .not('cnpj', 'is', null)
+
+        if (fornsData && fornsData.length > 0) {
+          const mapa: Record<string, string> = {}
+          fornsData.forEach((f: any) => {
+            if (f.nome_normalizado && f.cnpj) {
+              mapa[f.nome_normalizado] = f.cnpj
+            }
+          })
+          setMapaCnpjFornecedores(prev => ({ ...prev, ...mapa }))
+        }
+      } catch (errForn) {
+        console.warn('Aviso ao carregar CNPJs de fornecedores:', errForn)
+      }
+    }
   }
 
   async function handleImportarArquivo(e: React.ChangeEvent<HTMLInputElement>, tipo: 'dda' | 'folha') {
@@ -1568,6 +1599,17 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                     </td>
                     <td className="px-3 py-2.5 font-bold text-slate-900 dark:text-white text-sm" title={pag.fornecedor || pag.beneficiario || ''}>
                       <div className="truncate font-semibold">{pag.fornecedor || pag.beneficiario || '—'}</div>
+                      {(() => {
+                        const nomeNorm = normalizarNome(pag.fornecedor || pag.beneficiario || '')
+                        const docBruto = pag.cpf_cnpj || mapaCnpjFornecedores[nomeNorm] || null
+                        const docFormatado = formatarDocumentoFiscal(docBruto)
+                        if (!docFormatado) return null
+                        return (
+                          <div className="text-[11px] font-normal text-slate-500 dark:text-dark-400 mt-0.5 select-all">
+                            {docFormatado}
+                          </div>
+                        )
+                      })()}
                       {pag.conta_pagamento && (
                         <div className="flex items-center gap-1 mt-0.5 text-[11px] font-normal text-slate-500 dark:text-dark-400 truncate" title={`Conta de pagamento: ${pag.conta_pagamento}`}>
                           <Wallet size={11} className="shrink-0 text-slate-400 dark:text-dark-500" />
@@ -1820,6 +1862,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
           onClose={() => setModalDetalhesDda(false)}
           titulo={`Lançamentos DDA — ${empresa.nome}`}
           lancamentos={pagamentosDda}
+          mapaCnpjFornecedores={mapaCnpjFornecedores}
           onDelete={handleExcluirEmLote}
           onAgendar={handleAgendarEmLote}
           onVoltarAberto={handleVoltarAbertoEmLote}
@@ -1838,6 +1881,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
           onClose={() => setModalDetalhesFolha(false)}
           titulo={`Folha de Pagamento — ${empresa.nome}`}
           lancamentos={pagamentosFolha}
+          mapaCnpjFornecedores={mapaCnpjFornecedores}
           onDelete={handleExcluirEmLote}
           onAgendar={handleAgendarEmLote}
           onVoltarAberto={handleVoltarAbertoEmLote}

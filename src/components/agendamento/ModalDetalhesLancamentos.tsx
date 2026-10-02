@@ -3,12 +3,15 @@
 import { useState } from 'react'
 import { X, Edit2, ArrowRightLeft, Trash2, Send, Tags, Copy, Barcode } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { formatarDocumentoFiscal } from '@/lib/utils'
+import { normalizarNome } from '@/lib/parsers/fornecedores-contaazul'
 
 interface ModalDetalhesProps {
   open: boolean
   onClose: () => void
   titulo: string
   lancamentos: any[]
+  mapaCnpjFornecedores?: Record<string, string>
   onDelete: (ids: string[]) => void
   onAgendar: (ids: string[]) => void
   onVoltarAberto: (ids: string[]) => void
@@ -25,6 +28,7 @@ export default function ModalDetalhesLancamentos({
   onClose,
   titulo,
   lancamentos,
+  mapaCnpjFornecedores,
   onDelete,
   onAgendar,
   onVoltarAberto,
@@ -203,6 +207,17 @@ export default function ModalDetalhesLancamentos({
                            </td>
                            <td className="px-6 py-4 font-semibold text-white text-sm">
                               <div>{nome}</div>
+                              {(() => {
+                                const nomeNorm = normalizarNome(nome)
+                                const docBruto = pag.cpf_cnpj || (mapaCnpjFornecedores ? mapaCnpjFornecedores[nomeNorm] : null)
+                                const docFormatado = formatarDocumentoFiscal(docBruto)
+                                if (!docFormatado) return null
+                                return (
+                                  <div className="text-[11px] font-normal text-slate-400 dark:text-dark-400 mt-0.5 select-all">
+                                    {docFormatado}
+                                  </div>
+                                )
+                              })()}
                               {pag.codigo_barras && (
                                 <div className="flex items-center gap-1.5 mt-1">
                                   <button
