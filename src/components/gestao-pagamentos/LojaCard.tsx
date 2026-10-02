@@ -102,18 +102,18 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   const [categoriasCA, setCategoriasCA] = useState<string[]>([])
 
   useEffect(() => {
-    fetch(`/api/conta-azul/contas-financeiras?empresa_id=${empresa.id}`)
-      .then(r => (r.ok ? r.json() : null))
-      .then(data => {
-        if (data?.contas && Array.isArray(data.contas)) setContasFinanceiras(data.contas)
-      })
-      .catch(() => {})
-
-    fetch(`/api/conta-azul/categorias?empresa_id=${empresa.id}`)
-      .then(r => (r.ok ? r.json() : null))
-      .then(data => {
-        if (data?.categorias && Array.isArray(data.categorias)) {
-          setCategoriasCA(data.categorias.map((c: any) => c.nome))
+    Promise.all([
+      fetch(`/api/conta-azul/contas-financeiras?empresa_id=${empresa.id}`)
+        .then(r => (r.ok ? r.json() : null))
+        .catch(() => null),
+      fetch(`/api/conta-azul/categorias?empresa_id=${empresa.id}`)
+        .then(r => (r.ok ? r.json() : null))
+        .catch(() => null),
+    ])
+      .then(([contasData, catsData]) => {
+        if (contasData?.contas && Array.isArray(contasData.contas)) setContasFinanceiras(contasData.contas)
+        if (catsData?.categorias && Array.isArray(catsData.categorias)) {
+          setCategoriasCA(catsData.categorias.map((c: any) => c.nome))
         }
       })
       .catch(() => {})
@@ -332,16 +332,17 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   async function carregarPagamentos() {
     setCarregando(true)
 
-    // Busca DDA considerando data_pagamento ou data_vencimento se data_pagamento for nula
-    const { data: ddas } = await supabase
-      .from('pagamentos_dda')
-      .select('*')
-      .eq('empresa_id', empresa.id)
-
-    const { data: agendamentos } = await supabase
-      .from('agendamentos')
-      .select('*')
-      .eq('empresa_id', empresa.id)
+    // Busca DDA e agendamentos em paralelo com Promise.all
+    const [{ data: ddas }, { data: agendamentos }] = await Promise.all([
+      supabase
+        .from('pagamentos_dda')
+        .select('*')
+        .eq('empresa_id', empresa.id),
+      supabase
+        .from('agendamentos')
+        .select('*')
+        .eq('empresa_id', empresa.id),
+    ])
 
     // Filtra no frontend para garantir resiliencia contra campos nulos de data
     const ddasFiltrados = (ddas || []).filter(d => {
@@ -588,15 +589,29 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
     }
   }
 
-  const totalDespesas = pagamentos.filter(p => p.origem !== 'Transferência Recebida').reduce((acc, curr) => acc + Number(curr.valor), 0)
-  const totalEntradas = pagamentos.filter(p => p.origem === 'Transferência Recebida').reduce((acc, curr) => acc + Number(curr.valor), 0)
-  const saldoFinalEstimado = saldoCaixaPendente + totalEntradas - totalDespesas
+  const { totalDespesas, totalEntradas, saldoFinalEstimado } = useMemo(() => {
+    const despesas = pagamentos
+      .filter(p => p.origem !== 'Transferência Recebida')
+      .reduce((acc, curr) => acc + Number(curr.valor), 0)
+    const entradas = pagamentos
+      .filter(p => p.origem === 'Transferência Recebida')
+      .reduce((acc, curr) => acc + Number(curr.valor), 0)
+    const saldo = saldoCaixaPendente + entradas - despesas
+    return { totalDespesas: despesas, totalEntradas: entradas, saldoFinalEstimado: saldo }
+  }, [pagamentos, saldoCaixaPendente])
 
-  const pagamentosDda = pagamentos.filter(p => p.origem === 'DDA')
-  const pagamentosFolha = pagamentos.filter(p => p.origem === 'Folha' || p.tipo === 'Folha' || p.tipo === 'Folha Mensal' || p.tipo === 'Adiantamento')
-  const pagamentosIndividuais = pagamentos
-    .filter(p => p.origem !== 'DDA' && p.origem !== 'Folha' && p.origem !== 'Transferência Recebida' && !p.tipo?.includes('Folha') && p.tipo !== 'Adiantamento')
-    .sort((a, b) => (a.origem === 'Transferência' ? 1 : 0) - (b.origem === 'Transferência' ? 1 : 0))
+  const { pagamentosDda, pagamentosFolha, pagamentosIndividuais } = useMemo(() => {
+    const dda = pagamentos.filter(p => p.origem === 'DDA')
+    const folha = pagamentos.filter(
+      p => p.origem === 'Folha' || p.tipo === 'Folha' || p.tipo === 'Folha Mensal' || p.tipo === 'Adiantamento'
+    )
+    const individuais = pagamentos
+      .filter(
+        p => p.origem !== 'DDA' && p.origem !== 'Folha' && p.origem !== 'Transferência Recebida' && !p.tipo?.includes('Folha') && p.tipo !== 'Adiantamento'
+      )
+      .sort((a, b) => (a.origem === 'Transferência' ? 1 : 0) - (b.origem === 'Transferência' ? 1 : 0))
+    return { pagamentosDda: dda, pagamentosFolha: folha, pagamentosIndividuais: individuais }
+  }, [pagamentos])
 
   function situacaoDoGrupo(itens: any[]) {
     if (itens.length === 0) {
@@ -612,8 +627,8 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
     return { label: 'PARCIAL', classe: 'bg-blue-500/10 text-blue-400 border-blue-500/20' }
   }
 
-  const situacaoDda = situacaoDoGrupo(pagamentosDda)
-  const situacaoFolha = situacaoDoGrupo(pagamentosFolha)
+  const situacaoDda = useMemo(() => situacaoDoGrupo(pagamentosDda), [pagamentosDda])
+  const situacaoFolha = useMemo(() => situacaoDoGrupo(pagamentosFolha), [pagamentosFolha])
 
   function categoriaDoGrupo(itens: any[]) {
     if (itens.length === 0) return '—'
@@ -621,8 +636,8 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
     return categorias.size === 1 ? Array.from(categorias)[0] : 'Diverso'
   }
 
-  const categoriaDda = categoriaDoGrupo(pagamentosDda)
-  const categoriaFolha = categoriaDoGrupo(pagamentosFolha)
+  const categoriaDda = useMemo(() => categoriaDoGrupo(pagamentosDda), [pagamentosDda])
+  const categoriaFolha = useMemo(() => categoriaDoGrupo(pagamentosFolha), [pagamentosFolha])
 
   const termoBusca = buscaLocal.trim().toLowerCase()
 
@@ -1660,20 +1675,24 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         </div>
       </div>
 
-      <ModalAgendamento
-        open={modalAgendamentoAberto}
-        onClose={() => setModalAgendamentoAberto(false)}
-        empresaAtiva={empresa}
-        onSuccess={carregarPagamentos}
-      />
+      {modalAgendamentoAberto && (
+        <ModalAgendamento
+          open={modalAgendamentoAberto}
+          onClose={() => setModalAgendamentoAberto(false)}
+          empresaAtiva={empresa}
+          onSuccess={carregarPagamentos}
+        />
+      )}
 
-      <ModalTransferencia
-        open={modalTransferenciaAberto}
-        onClose={() => setModalTransferenciaAberto(false)}
-        empresaAtiva={empresa}
-        empresas={lojasDoGrupo}
-        onSuccess={() => { carregarPagamentos(); onTransferenciaGlobal?.() }}
-      />
+      {modalTransferenciaAberto && (
+        <ModalTransferencia
+          open={modalTransferenciaAberto}
+          onClose={() => setModalTransferenciaAberto(false)}
+          empresaAtiva={empresa}
+          empresas={lojasDoGrupo}
+          onSuccess={() => { carregarPagamentos(); onTransferenciaGlobal?.() }}
+        />
+      )}
 
       {modalFolhaAberto && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
@@ -1715,57 +1734,65 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         </div>
       )}
 
-      <ModalDetalhesLancamentos
-        open={modalDetalhesDda}
-        onClose={() => setModalDetalhesDda(false)}
-        titulo={`Lançamentos DDA — ${empresa.nome}`}
-        lancamentos={pagamentosDda}
-        onDelete={handleExcluirEmLote}
-        onAgendar={handleAgendarEmLote}
-        onVoltarAberto={handleVoltarAbertoEmLote}
-        onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); setEditandoContaEdicao(false); setEditandoFornecedorEdicao(false); }}
-        onToggleStatus={toggleStatus}
-        onEnviarContasAPagar={handleEnviarParaContasAPagar}
-        onTransferirItem={(item) => abrirModalTransferir([item])}
-        onTransferirLote={(itens) => abrirModalTransferir(itens)}
-        onEditarEmMassa={abrirEdicaoEmMassa}
-      />
+      {modalDetalhesDda && (
+        <ModalDetalhesLancamentos
+          open={modalDetalhesDda}
+          onClose={() => setModalDetalhesDda(false)}
+          titulo={`Lançamentos DDA — ${empresa.nome}`}
+          lancamentos={pagamentosDda}
+          onDelete={handleExcluirEmLote}
+          onAgendar={handleAgendarEmLote}
+          onVoltarAberto={handleVoltarAbertoEmLote}
+          onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); setEditandoContaEdicao(false); setEditandoFornecedorEdicao(false); }}
+          onToggleStatus={toggleStatus}
+          onEnviarContasAPagar={handleEnviarParaContasAPagar}
+          onTransferirItem={(item) => abrirModalTransferir([item])}
+          onTransferirLote={(itens) => abrirModalTransferir(itens)}
+          onEditarEmMassa={abrirEdicaoEmMassa}
+        />
+      )}
 
-      <ModalDetalhesLancamentos
-        open={modalDetalhesFolha}
-        onClose={() => setModalDetalhesFolha(false)}
-        titulo={`Folha de Pagamento — ${empresa.nome}`}
-        lancamentos={pagamentosFolha}
-        onDelete={handleExcluirEmLote}
-        onAgendar={handleAgendarEmLote}
-        onVoltarAberto={handleVoltarAbertoEmLote}
-        onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); setEditandoContaEdicao(false); setEditandoFornecedorEdicao(false); }}
-        onToggleStatus={toggleStatus}
-        onEnviarContasAPagar={handleEnviarParaContasAPagar}
-        onTransferirItem={(item) => abrirModalTransferir([item])}
-        onTransferirLote={(itens) => abrirModalTransferir(itens)}
-        onEditarEmMassa={abrirEdicaoEmMassa}
-      />
+      {modalDetalhesFolha && (
+        <ModalDetalhesLancamentos
+          open={modalDetalhesFolha}
+          onClose={() => setModalDetalhesFolha(false)}
+          titulo={`Folha de Pagamento — ${empresa.nome}`}
+          lancamentos={pagamentosFolha}
+          onDelete={handleExcluirEmLote}
+          onAgendar={handleAgendarEmLote}
+          onVoltarAberto={handleVoltarAbertoEmLote}
+          onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); setEditandoContaEdicao(false); setEditandoFornecedorEdicao(false); }}
+          onToggleStatus={toggleStatus}
+          onEnviarContasAPagar={handleEnviarParaContasAPagar}
+          onTransferirItem={(item) => abrirModalTransferir([item])}
+          onTransferirLote={(itens) => abrirModalTransferir(itens)}
+          onEditarEmMassa={abrirEdicaoEmMassa}
+        />
+      )}
 
-      <ModalEdicaoEmMassa
-        open={modalEdicaoMassaAberto}
-        onClose={() => setModalEdicaoMassaAberto(false)}
-        itens={itensEdicaoMassa}
-        contas={contasFinanceiras}
-        categorias={categoriasCA}
-        onConfirmar={handleConfirmarEdicaoEmMassa}
-        salvando={salvandoEdicaoMassa}
-      />
+      {modalEdicaoMassaAberto && (
+        <ModalEdicaoEmMassa
+          open={modalEdicaoMassaAberto}
+          onClose={() => setModalEdicaoMassaAberto(false)}
+          itens={itensEdicaoMassa}
+          contas={contasFinanceiras}
+          categorias={categoriasCA}
+          onConfirmar={handleConfirmarEdicaoEmMassa}
+          salvando={salvandoEdicaoMassa}
+        />
+      )}
 
-      <ModalTransferirLancamento
-        open={modalTransferirAberto}
-        onClose={() => setModalTransferirAberto(false)}
-        itens={itensParaTransferir}
-        empresaAtual={empresa}
-        empresasDestino={lojasDoGrupo.filter(e => e.id !== empresa.id)}
-        onConfirmar={handleConfirmarTransferirLancamentos}
-        transferindo={transferindoLancamento}
-      />
+      {modalTransferirAberto && (
+        <ModalTransferirLancamento
+          open={modalTransferirAberto}
+          onClose={() => setModalTransferirAberto(false)}
+          itens={itensParaTransferir}
+          empresaAtual={empresa}
+          empresasDestino={lojasDoGrupo.filter(e => e.id !== empresa.id)}
+          onConfirmar={handleConfirmarTransferirLancamentos}
+          transferindo={transferindoLancamento}
+        />
+      )}
 
       {modalEdicaoAberto && itemEditando && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">

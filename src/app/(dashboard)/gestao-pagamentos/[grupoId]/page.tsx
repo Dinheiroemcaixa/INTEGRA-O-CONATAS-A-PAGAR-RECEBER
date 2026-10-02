@@ -10,7 +10,7 @@ import {
 import toast from 'react-hot-toast'
 import LojaCard from '@/components/gestao-pagamentos/LojaCard'
 import { Empresa, Grupo } from '@/types'
-import { exportarRelatorioGeralXlsx, LojaRelatorio, PagamentoRelatorio } from '@/lib/exporters/relatorio-grupo-xlsx'
+import type { LojaRelatorio, PagamentoRelatorio } from '@/lib/exporters/relatorio-grupo-xlsx'
 
 export default function GrupoDetalhe() {
   const params = useParams()
@@ -111,15 +111,16 @@ export default function GrupoDetalhe() {
             }
           }
 
-          const { data: ddas } = await supabase
-            .from('pagamentos_dda')
-            .select('*')
-            .eq('empresa_id', loja.id)
-
-          const { data: agendamentos } = await supabase
-            .from('agendamentos')
-            .select('*')
-            .eq('empresa_id', loja.id)
+          const [{ data: ddas }, { data: agendamentos }] = await Promise.all([
+            supabase
+              .from('pagamentos_dda')
+              .select('*')
+              .eq('empresa_id', loja.id),
+            supabase
+              .from('agendamentos')
+              .select('*')
+              .eq('empresa_id', loja.id),
+          ])
 
           const ddasFiltrados = (ddas || []).filter((d: any) => {
             const dt = d.data_pagamento || d.data_vencimento
@@ -176,6 +177,7 @@ export default function GrupoDetalhe() {
         })
       )
 
+      const { exportarRelatorioGeralXlsx } = await import('@/lib/exporters/relatorio-grupo-xlsx')
       await exportarRelatorioGeralXlsx(grupo.nome, lojasRelatorio)
       toast.success('Relatório exportado!', { id: 'export-geral' })
     } catch (err: any) {
