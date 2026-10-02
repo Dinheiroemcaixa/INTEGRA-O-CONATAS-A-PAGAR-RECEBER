@@ -185,10 +185,6 @@ export default function GrupoDetalhe() {
     }
   }
 
-  function handleExportarEmBreve(nome: string) {
-    setMenuExportarAberto(false)
-    toast(`"${nome}" ainda não está disponível. Em breve!`, { icon: '🚧' })
-  }
 
   async function handleAdicionarLoja(empresa: Empresa) {
     setAdicionandoId(empresa.id)
@@ -260,29 +256,12 @@ export default function GrupoDetalhe() {
 
             {menuExportarAberto && (
               <div className="absolute top-full right-0 mt-2 w-56 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
-                <button onClick={handleExportarGeral} className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors border-b border-dark-700/50">
-                  <FileText size={16} className="text-blue-400" />
-                  <span className="text-sm font-semibold text-white">Excel Geral (.xlsx)</span>
-                </button>
-                <button onClick={() => handleExportarEmBreve('PDF Geral (.pdf)')} className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors border-b border-dark-700/50">
-                  <FileText size={16} className="text-rose-400" />
-                  <span className="text-sm font-semibold text-white">PDF Geral (.pdf)</span>
-                </button>
-                <button onClick={() => handleExportarEmBreve('Excel – Folha')} className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors border-b border-dark-700/50">
+                <button onClick={handleExportarGeral} className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors cursor-pointer">
                   <FileText size={16} className="text-emerald-400" />
-                  <span className="text-sm font-semibold text-white">Excel – Folha</span>
-                </button>
-                <button onClick={() => handleExportarEmBreve('Excel – DDA')} className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors border-b border-dark-700/50">
-                  <FileText size={16} className="text-blue-400" />
-                  <span className="text-sm font-semibold text-white">Excel – DDA</span>
-                </button>
-                <button onClick={() => handleExportarEmBreve('Excel – Agend.')} className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors border-b border-dark-700/50">
-                  <FileText size={16} className="text-amber-400" />
-                  <span className="text-sm font-semibold text-white">Excel – Agend.</span>
-                </button>
-                <button onClick={() => handleExportarEmBreve('Backup Global (.json)')} className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors">
-                  <FileText size={16} className="text-dark-300" />
-                  <span className="text-sm font-semibold text-white">Backup Global (.json)</span>
+                  <div>
+                    <span className="text-sm font-semibold text-white block">Excel Geral (.xlsx)</span>
+                    <span className="text-[11px] text-dark-400 block">Todas as lojas do grupo</span>
+                  </div>
                 </button>
               </div>
             )}

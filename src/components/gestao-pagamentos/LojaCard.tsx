@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -65,6 +65,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   const [modalDetalhesAgendamentos, setModalDetalhesAgendamentos] = useState(false)
   const [itemCodigoBarras, setItemCodigoBarras] = useState<any | null>(null)
   const [selecionadosIndividuais, setSelecionadosIndividuais] = useState<string[]>([])
+  const [buscaLocal, setBuscaLocal] = useState('')
 
   const toggleItemIndividual = (id: string) => {
     setSelecionadosIndividuais(prev =>
@@ -73,7 +74,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   }
 
   const toggleSelecionarTodosIndividuais = () => {
-    const idsValidos = pagamentosIndividuais
+    const idsValidos = pagamentosIndividuaisFiltrados
       .filter(p => p.origem !== 'Transferência' && p.origem !== 'Transferência Recebida')
       .map(p => p.id)
     if (idsValidos.length === 0) return
@@ -622,6 +623,73 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
   const categoriaDda = categoriaDoGrupo(pagamentosDda)
   const categoriaFolha = categoriaDoGrupo(pagamentosFolha)
+
+  const termoBusca = buscaLocal.trim().toLowerCase()
+
+  const pagamentosIndividuaisFiltrados = useMemo(() => {
+    if (!termoBusca) return pagamentosIndividuais
+    return pagamentosIndividuais.filter(p => {
+      const fornecedor = (p.fornecedor || '').toLowerCase()
+      const beneficiario = (p.beneficiario || '').toLowerCase()
+      const descricao = (p.descricao || '').toLowerCase()
+      const doc = (p.documento || '').toLowerCase()
+      const conta = (p.conta_pagamento || '').toLowerCase()
+      const categoria = (p.categoria || '').toLowerCase()
+      const valorStr = String(p.valor || '')
+      const valorFmt = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(Number(p.valor) || 0).toLowerCase()
+      return (
+        fornecedor.includes(termoBusca) ||
+        beneficiario.includes(termoBusca) ||
+        descricao.includes(termoBusca) ||
+        doc.includes(termoBusca) ||
+        conta.includes(termoBusca) ||
+        categoria.includes(termoBusca) ||
+        valorStr.includes(termoBusca) ||
+        valorFmt.includes(termoBusca)
+      )
+    })
+  }, [pagamentosIndividuais, termoBusca])
+
+  const mostrarDda = pagamentosDda.length > 0 && (
+    !termoBusca ||
+    'dda'.includes(termoBusca) ||
+    'lançamentos dda'.includes(termoBusca) ||
+    categoriaDda.toLowerCase().includes(termoBusca)
+  )
+
+  const mostrarFolha = pagamentosFolha.length > 0 && (
+    !termoBusca ||
+    'folha'.includes(termoBusca) ||
+    'salários'.includes(termoBusca) ||
+    'salario'.includes(termoBusca) ||
+    categoriaFolha.toLowerCase().includes(termoBusca)
+  )
+
+  function getEstiloVencimento(dataVencOuPg: string | null | undefined, status: string) {
+    if (!dataVencOuPg) return { texto: 'text-slate-600 dark:text-dark-300', dot: 'bg-slate-400' }
+    if (status === 'agendado') {
+      return {
+        texto: 'text-emerald-700 dark:text-emerald-400 font-semibold',
+        dot: 'bg-emerald-500'
+      }
+    }
+    if (dataVencOuPg < hoje) {
+      return {
+        texto: 'text-rose-600 dark:text-rose-400 font-bold',
+        dot: 'bg-rose-500'
+      }
+    }
+    if (dataVencOuPg === hoje) {
+      return {
+        texto: 'text-amber-600 dark:text-amber-400 font-bold',
+        dot: 'bg-amber-500'
+      }
+    }
+    return {
+      texto: 'text-emerald-600 dark:text-emerald-400 font-semibold',
+      dot: 'bg-emerald-500'
+    }
+  }
 
   const handleExcluirEmLote = async (ids: string[]) => {
     if (!confirm(`Excluir ${ids.length} lançamento(s)?`)) return
@@ -1227,32 +1295,63 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         </div>
       )}
 
+      {/* Barra de Busca Rápida Local */}
+      {pagamentos.length > 0 && (
+        <div className="p-3 bg-slate-50/70 dark:bg-dark-900/60 border-b border-slate-200/80 dark:border-dark-700/70 flex flex-wrap items-center justify-between gap-3">
+          <div className="relative flex-1 min-w-[220px] max-w-md">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400" />
+            <input
+              type="text"
+              value={buscaLocal}
+              onChange={e => setBuscaLocal(e.target.value)}
+              placeholder="Busca rápida por fornecedor, descrição, conta ou valor..."
+              className="w-full bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl pl-8 pr-8 py-1.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:border-brand-500 transition-colors shadow-xs"
+            />
+            {buscaLocal && (
+              <button
+                type="button"
+                onClick={() => setBuscaLocal('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+                title="Limpar busca"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+          {buscaLocal && (
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-dark-400">
+              {pagamentosIndividuaisFiltrados.length} de {pagamentosIndividuais.length} resultado(s)
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="overflow-x-auto min-h-[150px] custom-scrollbar">
         <table className="w-full min-w-[850px] text-left border-collapse">
           <thead>
             <tr className="bg-slate-100/95 dark:bg-dark-900/95 backdrop-blur-md border-b border-slate-200 dark:border-dark-700/80 text-[10px] uppercase font-bold tracking-widest text-slate-500 dark:text-dark-400">
               <th className="w-10 px-3 py-2.5 text-center">
-                {pagamentosIndividuais.filter(p => p.origem !== 'Transferência' && p.origem !== 'Transferência Recebida').length > 0 && (
+                {pagamentosIndividuaisFiltrados.filter(p => p.origem !== 'Transferência' && p.origem !== 'Transferência Recebida').length > 0 && (
                   <input
                     type="checkbox"
                     checked={
-                      pagamentosIndividuais.filter(p => p.origem !== 'Transferência' && p.origem !== 'Transferência Recebida').length > 0 &&
-                      pagamentosIndividuais
+                      pagamentosIndividuaisFiltrados.filter(p => p.origem !== 'Transferência' && p.origem !== 'Transferência Recebida').length > 0 &&
+                      pagamentosIndividuaisFiltrados
                         .filter(p => p.origem !== 'Transferência' && p.origem !== 'Transferência Recebida')
                         .every(p => selecionadosIndividuais.includes(p.id))
                     }
                     onChange={toggleSelecionarTodosIndividuais}
                     className="rounded bg-white dark:bg-dark-800 border-slate-300 dark:border-dark-600 text-brand-600 focus:ring-0 cursor-pointer w-3.5 h-3.5"
-                    title="Selecionar / Desmarcar todos os agendamentos"
+                    title="Selecionar / Desmarcar todos os agendamentos visíveis"
                   />
                 )}
               </th>
               <th className="px-4 py-2.5">TIPO</th>
-              <th className="px-4 py-2.5">BENEFICIÁRIO</th>
+              <th className="px-4 py-2.5">BENEFICIÁRIO / CONTA</th>
               <th className="px-4 py-2.5">CATEGORIA</th>
               <th className="px-4 py-2.5">DESCRIÇÃO</th>
               <th className="px-4 py-2.5">SITUAÇÃO</th>
-              <th className="px-4 py-2.5">DATA PG.</th>
+              <th className="px-4 py-2.5">VENCIMENTO</th>
               <th className="px-4 py-2.5 text-right">VALOR</th>
               <th className="px-4 py-2.5 text-center">AÇÕES</th>
             </tr>
@@ -1295,9 +1394,15 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                   </div>
                 </td>
               </tr>
+            ) : (!mostrarDda && !mostrarFolha && pagamentosIndividuaisFiltrados.length === 0) ? (
+              <tr>
+                <td colSpan={9} className="py-12 px-4 text-center text-slate-400 dark:text-dark-400 text-sm font-medium">
+                  Nenhum lançamento encontrado para a busca "{buscaLocal}".
+                </td>
+              </tr>
             ) : (
               <>
-                {pagamentosDda.length > 0 && (
+                {mostrarDda && (
                   <tr className="bg-blue-50/50 dark:bg-dark-800/20 hover:bg-blue-100/50 dark:hover:bg-dark-800/40 transition-colors border-l-4 border-l-blue-500">
                     <td className="w-10 px-3 py-2.5 text-center"></td>
                     <td className="px-4 py-2.5">
@@ -1321,7 +1426,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                   </tr>
                 )}
 
-                {pagamentosFolha.length > 0 && (
+                {mostrarFolha && (
                   <tr className="bg-emerald-50/50 dark:bg-dark-800/10 hover:bg-emerald-100/50 dark:hover:bg-dark-800/30 transition-colors border-l-4 border-l-emerald-500">
                     <td className="w-10 px-3 py-2.5 text-center"></td>
                     <td className="px-4 py-2.5">
@@ -1345,7 +1450,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                   </tr>
                 )}
 
-                {pagamentosIndividuais.map((pag, idx) => (
+                {pagamentosIndividuaisFiltrados.map((pag, idx) => (
                   <tr key={pag.id || idx} className={cn("hover:bg-slate-100/60 dark:hover:bg-white/[0.035] transition-colors border-b border-slate-100 dark:border-dark-700/50 even:bg-slate-50/50 dark:even:bg-white/[0.015]", selecionadosIndividuais.includes(pag.id) ? "bg-blue-50/70 dark:bg-blue-950/20" : "bg-transparent")}>
                     <td className="w-10 px-3 py-2.5 text-center">
                       {pag.origem !== 'Transferência' && pag.origem !== 'Transferência Recebida' ? (
@@ -1366,8 +1471,14 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         {pag.origem === 'Agendamento' ? 'AGEND' : pag.origem === 'Transferência Recebida' ? 'TRANSF. RECEB.' : pag.origem}
                       </span>
                     </td>
-                    <td className="px-4 py-2.5 font-bold text-slate-900 dark:text-white text-sm max-w-[140px] truncate" title={pag.fornecedor || pag.beneficiario || ''}>
-                      {pag.fornecedor || pag.beneficiario || '—'}
+                    <td className="px-4 py-2.5 font-bold text-slate-900 dark:text-white text-sm max-w-[170px]" title={pag.fornecedor || pag.beneficiario || ''}>
+                      <div className="truncate">{pag.fornecedor || pag.beneficiario || '—'}</div>
+                      {pag.conta_pagamento && (
+                        <div className="flex items-center gap-1 mt-0.5 text-[11px] font-normal text-slate-500 dark:text-dark-400 truncate" title={`Conta de pagamento: ${pag.conta_pagamento}`}>
+                          <Wallet size={11} className="shrink-0 text-slate-400 dark:text-dark-500" />
+                          <span className="truncate">{pag.conta_pagamento}</span>
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-2.5 text-sm text-slate-600 dark:text-dark-300 max-w-[110px] truncate" title={pag.categoria || ''}>
                       {pag.categoria || '—'}
@@ -1428,20 +1539,66 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         {pag.status === 'agendado' ? 'AGENDADO' : 'EM ABERTO'}
                       </button>
                     </td>
-                    <td className="px-4 py-2.5 text-sm text-slate-600 dark:text-dark-300">
-                      {pag.data_pagamento ? pag.data_pagamento.split('-').reverse().join('/') : (pag.data_vencimento ? pag.data_vencimento.split('-').reverse().join('/') : '—')}
+                    <td className="px-4 py-2.5 text-sm">
+                      {(() => {
+                        const dataRef = pag.data_vencimento || pag.data_pagamento
+                        const estilo = getEstiloVencimento(dataRef, pag.status)
+                        const dataFormatada = pag.data_pagamento ? pag.data_pagamento.split('-').reverse().join('/') : (pag.data_vencimento ? pag.data_vencimento.split('-').reverse().join('/') : '—')
+                        return (
+                          <div className="flex items-center gap-1.5 whitespace-nowrap">
+                            <span className={cn("w-2 h-2 rounded-full shrink-0", estilo.dot)} title={
+                              pag.status === 'agendado' ? 'Agendado' : (dataRef && dataRef < hoje ? 'Vencido' : dataRef === hoje ? 'Vence hoje' : 'A vencer')
+                            } />
+                            <span className={cn("text-xs tabular-nums", estilo.texto)}>
+                              {dataFormatada}
+                            </span>
+                          </div>
+                        )
+                      })()}
                     </td>
                     <td className={`px-4 py-2.5 font-bold text-sm text-right tabular-nums ${pag.origem === 'Transferência Recebida' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pag.valor)}
                     </td>
                     <td className="px-4 py-2.5 text-center">
-                      <button
-                        onClick={() => abrirAcoesLancamento(pag)}
-                        className="bg-white hover:bg-slate-100 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-700 dark:text-white rounded-lg p-1.5 transition-colors cursor-pointer shadow-xs"
-                        title="Ações do Lançamento"
-                      >
-                        <Search size={16} className="text-slate-500 dark:text-dark-300" />
-                      </button>
+                      <div className="flex items-center justify-center gap-1">
+                        {pag.anexo_url && (
+                          <button
+                            type="button"
+                            onClick={() => visualizarAnexo(pag.anexo_url)}
+                            className="bg-white hover:bg-blue-50 dark:bg-dark-800 dark:hover:bg-blue-500/10 border border-slate-200 dark:border-dark-600 text-blue-600 dark:text-blue-400 rounded-lg p-1.5 transition-colors cursor-pointer shadow-xs hover:border-blue-300"
+                            title="Abrir anexo"
+                          >
+                            <Paperclip size={15} />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setItemEditando(pag)
+                            setModalEdicaoAberto(true)
+                          }}
+                          className="bg-white hover:bg-slate-100 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-700 dark:text-white rounded-lg p-1.5 transition-colors cursor-pointer shadow-xs hover:text-brand-600"
+                          title="Editar lançamento"
+                        >
+                          <Edit2 size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleExcluirIndividual(pag.id, pag.origem)}
+                          className="bg-white hover:bg-rose-50 dark:bg-dark-800 dark:hover:bg-rose-500/10 border border-slate-200 dark:border-dark-600 text-slate-500 hover:text-rose-600 dark:text-dark-300 dark:hover:text-rose-400 rounded-lg p-1.5 transition-colors cursor-pointer shadow-xs"
+                          title="Excluir lançamento"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => abrirAcoesLancamento(pag)}
+                          className="bg-white hover:bg-slate-100 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-400 hover:text-slate-700 dark:text-dark-400 dark:hover:text-white rounded-lg p-1.5 transition-colors cursor-pointer shadow-xs"
+                          title="Ver detalhes completos"
+                        >
+                          <Search size={15} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
