@@ -1089,112 +1089,83 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   return (
     <div className="bg-white dark:bg-dark-850/90 border border-slate-200/80 dark:border-dark-700/70 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-shadow">
       <div className="p-4 sm:p-5 border-b border-slate-200/80 dark:border-dark-700 bg-slate-50/60 dark:bg-dark-900/40">
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-          <div className="flex items-center gap-3 sm:gap-4 flex-wrap flex-1 min-w-0">
-            {/* Identificação da Loja */}
-            <div className="flex items-center gap-3 shrink-0">
-              <div className="w-10 h-10 rounded-xl bg-brand-500/10 dark:bg-brand-500/15 border border-brand-500/20 dark:border-brand-500/30 flex items-center justify-center text-brand-600 dark:text-brand-400 font-bold shadow-xs">
-                {empresa.nome.charAt(0).toUpperCase()}
+        {/* Linha 1: Cabeçalho Principal (Área Esquerda, Área Central e Área Direita) */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          {/* Área Esquerda: Nome da empresa, Status, Última atualização */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-brand-500/10 dark:bg-brand-500/15 border border-brand-500/20 dark:border-brand-500/30 flex items-center justify-center text-brand-600 dark:text-brand-400 font-bold shadow-xs">
+              {empresa.nome.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                  {empresa.nome}
+                </h2>
+                {/* Selo de Status Ativo */}
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-xs">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  ATIVA
+                </span>
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                    {empresa.nome}
-                  </h2>
-                  {/* Selo de Status Ativo */}
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-xs">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    ATIVA
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 dark:text-dark-400">
-                  <Clock size={11} className="text-slate-400 dark:text-dark-500" />
-                  <span>Última atualização: {new Date().toLocaleDateString('pt-BR')}</span>
-                </div>
+              <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 dark:text-dark-400">
+                <Clock size={11} className="text-slate-400 dark:text-dark-500" />
+                <span>Última atualização: {new Date().toLocaleDateString('pt-BR')}</span>
               </div>
             </div>
+          </div>
 
-            {/* Período e Navegação */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={navegarPeriodoAnterior}
-                  title="Voltar período (anterior)"
-                  className="p-1.5 sm:p-2 bg-white dark:bg-dark-800 hover:bg-slate-100 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-700 text-slate-600 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white rounded-xl transition-colors flex items-center justify-center cursor-pointer shadow-xs"
-                >
-                  <ChevronLeft size={16} />
-                </button>
+          {/* Área Central: Navegação de datas, Calendário, Botões anterior/próximo */}
+          <div className="flex items-center justify-center gap-2 flex-wrap flex-1 min-w-0">
+            <div className="flex items-center gap-1 bg-white dark:bg-dark-800 p-1 rounded-2xl border border-slate-200 dark:border-dark-700 shadow-xs">
+              <button
+                onClick={navegarPeriodoAnterior}
+                title="Voltar período (anterior)"
+                className="p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-dark-700 text-slate-600 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white rounded-xl transition-colors flex items-center justify-center cursor-pointer"
+              >
+                <ChevronLeft size={16} />
+              </button>
 
-                <div className="relative">
-                  <button
-                    onClick={() => setMenuPeriodoAberto(!menuPeriodoAberto)}
-                    className="flex items-center gap-2 bg-white dark:bg-dark-800 hover:bg-slate-50 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-700 text-slate-800 dark:text-white rounded-xl px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-all min-w-[140px] sm:min-w-[155px] justify-between cursor-pointer shadow-xs"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <Calendar size={13} className="text-slate-500 dark:text-dark-400" />
-                      {labelPeriodoAtivo()}
-                    </span>
-                    <ChevronDown size={13} className={menuPeriodoAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
-                  </button>
-
-                  {menuPeriodoAberto && (
-                    <div className="absolute top-full mt-2 left-0 w-52 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
-                      {OPCOES_PERIODO.map(op => (
-                        <button
-                          key={op.key}
-                          onClick={() => aplicarPeriodo(op.key)}
-                          className={`w-full text-left px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer ${
-                            periodoAtivo === op.key ? 'bg-brand-600 text-white' : 'text-slate-700 dark:text-dark-200 hover:bg-slate-100 dark:hover:bg-dark-700'
-                          } ${op.key === 'personalizado' ? 'border-t border-slate-200 dark:border-dark-700' : ''}`}
-                        >
-                          {op.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  onClick={navegarPeriodoProximo}
-                  title="Avançar período (próximo)"
-                  className="p-1.5 sm:p-2 bg-white dark:bg-dark-800 hover:bg-slate-100 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-700 text-slate-600 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white rounded-xl transition-colors flex items-center justify-center cursor-pointer shadow-xs"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-
-              {/* Botão de Excluir/Opções */}
               <div className="relative">
                 <button
-                  onClick={() => setMenuExcluirAberto(!menuExcluirAberto)}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 hover:bg-rose-50 text-slate-500 hover:text-rose-600 dark:text-dark-300 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-colors cursor-pointer shadow-xs"
-                  title="Opções da loja"
+                  onClick={() => setMenuPeriodoAberto(!menuPeriodoAberto)}
+                  className="flex items-center gap-2 bg-slate-50 dark:bg-dark-750 hover:bg-slate-100 dark:hover:bg-dark-700 text-slate-800 dark:text-white rounded-xl px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-all min-w-[140px] sm:min-w-[155px] justify-between cursor-pointer"
                 >
-                  <Trash2 size={15} />
+                  <span className="flex items-center gap-1.5">
+                    <Calendar size={13} className="text-slate-500 dark:text-dark-400" />
+                    {labelPeriodoAtivo()}
+                  </span>
+                  <ChevronDown size={13} className={menuPeriodoAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
                 </button>
 
-                {menuExcluirAberto && (
-                  <div className="absolute top-full mt-2 left-0 w-64 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-100 dark:divide-dark-700/50">
-                    <button
-                      onClick={() => { setMenuExcluirAberto(false); handleLimparRegistrosDoDia() }}
-                      className="w-full text-left px-4 py-3 text-sm font-semibold text-slate-700 dark:text-dark-200 hover:bg-slate-50 dark:hover:bg-dark-700 transition-colors cursor-pointer"
-                    >
-                      Excluir lançamentos do período
-                    </button>
-                    <button
-                      onClick={handleRemoverLojaDoGrupo}
-                      className="w-full text-left px-4 py-3 text-sm font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
-                    >
-                      Remover loja deste grupo
-                    </button>
+                {menuPeriodoAberto && (
+                  <div className="absolute top-full mt-2 left-0 w-52 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
+                    {OPCOES_PERIODO.map(op => (
+                      <button
+                        key={op.key}
+                        onClick={() => aplicarPeriodo(op.key)}
+                        className={`w-full text-left px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer ${
+                          periodoAtivo === op.key ? 'bg-brand-600 text-white' : 'text-slate-700 dark:text-dark-200 hover:bg-slate-100 dark:hover:bg-dark-700'
+                        } ${op.key === 'personalizado' ? 'border-t border-slate-200 dark:border-dark-700' : ''}`}
+                      >
+                        {op.label}
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
+
+              <button
+                onClick={navegarPeriodoProximo}
+                title="Avançar período (próximo)"
+                className="p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-dark-700 text-slate-600 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white rounded-xl transition-colors flex items-center justify-center cursor-pointer"
+              >
+                <ChevronRight size={16} />
+              </button>
             </div>
 
             {/* Período Personalizado */}
             {periodoAtivo === 'personalizado' && (
-              <div className="flex items-center gap-2 animate-fade-in">
+              <div className="flex items-center gap-2 animate-fade-in bg-white dark:bg-dark-800 px-2 py-1 rounded-xl border border-slate-200 dark:border-dark-700 shadow-xs">
                 <input
                   type="date"
                   value={dataInicio}
@@ -1203,7 +1174,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                     setDataInicio(novaDataInicio)
                     if (dataFim < novaDataInicio) setDataFim(novaDataInicio)
                   }}
-                  className="bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-lg px-2.5 py-1.5 text-xs outline-none w-32 focus:border-brand-500"
+                  className="bg-transparent border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-lg px-2.5 py-1 text-xs outline-none w-32 focus:border-brand-500"
                 />
                 <span className="text-slate-400 dark:text-dark-500 text-xs">até</span>
                 <input
@@ -1211,94 +1182,128 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                   value={dataFim}
                   min={dataInicio}
                   onChange={e => setDataFim(e.target.value)}
-                  className="bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-lg px-2.5 py-1.5 text-xs outline-none w-32 focus:border-brand-500"
+                  className="bg-transparent border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-lg px-2.5 py-1 text-xs outline-none w-32 focus:border-brand-500"
                 />
-                <button onClick={carregarPagamentos} className="flex items-center gap-1.5 bg-brand-600 hover:bg-brand-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-xs cursor-pointer">
+                <button onClick={carregarPagamentos} className="flex items-center gap-1.5 bg-brand-600 hover:bg-brand-500 text-white px-2.5 py-1 rounded-lg text-xs font-bold transition-colors shadow-xs cursor-pointer">
                   <Search size={12} /> Filtrar
                 </button>
               </div>
             )}
-
-            {/* Separador sutil */}
-            <div className="hidden lg:block h-6 w-px bg-slate-200 dark:bg-dark-700/80 mx-1 shrink-0" />
-
-            {/* Botões Operacionais: Importar Arquivos, Agendamento, Transferência */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="relative">
-                <button
-                  onClick={() => setMenuImportarAberto(!menuImportarAberto)}
-                  className="flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs cursor-pointer"
-                >
-                  <Upload size={14} /> Importar Arquivos <ChevronDown size={13} className={menuImportarAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
-                </button>
-
-                {menuImportarAberto && (
-                  <div className="absolute top-full mt-2 left-0 w-56 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-100 dark:divide-dark-700/50">
-                    <label className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-dark-700 cursor-pointer transition-colors">
-                      <FileText size={16} className="text-blue-500 dark:text-blue-400" />
-                      <span className="text-sm font-semibold text-slate-800 dark:text-white">DDA</span>
-                      <input data-loja={empresa.id} type="file" accept="image/*,application/pdf,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden" onChange={e => handleImportarArquivo(e, 'dda')} disabled={importando} />
-                    </label>
-                    <label className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-dark-700 cursor-pointer transition-colors">
-                      <FileText size={16} className="text-emerald-500 dark:text-emerald-400" />
-                      <span className="text-sm font-semibold text-slate-800 dark:text-white">Folha de Pagamento</span>
-                      <input data-loja={empresa.id} type="file" accept="application/pdf" className="hidden" onChange={e => handleImportarArquivo(e, 'folha')} disabled={importando} />
-                    </label>
-                  </div>
-                )}
-              </div>
-
-              <button
-                onClick={() => setModalAgendamentoAberto(true)}
-                className="flex items-center gap-1.5 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 hover:bg-slate-100 dark:hover:bg-dark-750 text-slate-700 dark:text-white px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer"
-              >
-                <Calendar size={14} className="text-blue-500 dark:text-blue-400" /> Agendamento
-              </button>
-
-              <button
-                onClick={() => setModalTransferenciaAberto(true)}
-                className="flex items-center gap-1.5 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 hover:bg-slate-100 dark:hover:bg-dark-750 text-slate-700 dark:text-white px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer"
-              >
-                <ArrowRightLeft size={14} className="text-emerald-500 dark:text-emerald-400" /> Transferência
-              </button>
-            </div>
           </div>
 
-          {/* Card Saldo em Caixa Compacto */}
-          <div className="relative group shrink-0 self-start xl:self-center">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-xl blur-xs opacity-70 group-hover:opacity-100 transition duration-300" />
-            <div className="relative bg-white dark:bg-dark-850 border border-emerald-500/30 dark:border-emerald-500/40 rounded-xl px-3.5 py-2 text-right shadow-xs hover:shadow-emerald-500/10 transition-all flex flex-col justify-between min-w-[200px] sm:min-w-[210px]">
-              <div className="flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  <Wallet size={10} /> Saldo em Caixa
-                </span>
-                <span className="text-[9px] font-semibold text-slate-400 dark:text-dark-400">
-                  {salvandoSaldo ? 'Salvando...' : 'Clique para editar'}
-                </span>
-              </div>
+          {/* Área Direita: Card Saldo em Caixa */}
+          <div className="flex items-center justify-end shrink-0 self-start lg:self-center">
+            <div className="relative group shrink-0">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-xl blur-xs opacity-70 group-hover:opacity-100 transition duration-300" />
+              <div className="relative bg-white dark:bg-dark-850 border border-emerald-500/30 dark:border-emerald-500/40 rounded-xl px-3.5 py-2 text-right shadow-xs hover:shadow-emerald-500/10 transition-all flex flex-col justify-between min-w-[200px] sm:min-w-[210px]">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    <Wallet size={10} /> Saldo em Caixa
+                  </span>
+                  <span className="text-[9px] font-semibold text-slate-400 dark:text-dark-400">
+                    {salvandoSaldo ? 'Salvando...' : 'Clique para editar'}
+                  </span>
+                </div>
 
-              <div className="flex items-baseline gap-1 justify-end my-0.5">
-                <span className="text-emerald-600/70 dark:text-emerald-400/70 font-extrabold text-xs">R$</span>
-                <InputMoeda
-                  value={saldoCaixaPendente}
-                  onChange={setSaldoCaixaPendente}
-                  disabled={salvandoSaldo}
-                  onBlur={handleSalvarSaldoCaixa}
-                  permiteNegativo
-                  title="Digite o saldo real da conta desta loja (pode ser negativo)"
-                  className={`text-lg sm:text-xl font-black bg-transparent text-right w-32 sm:w-36 outline-none border-b border-transparent hover:border-emerald-500/30 focus:border-emerald-500 transition-colors disabled:opacity-50 font-mono tabular-nums tracking-tight ${
-                    saldoCaixaPendente < 0 ? 'text-rose-500 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
-                  }`}
-                />
-              </div>
+                <div className="flex items-baseline gap-1 justify-end my-0.5">
+                  <span className="text-emerald-600/70 dark:text-emerald-400/70 font-extrabold text-xs">R$</span>
+                  <InputMoeda
+                    value={saldoCaixaPendente}
+                    onChange={setSaldoCaixaPendente}
+                    disabled={salvandoSaldo}
+                    onBlur={handleSalvarSaldoCaixa}
+                    permiteNegativo
+                    title="Digite o saldo real da conta desta loja (pode ser negativo)"
+                    className={`text-lg sm:text-xl font-black bg-transparent text-right w-32 sm:w-36 outline-none border-b border-transparent hover:border-emerald-500/30 focus:border-emerald-500 transition-colors disabled:opacity-50 font-mono tabular-nums tracking-tight ${
+                      saldoCaixaPendente < 0 ? 'text-rose-500 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
+                    }`}
+                  />
+                </div>
 
-              <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-slate-100 dark:border-dark-750">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                <p className="text-[10px] font-medium text-slate-500 dark:text-dark-400 leading-none">
-                  Disponível para operação
-                </p>
+                <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-slate-100 dark:border-dark-750">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <p className="text-[10px] font-medium text-slate-500 dark:text-dark-400 leading-none">
+                    Disponível para operação
+                  </p>
+                </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Linha 2: Ações Operacionais (Importar Arquivos, Agendamento, Transferência) */}
+        <div className="mt-4 pt-3.5 border-t border-slate-200/70 dark:border-dark-700/70 flex items-center justify-between flex-wrap gap-2.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Importar Arquivos */}
+            <div className="relative">
+              <button
+                onClick={() => setMenuImportarAberto(!menuImportarAberto)}
+                className="flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs cursor-pointer"
+              >
+                <Upload size={14} /> Importar Arquivos <ChevronDown size={13} className={menuImportarAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
+              </button>
+
+              {menuImportarAberto && (
+                <div className="absolute top-full mt-2 left-0 w-56 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-100 dark:divide-dark-700/50">
+                  <label className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-dark-700 cursor-pointer transition-colors">
+                    <FileText size={16} className="text-blue-500 dark:text-blue-400" />
+                    <span className="text-sm font-semibold text-slate-800 dark:text-white">DDA</span>
+                    <input data-loja={empresa.id} type="file" accept="image/*,application/pdf,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden" onChange={e => handleImportarArquivo(e, 'dda')} disabled={importando} />
+                  </label>
+                  <label className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-dark-700 cursor-pointer transition-colors">
+                    <FileText size={16} className="text-emerald-500 dark:text-emerald-400" />
+                    <span className="text-sm font-semibold text-slate-800 dark:text-white">Folha de Pagamento</span>
+                    <input data-loja={empresa.id} type="file" accept="application/pdf" className="hidden" onChange={e => handleImportarArquivo(e, 'folha')} disabled={importando} />
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {/* Agendamento */}
+            <button
+              onClick={() => setModalAgendamentoAberto(true)}
+              className="flex items-center gap-1.5 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 hover:bg-slate-100 dark:hover:bg-dark-750 text-slate-700 dark:text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer"
+            >
+              <Calendar size={14} className="text-blue-500 dark:text-blue-400" /> Agendamento
+            </button>
+
+            {/* Transferência */}
+            <button
+              onClick={() => setModalTransferenciaAberto(true)}
+              className="flex items-center gap-1.5 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 hover:bg-slate-100 dark:hover:bg-dark-750 text-slate-700 dark:text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer"
+            >
+              <ArrowRightLeft size={14} className="text-emerald-500 dark:text-emerald-400" /> Transferência
+            </button>
+          </div>
+
+          {/* Opções da Loja / Limpar */}
+          <div className="relative">
+            <button
+              onClick={() => setMenuExcluirAberto(!menuExcluirAberto)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 hover:bg-rose-50 text-slate-500 hover:text-rose-600 dark:text-dark-300 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-colors cursor-pointer text-xs font-semibold shadow-xs"
+              title="Opções da loja"
+            >
+              <Trash2 size={13} />
+              <span>Opções da Loja</span>
+              <ChevronDown size={12} className={menuExcluirAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
+            </button>
+
+            {menuExcluirAberto && (
+              <div className="absolute top-full mt-2 right-0 w-64 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-100 dark:divide-dark-700/50">
+                <button
+                  onClick={() => { setMenuExcluirAberto(false); handleLimparRegistrosDoDia() }}
+                  className="w-full text-left px-4 py-3 text-sm font-semibold text-slate-700 dark:text-dark-200 hover:bg-slate-50 dark:hover:bg-dark-700 transition-colors cursor-pointer"
+                >
+                  Excluir lançamentos do período
+                </button>
+                <button
+                  onClick={handleRemoverLojaDoGrupo}
+                  className="w-full text-left px-4 py-3 text-sm font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
+                >
+                  Remover loja deste grupo
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1385,11 +1390,42 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         </div>
       )}
 
+      {/* Barra de Busca Rápida Local */}
+      {pagamentos.length > 0 && (
+        <div className="p-3 bg-slate-50/70 dark:bg-dark-900/60 border-b border-slate-200/80 dark:border-dark-700/70 flex flex-wrap items-center justify-between gap-3">
+          <div className="relative flex-1 min-w-[220px] max-w-md">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400" />
+            <input
+              type="text"
+              value={buscaLocal}
+              onChange={e => setBuscaLocal(e.target.value)}
+              placeholder="Busca rápida por fornecedor, descrição, conta ou valor..."
+              className="w-full bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl pl-8 pr-8 py-1.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:border-brand-500 transition-colors shadow-xs"
+            />
+            {buscaLocal && (
+              <button
+                type="button"
+                onClick={() => setBuscaLocal('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+                title="Limpar busca"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+          {buscaLocal && (
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-dark-400">
+              {pagamentosIndividuaisFiltrados.length} de {pagamentosIndividuais.length} resultado(s)
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="overflow-x-auto min-h-[150px] custom-scrollbar">
-        <table className="w-full min-w-[850px] text-left border-collapse">
+        <table className="w-full text-left border-collapse min-w-[960px] xl:min-w-full">
           <thead>
             <tr className="bg-slate-100/95 dark:bg-dark-900/95 backdrop-blur-md border-b border-slate-200 dark:border-dark-700/80 text-[10px] uppercase font-bold tracking-widest text-slate-500 dark:text-dark-400">
-              <th className="w-10 px-3 py-2.5 text-center">
+              <th className="w-10 px-2 py-3 text-center">
                 {pagamentosIndividuaisFiltrados.filter(p => p.origem !== 'Transferência' && p.origem !== 'Transferência Recebida').length > 0 && (
                   <input
                     type="checkbox"
@@ -1405,14 +1441,14 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                   />
                 )}
               </th>
-              <th className="px-4 py-2.5">TIPO</th>
-              <th className="px-4 py-2.5">BENEFICIÁRIO / CONTA</th>
-              <th className="px-4 py-2.5">CATEGORIA</th>
-              <th className="px-4 py-2.5">DESCRIÇÃO</th>
-              <th className="px-4 py-2.5">SITUAÇÃO</th>
-              <th className="px-4 py-2.5">VENCIMENTO</th>
-              <th className="px-4 py-2.5 text-right">VALOR</th>
-              <th className="px-4 py-2.5 text-center">AÇÕES</th>
+              <th className="w-24 px-3 py-3 whitespace-nowrap">TIPO</th>
+              <th className="w-[23%] min-w-[190px] px-3 py-3">BENEFICIÁRIO / CONTA</th>
+              <th className="w-[13%] min-w-[120px] px-3 py-3">CATEGORIA</th>
+              <th className="w-[27%] min-w-[210px] px-3 py-3">DESCRIÇÃO</th>
+              <th className="w-28 px-3 py-3 text-center whitespace-nowrap">SITUAÇÃO</th>
+              <th className="w-28 px-3 py-3 whitespace-nowrap">VENCIMENTO</th>
+              <th className="w-32 px-3 py-3 text-right whitespace-nowrap">VALOR</th>
+              <th className="w-[136px] min-w-[136px] max-w-[136px] px-2 py-3 text-center whitespace-nowrap">AÇÕES</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-dark-700/50">
@@ -1463,21 +1499,21 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
               <>
                 {mostrarDda && (
                   <tr className="bg-blue-50/50 dark:bg-dark-800/20 hover:bg-blue-100/50 dark:hover:bg-dark-800/40 transition-colors border-l-4 border-l-blue-500">
-                    <td className="w-10 px-3 py-2.5 text-center"></td>
-                    <td className="px-4 py-2.5">
+                    <td className="w-10 px-2 py-2.5 text-center"></td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">DDA</span>
                     </td>
-                    <td className="px-4 py-2.5 font-bold text-slate-900 dark:text-white text-sm max-w-[140px] truncate">Lançamentos DDA</td>
-                    <td className="px-4 py-2.5 text-sm text-slate-600 dark:text-dark-300 max-w-[110px] truncate">{categoriaDda}</td>
-                    <td className="px-4 py-2.5 text-sm text-slate-600 dark:text-dark-300 max-w-[320px] xl:max-w-[500px] truncate">Total de {pagamentosDda.length} itens importados</td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-3 py-2.5 font-bold text-slate-900 dark:text-white text-sm truncate">Lançamentos DDA</td>
+                    <td className="px-3 py-2.5 text-sm text-slate-600 dark:text-dark-300 truncate">{categoriaDda}</td>
+                    <td className="px-3 py-2.5 text-sm text-slate-600 dark:text-dark-300 truncate">Total de {pagamentosDda.length} itens importados</td>
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
                       <span className={`text-[10px] font-bold px-3 py-1 rounded border uppercase tracking-wider ${situacaoDda.classe}`}>{situacaoDda.label}</span>
                     </td>
-                    <td className="px-4 py-2.5 text-sm text-slate-500 dark:text-dark-300 font-semibold">—</td>
-                    <td className="px-4 py-2.5 font-black text-rose-600 dark:text-rose-400 text-sm text-right tabular-nums">
+                    <td className="px-3 py-2.5 text-sm text-slate-500 dark:text-dark-300 font-semibold whitespace-nowrap">—</td>
+                    <td className="px-3 py-2.5 font-black text-rose-600 dark:text-rose-400 text-sm text-right tabular-nums whitespace-nowrap">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pagamentosDda.reduce((acc, curr) => acc + Number(curr.valor), 0))}
                     </td>
-                    <td className="px-4 py-2.5 text-center">
+                    <td className="w-[136px] min-w-[136px] max-w-[136px] px-2 py-2.5 text-center whitespace-nowrap">
                       <button onClick={() => setModalDetalhesDda(true)} className="bg-white hover:bg-slate-100 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-700 dark:text-white rounded-lg p-1.5 transition-colors cursor-pointer shadow-xs" title="Visualizar Lançamentos">
                         <Search size={16} className="text-slate-500 dark:text-dark-300" />
                       </button>
@@ -1487,21 +1523,21 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
                 {mostrarFolha && (
                   <tr className="bg-emerald-50/50 dark:bg-dark-800/10 hover:bg-emerald-100/50 dark:hover:bg-dark-800/30 transition-colors border-l-4 border-l-emerald-500">
-                    <td className="w-10 px-3 py-2.5 text-center"></td>
-                    <td className="px-4 py-2.5">
+                    <td className="w-10 px-2 py-2.5 text-center"></td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">FOLHA</span>
                     </td>
-                    <td className="px-4 py-2.5 font-bold text-slate-900 dark:text-white text-sm max-w-[140px] truncate">Folha de Pagamento</td>
-                    <td className="px-4 py-2.5 text-sm text-slate-600 dark:text-dark-300 max-w-[110px] truncate">{categoriaFolha}</td>
-                    <td className="px-4 py-2.5 text-sm text-slate-600 dark:text-dark-300 max-w-[320px] xl:max-w-[500px] truncate">Total de {pagamentosFolha.length} colaboradores</td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-3 py-2.5 font-bold text-slate-900 dark:text-white text-sm truncate">Folha de Pagamento</td>
+                    <td className="px-3 py-2.5 text-sm text-slate-600 dark:text-dark-300 truncate">{categoriaFolha}</td>
+                    <td className="px-3 py-2.5 text-sm text-slate-600 dark:text-dark-300 truncate">Total de {pagamentosFolha.length} colaboradores</td>
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
                       <span className={`text-[10px] font-bold px-3 py-1 rounded border uppercase tracking-wider ${situacaoFolha.classe}`}>{situacaoFolha.label}</span>
                     </td>
-                    <td className="px-4 py-2.5 text-sm text-slate-500 dark:text-dark-300 font-semibold">—</td>
-                    <td className="px-4 py-2.5 font-black text-rose-600 dark:text-rose-400 text-sm text-right tabular-nums">
+                    <td className="px-3 py-2.5 text-sm text-slate-500 dark:text-dark-300 font-semibold whitespace-nowrap">—</td>
+                    <td className="px-3 py-2.5 font-black text-rose-600 dark:text-rose-400 text-sm text-right tabular-nums whitespace-nowrap">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pagamentosFolha.reduce((acc, curr) => acc + Number(curr.valor), 0))}
                     </td>
-                    <td className="px-4 py-2.5 text-center">
+                    <td className="w-[136px] min-w-[136px] max-w-[136px] px-2 py-2.5 text-center whitespace-nowrap">
                       <button onClick={() => setModalDetalhesFolha(true)} className="bg-white hover:bg-slate-100 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-700 dark:text-white rounded-lg p-1.5 transition-colors cursor-pointer shadow-xs" title="Visualizar Lançamentos">
                         <Search size={16} className="text-slate-500 dark:text-dark-300" />
                       </button>
@@ -1511,7 +1547,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
                 {pagamentosIndividuaisFiltrados.map((pag, idx) => (
                   <tr key={pag.id || idx} className={cn("hover:bg-slate-100/60 dark:hover:bg-white/[0.035] transition-colors border-b border-slate-100 dark:border-dark-700/50 even:bg-slate-50/50 dark:even:bg-white/[0.015]", selecionadosIndividuais.includes(pag.id) ? "bg-blue-50/70 dark:bg-blue-950/20" : "bg-transparent")}>
-                    <td className="w-10 px-3 py-2.5 text-center">
+                    <td className="w-10 px-2 py-2.5 text-center">
                       {pag.origem !== 'Transferência' && pag.origem !== 'Transferência Recebida' ? (
                         <input
                           type="checkbox"
@@ -1521,7 +1557,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         />
                       ) : null}
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <span className={`text-[10px] font-black uppercase px-2 py-1 rounded ${
                         pag.origem === 'Transferência Recebida' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                         : pag.origem === 'Transferência' ? 'bg-slate-100 dark:bg-dark-700 text-slate-600 dark:text-dark-300'
@@ -1530,8 +1566,8 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         {pag.origem === 'Agendamento' ? 'AGEND' : pag.origem === 'Transferência Recebida' ? 'TRANSF. RECEB.' : pag.origem}
                       </span>
                     </td>
-                    <td className="px-4 py-2.5 font-bold text-slate-900 dark:text-white text-sm max-w-[170px]" title={pag.fornecedor || pag.beneficiario || ''}>
-                      <div className="truncate">{pag.fornecedor || pag.beneficiario || '—'}</div>
+                    <td className="px-3 py-2.5 font-bold text-slate-900 dark:text-white text-sm" title={pag.fornecedor || pag.beneficiario || ''}>
+                      <div className="truncate font-semibold">{pag.fornecedor || pag.beneficiario || '—'}</div>
                       {pag.conta_pagamento && (
                         <div className="flex items-center gap-1 mt-0.5 text-[11px] font-normal text-slate-500 dark:text-dark-400 truncate" title={`Conta de pagamento: ${pag.conta_pagamento}`}>
                           <Wallet size={11} className="shrink-0 text-slate-400 dark:text-dark-500" />
@@ -1539,10 +1575,10 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-2.5 text-sm text-slate-600 dark:text-dark-300 max-w-[110px] truncate" title={pag.categoria || ''}>
+                    <td className="px-3 py-2.5 text-sm text-slate-600 dark:text-dark-300 truncate" title={pag.categoria || ''}>
                       {pag.categoria || '—'}
                     </td>
-                    <td className="px-4 py-2.5 text-sm text-slate-600 dark:text-dark-300 max-w-[320px] xl:max-w-[500px]">
+                    <td className="px-3 py-2.5 text-sm text-slate-600 dark:text-dark-300">
                       {(() => {
                         const desc = pag.descricao ? String(pag.descricao).trim().toUpperCase() : ''
                         const doc = pag.documento && pag.documento !== 'S/N' ? String(pag.documento).trim().toUpperCase() : ''
@@ -1559,7 +1595,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                               {textoExibir}
                             </div>
                             {pag.codigo_barras && (
-                              <div className="flex items-center gap-1.5 mt-1">
+                              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -1589,7 +1625,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         )
                       })()}
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
                       <button onClick={() => toggleStatus(pag)} className={`text-[10px] font-bold px-2 py-1 rounded border uppercase tracking-wider transition-colors cursor-pointer ${
                         pag.status === 'agendado'
                           ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20'
@@ -1598,7 +1634,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         {pag.status === 'agendado' ? 'AGENDADO' : 'EM ABERTO'}
                       </button>
                     </td>
-                    <td className="px-4 py-2.5 text-sm">
+                    <td className="px-3 py-2.5 text-sm whitespace-nowrap">
                       {(() => {
                         const dataRef = pag.data_vencimento || pag.data_pagamento
                         const estilo = getEstiloVencimento(dataRef, pag.status)
@@ -1615,10 +1651,10 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         )
                       })()}
                     </td>
-                    <td className={`px-4 py-2.5 font-bold text-sm text-right tabular-nums ${pag.origem === 'Transferência Recebida' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                    <td className={`px-3 py-2.5 font-bold text-sm text-right tabular-nums whitespace-nowrap ${pag.origem === 'Transferência Recebida' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pag.valor)}
                     </td>
-                    <td className="px-4 py-2.5 text-center">
+                    <td className="w-[136px] min-w-[136px] max-w-[136px] px-2 py-2.5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1">
                         {pag.anexo_url && (
                           <button
@@ -1667,54 +1703,54 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         </table>
       </div>
 
-      {/* KPIs da Loja Modernizados Compactos (Padrão Fintech Stripe/Brex) */}
-      <div className="bg-slate-50/80 dark:bg-dark-900/60 border-t border-slate-200/80 dark:border-dark-700 px-4 sm:px-5 py-2.5 sm:py-3 grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 transition-colors">
-        <div className="bg-white dark:bg-dark-850 border border-slate-200/80 dark:border-dark-700/80 rounded-xl px-3.5 py-2.5 sm:py-3 shadow-xs hover:border-rose-500/30 transition-all flex items-center justify-between">
-          <div className="min-w-0 flex-1 pr-2">
-            <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-0.5 truncate">Total Despesas</p>
-            <p className="text-xl font-black text-rose-600 dark:text-rose-400 tabular-nums font-mono leading-tight">
+      {/* KPIs da Loja Modernizados (Padrão Fintech Stripe/Brex) */}
+      <div className="bg-slate-50/80 dark:bg-dark-900/60 border-t border-slate-200/80 dark:border-dark-700 px-6 py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 transition-colors">
+        <div className="bg-white dark:bg-dark-850 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl p-4 shadow-xs hover:border-rose-500/30 transition-all flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-1">Total Despesas</p>
+            <p className="text-xl font-black text-rose-600 dark:text-rose-400 tabular-nums font-mono">
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalDespesas)}
             </p>
-            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5 leading-none">Saídas programadas</p>
+            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5">Saídas programadas</p>
           </div>
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center shadow-xs flex-shrink-0">
-            <ArrowDownRight size={17} />
+          <div className="w-10 h-10 rounded-xl bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center shadow-xs flex-shrink-0">
+            <ArrowDownRight size={20} />
           </div>
         </div>
 
-        <div className="bg-white dark:bg-dark-850 border border-slate-200/80 dark:border-dark-700/80 rounded-xl px-3.5 py-2.5 sm:py-3 shadow-xs hover:border-emerald-500/30 transition-all flex items-center justify-between">
-          <div className="min-w-0 flex-1 pr-2">
-            <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-0.5 truncate">Entradas (Transf)</p>
-            <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums font-mono leading-tight">
+        <div className="bg-white dark:bg-dark-850 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl p-4 shadow-xs hover:border-emerald-500/30 transition-all flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-1">Entradas (Transf)</p>
+            <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums font-mono">
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalEntradas)}
             </p>
-            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5 leading-none">Aportes e transferências</p>
+            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5">Aportes e transferências</p>
           </div>
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs flex-shrink-0">
-            <ArrowUpRight size={17} />
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs flex-shrink-0">
+            <ArrowUpRight size={20} />
           </div>
         </div>
 
-        <div className={`bg-white dark:bg-dark-850 border rounded-xl px-3.5 py-2.5 sm:py-3 shadow-xs transition-all flex items-center justify-between ${
+        <div className={`bg-white dark:bg-dark-850 border rounded-2xl p-4 shadow-xs transition-all flex items-center justify-between ${
           saldoFinalEstimado < 0
             ? 'border-rose-500/30 dark:border-rose-500/40 hover:border-rose-500/50'
             : 'border-emerald-500/30 dark:border-emerald-500/40 hover:border-emerald-500/50'
         }`}>
-          <div className="min-w-0 flex-1 pr-2">
-            <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-0.5 truncate">Saldo Final Estimado</p>
-            <p className={`text-xl font-black tabular-nums font-mono leading-tight ${
+          <div>
+            <p className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-1">Saldo Final Estimado</p>
+            <p className={`text-xl font-black tabular-nums font-mono ${
               saldoFinalEstimado < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
             }`}>
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(saldoFinalEstimado)}
             </p>
-            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5 leading-none">Caixa + Entradas - Despesas</p>
+            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5">Caixa + Entradas - Despesas</p>
           </div>
-          <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl border flex items-center justify-center shadow-xs flex-shrink-0 ${
+          <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shadow-xs flex-shrink-0 ${
             saldoFinalEstimado < 0
               ? 'bg-rose-500/10 dark:bg-rose-500/15 border-rose-500/20 text-rose-600 dark:text-rose-400'
               : 'bg-emerald-500/10 dark:bg-emerald-500/15 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
           }`}>
-            {saldoFinalEstimado < 0 ? <TrendingDown size={17} /> : <TrendingUp size={17} />}
+            {saldoFinalEstimado < 0 ? <TrendingDown size={20} /> : <TrendingUp size={20} />}
           </div>
         </div>
       </div>

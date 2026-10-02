@@ -271,7 +271,7 @@ export default function GrupoDetalhe() {
         </div>
       </div>
 
-      <div className="p-6 max-w-[1400px] mx-auto space-y-4 animate-fade-in">
+      <div className="p-4 sm:p-6 w-full max-w-[1920px] mx-auto space-y-5 animate-fade-in">
         {lojas.length === 0 ? (
           <div className="bg-[#11141c] border border-dark-700 rounded-2xl p-16 flex flex-col items-center justify-center gap-4 text-center">
             <Building2 className="text-dark-600" size={40} />

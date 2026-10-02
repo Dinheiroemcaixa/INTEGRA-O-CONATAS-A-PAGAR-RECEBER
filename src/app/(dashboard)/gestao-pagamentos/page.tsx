@@ -124,7 +124,7 @@ export default function MeusGrupos() {
         </button>
       </div>
 
-      <div className="p-6 max-w-[1400px] mx-auto animate-fade-in">
+      <div className="p-4 sm:p-6 w-full max-w-[1920px] mx-auto animate-fade-in">
         {carregando ? (
           <div className="flex items-center justify-center h-72">
             <Loader2 className="animate-spin text-dark-400" size={32} />
