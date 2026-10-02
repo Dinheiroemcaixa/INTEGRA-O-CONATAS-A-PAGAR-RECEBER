@@ -1385,37 +1385,6 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         </div>
       )}
 
-      {/* Barra de Busca Rápida Local */}
-      {pagamentos.length > 0 && (
-        <div className="p-3 bg-slate-50/70 dark:bg-dark-900/60 border-b border-slate-200/80 dark:border-dark-700/70 flex flex-wrap items-center justify-between gap-3">
-          <div className="relative flex-1 min-w-[220px] max-w-md">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400" />
-            <input
-              type="text"
-              value={buscaLocal}
-              onChange={e => setBuscaLocal(e.target.value)}
-              placeholder="Busca rápida por fornecedor, descrição, conta ou valor..."
-              className="w-full bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl pl-8 pr-8 py-1.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:border-brand-500 transition-colors shadow-xs"
-            />
-            {buscaLocal && (
-              <button
-                type="button"
-                onClick={() => setBuscaLocal('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
-                title="Limpar busca"
-              >
-                <X size={13} />
-              </button>
-            )}
-          </div>
-          {buscaLocal && (
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-dark-400">
-              {pagamentosIndividuaisFiltrados.length} de {pagamentosIndividuais.length} resultado(s)
-            </span>
-          )}
-        </div>
-      )}
-
       <div className="overflow-x-auto min-h-[150px] custom-scrollbar">
         <table className="w-full min-w-[850px] text-left border-collapse">
           <thead>
