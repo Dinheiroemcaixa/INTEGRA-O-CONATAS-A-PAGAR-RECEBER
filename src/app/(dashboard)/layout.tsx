@@ -3,6 +3,7 @@ import { SidebarProvider } from '@/contexts/SidebarContext'
 import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
 import AuthGuard from '@/components/AuthGuard'
+import RouteAccessGuard from '@/components/RouteAccessGuard'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -14,7 +15,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
               <Header />
               <main className="flex-1 overflow-y-auto p-3.5 sm:p-5 lg:p-6 relative custom-scrollbar">
-                {children}
+                <RouteAccessGuard>
+                  {children}
+                </RouteAccessGuard>
                 {/* Watermark dev — sutil, canto inferior direito */}
                 <span className="fixed bottom-3 right-4 text-[9px] text-dark-800 select-none pointer-events-none z-0">
                   dev: AH Cardoso

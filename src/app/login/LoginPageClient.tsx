@@ -7,10 +7,11 @@ import toast from 'react-hot-toast'
 import {
   Mail, Lock, Eye, EyeOff, LogIn, Loader2, ArrowLeft,
   Car, Building2, Receipt, ShieldCheck, CheckCircle2,
-  Zap, BarChart3, Layers, Sparkles
+  Zap, BarChart3, Layers, Sparkles, User
 } from 'lucide-react'
 
 export default function LoginPageClient() {
+  const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [mostrarSenha, setMostrarSenha] = useState(false)
@@ -57,10 +58,25 @@ export default function LoginPageClient() {
         toast.success('E-mail de redefinição enviado! Verifique sua caixa de entrada.', { duration: 6000 })
         setModoEsqueciSenha(false)
       } else if (modoRegistro) {
-        const { error } = await supabase.auth.signUp({ email, password: senha })
+        const { data: signUpData, error } = await supabase.auth.signUp({
+          email,
+          password: senha,
+          options: {
+            data: {
+              name: nome.trim() || email.split('@')[0],
+              nome: nome.trim() || email.split('@')[0],
+            },
+          },
+        })
         if (error) throw error
-        toast.success('Conta criada com sucesso! Fazendo login...')
-        await fazerLogin(email, senha)
+
+        toast.success('Conta criada com sucesso! Aguardando aprovação do administrador.', { duration: 5000 })
+        try {
+          await fazerLogin(email, senha)
+        } catch {
+          // Se exigir confirmação de e-mail por link
+          toast.success('Verifique sua caixa de entrada caso receba confirmação de e-mail.')
+        }
       } else {
         await fazerLogin(email, senha)
         toast.success('Login autorizado!')
@@ -240,6 +256,29 @@ export default function LoginPageClient() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             
+            {/* Campo Nome (Apenas no Modo Cadastro) */}
+            {modoRegistro && (
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                  Nome Completo
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
+                    <User size={16} />
+                  </div>
+                  <input
+                    type="text"
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    placeholder="Ex: João da Silva"
+                    required={modoRegistro}
+                    autoComplete="name"
+                    className="w-full pl-10 pr-4 py-2.5 h-11 text-sm bg-white dark:bg-[#121622] border border-slate-300 dark:border-white/[0.12] rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-xs"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Campo E-mail */}
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">

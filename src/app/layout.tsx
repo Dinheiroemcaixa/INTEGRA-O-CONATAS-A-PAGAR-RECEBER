@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
 import { AppConfigProvider } from '@/contexts/AppConfigContext'
+import { UserPermissionsProvider } from '@/contexts/UserPermissionsContext'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -55,7 +56,9 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <AppConfigProvider>
-          {children}
+          <UserPermissionsProvider>
+            {children}
+          </UserPermissionsProvider>
         </AppConfigProvider>
         <Toaster
           position="top-right"

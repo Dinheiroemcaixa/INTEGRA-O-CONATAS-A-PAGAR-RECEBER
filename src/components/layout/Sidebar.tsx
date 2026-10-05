@@ -7,50 +7,68 @@ import {
   LayoutDashboard, ArrowDownCircle, ArrowUpCircle,
   Building2, Settings, ChevronRight, User, LogOut,
   ShoppingBag, Receipt, FileCheck2, Link2, Layers,
-  ShieldCheck, X
+  ShieldCheck, X, KeyRound, Lock
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useAppConfig } from '@/contexts/AppConfigContext'
 import { useSidebar } from '@/contexts/SidebarContext'
+import { useUserPermissions } from '@/contexts/UserPermissionsContext'
 import ThemeSwitcher from '@/components/layout/ThemeSwitcher'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 
+interface NavItem {
+  label: string
+  href: string
+  icon: any
+  badge?: string
+  badgeColor?: string
+  disabled?: boolean
+  cardKey?: string
+  masterOnly?: boolean
+}
+
 interface NavSection {
   title?: string
-  items: {
-    label: string
-    href: string
-    icon: any
-    badge?: string
-    badgeColor?: string
-    disabled?: boolean
-  }[]
+  items: NavItem[]
 }
 
 const navSections: NavSection[] = [
   {
     items: [
-      { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, cardKey: 'dashboard' },
     ]
   },
   {
     title: 'OPERAÇÃO & FISCAL',
     items: [
-      { label: 'Vendas Produtos', href: '/vendas', icon: ShoppingBag },
-      { label: 'Vendas Serviços', href: '/vendas-servicos', icon: Receipt, badge: 'EM BREVE', badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30' },
-      { label: 'Notas Emitidas', href: '/notas-emitidas', icon: FileCheck2 },
-      { label: 'Contas a Pagar', href: '/contas-pagar', icon: ArrowDownCircle },
-      { label: 'Gestão Pagamentos', href: '/gestao-pagamentos', icon: Layers },
-      { label: 'Auditoria Conciliações', href: '/auditoria-conciliacoes-ca', icon: ShieldCheck, badge: 'FASE 2', badgeColor: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30' },
-      { label: 'Contas a Receber', href: '/contas-receber', icon: ArrowUpCircle, badge: 'EM BREVE', disabled: true },
+      { label: 'Vendas Produtos', href: '/vendas', icon: ShoppingBag, cardKey: 'vendas' },
+      { label: 'Vendas Serviços', href: '/vendas-servicos', icon: Receipt, badge: 'EM BREVE', badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30', cardKey: 'fiscal' },
+      { label: 'Notas Emitidas', href: '/notas-emitidas', icon: FileCheck2, cardKey: 'relatorios' },
+      { label: 'Contas a Pagar', href: '/contas-pagar', icon: ArrowDownCircle, cardKey: 'contas_pagar' },
+      { label: 'Gestão Pagamentos', href: '/gestao-pagamentos', icon: Layers, cardKey: 'gestao_pagamentos' },
+      { label: 'Auditoria Conciliações', href: '/auditoria-conciliacoes-ca', icon: ShieldCheck, badge: 'FASE 2', badgeColor: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30', cardKey: 'conciliacao' },
+      { label: 'Contas a Receber', href: '/contas-receber', icon: ArrowUpCircle, badge: 'EM BREVE', disabled: true, cardKey: 'contas_receber' },
     ]
   },
   {
     title: 'SISTEMA & INTEGRAÇÕES',
     items: [
-      { label: 'Empresas', href: '/empresas', icon: Building2 },
-      { label: 'Conexões & APIs', href: '/conectar', icon: Link2 },
+      { label: 'Empresas', href: '/empresas', icon: Building2, cardKey: 'configuracoes' },
+      { label: 'Conexões & APIs', href: '/conectar', icon: Link2, cardKey: 'conta_azul' },
+    ]
+  },
+  {
+    title: 'ADMINISTRAÇÃO MESTRE',
+    items: [
+      { 
+        label: '🔑 Central Mestre', 
+        href: '/central-mestre', 
+        icon: KeyRound, 
+        badge: 'MASTER', 
+        badgeColor: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/40', 
+        masterOnly: true 
+      },
     ]
   }
 ]
@@ -60,6 +78,7 @@ export default function Sidebar() {
   const router = useRouter()
   const { config, update, accentClasses } = useAppConfig()
   const { isMobileOpen, closeMobile } = useSidebar()
+  const { isMaster, temPermissao } = useUserPermissions()
   const [userEmail, setUserEmail] = useState('')
   const supabase = createClient()
 
@@ -116,63 +135,88 @@ export default function Sidebar() {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-2 space-y-4 overflow-y-auto">
-          {navSections.map((section, sIdx) => (
-            <div key={sIdx} className="space-y-1">
-              {section.title && (
-                <p className="px-3 pt-2.5 pb-1 text-[10px] font-bold text-slate-400 dark:text-dark-500 tracking-wider uppercase select-none">
-                  {section.title}
-                </p>
-              )}
-              {section.items.map((item) => {
-                const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
-                const Icon = item.icon
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.disabled ? '#' : item.href}
-                    className={cn(
-                      'relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 group',
-                      isActive 
-                        ? 'bg-brand-500/10 dark:bg-brand-500/15 text-brand-600 dark:text-brand-400 font-semibold border border-brand-500/20 shadow-xs' 
-                        : 'text-slate-600 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/90 dark:hover:bg-white/[0.06] hover:translate-x-0.5',
-                      item.disabled && 'opacity-40 cursor-not-allowed pointer-events-none'
-                    )}
-                  >
-                    {/* Indicador lateral sutil de item ativo estilo Linear */}
-                    {isActive && (
-                      <span className="absolute left-0 top-2 bottom-2 w-1 bg-brand-500 rounded-r-full shadow-xs" />
-                    )}
+          {navSections.map((section, sIdx) => {
+            // Filtrar itens visíveis
+            const visibleItems = section.items.filter(item => !(item.masterOnly && !isMaster))
+            if (visibleItems.length === 0) return null
 
-                    <Icon size={17} className={cn(
-                      'flex-shrink-0 transition-transform duration-200 group-hover:scale-110',
-                      isActive ? 'text-brand-600 dark:text-brand-400' : 'text-slate-400 dark:text-dark-400 group-hover:text-slate-700 dark:group-hover:text-white'
-                    )} />
-                    
-                    <span className="flex-1 truncate">{item.label}</span>
+            return (
+              <div key={sIdx} className="space-y-1">
+                {section.title && (
+                  <p className="px-3 pt-2.5 pb-1 text-[10px] font-bold text-slate-400 dark:text-dark-500 tracking-wider uppercase select-none">
+                    {section.title}
+                  </p>
+                )}
+                {visibleItems.map((item) => {
+                  const temAcesso = item.masterOnly ? isMaster : (!item.cardKey || temPermissao(item.cardKey))
+                  const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
+                  const Icon = item.icon
 
-                    {item.badge && !item.disabled && (
-                      <span className={cn(
-                        'text-[9px] px-1.5 py-0.5 rounded-full font-bold border tracking-wider',
-                        item.badgeColor || 'bg-brand-500/10 dark:bg-brand-500/20 text-brand-600 dark:text-brand-400 border-brand-500/30'
-                      )}>
-                        {item.badge}
-                      </span>
-                    )}
+                  // Card não liberado para o usuário: exibir bloqueado com ícone de cadeado
+                  if (!temAcesso) {
+                    return (
+                      <button
+                        key={item.href}
+                        type="button"
+                        onClick={() => toast.error('Você não possui acesso a este módulo.')}
+                        className="relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-400 dark:text-dark-500 opacity-60 hover:opacity-90 hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-all cursor-pointer select-none text-left group"
+                        title="Você não possui acesso a este módulo."
+                      >
+                        <Icon size={17} className="flex-shrink-0 text-slate-400 dark:text-dark-500 group-hover:text-amber-500/70 transition-colors" />
+                        <span className="flex-1 truncate">{item.label}</span>
+                        <Lock size={13} className="text-amber-500/80 ml-auto flex-shrink-0" />
+                      </button>
+                    )
+                  }
 
-                    {item.badge && item.disabled && (
-                      <span className="text-[9px] bg-slate-100 dark:bg-dark-800 text-slate-400 dark:text-dark-500 border border-slate-200 dark:border-dark-700 px-1.5 py-0.5 rounded-full font-semibold">
-                        {item.badge}
-                      </span>
-                    )}
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.disabled ? '#' : item.href}
+                      className={cn(
+                        'relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 group',
+                        isActive 
+                          ? 'bg-brand-500/10 dark:bg-brand-500/15 text-brand-600 dark:text-brand-400 font-semibold border border-brand-500/20 shadow-xs' 
+                          : 'text-slate-600 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/90 dark:hover:bg-white/[0.06] hover:translate-x-0.5',
+                        item.disabled && 'opacity-40 cursor-not-allowed pointer-events-none'
+                      )}
+                    >
+                      {/* Indicador lateral sutil de item ativo estilo Linear */}
+                      {isActive && (
+                        <span className="absolute left-0 top-2 bottom-2 w-1 bg-brand-500 rounded-r-full shadow-xs" />
+                      )}
 
-                    {isActive && !item.disabled && (
-                      <ChevronRight size={13} className="text-brand-600/70 dark:text-brand-400/70 ml-auto flex-shrink-0" />
-                    )}
-                  </Link>
-                )
-              })}
-            </div>
-          ))}
+                      <Icon size={17} className={cn(
+                        'flex-shrink-0 transition-transform duration-200 group-hover:scale-110',
+                        isActive ? 'text-brand-600 dark:text-brand-400' : 'text-slate-400 dark:text-dark-400 group-hover:text-slate-700 dark:group-hover:text-white'
+                      )} />
+                      
+                      <span className="flex-1 truncate">{item.label}</span>
+
+                      {item.badge && !item.disabled && (
+                        <span className={cn(
+                          'text-[9px] px-1.5 py-0.5 rounded-full font-bold border tracking-wider',
+                          item.badgeColor || 'bg-brand-500/10 dark:bg-brand-500/20 text-brand-600 dark:text-brand-400 border-brand-500/30'
+                        )}>
+                          {item.badge}
+                        </span>
+                      )}
+
+                      {item.badge && item.disabled && (
+                        <span className="text-[9px] bg-slate-100 dark:bg-dark-800 text-slate-400 dark:text-dark-500 border border-slate-200 dark:border-dark-700 px-1.5 py-0.5 rounded-full font-semibold">
+                          {item.badge}
+                        </span>
+                      )}
+
+                      {isActive && !item.disabled && (
+                        <ChevronRight size={13} className="text-brand-600/70 dark:text-brand-400/70 ml-auto flex-shrink-0" />
+                      )}
+                    </Link>
+                  )
+                })}
+              </div>
+            )
+          })}
         </nav>
 
         {/* Footer */}
