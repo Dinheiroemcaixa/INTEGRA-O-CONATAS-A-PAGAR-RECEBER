@@ -455,7 +455,7 @@ export default function TabelaPreview({
                     "py-3 px-2",
                     editingIdx === idx ? "overflow-visible relative z-30" : "overflow-hidden"
                   )}>
-                    {isEditing ? (
+                    {editingIdx === idx ? (
                       <SelectorFornecedor 
                         valorInicial={item.fornecedor}
                         onCancel={() => setEditingIdx(null)}

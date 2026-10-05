@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import SelectorContaFinanceira, { type ContaFinanceiraOpcao } from '@/components/upload/SelectorContaFinanceira'
 import SelectorCategoria from '@/components/upload/SelectorCategoria'
+import ModalEditarContaPagar from '@/components/upload/ModalEditarContaPagar'
 
 import type { ProgressoLoteData } from '@/components/ui/PainelProgressoLote'
 
@@ -41,8 +42,10 @@ export default function TabelaContas({
   const [filtro, setFiltro] = useState<string>('pendente')
   const [selecionados, setSelecionados] = useState<string[]>([])
   const [contasFinanceirasCA, setContasFinanceirasCA] = useState<ContaFinanceiraOpcao[]>([])
+  const [categoriasCA, setCategoriasCA] = useState<string[]>([])
   const [editandoContaId, setEditandoContaId] = useState<string | null>(null)
   const [editandoCategoriaId, setEditandoCategoriaId] = useState<string | null>(null)
+  const [contaParaEditar, setContaParaEditar] = useState<ContaPagarImportada | null>(null)
   const [editandoEmMassaConta, setEditandoEmMassaConta] = useState(false)
   const [editandoEmMassaCat, setEditandoEmMassaCat] = useState(false)
   const [editandoEmMassaLoja, setEditandoEmMassaLoja] = useState(false)
@@ -51,14 +54,27 @@ export default function TabelaContas({
 
   const supabase = createClient()
 
-  // Buscar lista de Contas Financeiras (Bancos) no Conta Azul
+  // Buscar lista de Contas Financeiras (Bancos) e Categorias no Conta Azul
   useEffect(() => {
-    if (!empresaId) { setContasFinanceirasCA([]); return }
+    if (!empresaId) { 
+      setContasFinanceirasCA([])
+      setCategoriasCA([])
+      return 
+    }
     fetch(`/api/conta-azul/contas-financeiras?empresa_id=${empresaId}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data?.contas && Array.isArray(data.contas)) {
           setContasFinanceirasCA(data.contas.map((c: any) => ({ id: c.id, descricao: c.descricao })))
+        }
+      })
+      .catch(() => {})
+
+    fetch(`/api/conta-azul/categorias?empresa_id=${empresaId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.categorias && Array.isArray(data.categorias)) {
+          setCategoriasCA(data.categorias.map((c: any) => c.nome))
         }
       })
       .catch(() => {})
@@ -131,9 +147,42 @@ export default function TabelaContas({
       if (error) throw error
       toast.success('Categoria atualizada!')
       setEditandoCategoriaId(null)
-      carregar()
+      // Atualiza linha localmente
+      setContas(prev => prev.map(c => c.id === id ? { ...c, categoria } : c))
     } catch (e: any) {
       toast.error(e.message || 'Erro ao atualizar categoria')
+    }
+  }
+
+  const handleSalvarEdicaoCompleta = async (dadosAtualizados: Partial<ContaPagarImportada>) => {
+    if (!contaParaEditar) return
+    try {
+      const { error } = await supabase
+        .from('contas_pagar_importadas')
+        .update({
+          fornecedor: dadosAtualizados.fornecedor,
+          categoria: dadosAtualizados.categoria,
+          valor: dadosAtualizados.valor,
+          vencimento: dadosAtualizados.vencimento,
+          emissao: dadosAtualizados.emissao,
+          doc: dadosAtualizados.doc,
+          conta_financeira: dadosAtualizados.conta_financeira,
+          conta_financeira_id: dadosAtualizados.conta_financeira_id,
+          descricao: dadosAtualizados.descricao,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', contaParaEditar.id)
+
+      if (error) throw error
+
+      toast.success('Lançamento atualizado com sucesso!')
+
+      // Atualiza pontualmente a linha sem recarregar desnecessariamente toda a lista do Supabase
+      setContas(prev => prev.map(c => c.id === contaParaEditar.id ? { ...c, ...dadosAtualizados } : c))
+      setContaParaEditar(null)
+    } catch (err: any) {
+      toast.error(err?.message || 'Erro ao atualizar lançamento')
+      throw err
     }
   }
 
@@ -718,12 +767,20 @@ export default function TabelaContas({
 
                       {/* Ações */}
                       <td className="py-2.5 px-0.5 text-center overflow-hidden">
-                        <div className="flex items-center justify-center gap-1">
+                        <div className="flex items-center justify-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setContaParaEditar(conta)}
+                            className="text-slate-400 dark:text-dark-500 hover:text-brand-600 dark:hover:text-brand-400 p-0.5 rounded-md transition-colors cursor-pointer"
+                            title="Editar lançamento completo"
+                          >
+                            <Edit2 size={11} />
+                          </button>
                           {(conta.metadata?.anexo_url || conta.anexo_url) && (
                             <button
                               type="button"
                               onClick={() => visualizarAnexo(conta.metadata?.anexo_url || conta.anexo_url)}
-                              className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 p-1 bg-emerald-500/10 rounded-md transition-colors"
+                              className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 p-0.5 bg-emerald-500/10 rounded-md transition-colors cursor-pointer"
                               title="Visualizar Anexo/Comprovante"
                             >
                               <Paperclip size={11} />
@@ -731,7 +788,7 @@ export default function TabelaContas({
                           )}
                           <button
                             onClick={() => removerConta(conta.id)}
-                            className="text-slate-400 dark:text-dark-500 hover:text-rose-600 dark:hover:text-rose-400 p-1 rounded-md transition-colors"
+                            className="text-slate-400 dark:text-dark-500 hover:text-rose-600 dark:hover:text-rose-400 p-0.5 rounded-md transition-colors cursor-pointer"
                             title="Excluir"
                           >
                             <Trash2 size={11} />
@@ -788,6 +845,17 @@ export default function TabelaContas({
             </div>
           )}
         </div>
+      )}
+      {/* Modal de Edição Completa do Lançamento */}
+      {contaParaEditar && empresaId && (
+        <ModalEditarContaPagar
+          conta={contaParaEditar}
+          empresaId={empresaId}
+          contasFinanceiras={contasFinanceirasCA}
+          categoriasCA={categoriasCA}
+          onClose={() => setContaParaEditar(null)}
+          onSalvar={handleSalvarEdicaoCompleta}
+        />
       )}
     </div>
   )

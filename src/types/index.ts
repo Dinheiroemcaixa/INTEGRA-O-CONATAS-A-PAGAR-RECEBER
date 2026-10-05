@@ -64,6 +64,7 @@ export interface ContaPagarImportada {
   vencimento: string
   categoria: string | null
   conta_financeira: string | null
+  conta_financeira_id?: string | null
   descricao: string | null
   doc: string | null
   emissao: string | null
