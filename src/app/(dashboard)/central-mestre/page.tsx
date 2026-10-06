@@ -12,6 +12,7 @@ import {
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import toast from 'react-hot-toast'
+import { createClient } from '@/lib/supabase/client'
 
 interface UsuarioAdmin {
   id: string
@@ -50,6 +51,7 @@ const MODULOS_CONFIG: { key: keyof ModulosPermissoes; label: string; desc: strin
 export default function CentralMestrePage() {
   const router = useRouter()
   const { isMaster, loading: loadingAuth, user: currentUser } = useUserPermissions()
+  const supabase = useMemo(() => createClient(), [])
 
   const [abaAtiva, setAbaAtiva] = useState<'usuarios' | 'permissoes' | 'auditoria'>('usuarios')
   const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([])
@@ -88,13 +90,24 @@ export default function CentralMestrePage() {
   const carregarDados = async () => {
     setCarregando(true)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: HeadersInit = {}
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+
       const [resUsers, resLogs] = await Promise.all([
-        fetch('/api/central-mestre/usuarios'),
-        fetch('/api/central-mestre/auditoria'),
+        fetch('/api/central-mestre/usuarios', { headers }),
+        fetch('/api/central-mestre/auditoria', { headers }),
       ])
 
+      if (!resUsers.ok) {
+        const errData = await resUsers.json().catch(() => ({}))
+        throw new Error(errData.error || `Erro HTTP ${resUsers.status} ao carregar usuários.`)
+      }
+
       const dataUsers = await resUsers.json()
-      const dataLogs = await resLogs.json()
+      const dataLogs = resLogs.ok ? await resLogs.json() : { logs: [] }
 
       if (dataUsers.usuarios) {
         setUsuarios(dataUsers.usuarios)
@@ -108,7 +121,8 @@ export default function CentralMestrePage() {
         setLogs(dataLogs.logs)
       }
     } catch (err: any) {
-      toast.error('Erro ao carregar dados da Central Mestre.')
+      console.error('[CentralMestre] Erro ao carregar dados:', err)
+      toast.error(err.message || 'Erro ao carregar dados da Central Mestre.')
     } finally {
       setCarregando(false)
     }
@@ -131,9 +145,15 @@ export default function CentralMestrePage() {
   // Ações de Usuário (Aprovar, Bloquear, etc.)
   const executarAcaoUsuario = async (acao: string, usuarioId: string, dadosExtras: any = {}) => {
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+
       const res = await fetch('/api/central-mestre/usuarios', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ acao, usuarioId, ...dadosExtras }),
       })
       const data = await res.json()
@@ -195,9 +215,15 @@ export default function CentralMestrePage() {
     setSenhaGerada(null)
     setLinkGerado(null)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+
       const res = await fetch('/api/central-mestre/usuarios/reset-senha', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           usuarioId: usuarioReset.id,
           tipo: tipoReset,

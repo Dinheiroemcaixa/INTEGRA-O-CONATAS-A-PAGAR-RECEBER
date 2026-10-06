@@ -23,7 +23,7 @@ function gerarSenhaTemporaria(): string {
 }
 
 export async function POST(req: NextRequest) {
-  const check = await validarSessaoMaster()
+  const check = await validarSessaoMaster(req)
   if (!check.autorizado) return check.responseError!
 
   const admin = createAdminClient()

@@ -6,7 +6,7 @@ import { PERMISSOES_PADRAO } from '@/contexts/UserPermissionsContext'
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  const check = await validarSessaoMaster()
+  const check = await validarSessaoMaster(req)
   if (!check.autorizado) return check.responseError!
 
   try {
@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const check = await validarSessaoMaster()
+  const check = await validarSessaoMaster(req)
   if (!check.autorizado) return check.responseError!
 
   const admin = createAdminClient()

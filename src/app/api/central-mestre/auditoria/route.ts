@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  const check = await validarSessaoMaster()
+  const check = await validarSessaoMaster(req)
   if (!check.autorizado) return check.responseError!
 
   const admin = createAdminClient()

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 export interface ValidacaoMasterResult {
   autorizado: boolean
@@ -9,12 +9,37 @@ export interface ValidacaoMasterResult {
   responseError?: NextResponse
 }
 
-export async function validarSessaoMaster(): Promise<ValidacaoMasterResult> {
+export async function validarSessaoMaster(req?: NextRequest): Promise<ValidacaoMasterResult> {
   try {
-    const supabase = createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const admin = createAdminClient()
+    let user: any = null
 
-    if (authError || !user) {
+    // 1. Tentar validar via Bearer token no cabeçalho Authorization
+    const authHeader = req?.headers?.get('authorization')
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7).trim()
+      if (token) {
+        const { data, error } = await admin.auth.getUser(token)
+        if (!error && data?.user) {
+          user = data.user
+        }
+      }
+    }
+
+    // 2. Se não encontrou por Header, tentar via Cookies da sessão SSR
+    if (!user) {
+      try {
+        const supabase = createClient()
+        const { data, error } = await supabase.auth.getUser()
+        if (!error && data?.user) {
+          user = data.user
+        }
+      } catch (cookieErr) {
+        // Ignora erro de leitura de cookie para seguir fluxo seguro
+      }
+    }
+
+    if (!user) {
       return {
         autorizado: false,
         responseError: NextResponse.json(
@@ -24,7 +49,6 @@ export async function validarSessaoMaster(): Promise<ValidacaoMasterResult> {
       }
     }
 
-    const admin = createAdminClient()
     const { data: perfil, error: perfilError } = await admin
       .from('perfis_usuario')
       .select('*')
