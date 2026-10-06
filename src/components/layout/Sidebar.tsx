@@ -4,9 +4,9 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
-  LayoutDashboard, ArrowDownCircle, ArrowUpCircle,
+  ArrowDownCircle,
   Building2, Settings, ChevronRight, User, LogOut,
-  ShoppingBag, Receipt, FileCheck2, Link2, Layers,
+  ShoppingBag, Receipt, Link2, Layers,
   ShieldCheck, X, KeyRound, Lock
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
@@ -35,20 +35,18 @@ interface NavSection {
 
 const navSections: NavSection[] = [
   {
+    title: 'FINANCEIRO',
     items: [
-      { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, cardKey: 'dashboard' },
+      { label: 'Gestão Pagamentos', href: '/gestao-pagamentos', icon: Layers, cardKey: 'gestao_pagamentos' },
+      { label: 'Contas a Pagar', href: '/contas-pagar', icon: ArrowDownCircle, cardKey: 'contas_pagar' },
+      { label: 'Auditoria Inteligente de Conciliações', href: '/auditoria-conciliacoes-ca', icon: ShieldCheck, badge: 'FASE 2', badgeColor: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30', cardKey: 'conciliacao' },
     ]
   },
   {
-    title: 'OPERAÇÃO & FISCAL',
+    title: 'VENDAS',
     items: [
       { label: 'Vendas Produtos', href: '/vendas', icon: ShoppingBag, cardKey: 'vendas' },
       { label: 'Vendas Serviços', href: '/vendas-servicos', icon: Receipt, badge: 'EM BREVE', badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30', cardKey: 'fiscal' },
-      { label: 'Notas Emitidas', href: '/notas-emitidas', icon: FileCheck2, cardKey: 'relatorios' },
-      { label: 'Contas a Pagar', href: '/contas-pagar', icon: ArrowDownCircle, cardKey: 'contas_pagar' },
-      { label: 'Gestão Pagamentos', href: '/gestao-pagamentos', icon: Layers, cardKey: 'gestao_pagamentos' },
-      { label: 'Auditoria Conciliações', href: '/auditoria-conciliacoes-ca', icon: ShieldCheck, badge: 'FASE 2', badgeColor: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30', cardKey: 'conciliacao' },
-      { label: 'Contas a Receber', href: '/contas-receber', icon: ArrowUpCircle, badge: 'EM BREVE', disabled: true, cardKey: 'contas_receber' },
     ]
   },
   {
