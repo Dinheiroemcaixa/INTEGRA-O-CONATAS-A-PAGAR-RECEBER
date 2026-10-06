@@ -59,10 +59,10 @@ const navSections: NavSection[] = [
     ]
   },
   {
-    title: 'ADMINISTRAÇÃO MESTRE',
+    title: 'GOVERNANÇA & SEGURANÇA',
     items: [
       { 
-        label: '🔑 Central Mestre', 
+        label: '🔐 Controle de Acesso', 
         href: '/central-mestre', 
         icon: KeyRound, 
         badge: 'MASTER', 

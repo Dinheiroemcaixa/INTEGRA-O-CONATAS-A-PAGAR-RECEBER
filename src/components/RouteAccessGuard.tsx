@@ -41,7 +41,7 @@ export default function RouteAccessGuard({ children }: { children: React.ReactNo
               Acesso Restrito ao Administrador Mestre
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-6">
-              A Central Mestre é destinada exclusivamente ao proprietário do sistema.
+              O módulo de Controle de Acesso é destinado exclusivamente ao proprietário do sistema.
             </p>
             <button
               onClick={() => router.push('/dashboard')}
@@ -85,7 +85,7 @@ export default function RouteAccessGuard({ children }: { children: React.ReactNo
           </h2>
 
           <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-6">
-            A liberação deste card deve ser realizada pelo administrador na Central Mestre do Connecta AI.
+            A liberação deste card deve ser realizada pelo administrador no módulo de Controle de Acesso do Connecta AI.
           </p>
 
           <button

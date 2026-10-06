@@ -53,7 +53,7 @@ export default function CentralMestrePage() {
   const { isMaster, loading: loadingAuth, user: currentUser } = useUserPermissions()
   const supabase = useMemo(() => createClient(), [])
 
-  const [abaAtiva, setAbaAtiva] = useState<'usuarios' | 'permissoes' | 'auditoria'>('usuarios')
+  const [abaAtiva, setAbaAtiva] = useState<'usuarios' | 'permissoes' | 'auditoria' | 'bloqueados' | 'recuperacao'>('usuarios')
   const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([])
   const [logs, setLogs] = useState<LogAuditoria[]>([])
   const [carregando, setCarregando] = useState(true)
@@ -301,15 +301,15 @@ export default function CentralMestrePage() {
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-                  Central Mestre
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">
+                  <span>🔐</span> Controle de Acesso
                 </h1>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                  MASTER ONLY
+                  MASTER ACCESS
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-slate-400 max-w-2xl leading-relaxed">
-                Painel exclusivo de governança, aprovação de novas contas, controle granular de permissões por card e histórico de auditoria.
+                Painel corporativo de governança, gestão granular de permissões por card, usuários bloqueados e trilha de auditoria.
               </p>
             </div>
           </div>
@@ -363,19 +363,19 @@ export default function CentralMestrePage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* SELETOR DE ABAS PRINCIPAIS                                                */}
+      {/* SELETOR DE ABAS PRINCIPAIS - NOVA ESTRUTURA VISUAL                        */}
       {/* ========================================================================= */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+      <div className="flex items-center gap-1.5 sm:gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 overflow-x-auto custom-scrollbar">
         <button
           onClick={() => setAbaAtiva('usuarios')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
             abaAtiva === 'usuarios'
               ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
         >
-          <Users size={16} />
-          <span>Gestão de Usuários</span>
+          <Users size={15} />
+          <span>👥 Usuários</span>
           {kpis.pendentes > 0 && (
             <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-red-600 text-white font-black">
               {kpis.pendentes}
@@ -385,26 +385,55 @@ export default function CentralMestrePage() {
 
         <button
           onClick={() => setAbaAtiva('permissoes')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
             abaAtiva === 'permissoes'
               ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
         >
-          <Sliders size={16} />
-          <span>Permissões por Card & Perfis</span>
+          <Sliders size={15} />
+          <span>🔑 Permissões</span>
         </button>
 
         <button
           onClick={() => setAbaAtiva('auditoria')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
             abaAtiva === 'auditoria'
               ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
         >
-          <FileText size={16} />
-          <span>Trilha de Auditoria</span>
+          <FileText size={15} />
+          <span>📋 Auditoria</span>
+        </button>
+
+        <button
+          onClick={() => setAbaAtiva('bloqueados')}
+          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            abaAtiva === 'bloqueados'
+              ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Lock size={15} />
+          <span>🔒 Usuários Bloqueados</span>
+          {kpis.bloqueados > 0 && (
+            <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-rose-600 text-white font-bold">
+              {kpis.bloqueados}
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setAbaAtiva('recuperacao')}
+          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            abaAtiva === 'recuperacao'
+              ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <RotateCcw size={15} />
+          <span>🔄 Recuperação de Senha</span>
         </button>
       </div>
 
@@ -911,6 +940,201 @@ export default function CentralMestrePage() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* ABA 4: 🔒 USUÁRIOS BLOQUEADOS & RESTRIÇÕES                                */}
+      {/* ========================================================================= */}
+      {abaAtiva === 'bloqueados' && (
+        <div className="space-y-4">
+          <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-white/[0.08] p-5 rounded-2xl shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 flex items-center justify-center">
+                <Lock size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Usuários Bloqueados e Restrições de Acesso
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Contas com acessos revogados ou suspensas por ação administrativa.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-white/[0.08] rounded-2xl shadow-xs overflow-hidden">
+            {usuarios.filter(u => u.status === 'BLOQUEADO' || u.status === 'REJEITADO').length === 0 ? (
+              <div className="p-12 text-center flex flex-col items-center justify-center">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center mb-3">
+                  <ShieldCheck size={24} />
+                </div>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-1">
+                  Nenhum Usuário Bloqueado
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
+                  Todas as contas de operadores do sistema estão ativas e com acesso regular.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.08] text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      <th className="py-3 px-4">Usuário</th>
+                      <th className="py-3 px-4">Status Atual</th>
+                      <th className="py-3 px-4">Criado em</th>
+                      <th className="py-3 px-4">Último Acesso</th>
+                      <th className="py-3 px-4 text-right">Ação de Desbloqueio</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-white/[0.04] text-xs">
+                    {usuarios
+                      .filter(u => u.status === 'BLOQUEADO' || u.status === 'REJEITADO')
+                      .map((u) => (
+                        <tr key={u.id} className="hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
+                          <td className="py-3.5 px-4">
+                            <p className="font-bold text-slate-900 dark:text-white">{u.nome}</p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">{u.email}</p>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.8 rounded-full text-[11px] font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                              <ShieldAlert size={12} />
+                              {u.status === 'BLOQUEADO' ? 'Bloqueado' : 'Rejeitado'}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-500 text-[11px]">
+                            {u.criado_em ? format(new Date(u.criado_em), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : '—'}
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-500 text-[11px]">
+                            {u.ultimo_acesso ? format(new Date(u.ultimo_acesso), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'Nunca acessou'}
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <button
+                              onClick={() => executarAcaoUsuario('DESBLOQUEAR', u.id)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
+                            >
+                              <UserCheck size={14} />
+                              Desbloquear Acesso
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* ABA 5: 🔄 RECUPERAÇÃO DE SENHA & CREDENCIAIS                              */}
+      {/* ========================================================================= */}
+      {abaAtiva === 'recuperacao' && (
+        <div className="space-y-4">
+          <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-white/[0.08] p-5 rounded-2xl shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 flex items-center justify-center">
+                <RotateCcw size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Gestão e Recuperação de Senhas
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Emissão de senhas provisórias seguras com troca obrigatória no próximo acesso ou links de redefinição direta.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-white/[0.08] rounded-2xl shadow-xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.08] text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    <th className="py-3 px-4">Operador</th>
+                    <th className="py-3 px-4">Status da Conta</th>
+                    <th className="py-3 px-4">Política de Senha</th>
+                    <th className="py-3 px-4 text-right">Ações de Recuperação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-white/[0.04] text-xs">
+                  {usuarios.map((u) => (
+                    <tr key={u.id} className="hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
+                      <td className="py-3.5 px-4">
+                        <p className="font-bold text-slate-900 dark:text-white">{u.nome}</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">{u.email}</p>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.8 rounded-full text-[11px] font-semibold ${
+                          u.status === 'APROVADO' 
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                        }`}>
+                          {u.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        {u.forcar_troca_senha ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.8 rounded-full text-[11px] font-semibold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                            <Clock size={11} />
+                            Troca Obrigatória Pendente
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.8 rounded-full text-[11px] font-semibold bg-slate-100 dark:bg-dark-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-dark-700">
+                            <CheckCircle2 size={11} className="text-emerald-500" />
+                            Senha Regular
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setUsuarioReset(u)
+                              setTipoReset('TEMPORARIA')
+                              setSenhaGerada(null)
+                              setLinkGerado(null)
+                              setModalResetAberto(true)
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 font-bold text-xs border border-amber-500/30 transition-colors cursor-pointer"
+                            title="Gerar Senha Temporária"
+                          >
+                            <KeyRound size={13} />
+                            Senha Temporária
+                          </button>
+                          <button
+                            onClick={() => {
+                              setUsuarioReset(u)
+                              setTipoReset('LINK')
+                              setSenhaGerada(null)
+                              setLinkGerado(null)
+                              setModalResetAberto(true)
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 font-bold text-xs border border-indigo-500/30 transition-colors cursor-pointer"
+                            title="Gerar Link de Redefinição"
+                          >
+                            <Mail size={13} />
+                            Link Redefinição
+                          </button>
+                          <button
+                            onClick={() => executarAcaoUsuario('FORCAR_TROCA_SENHA', u.id, { forcar: !u.forcar_troca_senha })}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-dark-800 transition-colors cursor-pointer"
+                            title={u.forcar_troca_senha ? 'Desativar obrigatoriedade de troca' : 'Obrigar troca de senha no próximo login'}
+                          >
+                            <RotateCcw size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
