@@ -64,8 +64,7 @@ export default function GrupoDetalhe() {
     setModalNovaLojaAberto(true)
     setCarregandoDisponiveis(true)
     const { data } = await supabase.from('empresas').select('*').is('grupo_id', null).order('nome')
-    const disponiveisFinanceiro = (data || []).filter(emp => Boolean(emp.access_token_conta_azul || emp.email_login))
-    setEmpresasDisponiveis(disponiveisFinanceiro)
+    setEmpresasDisponiveis(data || [])
     setCarregandoDisponiveis(false)
   }
 
