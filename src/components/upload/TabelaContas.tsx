@@ -275,8 +275,6 @@ export default function TabelaContas({
     }
   }
 
-  const totalPendente = contas.filter((c) => c.status === 'pendente').reduce((s, c) => s + Number(c.valor), 0)
-  const totalEnviado = contas.filter((c) => c.status === 'enviado').reduce((s, c) => s + Number(c.valor), 0)
   const qtdPendente = contas.filter((c) => c.status === 'pendente').length
   const qtdEnviado = contas.filter((c) => c.status === 'enviado').length
   const qtdErro = contas.filter((c) => c.status === 'erro').length
@@ -286,89 +284,9 @@ export default function TabelaContas({
 
   return (
     <div className="space-y-4">
-      {/* Faixa Executiva: 2 KPIs Compactos Financeiros com Ícones em Círculos (Padrão Sprint 3 / Linear) */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 animate-fade-in">
-        {/* 2 KPIs Compactos */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
-          {/* Total Pendente */}
-          <div className="bg-white dark:bg-dark-900/90 border border-slate-200/80 dark:border-dark-700/70 hover:border-amber-500/40 rounded-2xl px-4 py-3 shadow-xs hover:shadow-md transition-all flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-10 h-10 rounded-full bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400 flex-shrink-0 shadow-xs">
-                <Clock size={18} />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider">
-                    Total Pendente
-                  </span>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30">
-                    {qtdPendente}
-                  </span>
-                </div>
-                <p className="text-lg sm:text-xl font-extrabold font-mono text-amber-600 dark:text-amber-400 tabular-nums leading-tight mt-0.5">
-                  {formatCurrency(totalPendente)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Total Enviado */}
-          <div className="bg-white dark:bg-dark-900/90 border border-slate-200/80 dark:border-dark-700/70 hover:border-emerald-500/40 rounded-2xl px-4 py-3 shadow-xs hover:shadow-md transition-all flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-10 h-10 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 flex-shrink-0 shadow-xs">
-                <CheckCircle size={18} />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider">
-                    Total Enviado
-                  </span>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">
-                    {qtdEnviado}
-                  </span>
-                </div>
-                <p className="text-lg sm:text-xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400 tabular-nums leading-tight mt-0.5">
-                  {formatCurrency(totalEnviado)}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Botões de Ação com presença visual destacada (h-10) na mesma linha */}
-        {(onEnviarContaAzul || onExportarXls) && (
-          <div className="flex items-center gap-2.5 flex-wrap flex-shrink-0">
-            {onEnviarContaAzul && (
-              <button
-                onClick={onEnviarContaAzul}
-                disabled={enviandoCA}
-                className="h-10 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-xs cursor-pointer"
-              >
-                {enviandoCA ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                <span>
-                  {enviandoCA 
-                    ? `Enviando (${progressoEnvio?.processados || 0}/${progressoEnvio?.total || qtdPendente})...` 
-                    : `Enviar ao Conta Azul (${qtdPendente})`}
-                </span>
-              </button>
-            )}
-            {onExportarXls && (
-              <button
-                onClick={onExportarXls}
-                disabled={gerandoXls}
-                className="h-10 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-xs cursor-pointer"
-              >
-                {gerandoXls ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
-                <span>{gerandoXls ? 'Exportando...' : 'Exportar XLS'}</span>
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
       {/* Barra Operacional: Filtros à esquerda + Ações e Atualizar alinhados à direita */}
       <div className="bg-white dark:bg-dark-850/90 border border-slate-200/80 dark:border-dark-700/60 rounded-2xl p-2.5 sm:p-3 shadow-xs animate-fade-in">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
           {/* Esquerda: Filtros em Formato Pill */}
           <div className="flex items-center gap-1.5 flex-wrap">
             {(['pendente', 'enviado', 'erro'] as const).map((f) => {
@@ -405,8 +323,8 @@ export default function TabelaContas({
             })}
           </div>
 
-          {/* Direita: Ações em Lote + Limpar + Botão Atualizar com alinhamento visual perfeito */}
-          <div className="flex items-center gap-2 flex-wrap ml-auto">
+          {/* Direita: Ações em Lote + Limpar + Atualizar + Exportar XLS + Enviar ao Conta Azul */}
+          <div className="flex items-center gap-2 flex-wrap lg:justify-end">
             {contas.length > 0 && (
               <div className="flex items-center gap-2 flex-wrap animate-fade-in">
                 {selecionados.length > 0 && (
@@ -427,7 +345,7 @@ export default function TabelaContas({
                   ) : (
                     <button
                       onClick={() => setEditandoEmMassaConta(true)}
-                      className="flex items-center gap-1.5 bg-slate-100 dark:bg-dark-800 hover:bg-slate-200 dark:hover:bg-dark-700 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-dark-700 text-xs font-semibold px-2.5 py-1.5 rounded-xl transition-colors shadow-xs cursor-pointer"
+                      className="h-8 flex items-center gap-1.5 bg-slate-100 dark:bg-dark-800 hover:bg-slate-200 dark:hover:bg-dark-700 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-dark-700 text-xs font-semibold px-2.5 rounded-xl transition-colors shadow-xs cursor-pointer"
                       title="Aplicar o mesmo banco a todas as contas selecionadas"
                     >
                       <Landmark size={13} /> {selecionados.length > 0 ? `Banco (${selecionados.length})` : 'Banco'}
@@ -446,7 +364,7 @@ export default function TabelaContas({
                   ) : (
                     <button
                       onClick={() => setEditandoEmMassaCat(true)}
-                      className="flex items-center gap-1.5 bg-slate-100 dark:bg-dark-800 hover:bg-slate-200 dark:hover:bg-dark-700 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-dark-700 text-xs font-semibold px-2.5 py-1.5 rounded-xl transition-colors shadow-xs cursor-pointer"
+                      className="h-8 flex items-center gap-1.5 bg-slate-100 dark:bg-dark-800 hover:bg-slate-200 dark:hover:bg-dark-700 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-dark-700 text-xs font-semibold px-2.5 rounded-xl transition-colors shadow-xs cursor-pointer"
                       title="Aplicar a mesma categoria a todas as contas selecionadas"
                     >
                       <Tags size={13} /> {selecionados.length > 0 ? `Categoria (${selecionados.length})` : 'Categoria'}
@@ -479,7 +397,7 @@ export default function TabelaContas({
                   ) : (
                     <button
                       onClick={() => setEditandoEmMassaLoja(true)}
-                      className="flex items-center gap-1.5 bg-slate-100 dark:bg-dark-800 hover:bg-slate-200 dark:hover:bg-dark-700 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-dark-700 text-xs font-semibold px-2.5 py-1.5 rounded-xl transition-colors shadow-xs cursor-pointer"
+                      className="h-8 flex items-center gap-1.5 bg-slate-100 dark:bg-dark-800 hover:bg-slate-200 dark:hover:bg-dark-700 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-dark-700 text-xs font-semibold px-2.5 rounded-xl transition-colors shadow-xs cursor-pointer"
                       title="Transferir contas selecionadas para outra empresa"
                     >
                       <ArrowRightLeft size={13} /> {selecionados.length > 0 ? `Mover (${selecionados.length})` : 'Mover Loja'}
@@ -490,7 +408,7 @@ export default function TabelaContas({
                 {selecionados.length > 0 && (
                   <button
                     onClick={handleExcluirSelecionados}
-                    className="flex items-center gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-xs font-semibold px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer"
+                    className="h-8 flex items-center gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-xs font-semibold px-2.5 rounded-xl transition-colors cursor-pointer"
                   >
                     <Trash2 size={13} /> Excluir ({selecionados.length})
                   </button>
@@ -501,22 +419,57 @@ export default function TabelaContas({
             {contas.some(c => c.status === 'pendente') && (
               <button
                 onClick={limparTudo}
-                className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-700 hover:bg-rose-500/10 text-xs px-2.5 py-1.5 rounded-xl transition-all cursor-pointer font-medium"
+                className="h-8 flex items-center gap-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-700 hover:bg-rose-500/10 text-xs px-2.5 rounded-xl transition-all cursor-pointer font-medium"
               >
                 <Trash2 size={13} />
                 <span>Limpar Pendentes</span>
               </button>
             )}
 
+            {/* Atualizar */}
             <button
               onClick={carregar}
               disabled={loading}
-              className="flex items-center gap-1.5 text-slate-700 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-900/60 hover:bg-slate-50 dark:hover:bg-dark-800 transition-all cursor-pointer shadow-xs"
+              className="h-8 flex items-center gap-1.5 text-slate-700 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white text-xs font-semibold px-3 rounded-xl border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-900/60 hover:bg-slate-50 dark:hover:bg-dark-800 transition-all cursor-pointer shadow-xs"
               title="Atualizar lista de contas"
             >
               {loading ? <Loader2 size={13} className="animate-spin text-brand-500" /> : <RefreshCw size={13} className="text-brand-500" />}
               <span>Atualizar</span>
             </button>
+
+            {/* Exportar XLS */}
+            {onExportarXls && (
+              <button
+                onClick={onExportarXls}
+                disabled={gerandoXls}
+                className="h-8 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-3.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                title="Exportar contas para planilha Excel"
+              >
+                {gerandoXls ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+                <span>{gerandoXls ? 'Exportando...' : 'Exportar XLS'}</span>
+              </button>
+            )}
+
+            {/* Enviar ao Conta Azul */}
+            {onEnviarContaAzul && (
+              <button
+                onClick={onEnviarContaAzul}
+                disabled={enviandoCA}
+                className="h-8 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                title="Enviar contas pendentes ao Conta Azul"
+              >
+                {enviandoCA ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Send size={14} />
+                )}
+                <span>
+                  {enviandoCA 
+                    ? `Enviando (${progressoEnvio?.processados || 0}/${progressoEnvio?.total || qtdPendente})...` 
+                    : `Enviar ao Conta Azul (${qtdPendente})`}
+                </span>
+              </button>
+            )}
           </div>
         </div>
       </div>
