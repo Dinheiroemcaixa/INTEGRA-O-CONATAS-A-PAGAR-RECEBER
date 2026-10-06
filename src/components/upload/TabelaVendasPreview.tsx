@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import type { VendaPreview } from '@/types'
 import { formatCurrency } from '@/lib/utils'
-import { CheckCircle, AlertCircle, ShoppingCart, ChevronDown, Edit } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Package, PackageOpen, ChevronDown, Pencil } from 'lucide-react'
 
 interface TabelaVendasPreviewProps {
   dados: VendaPreview[]
@@ -75,7 +75,7 @@ export default function TabelaVendasPreview({
                     <td className="py-3 px-3">
                       {venda.valido ? (
                         <div className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-200 dark:border-emerald-500/30 px-2 py-0.5 rounded-full">
-                          <CheckCircle size={11} /> <span>OK</span>
+                          <CheckCircle2 size={11} /> <span>OK</span>
                         </div>
                       ) : (
                         <div className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/15 border border-rose-200 dark:border-rose-500/30 px-2 py-0.5 rounded-full" title={venda.erros?.join(', ')}>
@@ -101,7 +101,7 @@ export default function TabelaVendasPreview({
                         onClick={() => setExpandido(isExpanded ? null : idx)}
                         className="inline-flex items-center gap-1.5 text-xs text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 px-2 py-1 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-500/10 border border-transparent hover:border-brand-200 dark:hover:border-brand-500/20 transition-all cursor-pointer"
                       >
-                        <ShoppingCart size={13} />
+                        <Package size={13} />
                         <span className="font-semibold">{venda.itens.length} prod.</span>
                         <ChevronDown size={13} className={`transform transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                       </button>
@@ -114,7 +114,7 @@ export default function TabelaVendasPreview({
                             className="text-slate-400 dark:text-dark-400 hover:text-brand-600 dark:hover:text-brand-300 p-1.5 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-400/10 transition-colors cursor-pointer"
                             title="Editar Venda"
                           >
-                            <Edit size={14} />
+                            <Pencil size={13} />
                           </button>
                         )}
                         <button
@@ -177,7 +177,7 @@ export default function TabelaVendasPreview({
             {dados.length === 0 && (
               <tr>
                 <td colSpan={9} className="py-12 text-center text-slate-400 dark:text-dark-400">
-                  <ShoppingCart size={28} className="mx-auto mb-2 opacity-40" />
+                  <PackageOpen size={30} className="mx-auto mb-2 opacity-40 text-slate-400 dark:text-dark-400" />
                   <p className="font-semibold text-slate-600 dark:text-dark-300 text-sm">Nenhuma venda importada</p>
                   <p className="text-xs text-slate-400 dark:text-dark-500 mt-0.5">Faça o upload de uma planilha de OS ou sincronize com o Datacar</p>
                 </td>

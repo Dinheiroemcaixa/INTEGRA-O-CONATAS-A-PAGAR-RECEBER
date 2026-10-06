@@ -13,9 +13,10 @@ import SelectorEmpresa from '@/components/layout/SelectorEmpresa'
 import PainelAgendamento from '@/components/agendamento/PainelAgendamento'
 import type { VendaPreview, ResultadoImportacaoVendas } from '@/types'
 import {
-  FileCheck, UploadCloud, UserCheck,
+  FileCheck, FileCheck2, UploadCloud, UserCheck,
   Upload, ArrowLeft, Loader2,
-  CheckCircle, CheckCircle2, AlertCircle, AlertTriangle, X, Send, ShoppingCart,
+  CheckCircle, CheckCircle2, AlertCircle, AlertTriangle, X, Send,
+  ShoppingBag, Package, Boxes, Car, CreditCard, FileX2, Receipt,
   Database, RefreshCw, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, HelpCircle,
   Trash2, FileSpreadsheet, BookOpen,
   Search, Calendar, ExternalLink, FileText, Download,
@@ -268,7 +269,7 @@ export default function VendasPage() {
       setSelecionadosDatacar(new Set(pendentes.map((item: any) => item.id)))
 
       if (lista.length === 0) {
-        toast('Nenhuma venda de produtos encontrada para o período informado.', { icon: '🔍' })
+        toast('Nenhuma venda de produtos encontrada para o período informado.')
       } else {
         toast.success(`${lista.length} OS de produtos encontradas!`)
       }
@@ -475,7 +476,7 @@ export default function VendasPage() {
       await Promise.all(workers)
 
       if (abortEnvioRef.current) {
-        toast('Envio interrompido pelo usuário.', { icon: '🛑' })
+        toast.error('Envio interrompido pelo usuário.')
         setProgressoEnvio(prev => prev ? { ...prev, cancelado: true } : null)
       } else {
         if (sucessosTotais > 0) {
@@ -699,7 +700,7 @@ export default function VendasPage() {
       await Promise.all(workers)
 
       if (abortEnvioRef.current) {
-        toast('Envio da planilha interrompido pelo usuário.', { icon: '🛑' })
+        toast.error('Envio da planilha interrompido pelo usuário.')
         setProgressoEnvio(prev => prev ? { ...prev, cancelado: true } : null)
       } else {
         if (sucessosTotais > 0) {
@@ -874,7 +875,8 @@ export default function VendasPage() {
               {progressoEnvio.erros} com erro
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/60 text-slate-400 border border-slate-700 text-[11px]">
-              ⏳ {Math.max(0, progressoEnvio.total - progressoEnvio.processados)} restantes
+              <Clock size={11} className="text-slate-400" />
+              {Math.max(0, progressoEnvio.total - progressoEnvio.processados)} restantes
             </span>
           </div>
 
@@ -914,7 +916,7 @@ export default function VendasPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200/70 dark:border-white/[0.08]">
         <div className="flex items-center gap-3.5">
           <div className="w-11 h-11 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 flex-shrink-0 shadow-xs">
-            <ShoppingCart size={20} />
+            <ShoppingBag size={20} />
           </div>
           <div>
             <div className="flex items-center gap-2.5">
@@ -972,7 +974,7 @@ export default function VendasPage() {
               : 'text-slate-600 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-dark-800/50'
           }`}
         >
-          <FileCheck size={15} />
+          <FileCheck2 size={15} />
           <span>NF-e Emitidas (Conta Azul)</span>
           {notasEmitidas.length > 0 && (
             <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${subAba === 'emitidas' ? 'bg-white/20 text-white' : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300'}`}>
@@ -1056,24 +1058,26 @@ export default function VendasPage() {
                       <button
                         type="button"
                         onClick={() => setFiltroTipoItens('tudo')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                           filtroTipoItens === 'tudo'
                             ? 'bg-brand-600 text-white shadow-md'
                             : 'text-slate-600 hover:text-slate-900 dark:text-dark-400 dark:hover:text-white'
                         }`}
                       >
-                        🛍️ Todos os Itens
+                        <Layers size={13} className="text-current" />
+                        <span>Todos os Itens</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setFiltroTipoItens('produtos')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                           filtroTipoItens === 'produtos'
                             ? 'bg-blue-600 text-white shadow-md'
                             : 'text-slate-600 hover:text-slate-900 dark:text-dark-400 dark:hover:text-white'
                         }`}
                       >
-                        📦 Apenas Produtos
+                        <Package size={13} className="text-current" />
+                        <span>Apenas Produtos</span>
                       </button>
                     </div>
                   </div>
@@ -1245,7 +1249,7 @@ export default function VendasPage() {
                         {enviandoDatacar ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
                         {enviandoDatacar 
                           ? `Enviando (${progressoEnvio?.processados || 0}/${progressoEnvio?.total || selecionadosDatacar.size})...` 
-                          : `⚡ Enviar para Conta Azul (${selecionadosDatacar.size})`}
+                          : `Enviar para Conta Azul (${selecionadosDatacar.size})`}
                       </button>
                     )}
                   </div>
@@ -1296,14 +1300,16 @@ export default function VendasPage() {
                                     OS #{venda.os_numero}
                                   </span>
                                   {veiculo && (
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                                      🚗 {veiculo}
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                      <Car size={12} className="text-slate-500 dark:text-slate-400" />
+                                      <span>{veiculo}</span>
                                     </span>
                                   )}
                                   
                                   {venda.forma_pagamento && (
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                                      💳 {venda.forma_pagamento}
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                      <CreditCard size={12} className="text-slate-500 dark:text-slate-400" />
+                                      <span>{venda.forma_pagamento}</span>
                                     </span>
                                   )}
                                 </div>
@@ -1374,7 +1380,8 @@ export default function VendasPage() {
                             <div className="bg-slate-50 dark:bg-dark-950/60 border-t border-slate-200 dark:border-dark-700/80 p-5 space-y-4 animate-fade-in">
                               <div className="flex items-center justify-between">
                                 <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                                  📦 Detalhamento de Peças e Serviços ({venda.itens?.length || 0})
+                                  <Boxes size={14} className="text-blue-500 dark:text-blue-400" />
+                                  Detalhamento de Peças e Serviços ({venda.itens?.length || 0})
                                 </h4>
                                 <span className="text-xs text-slate-500 dark:text-dark-400 font-mono">
                                   Data da OS: {formatDate(venda.data_venda)}
@@ -1453,7 +1460,7 @@ export default function VendasPage() {
                         {enviandoDatacar ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                         {enviandoDatacar 
                           ? `Enviando (${progressoEnvio?.processados || 0}/${progressoEnvio?.total || selecionadosDatacar.size})...` 
-                          : `⚡ Enviar para Conta Azul (${selecionadosDatacar.size})`}
+                          : `Enviar para Conta Azul (${selecionadosDatacar.size})`}
                       </button>
                     )}
                   </div>
@@ -1602,7 +1609,7 @@ export default function VendasPage() {
                 }`}
               >
                 <div className="w-10 h-10 rounded-full bg-rose-500/10 dark:bg-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400 flex-shrink-0 shadow-xs">
-                  <AlertCircle size={18} />
+                  <FileX2 size={18} />
                 </div>
                 <div className="min-w-0">
                   <div className="text-[11px] font-bold text-slate-500 dark:text-dark-300 flex items-center gap-1 uppercase tracking-wider">
@@ -1651,7 +1658,7 @@ export default function VendasPage() {
                 }`}
               >
                 <div className="w-10 h-10 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 flex-shrink-0 shadow-xs">
-                  <CheckCircle size={18} />
+                  <FileCheck2 size={18} />
                 </div>
                 <div className="min-w-0">
                   <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400/90 flex items-center gap-1 uppercase tracking-wider">
@@ -1674,7 +1681,7 @@ export default function VendasPage() {
                 }`}
               >
                 <div className="w-10 h-10 rounded-full bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 flex-shrink-0 shadow-xs">
-                  <TrendingUp size={18} />
+                  <Receipt size={18} />
                 </div>
                 <div className="min-w-0">
                   <div className="text-[11px] font-bold text-blue-600 dark:text-blue-400/90 flex items-center gap-1 uppercase tracking-wider">

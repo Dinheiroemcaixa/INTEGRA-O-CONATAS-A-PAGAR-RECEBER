@@ -1,6 +1,6 @@
 import React from 'react'
 import { 
-  X, Edit, AlertCircle, AlertTriangle, CheckCircle, Calendar, 
+  X, Pencil, AlertCircle, AlertTriangle, CheckCircle2, Calendar, 
   DollarSign, User, MapPin, Truck, HelpCircle
 } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -233,7 +233,7 @@ export default function ModalDetalheVendaDatacar({
                             </span>
                           ) : (
                             <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                              ⚠ Sem NCM
+                              <AlertTriangle size={10} className="inline mr-1" />Sem NCM
                             </span>
                           )}
                           {item.cest && (
@@ -313,7 +313,7 @@ export default function ModalDetalheVendaDatacar({
             onClick={onEdit}
             className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold bg-brand-600 hover:bg-brand-500 text-white transition-all shadow-lg"
           >
-            <Edit size={14} />
+            <Pencil size={13} />
             Editar Dados da Venda
           </button>
         </div>

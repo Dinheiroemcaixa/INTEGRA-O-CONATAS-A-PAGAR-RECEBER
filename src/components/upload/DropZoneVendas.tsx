@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Upload, FileSpreadsheet, FileText, Image, X, Loader2 } from 'lucide-react'
+import { Upload, FileSpreadsheet, FileText, Image, X, Loader2, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { parseVendasExcel } from '@/lib/parsers/vendas'
 import type { ResultadoImportacaoVendas } from '@/types'
@@ -48,7 +48,7 @@ export default function DropZoneVendas({ onResultado, processando }: Props) {
       }
       onResultado(resultado, file)
       if (resultado.aviso) {
-        toast(resultado.aviso, { icon: '⚠️', duration: 6000 })
+        toast(resultado.aviso, { duration: 6000 })
       } else {
         toast.success(`${resultado.validos} registros identificados!`)
       }
@@ -116,7 +116,7 @@ export default function DropZoneVendas({ onResultado, processando }: Props) {
                 {(arquivo.size / 1024 / 1024).toFixed(2)} MB
               </p>
             </div>
-            <p className="text-green-400 text-sm">✓ Arquivo processado</p>
+            <p className="text-emerald-400 text-sm flex items-center justify-center gap-1.5"><CheckCircle2 size={14} /> Arquivo processado</p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-4">
