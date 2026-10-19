@@ -61,7 +61,12 @@ export async function POST(req: NextRequest) {
         .eq('valor', c.valor)
 
       if (c.vencimento) queryExistente = queryExistente.eq('vencimento', c.vencimento)
-      if (c.doc) queryExistente = queryExistente.eq('doc', c.doc)
+      if (c.doc) {
+        queryExistente = queryExistente.eq('doc', c.doc)
+      } else {
+        queryExistente = queryExistente.is('doc', null)
+        if (c.descricao) queryExistente = queryExistente.eq('descricao', c.descricao)
+      }
 
       const { data: existentes } = await queryExistente
 

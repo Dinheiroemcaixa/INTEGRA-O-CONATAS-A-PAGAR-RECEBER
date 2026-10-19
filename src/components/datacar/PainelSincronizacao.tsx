@@ -10,6 +10,7 @@ import {
   AlertTriangle, Eye, X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { deduplicarContasPagarContraBanco } from '@/lib/contas-pagar/import-dedup'
 
 interface Props {
   empresa: {
@@ -193,22 +194,11 @@ export default function PainelSincronizacao({ empresa }: Props) {
         status: 'pendente',
       }))
 
-      // Verificar duplicatas
-      const fornecedores = itensParaSalvar.map(i => i.fornecedor)
-      const { data: existentes } = await supabase
-        .from('contas_pagar_importadas')
-        .select('fornecedor, valor, vencimento')
-        .eq('empresa_id', empresa.id)
-        .in('fornecedor', fornecedores)
-
-      const contasNovas = itensParaSalvar.filter(item => {
-        const jaExiste = existentes?.some(e =>
-          e.fornecedor === item.fornecedor &&
-          Number(e.valor) === Number(item.valor) &&
-          e.vencimento === item.vencimento
-        )
-        return !jaExiste
-      })
+      const { unicosParaInserir: contasNovas } = await deduplicarContasPagarContraBanco(
+        supabase,
+        empresa.id,
+        itensParaSalvar
+      )
 
       if (contasNovas.length === 0) {
         toast.success('Sucesso! As contas já estavam salvas no Card de Contas a Pagar.')

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { deduplicarContasPagarContraBanco } from '@/lib/contas-pagar/import-dedup'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -133,12 +134,19 @@ export async function GET(req: NextRequest) {
                 emissao: d.emissao || null,
                 status: 'pendente',
               }))
-              await supabaseAdmin
-                .from('contas_pagar_importadas')
-                .upsert(itensParaSalvar, {
-                  onConflict: 'empresa_id,fornecedor,valor,vencimento,doc',
-                  ignoreDuplicates: true,
-                })
+              const { unicosParaInserir } = await deduplicarContasPagarContraBanco(
+                supabaseAdmin,
+                empresa_id,
+                itensParaSalvar
+              )
+              if (unicosParaInserir.length > 0) {
+                await supabaseAdmin
+                  .from('contas_pagar_importadas')
+                  .upsert(unicosParaInserir, {
+                    onConflict: 'empresa_id,fornecedor,valor,vencimento,doc',
+                    ignoreDuplicates: true,
+                  })
+              }
             }
           } else {
             // Vendas

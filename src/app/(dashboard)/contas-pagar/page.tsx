@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils'
 import { exportarParaContaAzulXls } from '@/lib/exporters/contaazul-xls'
 import { matchFornecedoresEmLote, type RegraDepara } from '@/lib/utils/match-fornecedor'
 import { type FornecedorContaAzul } from '@/lib/parsers/fornecedores-contaazul'
+import { deduplicarContasPagarContraBanco } from '@/lib/contas-pagar/import-dedup'
 
 type Etapa = 'upload' | 'preview'
 type SubAba = 'datacar' | 'planilha'
@@ -429,16 +430,30 @@ export default function ContasPagarPage() {
           metadata: { ...(d.metadata || {}), anexo_url: d.anexo_url || d.metadata?.anexo_url || null },
       }))
 
-      const { error } = await supabase
-        .from('contas_pagar_importadas')
-        .upsert(itensParaSalvar, {
-          onConflict: 'empresa_id,fornecedor,valor,vencimento,doc',
-          ignoreDuplicates: true,
-        })
+      const { unicosParaInserir, duplicadosIgnorados } = await deduplicarContasPagarContraBanco(
+        supabase,
+        empresaAtiva.id,
+        itensParaSalvar
+      )
 
-      if (error) throw error
+      if (unicosParaInserir.length > 0) {
+        const { error } = await supabase
+          .from('contas_pagar_importadas')
+          .upsert(unicosParaInserir, {
+            onConflict: 'empresa_id,fornecedor,valor,vencimento,doc',
+            ignoreDuplicates: true,
+          })
 
-      toast.success(`${itens.length} contas salvas com sucesso!`)
+        if (error) throw error
+      }
+
+      if (unicosParaInserir.length === 0) {
+        toast.success('Todas as contas selecionadas já estavam importadas (nenhuma duplicata inserida).')
+      } else if (duplicadosIgnorados.length > 0) {
+        toast.success(`${unicosParaInserir.length} conta(s) salva(s) com sucesso (${duplicadosIgnorados.length} duplicada(s) ignorada(s))!`)
+      } else {
+        toast.success(`${unicosParaInserir.length} contas salvas com sucesso!`)
+      }
       setEtapa('upload')
       setSubAba('datacar')
       setResultado(null)
