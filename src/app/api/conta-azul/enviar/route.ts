@@ -97,6 +97,7 @@ export async function POST(req: NextRequest) {
     let erros = 0
     const resultados: any[] = []
     const contatosCache = new Map<string, string>()
+    const promessasContatosEmVoo = new Map<string, Promise<string | null>>()
 
     // Pré-popular cache com identificadores já persistidos no De-Para
     try {
@@ -130,30 +131,44 @@ export async function POST(req: NextRequest) {
         return contatosCache.get(chaveNorm) || null
       }
 
-      try {
-        const resContato = await buscarOuCriarContato(accessToken, nomeLimpo)
-        if (resContato) {
-          contatosCache.set(chaveNorm, resContato)
-          // Persistência assíncrona na tabela fornecedor_depara
-          try {
-            await supabaseAdmin
-              .from('fornecedor_depara')
-              .update({
-                conta_azul_contato_id: resContato,
-                updated_at: new Date().toISOString()
-              })
-              .eq('empresa_id', empresa_id)
-              .eq('nome_original_normalizado', chaveNorm)
-          } catch (errPersist) {
-            console.warn('[ca/enviar] Aviso ao persistir conta_azul_contato_id em fornecedor_depara:', errPersist)
-          }
-          return resContato
-        }
-      } catch (errContato) {
-        console.error(`[ca/enviar] Erro ao buscar/criar contato ${nomeLimpo}:`, errContato)
+      const promessaExistente = promessasContatosEmVoo.get(chaveNorm)
+      if (promessaExistente) {
+        return promessaExistente
       }
 
-      return null
+      const promessa = (async (): Promise<string | null> => {
+        try {
+          const resContato = await buscarOuCriarContato(accessToken, nomeLimpo)
+          if (resContato) {
+            contatosCache.set(chaveNorm, resContato)
+            // Persistência assíncrona na tabela fornecedor_depara
+            try {
+              await supabaseAdmin
+                .from('fornecedor_depara')
+                .update({
+                  conta_azul_contato_id: resContato,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('empresa_id', empresa_id)
+                .eq('nome_original_normalizado', chaveNorm)
+            } catch (errPersist) {
+              console.warn('[ca/enviar] Aviso ao persistir conta_azul_contato_id em fornecedor_depara:', errPersist)
+            }
+            return resContato
+          }
+        } catch (errContato) {
+          console.error(`[ca/enviar] Erro ao buscar/criar contato ${nomeLimpo}:`, errContato)
+        }
+
+        return null
+      })()
+
+      promessasContatosEmVoo.set(chaveNorm, promessa)
+      try {
+        return await promessa
+      } finally {
+        promessasContatosEmVoo.delete(chaveNorm)
+      }
     }
 
     // 4. Processar contas em lotes com concorrência controlada (Chunk Size = 3)
@@ -167,6 +182,11 @@ export async function POST(req: NextRequest) {
         // Fornecedor (com cache em memória e persistência em fornecedor_depara)
         const fornecedorNome = (conta.fornecedor || '').trim()
         const contatoId = await resolverContatoId(fornecedorNome)
+        if (!contatoId) {
+          throw new Error(
+            `Não foi possível identificar o fornecedor "${fornecedorNome || 'Não informado'}" na Conta Azul (id_fornecedor obrigatório).`
+          )
+        }
 
         // Categoria (Match Inteligente)
         let catId = null
@@ -269,7 +289,7 @@ export async function POST(req: NextRequest) {
           valor: valorNum,
           descricao: conta.descricao || `Pagamento - ${conta.fornecedor}`,
           observacao: textoObs,
-          contato: contatoId || undefined,
+          id_fornecedor: contatoId,
           conta_financeira: bancoId || undefined,
           rateio: [{
             id_categoria: catId,

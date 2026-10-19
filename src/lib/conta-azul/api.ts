@@ -196,12 +196,14 @@ export interface ContaPagarPayload {
   valor: number
   observacao?: string
   descricao: string
+  id_fornecedor?: string
   contato?: string
   conta_financeira?: string
   condicao_pagamento: {
     parcelas: Array<{
       descricao: string
       data_vencimento: string
+      conta_financeira?: string
       nota?: string
       detalhe_valor: {
         valor_bruto: number
