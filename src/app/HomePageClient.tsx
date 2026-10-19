@@ -11,10 +11,7 @@ import {
   ArrowDownToLine,
   RefreshCw,
   ArrowLeftRight,
-  Sun,
-  Moon,
 } from 'lucide-react'
-import { useAppConfig } from '@/contexts/AppConfigContext'
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
@@ -56,7 +53,6 @@ function DcxLinkMark({ size = 22 }: { size?: number }) {
 }
 
 export default function HomePageClient() {
-  const { config, update } = useAppConfig()
 
   return (
     <div
@@ -130,22 +126,8 @@ export default function HomePageClient() {
             </a>
           </nav>
 
-          {/* Direita: Alternância de Tema + Acesso ao Sistema */}
+          {/* Direita: Acesso ao Sistema */}
           <div className="flex items-center gap-2.5 flex-none">
-            <button
-              type="button"
-              onClick={() => update({ darkMode: !config.darkMode })}
-              title={config.darkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
-              aria-label={config.darkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
-              className="p-2.5 rounded-[9px] border border-white/15 bg-white/5 hover:bg-white/10 text-[#A9B8C7] hover:!text-[#ffffff] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5FD68B]"
-            >
-              {config.darkMode ? (
-                <Sun size={16} className="text-amber-400" />
-              ) : (
-                <Moon size={16} className="text-[#5FD68B]" />
-              )}
-            </button>
-
             <Link
               href="/login"
               className="bg-[#5FD68B] hover:bg-[#7FE3A4] text-[#0D2137] font-bold text-sm md:text-[15px] px-4 py-2.5 rounded-[9px] transition-colors flex items-center gap-2 whitespace-nowrap shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"

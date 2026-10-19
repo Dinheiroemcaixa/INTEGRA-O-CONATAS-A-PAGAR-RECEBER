@@ -26,9 +26,9 @@ export default function RootLayout({
               (function() {
                 try {
                   var p = window.location.pathname || '';
-                  if (p.startsWith('/login')) {
-                    document.documentElement.classList.add('dark');
-                    document.documentElement.style.colorScheme = 'dark';
+                  if (p === '/' || p.startsWith('/login')) {
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.style.colorScheme = 'light';
                     return;
                   }
                   var match = document.cookie.match(/(?:^|; )connecta_theme=([^;]*)/);

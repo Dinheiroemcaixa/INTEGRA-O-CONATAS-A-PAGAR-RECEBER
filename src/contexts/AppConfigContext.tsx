@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react'
+import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export type AccentColor = 'violet' | 'blue' | 'emerald' | 'rose' | 'amber' | 'cyan'
@@ -148,18 +149,20 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
       darkMode: isDark,
     }
   })
+  const pathname = usePathname()
   const userIdRef = useRef<string | null>(null)
   const isMountedRef = useRef(false)
   const supabase = createClient()
 
-  // Aplica classe no HTML respeitando isolamento da tela de login
-  const aplicarNoDocumento = (isDark: boolean) => {
+  // Aplica classe no HTML respeitando isolamento das telas públicas (/ e /login)
+  const aplicarNoDocumento = (isDark: boolean, currentPath?: string | null) => {
     if (typeof window === 'undefined') return
-    const isLogin = window.location.pathname.startsWith('/login')
-    if (isLogin) {
-      // Tela de login institucional fixa em Dark
-      document.documentElement.classList.add('dark')
-      document.documentElement.style.colorScheme = 'dark'
+    const p = currentPath ?? window.location.pathname
+    const isPublicLightRoute = p === '/' || p.startsWith('/login')
+    if (isPublicLightRoute) {
+      // Tela inicial pública (/) e tela de login (/login) fixas em tema claro
+      document.documentElement.classList.remove('dark')
+      document.documentElement.style.colorScheme = 'light'
       return
     }
 
@@ -172,17 +175,23 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Reage à mudança de rota client-side mantendo a preferência do operador intacta
+  useEffect(() => {
+    const isDark = resolveIsDark(config.themeMode)
+    aplicarNoDocumento(isDark, pathname)
+  }, [pathname, config.themeMode])
+
   // Efeito principal: Atualiza classes no DOM e persiste
   useEffect(() => {
     const isDark = resolveIsDark(config.themeMode)
 
     if (!isMountedRef.current) {
       isMountedRef.current = true
-      aplicarNoDocumento(isDark)
+      aplicarNoDocumento(isDark, pathname)
       return
     }
 
-    aplicarNoDocumento(isDark)
+    aplicarNoDocumento(isDark, pathname)
     saveThemeModeShared(config.themeMode)
   }, [config.themeMode])
 
