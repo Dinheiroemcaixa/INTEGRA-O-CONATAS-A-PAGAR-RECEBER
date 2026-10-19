@@ -37,8 +37,10 @@ interface ContaMock {
   conta_financeira?: string
   conta_financeira_id?: string | null
   status: string
+  conta_azul_id?: string | null
   tentativas?: number
   metadata?: Record<string, any>
+  created_at?: string
 }
 
 interface DeparaMock {
@@ -53,7 +55,9 @@ let mockContasTable: ContaMock[] = []
 let mockDeparaTable: DeparaMock[] = []
 let mockUpdatesContas: Array<{ id: string; payload: Record<string, any> }> = []
 let mockUpdatesDepara: Array<{ filtro: Record<string, any>; payload: Record<string, any> }> = []
+let mockDeletesContas: Array<{ filters: Record<string, any> }> = []
 let mockLogsIntegracao: Array<Record<string, any>> = []
+let mockInsertLogError: Error | null = null
 
 let mockCriarContaPagarFn: (token: string, payload: any) => Promise<any>
 let mockBuscarOuCriarContatoFn: (token: string, nome: string) => Promise<string | undefined>
@@ -80,7 +84,8 @@ function createQueryBuilder(table: string) {
       inFilter = { col, vals }
       return builder
     },
-    lt(_col: string, _val: any) {
+    lt(col: string, val: any) {
+      filters[`lt_${col}`] = val
       return builder
     },
     limit(_n: number) {
@@ -96,6 +101,9 @@ function createQueryBuilder(table: string) {
     },
     async insert(payload: Record<string, any>) {
       if (table === 'logs_integracao') {
+        if (mockInsertLogError) {
+          throw mockInsertLogError
+        }
         mockLogsIntegracao.push(payload)
       }
       return { data: payload, error: null }
@@ -103,6 +111,9 @@ function createQueryBuilder(table: string) {
     then(resolve: (val: any) => void, reject?: (err: any) => void) {
       try {
         if (isDelete) {
+          if (table === 'contas_pagar_importadas') {
+            mockDeletesContas.push({ filters: { ...filters } })
+          }
           return Promise.resolve({ data: null, error: null }).then(resolve, reject)
         }
         if (pendingUpdate) {
@@ -188,7 +199,9 @@ function resetMocks() {
   mockDeparaTable = []
   mockUpdatesContas = []
   mockUpdatesDepara = []
+  mockDeletesContas = []
   mockLogsIntegracao = []
+  mockInsertLogError = null
 
   mockListarCategoriasFn = async () => [
     { id: 'cat-uuid-revenda', nome: 'Materiais para Revenda' },
@@ -199,9 +212,16 @@ function resetMocks() {
   ]
   mockBuscarOuCriarContatoFn = async (_token, nome) => `uuid-criado-${nome.toLowerCase().replace(/\s+/g, '-')}`
   mockCriarContaPagarFn = async (_token, _payload) => ({
-    protocolId: 'proto-123',
-    status: 'SUCCESS',
-    createdAt: '2026-04-16T00:00:00Z'
+    id: 'aef1a260-af6b-4edb-9617-0aa5a74b747b',
+    condicao_pagamento: {
+      quantidade_parcelas: 1,
+      parcelas: [
+        {
+          id: '4172de00-ac0b-4435-bbae-689cf62afe83',
+          status: 'EM_ABERTO'
+        }
+      ]
+    }
   })
 }
 
@@ -213,27 +233,42 @@ function makeRequest(body: Record<string, any>) {
   })
 }
 
-test('1. Envia id_fornecedor correto no payload para a Conta Azul (sem o campo ignorado contato)', async () => {
+test('1. Interpreta resposta real da API v2, grava UUID real da parcela em conta_azul_id (nunca "enviado"), registra evento_id e parcela_id em metadata e logs_integracao e não exclui enviados antigos', async () => {
   resetMocks()
   const payloadsEnviados: any[] = []
-  mockBuscarOuCriarContatoFn = async () => '9f8e7d6c-5b4a-3210-fedc-ba9876543210'
+  mockBuscarOuCriarContatoFn = async () => '56e47e90-ad82-442c-a415-00e023a5e5d2'
   mockCriarContaPagarFn = async (_token, payload) => {
     payloadsEnviados.push(payload)
-    return { protocolId: 'proto-ok-1', status: 'SUCCESS', createdAt: '2026-04-16T00:00:00Z' }
+    return {
+      id: 'aef1a260-af6b-4edb-9617-0aa5a74b747b',
+      condicao_pagamento: {
+        quantidade_parcelas: 1,
+        parcelas: [
+          {
+            id: '4172de00-ac0b-4435-bbae-689cf62afe83',
+            descricao: '000072553',
+            data_vencimento: '2026-11-12',
+            status: 'EM_ABERTO'
+          }
+        ]
+      }
+    }
   }
 
   mockContasTable = [
     {
       id: 'conta-1',
       empresa_id: 'emp-1',
-      fornecedor: 'AGUIA DISTRIBUIDORA DE PECAS LTDA',
-      valor: 583.09,
-      vencimento: '2026-04-28',
-      emissao: '2026-04-14',
-      descricao: '000001101',
+      fornecedor: 'BRUM AUTO PECAS LTDA',
+      valor: 110,
+      vencimento: '2026-11-12',
+      emissao: '2026-10-13',
+      descricao: '000072553',
       categoria: 'Materiais para Revenda',
       conta_financeira: 'Banco Itaú',
-      status: 'pendente'
+      status: 'pendente',
+      metadata: { origem: 'planilha' },
+      created_at: '2020-01-01T00:00:00Z'
     }
   ]
 
@@ -244,16 +279,37 @@ test('1. Envia id_fornecedor correto no payload para a Conta Azul (sem o campo i
   assert.equal(json.enviados, 1)
   assert.equal(json.erros, 0)
   assert.equal(payloadsEnviados.length, 1)
-  assert.equal(payloadsEnviados[0].id_fornecedor, '9f8e7d6c-5b4a-3210-fedc-ba9876543210')
+  assert.equal(payloadsEnviados[0].id_fornecedor, '56e47e90-ad82-442c-a415-00e023a5e5d2')
   assert.equal('contato' in payloadsEnviados[0], false)
+
+  // Verifica que conta_azul_id recebeu o UUID real da parcela (e nunca 'enviado')
+  assert.equal(mockUpdatesContas.length, 1)
+  assert.notEqual(mockUpdatesContas[0].payload.conta_azul_id, 'enviado')
+  assert.equal(mockUpdatesContas[0].payload.conta_azul_id, '4172de00-ac0b-4435-bbae-689cf62afe83')
+  assert.deepEqual(mockUpdatesContas[0].payload.metadata, {
+    origem: 'planilha',
+    conta_azul_evento_id: 'aef1a260-af6b-4edb-9617-0aa5a74b747b',
+    conta_azul_parcela_id: '4172de00-ac0b-4435-bbae-689cf62afe83'
+  })
+
+  // Verifica que nenhuma chamada .delete() foi feita em contas_pagar_importadas
+  assert.equal(mockDeletesContas.length, 0)
+
+  // Verifica que o log de auditoria de sucesso foi gravado em logs_integracao
+  assert.equal(mockLogsIntegracao.length, 1)
+  assert.equal(mockLogsIntegracao[0].status, 'sucesso')
+  assert.equal(mockLogsIntegracao[0].detalhes.etapa, 'envio_conta_azul')
+  assert.equal(mockLogsIntegracao[0].detalhes.conta_azul_id, '4172de00-ac0b-4435-bbae-689cf62afe83')
+  assert.equal(mockLogsIntegracao[0].detalhes.evento_id, 'aef1a260-af6b-4edb-9617-0aa5a74b747b')
+  assert.equal(mockLogsIntegracao[0].detalhes.parcela_id, '4172de00-ac0b-4435-bbae-689cf62afe83')
 })
 
-test('2. Bloqueia envio quando não existir identificador válido de fornecedor (sem chamar criarContaPagar)', async () => {
+test('2. Bloqueia envio quando não existir identificador válido de fornecedor ou quando conta_azul_id já estiver preenchido', async () => {
   resetMocks()
   let chamadasCriarContaPagar = 0
   mockCriarContaPagarFn = async () => {
     chamadasCriarContaPagar++
-    return { protocolId: 'nunca-chamado', status: 'SUCCESS', createdAt: '' }
+    return { id: 'nunca-chamado' }
   }
   mockBuscarOuCriarContatoFn = async () => undefined
 
@@ -275,6 +331,16 @@ test('2. Bloqueia envio quando não existir identificador válido de fornecedor 
       vencimento: '2026-04-21',
       descricao: 'NF 998',
       status: 'pendente'
+    },
+    {
+      id: 'conta-ja-vinculada',
+      empresa_id: 'emp-1',
+      fornecedor: 'FORNECEDOR VALIDO',
+      valor: 300.0,
+      vencimento: '2026-04-22',
+      descricao: 'NF 997',
+      status: 'pendente',
+      conta_azul_id: '4172de00-ac0b-4435-bbae-689cf62afe83'
     }
   ]
 
@@ -283,11 +349,15 @@ test('2. Bloqueia envio quando não existir identificador válido de fornecedor 
 
   assert.equal(res.status, 200)
   assert.equal(json.enviados, 0)
-  assert.equal(json.erros, 2)
+  assert.equal(json.erros, 3)
   assert.equal(chamadasCriarContaPagar, 0)
-  assert.equal(mockUpdatesContas.length, 2)
-  assert.match(mockUpdatesContas[0].payload.erro_mensagem, /id_fornecedor obrigatório/)
-  assert.match(mockUpdatesContas[1].payload.erro_mensagem, /id_fornecedor obrigatório/)
+  assert.equal(mockUpdatesContas.length, 3)
+  const updSemForn = mockUpdatesContas.find((u) => u.id === 'conta-sem-forn')!
+  const updFalhaLookup = mockUpdatesContas.find((u) => u.id === 'conta-falha-lookup')!
+  const updJaVinculada = mockUpdatesContas.find((u) => u.id === 'conta-ja-vinculada')!
+  assert.match(updSemForn.payload.erro_mensagem, /id_fornecedor obrigatório/)
+  assert.match(updFalhaLookup.payload.erro_mensagem, /id_fornecedor obrigatório/)
+  assert.match(updJaVinculada.payload.erro_mensagem, /ENVIO BLOQUEADO/)
 })
 
 test('3. Preserva vínculo existente em fornecedor_depara sem chamar buscarOuCriarContato', async () => {
@@ -301,7 +371,10 @@ test('3. Preserva vínculo existente em fornecedor_depara sem chamar buscarOuCri
   }
   mockCriarContaPagarFn = async (_token, payload) => {
     payloadsEnviados.push(payload)
-    return { protocolId: 'proto-depara', status: 'SUCCESS', createdAt: '' }
+    return {
+      id: 'evento-uuid-depara',
+      condicao_pagamento: { parcelas: [{ id: 'parcela-uuid-depara' }] }
+    }
   }
 
   mockDeparaTable = [
@@ -383,7 +456,10 @@ test('5. Preserva compatibilidade de todos os demais campos financeiros do paylo
   mockBuscarOuCriarContatoFn = async () => 'uuid-forn-5'
   mockCriarContaPagarFn = async (_token, payload) => {
     payloadsEnviados.push(payload)
-    return { protocolId: 'proto-5', status: 'SUCCESS', createdAt: '' }
+    return {
+      id: 'evento-uuid-5',
+      condicao_pagamento: { parcelas: [{ id: 'parcela-uuid-5' }] }
+    }
   }
 
   mockContasTable = [
@@ -451,7 +527,10 @@ test('6. Previne chamadas concorrentes redundantes (promessasContatosEmVoo) para
   }
   mockCriarContaPagarFn = async (_token, payload) => {
     payloadsEnviados.push(payload)
-    return { protocolId: 'proto-conc', status: 'SUCCESS', createdAt: '' }
+    return {
+      id: 'evento-conc',
+      condicao_pagamento: { parcelas: [{ id: 'parcela-conc' }] }
+    }
   }
 
   mockContasTable = [
@@ -493,4 +572,102 @@ test('6. Previne chamadas concorrentes redundantes (promessasContatosEmVoo) para
   for (const p of payloadsEnviados) {
     assert.equal(p.id_fornecedor, 'uuid-unico-concorrente')
   }
+})
+
+test('7. Falha ao gravar log de sucesso em logs_integracao NÃO reverte status enviado, NÃO apaga UUID real e NÃO dispara novo POST', async () => {
+  resetMocks()
+  let chamadasCriarContaPagar = 0
+  mockInsertLogError = new Error('Falha simulada no banco ao inserir log')
+  mockCriarContaPagarFn = async () => {
+    chamadasCriarContaPagar++
+    return {
+      id: 'aef1a260-af6b-4edb-9617-0aa5a74b747b',
+      condicao_pagamento: {
+        parcelas: [{ id: '4172de00-ac0b-4435-bbae-689cf62afe83' }]
+      }
+    }
+  }
+
+  mockContasTable = [
+    {
+      id: 'conta-log-fail',
+      empresa_id: 'emp-1',
+      fornecedor: 'BRUM AUTO PECAS LTDA',
+      valor: 110,
+      vencimento: '2026-11-12',
+      descricao: '000072553',
+      status: 'pendente'
+    }
+  ]
+
+  const res = await POST(makeRequest({ empresa_id: 'emp-1' }))
+  const json = await res.json()
+
+  assert.equal(res.status, 200)
+  assert.equal(json.enviados, 1)
+  assert.equal(json.erros, 0)
+  assert.equal(chamadasCriarContaPagar, 1)
+  assert.equal(mockUpdatesContas.length, 1)
+  assert.equal(mockUpdatesContas[0].payload.status, 'enviado')
+  assert.equal(mockUpdatesContas[0].payload.conta_azul_id, '4172de00-ac0b-4435-bbae-689cf62afe83')
+})
+
+test('8. Resposta ambígua (sem UUID ou erro de timeout/rede) NÃO grava "enviado" em conta_azul_id, NÃO faz retry automático e sinaliza reconciliação necessária', async () => {
+  resetMocks()
+  let chamadasCriarContaPagar = 0
+  mockCriarContaPagarFn = async (_token, payload) => {
+    chamadasCriarContaPagar++
+    if (payload.descricao === 'CONTA-SEM-UUID') {
+      return {} // resposta ambígua sem id nem parcelas[0].id
+    }
+    throw new Error('fetch failed: ETIMEDOUT')
+  }
+
+  mockContasTable = [
+    {
+      id: 'conta-ambigua-sem-uuid',
+      empresa_id: 'emp-1',
+      fornecedor: 'FORNECEDOR AMBIGUO 1',
+      valor: 200,
+      vencimento: '2026-11-15',
+      descricao: 'CONTA-SEM-UUID',
+      status: 'pendente'
+    },
+    {
+      id: 'conta-ambigua-timeout',
+      empresa_id: 'emp-1',
+      fornecedor: 'FORNECEDOR AMBIGUO 2',
+      valor: 300,
+      vencimento: '2026-11-16',
+      descricao: 'CONTA-TIMEOUT',
+      status: 'pendente'
+    }
+  ]
+
+  const res = await POST(makeRequest({ empresa_id: 'emp-1' }))
+  const json = await res.json()
+
+  assert.equal(res.status, 200)
+  assert.equal(json.enviados, 0)
+  assert.equal(json.erros, 2)
+  assert.equal(chamadasCriarContaPagar, 2) // exatamente 1 tentativa por conta, sem retry automático
+
+  // Conta 1 (sem UUID)
+  const updSemUuid = mockUpdatesContas.find((u) => u.id === 'conta-ambigua-sem-uuid')!
+  assert.equal(updSemUuid.payload.status, 'erro')
+  assert.equal('conta_azul_id' in updSemUuid.payload, false)
+  assert.match(updSemUuid.payload.erro_mensagem, /RECONCILIAÇÃO NECESSÁRIA/)
+
+  // Conta 2 (timeout)
+  const updTimeout = mockUpdatesContas.find((u) => u.id === 'conta-ambigua-timeout')!
+  assert.equal(updTimeout.payload.status, 'erro')
+  assert.equal('conta_azul_id' in updTimeout.payload, false)
+  assert.match(updTimeout.payload.erro_mensagem, /RECONCILIAÇÃO NECESSÁRIA - TIMEOUT\/REDE/)
+
+  // Logs com etapa reconciliacao_necessaria
+  assert.equal(mockLogsIntegracao.length, 2)
+  assert.equal(mockLogsIntegracao[0].detalhes.etapa, 'reconciliacao_necessaria')
+  assert.equal(mockLogsIntegracao[0].detalhes.reconciliacao_necessaria, true)
+  assert.equal(mockLogsIntegracao[1].detalhes.etapa, 'reconciliacao_necessaria')
+  assert.equal(mockLogsIntegracao[1].detalhes.reconciliacao_necessaria, true)
 })

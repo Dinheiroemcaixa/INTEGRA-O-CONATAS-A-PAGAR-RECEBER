@@ -224,9 +224,21 @@ export interface ContaPagarPayload {
 }
 
 export interface ContaPagarResponse {
-  protocolId: string
-  status: 'PENDING' | 'SUCCESS' | 'ERROR'
-  createdAt: string
+  id?: string
+  protocolId?: string
+  status?: 'PENDING' | 'SUCCESS' | 'ERROR' | string
+  createdAt?: string
+  condicao_pagamento?: {
+    quantidade_parcelas?: number
+    parcelas?: Array<{
+      id?: string
+      descricao?: string
+      data_vencimento?: string
+      status?: string
+      [key: string]: any
+    }>
+  }
+  [key: string]: any
 }
 
 export async function getTokenComCodigo(

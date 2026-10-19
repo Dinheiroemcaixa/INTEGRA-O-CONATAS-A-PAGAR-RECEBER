@@ -178,7 +178,16 @@ export async function POST(req: NextRequest) {
       await Promise.all(
         chunk.map(async (conta) => {
       let payloadFinal: any = null
+      let postIniciado = false
       try {
+        // Guarda contra reenvio de registro já vinculado na Conta Azul
+        const contaAzulIdExistente = typeof conta.conta_azul_id === 'string' ? conta.conta_azul_id.trim() : ''
+        if (contaAzulIdExistente) {
+          throw new Error(
+            `[ENVIO BLOQUEADO] Registro já possui identificador Conta Azul (${contaAzulIdExistente}). Verifique na Conta Azul antes de reenviar.`
+          )
+        }
+
         // Fornecedor (com cache em memória e persistência em fornecedor_depara)
         const fornecedorNome = (conta.fornecedor || '').trim()
         const contatoId = await resolverContatoId(fornecedorNome)
@@ -309,25 +318,123 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        postIniciado = true
         const resposta = await criarContaPagar(accessToken, payloadFinal)
+
+        const parcelaId =
+          typeof resposta?.condicao_pagamento?.parcelas?.[0]?.id === 'string'
+            ? resposta.condicao_pagamento.parcelas[0].id.trim()
+            : ''
+        const eventoId =
+          typeof resposta?.id === 'string' && resposta.id.trim()
+            ? resposta.id.trim()
+            : typeof resposta?.protocolId === 'string' && resposta.protocolId.trim()
+            ? resposta.protocolId.trim()
+            : ''
+
+        // O identificador principal em contas_pagar_contaazul_espelho / auditoria é o UUID da parcela (com fallback para o UUID do evento).
+        // NUNCA gravar string literal 'enviado' como substituto de UUID.
+        const contaAzulUuid = parcelaId || eventoId
+        if (!contaAzulUuid || contaAzulUuid.toLowerCase() === 'enviado') {
+          const msgAmbigua =
+            '[RECONCILIAÇÃO NECESSÁRIA] A API da Conta Azul respondeu sem retornar um UUID válido de parcela/evento. Verifique na Conta Azul antes de reenviar.'
+          await supabaseAdmin
+            .from('contas_pagar_importadas')
+            .update({
+              status: 'erro',
+              erro_mensagem: msgAmbigua,
+              tentativas: (conta.tentativas || 0) + 1,
+            })
+            .eq('id', conta.id)
+
+          try {
+            await supabaseAdmin.from('logs_integracao').insert({
+              empresa_id,
+              conta_pagar_id: conta.id,
+              acao: 'enviar_conta_azul',
+              status: 'erro',
+              detalhes: {
+                etapa: 'reconciliacao_necessaria',
+                reconciliacao_necessaria: true,
+                mensagem_detalhe: msgAmbigua,
+                erro: msgAmbigua,
+                payload: payloadFinal,
+                payload_enviado: payloadFinal,
+                resposta_conta_azul: resposta ?? null,
+              },
+            })
+          } catch (errLogAmb) {
+            console.warn('[ca/enviar] Aviso ao gravar log de resposta ambígua:', errLogAmb)
+          }
+
+          erros++
+          resultados.push({
+            id: conta.id,
+            status: 'erro',
+            reconciliacao_necessaria: true,
+            detalhe: msgAmbigua,
+          })
+          return
+        }
+
+        const metadataAtualizado = {
+          ...(conta.metadata && typeof conta.metadata === 'object' ? conta.metadata : {}),
+          conta_azul_evento_id: eventoId || null,
+          conta_azul_parcela_id: parcelaId || null,
+        }
 
         await supabaseAdmin
           .from('contas_pagar_importadas')
           .update({
             status: 'enviado',
-            conta_azul_id: resposta.protocolId || 'enviado',
+            conta_azul_id: contaAzulUuid,
+            metadata: metadataAtualizado,
             erro_mensagem: null,
             tentativas: (conta.tentativas || 0) + 1,
           })
           .eq('id', conta.id)
 
+        // Auditoria de sucesso isolada: falha ao gravar log NUNCA reverte o envio nem provoca novo POST
+        try {
+          await supabaseAdmin.from('logs_integracao').insert({
+            empresa_id,
+            conta_pagar_id: conta.id,
+            acao: 'enviar_conta_azul',
+            status: 'sucesso',
+            detalhes: {
+              etapa: 'envio_conta_azul',
+              mensagem_detalhe: `Conta a pagar criada na Conta Azul (parcela_id=${parcelaId || 'N/A'}, evento_id=${eventoId || 'N/A'})`,
+              conta_azul_id: contaAzulUuid,
+              evento_id: eventoId || null,
+              parcela_id: parcelaId || null,
+              payload: payloadFinal,
+              payload_enviado: payloadFinal,
+            },
+          })
+        } catch (errLogSucesso) {
+          console.warn('[ca/enviar] Aviso ao registrar log de sucesso em logs_integracao:', errLogSucesso)
+        }
+
         enviados++
-        resultados.push({ id: conta.id, status: 'sucesso' })
+        resultados.push({
+          id: conta.id,
+          status: 'sucesso',
+          conta_azul_id: contaAzulUuid,
+          evento_id: eventoId || null,
+          parcela_id: parcelaId || null,
+        })
 
       } catch (errLoop: any) {
         erros++
-        const msg = errLoop instanceof Error ? errLoop.message : String(errLoop)
-        
+        const rawMsg = errLoop instanceof Error ? errLoop.message : String(errLoop)
+        const isAmbiguousTimeoutOrNetwork =
+          postIniciado &&
+          (/timeout|timed out|etimedout|econnreset|socket hang up|abort|fetch failed|network|\[502\]|\[503\]|\[504\]/i.test(rawMsg))
+
+        const msg = isAmbiguousTimeoutOrNetwork
+          ? `[RECONCILIAÇÃO NECESSÁRIA - TIMEOUT/REDE] ${rawMsg} — Verifique na Conta Azul se o lançamento foi criado antes de reenviar.`
+          : rawMsg
+
         await supabaseAdmin
           .from('contas_pagar_importadas')
           .update({
@@ -337,32 +444,35 @@ export async function POST(req: NextRequest) {
           })
           .eq('id', conta.id)
 
-        await supabaseAdmin.from('logs_integracao').insert({
-          empresa_id,
-          conta_pagar_id: conta.id,
-          acao: 'enviar_conta_azul',
-          status: 'erro',
-          detalhes: { erro: msg, payload: payloadFinal },
-        })
+        try {
+          await supabaseAdmin.from('logs_integracao').insert({
+            empresa_id,
+            conta_pagar_id: conta.id,
+            acao: 'enviar_conta_azul',
+            status: 'erro',
+            detalhes: {
+              etapa: isAmbiguousTimeoutOrNetwork ? 'reconciliacao_necessaria' : 'envio_conta_azul',
+              reconciliacao_necessaria: isAmbiguousTimeoutOrNetwork,
+              mensagem_detalhe: msg,
+              erro: msg,
+              payload: payloadFinal,
+              payload_enviado: payloadFinal,
+            },
+          })
+        } catch (errLogErro) {
+          console.warn('[ca/enviar] Aviso ao registrar log de erro em logs_integracao:', errLogErro)
+        }
 
-        resultados.push({ id: conta.id, status: 'erro', detalhe: msg })
+        resultados.push({
+          id: conta.id,
+          status: 'erro',
+          reconciliacao_necessaria: isAmbiguousTimeoutOrNetwork,
+          detalhe: msg,
+        })
       }
     })
   )
 }
-
-    // Limpar do banco os registros "enviados" com mais de 2 horas para evitar sobrecarregar
-    try {
-      const duasHorasAtras = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
-      await supabaseAdmin
-        .from('contas_pagar_importadas')
-        .delete()
-        .eq('empresa_id', empresa_id)
-        .eq('status', 'enviado')
-        .lt('created_at', duasHorasAtras)
-    } catch (errCleanup) {
-      console.warn('[ca/enviar] Erro na limpeza automatica de enviados:', errCleanup)
-    }
 
     const { count: pendentesRestantes } = await supabaseAdmin
       .from('contas_pagar_importadas')
