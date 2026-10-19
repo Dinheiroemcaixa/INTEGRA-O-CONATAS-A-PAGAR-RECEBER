@@ -1,388 +1,665 @@
 'use client'
 
 import Link from 'next/link'
+import { DM_Sans } from 'next/font/google'
 import {
   LogIn,
-  Car, Building2, CreditCard, Receipt,
-  ArrowDownToLine, RefreshCw, Zap, ArrowLeftRight,
-  Sun, Moon
+  Car,
+  Building2,
+  CreditCard,
+  Receipt,
+  ArrowDownToLine,
+  RefreshCw,
+  ArrowLeftRight,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import { useAppConfig } from '@/contexts/AppConfigContext'
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  display: 'swap',
+})
+
+function DcxLinkMark({ size = 22 }: { size?: number }) {
+  return (
+    <svg
+      width={(size * 28) / 24}
+      height={size}
+      viewBox="0 0 28 24"
+      className="flex-none block"
+      aria-hidden="true"
+    >
+      <circle
+        cx="10"
+        cy="12"
+        r="7"
+        fill="none"
+        stroke="#fff"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      <circle
+        cx="18"
+        cy="12"
+        r="7"
+        fill="none"
+        stroke="#5FD68B"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+const API_LOGS = [
+  {
+    time: '14:02:11',
+    tag: 'GET ',
+    color: '#7FB4F0',
+    message: 'datacar → 38 contas a pagar importadas',
+  },
+  {
+    time: '14:02:13',
+    tag: 'OK  ',
+    color: '#5FD68B',
+    message: '38 títulos validados · 0 divergências',
+  },
+  {
+    time: '14:02:15',
+    tag: 'POST',
+    color: '#F2C46D',
+    message: 'contaazul → 38 lançamentos criados',
+  },
+  {
+    time: '14:02:16',
+    tag: 'NF-e',
+    color: '#5FD68B',
+    message: '12 notas emitidas na Conta Azul',
+  },
+] as const
 
 export default function HomePageClient() {
   const { config, update } = useAppConfig()
 
   return (
-    <div className="relative min-h-screen bg-slate-50 dark:bg-[#070a13] text-slate-800 dark:text-[#f4f6fb] overflow-x-hidden selection:bg-emerald-500 selection:text-white dark:selection:text-black transition-colors duration-200">
+    <div
+      data-screen-label="Tela inicial"
+      className={`${dmSans.className} relative min-h-screen bg-[#F7F9FB] dark:bg-[#07111d] text-[#0D2137] dark:text-[#f4f6fb] overflow-x-hidden selection:bg-[#5FD68B] selection:text-[#0D2137] antialiased transition-colors duration-200`}
+    >
+      <style
+        dangerouslySetInnerHTML={{
+          __html:
+            'html:not(.dark) [data-screen-label="Tela inicial"] .dcx-on-dark, html:not(.dark) [data-screen-label="Tela inicial"] h2.dcx-on-dark-heading { color: #ffffff !important; }',
+        }}
+      />
 
-      {/* Estilos inline para animação da energia fluindo no fio */}
-      <style jsx global>{`
-        @keyframes flowPulse {
-          0% { stroke-dashoffset: 48; }
-          100% { stroke-dashoffset: 0; }
-        }
-        @keyframes energyGlow {
-          0%, 100% { filter: drop-shadow(0 0 6px #2ee88a); }
-          50% { filter: drop-shadow(0 0 16px #2ee88a); }
-        }
-        @keyframes nodePulse {
-          0%, 100% { transform: scale(1); box-shadow: 0 0 30px rgba(46,232,138,0.35); }
-          50% { transform: scale(1.04); box-shadow: 0 0 60px rgba(46,232,138,0.6); }
-        }
-        .wire-flow {
-          stroke-dasharray: 12 16;
-          animation: flowPulse 0.8s linear infinite;
-        }
-        .wire-glow {
-          animation: energyGlow 1.5s ease-in-out infinite;
-        }
-        .core-node {
-          animation: nodePulse 3s ease-in-out infinite;
-        }
-      `}</style>
-
-      {/* Ambient background glows */}
-      <div className="absolute inset-0 pointer-events-none z-0 bg-[radial-gradient(900px_600px_at_78%_-8%,rgba(46,232,138,0.08),transparent_60%),radial-gradient(700px_500px_at_12%_8%,rgba(91,157,245,0.08),transparent_55%)] dark:bg-[radial-gradient(900px_600px_at_78%_-8%,rgba(46,232,138,0.15),transparent_60%),radial-gradient(700px_500px_at_12%_8%,rgba(91,157,245,0.12),transparent_55%)]" />
-      <div className="absolute inset-0 z-0 pointer-events-none bg-[radial-gradient(1px_1px_at_12%_18%,#cbd5e1,transparent),radial-gradient(1px_1px_at_44%_28%,#cbd5e1,transparent),radial-gradient(1px_1px_at_79%_22%,#cbd5e1,transparent)] dark:bg-[radial-gradient(1px_1px_at_12%_18%,#fff,transparent),radial-gradient(1px_1px_at_44%_28%,#fff,transparent),radial-gradient(1px_1px_at_79%_22%,#fff,transparent)] opacity-40" />
-
-      {/* NAV COMPACTA */}
-      <nav className="relative z-20 max-w-[1180px] mx-auto px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2.5 font-extrabold text-lg tracking-wider">
-          <div className="w-7 h-7 rounded-lg bg-[#2ee88a] text-[#04150c] flex items-center justify-center font-black text-sm shadow-md shadow-[#2ee88a]/20">
-            C
-          </div>
-          <span className="text-slate-900 dark:text-white text-base">CONNECTA<span className="text-emerald-600 dark:text-[#2ee88a] ml-1">AI</span></span>
-        </div>
-
-        <div className="hidden md:flex items-center gap-6 text-xs font-semibold text-slate-600 dark:text-[#8b94ab]">
-          <a href="#como" className="hover:text-slate-900 dark:hover:text-white transition-colors">Como funciona</a>
-          <a href="#integracoes" className="hover:text-slate-900 dark:hover:text-white transition-colors">Integrações</a>
-          <a href="#recursos" className="hover:text-slate-900 dark:hover:text-white transition-colors">Recursos</a>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => update({ darkMode: !config.darkMode })}
-            title={config.darkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
-            className="p-1.5 rounded-xl border border-slate-200 dark:border-[#1c2436] bg-white dark:bg-[#0c1120] hover:bg-slate-100 dark:hover:bg-[#151c2e] text-slate-600 dark:text-[#8b94ab] hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer shadow-xs"
+      {/* HEADER INSTITUCIONAL DCX LINK */}
+      <header className="sticky top-0 z-30 bg-[#0D2137] border-b border-white/10 shadow-sm">
+        <div className="max-w-[1220px] mx-auto px-4 md:px-8 py-3 min-h-[68px] flex items-center justify-between gap-4 md:gap-7">
+          {/* Esquerda: Marca DCX LINK */}
+          <a
+            href="#inicio"
+            title="DCX LINK — O elo entre seus sistemas"
+            className="dcx-on-dark flex items-center gap-2.5 !text-[#ffffff] flex-none group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5FD68B] rounded-lg py-1"
           >
-            {config.darkMode ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-indigo-500" />}
-          </button>
+            <DcxLinkMark size={22} />
+            <div className="flex flex-col">
+              <span className="dcx-on-dark text-[15px] md:text-[16px] font-medium tracking-[0.3em] !text-[#ffffff] leading-none">
+                DCX LINK
+              </span>
+              <span className="hidden sm:inline text-[10px] font-medium text-[#A9B8C7] tracking-normal mt-1 leading-none">
+                O elo entre seus sistemas
+              </span>
+            </div>
+          </a>
 
-          <Link
-            href="/login"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-[#1c2436] bg-white dark:bg-[#0c1120] hover:bg-slate-100 dark:hover:bg-[#151c2e] hover:border-[#2ee88a]/40 text-xs font-semibold text-slate-800 dark:text-[#f4f6fb] transition-all cursor-pointer shadow-xs"
+          {/* Centro: Navegação Principal (Desktop) */}
+          <nav
+            aria-label="Navegação principal"
+            className="hidden lg:flex items-center gap-1 flex-1 min-w-0 overflow-hidden whitespace-nowrap"
           >
-            <LogIn size={14} className="text-emerald-600 dark:text-[#2ee88a]" />
-            Entrar
-          </Link>
-        </div>
-      </nav>
+            <a
+              href="#integracao-api"
+              className="dcx-on-dark !text-[#ffffff] hover:bg-white/[0.07] font-semibold text-[15px] px-3 py-2 rounded-[7px] flex items-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5FD68B]"
+            >
+              <span className="text-[#5FD68B] text-xs" aria-hidden="true">
+                ✦
+              </span>
+              <span className="dcx-on-dark !text-[#ffffff]">Agente Financeiro</span>
+              <span className="text-[9px] font-bold tracking-[0.06em] border border-[#5FD68B] text-[#5FD68B] px-1.5 py-0.5 rounded-[3px]">
+                NOVO
+              </span>
+            </a>
 
-      {/* HERO SECTION COMPACTADA (OTIMIZADA PARA PRIMEIRA DOBRA EM NOTEBOOKS) */}
-      <header className="relative z-10 max-w-[1080px] mx-auto px-4 pt-1 pb-4 text-center">
-        {/* BADGE */}
-        <div className="inline-flex items-center gap-2 bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] px-3 py-1 rounded-full text-[11px] font-semibold tracking-wider text-slate-600 dark:text-[#8b94ab] uppercase mb-2 shadow-xs">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-[#2ee88a] animate-pulse" />
-          BPO FINANCEIRO · GESTÃO FINANCEIRA COMPLETA
-        </div>
+            <a
+              href="#como"
+              className="dcx-on-dark !text-[#ffffff]/90 hover:!text-[#ffffff] hover:bg-white/[0.07] font-semibold text-[15px] px-3 py-2 rounded-[7px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5FD68B]"
+            >
+              Como funciona
+            </a>
 
-        {/* TITLE */}
-        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-1 text-slate-900 dark:text-white drop-shadow-[0_0_40px_rgba(46,232,138,0.15)] dark:drop-shadow-[0_0_40px_rgba(46,232,138,0.25)]">
-          CONNECTA <span className="text-emerald-600 dark:text-[#2ee88a]">AI</span>
-        </h1>
+            <a
+              href="#integracoes"
+              className="dcx-on-dark !text-[#ffffff]/90 hover:!text-[#ffffff] hover:bg-white/[0.07] font-semibold text-[15px] px-3 py-2 rounded-[7px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5FD68B]"
+            >
+              Integrações
+            </a>
 
-        {/* TAGLINE */}
-        <h2 className="text-base md:text-2xl font-bold max-w-2xl mx-auto leading-tight text-slate-800 dark:text-white mb-1.5">
-          Contas a pagar, pagamentos e NFe, <span className="text-emerald-600 dark:text-[#2ee88a]">tudo em um clique.</span>
-        </h2>
+            <a
+              href="#recursos"
+              className="text-[#5FD68B] bg-white/[0.08] hover:bg-white/[0.12] font-semibold text-[15px] px-3 py-2 rounded-[7px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5FD68B]"
+            >
+              Recursos
+            </a>
+          </nav>
 
-        {/* SUBTITLE */}
-        <p className="text-xs md:text-sm text-slate-600 dark:text-[#8b94ab] max-w-2xl mx-auto leading-relaxed mb-4">
-          O CONNECTA AI busca contas a pagar, contas a receber e vendas no seu sistema, deixa você conferir tudo, executa os pagamentos e emite a NFe automaticamente — do lançamento à nota fiscal, sem digitação e sem retrabalho.
-        </p>
+          {/* Direita: Alternância de Tema + Acesso ao Sistema */}
+          <div className="flex items-center gap-2.5 flex-none">
+            <button
+              type="button"
+              onClick={() => update({ darkMode: !config.darkMode })}
+              title={config.darkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
+              aria-label={config.darkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
+              className="p-2.5 rounded-[9px] border border-white/15 bg-white/5 hover:bg-white/10 text-[#A9B8C7] hover:!text-[#ffffff] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5FD68B]"
+            >
+              {config.darkMode ? (
+                <Sun size={16} className="text-amber-400" />
+              ) : (
+                <Moon size={16} className="text-[#5FD68B]" />
+              )}
+            </button>
 
-        {/* DIAGRAMA DINÂMICO DE ENERGIA FLUINDO NOS FIOS (ANIMAÇÃO 100% PRESERVADA) */}
-        <div className="relative max-w-4xl mx-auto px-2 py-1 overflow-hidden mb-5">
-          <div className="relative min-h-[340px] flex flex-col justify-between">
-            
-            {/* LINHAS SVG COM ENERGIA FLUINDO CONTINUAMENTE NOS FIOS */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 800 380" preserveAspectRatio="xMidYMid meet">
-              <defs>
-                <linearGradient id="gradTopLeft" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#f0b74f" />
-                  <stop offset="100%" stopColor="#2ee88a" />
-                </linearGradient>
-                <linearGradient id="gradTopRight" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#2ee88a" />
-                  <stop offset="100%" stopColor="#2ee88a" />
-                </linearGradient>
-                <linearGradient id="gradBottomLeft" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#5b9df5" />
-                  <stop offset="100%" stopColor="#2ee88a" />
-                </linearGradient>
-                <linearGradient id="gradBottomRight" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#9b8cf0" />
-                  <stop offset="100%" stopColor="#2ee88a" />
-                </linearGradient>
-              </defs>
-
-              {/* Fios de base estáticos */}
-              <line x1="200" y1="90" x2="400" y2="190" stroke="rgba(240,183,79,0.25)" strokeWidth="3" />
-              <line x1="600" y1="90" x2="400" y2="190" stroke="rgba(46,232,138,0.25)" strokeWidth="3" />
-              <line x1="200" y1="290" x2="400" y2="190" stroke="rgba(91,157,245,0.25)" strokeWidth="3" />
-              <line x1="600" y1="290" x2="400" y2="190" stroke="rgba(155,140,240,0.25)" strokeWidth="3" />
-
-              {/* Fios animados com feixes de energia fluindo sem parar */}
-              <line x1="200" y1="90" x2="400" y2="190" stroke="url(#gradTopLeft)" strokeWidth="4" className="wire-flow wire-glow" />
-              <line x1="400" y1="190" x2="600" y2="90" stroke="url(#gradTopRight)" strokeWidth="4" className="wire-flow wire-glow" />
-              <line x1="200" y1="290" x2="400" y2="190" stroke="url(#gradBottomLeft)" strokeWidth="4" className="wire-flow wire-glow" />
-              <line x1="400" y1="190" x2="600" y2="290" stroke="url(#gradBottomRight)" strokeWidth="4" className="wire-flow wire-glow" />
-
-              {/* PARTÍCULAS (GRÃOZINHOS DE ENERGIA) TRAFEGANDO FISICAMENTE DE UM BALÃO PARA OUTRO */}
-              {/* 1. Datacar -> Connecta AI (Entrada 1) */}
-              <circle r="5.5" fill="#f0b74f" style={{ filter: 'drop-shadow(0 0 10px #f0b74f)' }}>
-                <animateMotion dur="1.8s" repeatCount="indefinite" path="M 200 90 L 400 190" />
-              </circle>
-              <circle r="4.5" fill="#2ee88a" style={{ filter: 'drop-shadow(0 0 8px #2ee88a)' }}>
-                <animateMotion dur="1.8s" begin="0.9s" repeatCount="indefinite" path="M 200 90 L 400 190" />
-              </circle>
-
-              {/* 2. Gestão de Pagamentos -> Connecta AI (Entrada 2) */}
-              <circle r="5.5" fill="#5b9df5" style={{ filter: 'drop-shadow(0 0 10px #5b9df5)' }}>
-                <animateMotion dur="1.8s" repeatCount="indefinite" path="M 200 290 L 400 190" />
-              </circle>
-              <circle r="4.5" fill="#2ee88a" style={{ filter: 'drop-shadow(0 0 8px #2ee88a)' }}>
-                <animateMotion dur="1.8s" begin="0.9s" repeatCount="indefinite" path="M 200 290 L 400 190" />
-              </circle>
-
-              {/* 3. Connecta AI -> Conta Azul (Saída 1) */}
-              <circle r="5.5" fill="#2ee88a" style={{ filter: 'drop-shadow(0 0 10px #2ee88a)' }}>
-                <animateMotion dur="1.8s" repeatCount="indefinite" path="M 400 190 L 600 90" />
-              </circle>
-              <circle r="4.5" fill="#f0b74f" style={{ filter: 'drop-shadow(0 0 8px #f0b74f)' }}>
-                <animateMotion dur="1.8s" begin="0.9s" repeatCount="indefinite" path="M 400 190 L 600 90" />
-              </circle>
-
-              {/* 4. Connecta AI -> Emissão de NFe (Saída 2) */}
-              <circle r="5.5" fill="#9b8cf0" style={{ filter: 'drop-shadow(0 0 10px #9b8cf0)' }}>
-                <animateMotion dur="1.8s" repeatCount="indefinite" path="M 400 190 L 600 290" />
-              </circle>
-              <circle r="4.5" fill="#2ee88a" style={{ filter: 'drop-shadow(0 0 8px #2ee88a)' }}>
-                <animateMotion dur="1.8s" begin="0.9s" repeatCount="indefinite" path="M 400 190 L 600 290" />
-              </circle>
-            </svg>
-
-            {/* PRIMEIRA LINHA DE NÓS (ORIGEM & DESTINO) */}
-            <div className="flex justify-between items-center z-10 gap-3">
-              {/* NÓ DATACAR */}
-              <div className="bg-white dark:bg-[#0c1120] border border-slate-200/90 dark:border-[#1c2436] rounded-xl p-3 w-44 text-left shadow-lg dark:shadow-xl hover:border-[#f0b74f] transition-all transform hover:-translate-y-0.5">
-                <div className="w-8 h-8 rounded-lg bg-[#f0b74f]/15 text-[#f0b74f] flex items-center justify-center text-base mb-1.5 shadow-xs">
-                  <Car size={16} />
-                </div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white">Datacar</div>
-                <div className="text-[10px] text-slate-500 dark:text-[#586178]">Sistema de origem</div>
-                <div className="mt-1 text-[9px] font-mono text-[#f0b74f] uppercase tracking-wider font-bold flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#f0b74f] animate-pulse inline-block" />
-                  Extrai Dados
-                </div>
-              </div>
-
-              {/* NÓ CONTA AZUL */}
-              <div className="bg-white dark:bg-[#0c1120] border border-slate-200/90 dark:border-[#1c2436] rounded-xl p-3 w-44 text-left shadow-lg dark:shadow-xl hover:border-[#2ee88a] transition-all transform hover:-translate-y-0.5">
-                <div className="w-8 h-8 rounded-lg bg-[#2ee88a]/15 text-[#2ee88a] flex items-center justify-center text-base mb-1.5 shadow-xs">
-                  <Building2 size={16} />
-                </div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white">Conta Azul</div>
-                <div className="text-[10px] text-slate-500 dark:text-[#586178]">Sistema de destino</div>
-                <div className="mt-1 text-[9px] font-mono text-[#2ee88a] uppercase tracking-wider font-bold flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#2ee88a] animate-pulse inline-block" />
-                  Importa & Lança
-                </div>
-              </div>
-            </div>
-
-            {/* CENTRO: NÓ PRINCIPAL CONNECTA AI (PULSANDO COM ENERGIA) */}
-            <div className="self-center z-20 my-1">
-              <div className="core-node bg-white dark:bg-[#0c1120] border-2 border-emerald-500 dark:border-[#2ee88a] rounded-2xl p-3.5 w-56 text-center bg-gradient-to-b from-white via-emerald-50/30 to-white dark:from-[#0c1120] dark:via-[#101e33] dark:to-[#0c1120] cursor-pointer shadow-xl dark:shadow-2xl">
-                <div className="w-9 h-9 rounded-xl bg-[#2ee88a] text-[#04150c] flex items-center justify-center text-lg font-black mx-auto mb-1.5 shadow-lg shadow-[#2ee88a]/30">
-                  C
-                </div>
-                <div className="text-base font-black text-slate-900 dark:text-white tracking-wide">CONNECTA AI</div>
-                <div className="text-[11px] text-emerald-600 dark:text-[#2ee88a] font-bold mt-0.5">Confere, Paga & Emite</div>
-                <div className="mt-1.5 text-[9px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-[#bdf5da] px-2 py-0.5 rounded-full inline-flex items-center gap-1 font-semibold">
-                  <Zap size={10} className="fill-emerald-500 dark:fill-[#2ee88a] text-emerald-500 dark:text-[#2ee88a]" /> Hub de IA & BPO Inteligente
-                </div>
-              </div>
-            </div>
-
-            {/* SEGUNDA LINHA DE NÓS (PAGAMENTOS & NFE) */}
-            <div className="flex justify-between items-center z-10 gap-3">
-              {/* NÓ GESTÃO PAGAMENTOS */}
-              <div className="bg-white dark:bg-[#0c1120] border border-slate-200/90 dark:border-[#1c2436] rounded-xl p-3 w-44 text-left shadow-lg dark:shadow-xl hover:border-[#5b9df5] transition-all transform hover:-translate-y-0.5">
-                <div className="w-8 h-8 rounded-lg bg-[#5b9df5]/15 text-[#5b9df5] flex items-center justify-center text-base mb-1.5 shadow-xs">
-                  <CreditCard size={16} />
-                </div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white">Gestão de Pagamentos</div>
-                <div className="text-[10px] text-slate-500 dark:text-[#586178]">Aprova & executa</div>
-                <div className="mt-1 text-[9px] font-mono text-[#5b9df5] uppercase tracking-wider font-bold flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#5b9df5] animate-pulse inline-block" />
-                  Paga Boletos
-                </div>
-              </div>
-
-              {/* NÓ NFE */}
-              <div className="bg-white dark:bg-[#0c1120] border border-slate-200/90 dark:border-[#1c2436] rounded-xl p-3 w-44 text-left shadow-lg dark:shadow-xl hover:border-[#9b8cf0] transition-all transform hover:-translate-y-0.5">
-                <div className="w-8 h-8 rounded-lg bg-[#9b8cf0]/15 text-[#9b8cf0] flex items-center justify-center text-base mb-1.5 shadow-xs">
-                  <Receipt size={16} />
-                </div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white">Emissão de NFe</div>
-                <div className="text-[10px] text-slate-500 dark:text-[#586178]">Nota automática</div>
-                <div className="mt-1 text-[9px] font-mono text-[#9b8cf0] uppercase tracking-wider font-bold flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#9b8cf0] animate-pulse inline-block" />
-                  Emite NFes
-                </div>
-              </div>
-            </div>
-
+            <Link
+              href="/login"
+              className="bg-[#5FD68B] hover:bg-[#7FE3A4] text-[#0D2137] font-bold text-sm md:text-[15px] px-4 py-2.5 rounded-[9px] transition-colors flex items-center gap-2 whitespace-nowrap shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              <LogIn size={16} className="stroke-[2.2]" />
+              <span>Entrar</span>
+              <span className="hidden sm:inline">no sistema</span>
+            </Link>
           </div>
         </div>
 
-        {/* AS 4 CAIXINHAS DE RECURSOS COM ÍCONES LUCIDE */}
-        <div id="recursos" className="grid grid-cols-2 md:grid-cols-4 gap-2.5 max-w-4xl mx-auto mb-8">
-          <div className="bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] rounded-xl p-3 flex flex-col items-center gap-1.5 text-center hover:border-[#5b9df5]/50 transition-all shadow-xs dark:shadow-md group">
-            <div className="w-8 h-8 rounded-lg bg-[#5b9df5]/15 text-[#5b9df5] flex items-center justify-center transition-transform group-hover:scale-110">
-              <ArrowDownToLine size={16} />
-            </div>
-            <div className="text-xs font-bold text-slate-900 dark:text-white">Contas a Pagar</div>
-            <div className="text-[10px] text-slate-500 dark:text-[#586178]">Captura automática</div>
-          </div>
-
-          <div className="bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] rounded-xl p-3 flex flex-col items-center gap-1.5 text-center hover:border-[#2ee88a]/50 transition-all shadow-xs dark:shadow-md group">
-            <div className="w-8 h-8 rounded-lg bg-[#2ee88a]/15 text-[#2ee88a] flex items-center justify-center transition-transform group-hover:scale-110">
-              <CreditCard size={16} />
-            </div>
-            <div className="text-xs font-bold text-slate-900 dark:text-white">Gestão de Pagamentos</div>
-            <div className="text-[10px] text-slate-500 dark:text-[#586178]">Aprova & executa</div>
-          </div>
-
-          <div className="bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] rounded-xl p-3 flex flex-col items-center gap-1.5 text-center hover:border-[#9b8cf0]/50 transition-all shadow-xs dark:shadow-md group">
-            <div className="w-8 h-8 rounded-lg bg-[#9b8cf0]/15 text-[#9b8cf0] flex items-center justify-center transition-transform group-hover:scale-110">
-              <Receipt size={16} />
-            </div>
-            <div className="text-xs font-bold text-slate-900 dark:text-white">Emissão de NFe</div>
-            <div className="text-[10px] text-slate-500 dark:text-[#586178]">Nota automática</div>
-          </div>
-
-          <div className="bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] rounded-xl p-3 flex flex-col items-center gap-1.5 text-center hover:border-[#f0b74f]/50 transition-all shadow-xs dark:shadow-md group">
-            <div className="w-8 h-8 rounded-lg bg-[#f0b74f]/15 text-[#f0b74f] flex items-center justify-center transition-transform group-hover:scale-110">
-              <RefreshCw size={16} />
-            </div>
-            <div className="text-xs font-bold text-slate-900 dark:text-white">Datacar ↔ Conta Azul</div>
-            <div className="text-[10px] text-slate-500 dark:text-[#586178]">Sincronizado</div>
-          </div>
-        </div>
-
+        {/* Barra de navegação rápida mobile/tablet */}
+        <nav
+          aria-label="Navegação rápida mobile"
+          className="lg:hidden border-t border-white/10 px-4 py-2 flex items-center gap-2 overflow-x-auto text-xs font-semibold text-[#A9B8C7]"
+        >
+          <a
+            href="#integracao-api"
+            className="dcx-on-dark !text-[#ffffff] bg-white/[0.06] px-2.5 py-1 rounded-md flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <span className="text-[#5FD68B]" aria-hidden="true">
+              ✦
+            </span>
+            <span className="dcx-on-dark !text-[#ffffff]">Agente Financeiro</span>
+            <span className="text-[8px] font-bold border border-[#5FD68B] text-[#5FD68B] px-1 py-0.2 rounded-[3px]">
+              NOVO
+            </span>
+          </a>
+          <a href="#como" className="px-2.5 py-1 rounded-md hover:!text-[#ffffff] whitespace-nowrap">
+            Como funciona
+          </a>
+          <a
+            href="#integracoes"
+            className="px-2.5 py-1 rounded-md hover:!text-[#ffffff] whitespace-nowrap"
+          >
+            Integrações
+          </a>
+          <a
+            href="#recursos"
+            className="text-[#5FD68B] px-2.5 py-1 rounded-md hover:!text-[#ffffff] whitespace-nowrap"
+          >
+            Recursos
+          </a>
+        </nav>
       </header>
 
-      {/* COMO FUNCIONA COM ÍCONES LUCIDE */}
-      <section id="como" className="relative z-10 max-w-[1120px] mx-auto px-4 py-12 border-t border-slate-200 dark:border-[#1c2436]/50">
+      {/* CONTEÚDO PRINCIPAL & HERO SECTION */}
+      <main id="inicio" className="max-w-[1220px] mx-auto px-4 md:px-8 pt-10 md:pt-14 pb-16 md:pb-20">
+        <div className="max-w-[1010px] mx-auto">
+          {/* Breadcrumbs + Badge Institucional */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <nav
+              aria-label="Trilha de navegação"
+              className="flex items-center gap-2.5 text-sm flex-wrap"
+            >
+              <a
+                href="#inicio"
+                className="text-[#1B4F8A] dark:text-[#7FB4F0] underline underline-offset-[3px] decoration-[#9DB3C9] dark:decoration-[#7FB4F0]/50 hover:text-[#0D2137] dark:hover:!text-[#ffffff] transition-colors"
+              >
+                Início
+              </a>
+              <span className="text-[#8A99A8] text-[10px]" aria-hidden="true">
+                ›
+              </span>
+              <a
+                href="#recursos"
+                className="text-[#1B4F8A] dark:text-[#7FB4F0] underline underline-offset-[3px] decoration-[#9DB3C9] dark:decoration-[#7FB4F0]/50 hover:text-[#0D2137] dark:hover:!text-[#ffffff] transition-colors"
+              >
+                BPO Financeiro
+              </a>
+              <span className="text-[#8A99A8] text-[10px]" aria-hidden="true">
+                ›
+              </span>
+              <a
+                href="#integracao-api"
+                className="text-[#1B4F8A] dark:text-[#7FB4F0] underline underline-offset-[3px] decoration-[#9DB3C9] dark:decoration-[#7FB4F0]/50 hover:text-[#0D2137] dark:hover:!text-[#ffffff] transition-colors"
+              >
+                Automação com IA
+              </a>
+            </nav>
+
+            <div className="dcx-on-dark inline-flex items-center gap-2 bg-[#0D2137] !text-[#ffffff] px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-[#5FD68B] animate-pulse" />
+              <span className="tracking-[0.14em] font-bold text-[#5FD68B]">DCX LINK</span>
+              <span className="!text-[#ffffff]/40">—</span>
+              <span className="dcx-on-dark !text-[#ffffff]">O elo entre seus sistemas</span>
+            </div>
+          </div>
+
+          {/* Título Principal idêntico à referência */}
+          <h1
+            className="mt-6 text-[#0D2137] dark:text-white font-bold tracking-[-0.045em] text-balance"
+            style={{
+              fontSize: 'clamp(32px, 4.6vw, 52px)',
+              lineHeight: 1.12,
+            }}
+          >
+            Contas a pagar, pagamentos e <span className="whitespace-nowrap">NF-e</span> no
+            automático para sua empresa
+          </h1>
+
+          {/* Parágrafo Descritivo com Assinatura da Marca */}
+          <p className="mt-4 text-base md:text-lg text-[#435567] dark:text-[#A9B8C7] max-w-3xl leading-relaxed">
+            O <strong className="font-bold text-[#0D2137] dark:text-white">DCX LINK</strong> —{' '}
+            <span className="text-[#1E8449] dark:text-[#5FD68B] font-semibold">
+              o elo entre seus sistemas
+            </span>{' '}
+            — busca contas a pagar, contas a receber e vendas no seu sistema, deixa você conferir
+            tudo, executa os pagamentos e emite a NF-e automaticamente — do lançamento à nota
+            fiscal, sem digitação e sem retrabalho.
+          </p>
+
+          {/* Linha de Assinatura e Credibilidade idêntica à referência */}
+          <div className="flex items-center gap-3.5 mt-7 text-sm text-[#5A6B7C] dark:text-[#A9B8C7] flex-wrap">
+            <div
+              className="w-[34px] h-[34px] rounded-full bg-[#0D2137] dark:bg-[#10294A] border border-transparent dark:border-[#5FD68B]/40 text-[#5FD68B] text-[11px] font-bold flex items-center justify-center flex-none"
+              aria-hidden="true"
+            >
+              DC
+            </div>
+            <span>
+              Por{' '}
+              <strong className="text-[#0D2137] dark:text-white font-bold">
+                Dinheiro em Caixa
+              </strong>
+              , BPO Financeiro
+            </span>
+            <span className="text-[#B4C0CC] dark:text-white/25" aria-hidden="true">
+              ·
+            </span>
+            <span>Integrado ao Datacar e à Conta Azul</span>
+            <span className="text-[#B4C0CC] dark:text-white/25" aria-hidden="true">
+              ·
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className="w-[11px] h-[11px] border-[1.5px] border-[#5A6B7C] dark:border-[#5FD68B] rounded-full inline-block"
+                aria-hidden="true"
+              />
+              Implantação em 7 dias
+            </span>
+          </div>
+        </div>
+
+        {/* PAINEL DE ARQUITETURA: INTEGRAÇÃO VIA API (#integracao-api) */}
+        <section
+          id="integracao-api"
+          aria-label="Arquitetura de Integração via API"
+          className="max-w-[980px] mx-auto mt-11 rounded-[18px] overflow-hidden bg-[#0D2137] border border-white/10 shadow-xl p-5 sm:p-7 md:p-11 flex flex-col gap-6"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px)',
+            backgroundSize: '32px 32px',
+          }}
+        >
+          {/* Topo do Painel */}
+          <div className="flex justify-between items-center gap-3 flex-wrap">
+            <span className="text-[#A9B8C7] text-[13px] font-semibold tracking-[0.08em] uppercase">
+              INTEGRAÇÃO VIA API
+            </span>
+            <span className="flex items-center gap-2 text-[#5FD68B] text-[13px] font-semibold">
+              <span
+                className="w-2 h-2 rounded-full bg-[#5FD68B] animate-pulse"
+                style={{ boxShadow: '0 0 0 4px rgba(95,214,139,0.18)' }}
+                aria-hidden="true"
+              />
+              Sincronizando agora
+            </span>
+          </div>
+
+          {/* Fluxo Responsivo de 5 Colunas (Empilhado no Mobile, 5 Colunas no Desktop) */}
+          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(28px,80px)_minmax(0,1.25fr)_minmax(28px,80px)_minmax(0,1fr)] items-center gap-3 md:gap-0">
+            {/* Card ORIGEM: Datacar */}
+            <div className="bg-white/[0.05] border border-white/[0.14] rounded-[14px] p-[18px] flex flex-col gap-1.5">
+              <span className="text-[#5FD68B] text-[11px] font-bold tracking-[0.1em] uppercase">
+                ORIGEM
+              </span>
+              <span className="dcx-on-dark !text-[#ffffff] text-[20px] font-bold tracking-[-0.02em]">
+                Datacar
+              </span>
+              <span className="text-[#A9B8C7] text-[13px] leading-[1.45]">
+                Dados preenchidos pelos seus clientes
+              </span>
+            </div>
+
+            {/* Conector API 1 */}
+            <div
+              className="flex flex-col items-center justify-center gap-1.5 py-1 md:py-0 md:px-1"
+              aria-hidden="true"
+            >
+              <span className="text-[#A9B8C7] text-[10px] font-bold tracking-[0.1em]">API</span>
+              <div
+                className="hidden md:block w-full h-[2px]"
+                style={{
+                  background:
+                    'repeating-linear-gradient(90deg, #5FD68B 0 8px, transparent 8px 14px)',
+                }}
+              />
+              <div
+                className="md:hidden w-[2px] h-5"
+                style={{
+                  background:
+                    'repeating-linear-gradient(180deg, #5FD68B 0 6px, transparent 6px 10px)',
+                }}
+              />
+            </div>
+
+            {/* Card Central: DCX LINK */}
+            <div className="bg-[#10294A] border-[1.5px] border-[#5FD68B] rounded-[16px] p-[22px] flex flex-col gap-2.5 shadow-[0_0_70px_rgba(95,214,139,0.22)]">
+              <div className="dcx-on-dark flex items-center gap-2.5 !text-[#ffffff] flex-wrap">
+                <DcxLinkMark size={26} />
+                <div className="flex flex-col">
+                  <span className="dcx-on-dark !text-[#ffffff] text-[17px] font-semibold tracking-[0.24em] leading-tight">
+                    DCX LINK
+                  </span>
+                  <span className="text-[11px] font-medium text-[#5FD68B] tracking-normal">
+                    O elo entre seus sistemas
+                  </span>
+                </div>
+              </div>
+              <span className="text-[#A9B8C7] text-[13px] leading-[1.45]">
+                Extrai, confere e organiza — sem digitação
+              </span>
+              <div className="flex gap-1.5 flex-wrap pt-0.5">
+                <span className="text-[11px] font-semibold text-[#0D2137] bg-[#5FD68B] px-2 py-[3px] rounded-[5px]">
+                  Contas a pagar
+                </span>
+                <span className="dcx-on-dark text-[11px] font-semibold !text-[#ffffff] bg-white/10 px-2 py-[3px] rounded-[5px]">
+                  A receber
+                </span>
+                <span className="dcx-on-dark text-[11px] font-semibold !text-[#ffffff] bg-white/10 px-2 py-[3px] rounded-[5px]">
+                  Vendas
+                </span>
+                <span className="dcx-on-dark text-[11px] font-semibold !text-[#ffffff] bg-white/10 px-2 py-[3px] rounded-[5px]">
+                  Emissão de NF-e
+                </span>
+              </div>
+            </div>
+
+            {/* Conector API 2 */}
+            <div
+              className="flex flex-col items-center justify-center gap-1.5 py-1 md:py-0 md:px-1"
+              aria-hidden="true"
+            >
+              <span className="text-[#A9B8C7] text-[10px] font-bold tracking-[0.1em]">API</span>
+              <div
+                className="hidden md:block w-full h-[2px]"
+                style={{
+                  background:
+                    'repeating-linear-gradient(90deg, #5FD68B 0 8px, transparent 8px 14px)',
+                }}
+              />
+              <div
+                className="md:hidden w-[2px] h-5"
+                style={{
+                  background:
+                    'repeating-linear-gradient(180deg, #5FD68B 0 6px, transparent 6px 10px)',
+                }}
+              />
+            </div>
+
+            {/* Card DESTINO: Conta Azul */}
+            <div className="bg-white/[0.05] border border-white/[0.14] rounded-[14px] p-[18px] flex flex-col gap-1.5">
+              <span className="text-[#5FD68B] text-[11px] font-bold tracking-[0.1em] uppercase">
+                DESTINO
+              </span>
+              <span className="dcx-on-dark !text-[#ffffff] text-[20px] font-bold tracking-[-0.02em]">
+                Conta Azul
+              </span>
+              <span className="text-[#A9B8C7] text-[13px] leading-[1.45]">
+                Notas fiscais e financeiro
+              </span>
+            </div>
+          </div>
+
+          {/* Console de Logs em Tempo Real */}
+          <div className="bg-black/25 border border-white/[0.08] rounded-[12px] px-4 py-2 font-mono">
+            {API_LOGS.map((log, index) => (
+              <div
+                key={log.time}
+                className={`grid grid-cols-[auto_auto_minmax(0,1fr)] gap-3.5 items-center py-2.5 text-[12.5px] ${
+                  index < API_LOGS.length - 1 ? 'border-b border-white/[0.07]' : ''
+                }`}
+              >
+                <span className="text-[#6F8399]">{log.time}</span>
+                <span className="font-semibold whitespace-pre" style={{ color: log.color }}>
+                  {log.tag}
+                </span>
+                <span className="text-[#D5DEE7] truncate">{log.message}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* CONTAINER DA IMAGEM HERO OFICIAL (/images/hero-dados.png) */}
+        <div className="max-w-[900px] mx-auto mt-10 rounded-[16px] overflow-hidden bg-[#E6ECF2] dark:bg-[#0D2137] shadow-lg border border-slate-200/80 dark:border-white/10">
+          <img
+            src="/images/hero-dados.png"
+            alt="DCX LINK — Dados conectados entre Datacar e Conta Azul"
+            className="w-full h-auto max-h-[534px] object-cover block"
+            loading="eager"
+          />
+        </div>
+
+        {/* SEÇÃO DE RECURSOS (#recursos) PRESERVADA COM PALETA DCX LINK */}
+        <section id="recursos" className="max-w-[980px] mx-auto mt-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+            <div className="bg-white dark:bg-[#0D2137] border border-slate-200/90 dark:border-white/10 rounded-2xl p-4 flex flex-col items-center gap-2 text-center hover:border-[#0D2137]/40 dark:hover:border-[#5FD68B]/50 transition-all shadow-xs group">
+              <div className="w-10 h-10 rounded-xl bg-[#0D2137] dark:bg-[#10294A] text-[#5FD68B] flex items-center justify-center transition-transform group-hover:scale-105">
+                <ArrowDownToLine size={18} />
+              </div>
+              <div className="text-sm font-bold text-[#0D2137] dark:text-white">Contas a Pagar</div>
+              <div className="text-xs text-[#5A6B7C] dark:text-[#A9B8C7]">Captura automática</div>
+            </div>
+
+            <div className="bg-white dark:bg-[#0D2137] border border-slate-200/90 dark:border-white/10 rounded-2xl p-4 flex flex-col items-center gap-2 text-center hover:border-[#0D2137]/40 dark:hover:border-[#5FD68B]/50 transition-all shadow-xs group">
+              <div className="w-10 h-10 rounded-xl bg-[#0D2137] dark:bg-[#10294A] text-[#5FD68B] flex items-center justify-center transition-transform group-hover:scale-105">
+                <CreditCard size={18} />
+              </div>
+              <div className="text-sm font-bold text-[#0D2137] dark:text-white">
+                Gestão de Pagamentos
+              </div>
+              <div className="text-xs text-[#5A6B7C] dark:text-[#A9B8C7]">Aprova & executa</div>
+            </div>
+
+            <div className="bg-white dark:bg-[#0D2137] border border-slate-200/90 dark:border-white/10 rounded-2xl p-4 flex flex-col items-center gap-2 text-center hover:border-[#0D2137]/40 dark:hover:border-[#5FD68B]/50 transition-all shadow-xs group">
+              <div className="w-10 h-10 rounded-xl bg-[#0D2137] dark:bg-[#10294A] text-[#5FD68B] flex items-center justify-center transition-transform group-hover:scale-105">
+                <Receipt size={18} />
+              </div>
+              <div className="text-sm font-bold text-[#0D2137] dark:text-white">Emissão de NFe</div>
+              <div className="text-xs text-[#5A6B7C] dark:text-[#A9B8C7]">Nota automática</div>
+            </div>
+
+            <div className="bg-white dark:bg-[#0D2137] border border-slate-200/90 dark:border-white/10 rounded-2xl p-4 flex flex-col items-center gap-2 text-center hover:border-[#0D2137]/40 dark:hover:border-[#5FD68B]/50 transition-all shadow-xs group">
+              <div className="w-10 h-10 rounded-xl bg-[#0D2137] dark:bg-[#10294A] text-[#5FD68B] flex items-center justify-center transition-transform group-hover:scale-105">
+                <RefreshCw size={18} />
+              </div>
+              <div className="text-sm font-bold text-[#0D2137] dark:text-white">
+                Datacar ↔ Conta Azul
+              </div>
+              <div className="text-xs text-[#5A6B7C] dark:text-[#A9B8C7]">Sincronizado</div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* COMO FUNCIONA (#como) */}
+      <section
+        id="como"
+        className="relative z-10 max-w-[1120px] mx-auto px-4 md:px-8 py-14 border-t border-slate-200/80 dark:border-white/10"
+      >
         <div className="text-center mb-10">
-          <div className="text-xs font-bold tracking-widest text-emerald-600 dark:text-[#2ee88a] uppercase mb-1.5">Como Funciona</div>
-          <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white">Fluxo Inteligente. Zero Digitação.</h2>
+          <div className="text-xs font-bold tracking-[0.16em] text-[#1E8449] dark:text-[#5FD68B] uppercase mb-2">
+            Como Funciona
+          </div>
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-[#0D2137] dark:text-white">
+            Fluxo Inteligente. Zero Digitação.
+          </h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] rounded-2xl p-5 hover:border-emerald-500/40 dark:hover:border-[#2ee88a]/40 shadow-xs dark:shadow-md transition-all">
-            <div className="flex items-center justify-between mb-3.5">
-              <div className="w-10 h-10 rounded-xl bg-[#5b9df5]/15 text-[#5b9df5] flex items-center justify-center">
+          <div className="bg-white dark:bg-[#0D2137] border border-slate-200/90 dark:border-white/10 rounded-2xl p-6 hover:border-[#5FD68B] dark:hover:border-[#5FD68B]/60 shadow-xs transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-11 h-11 rounded-xl bg-[#0D2137] dark:bg-[#10294A] text-[#5FD68B] flex items-center justify-center">
                 <ArrowDownToLine size={20} />
               </div>
-              <span className="text-2xl font-black text-slate-300 dark:text-[#1c2436]">01</span>
+              <span className="text-2xl font-extrabold text-slate-300 dark:text-white/20">01</span>
             </div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1.5">Busca & Captura</h3>
-            <p className="text-xs text-slate-600 dark:text-[#8b94ab] leading-relaxed">
-              O CONNECTA AI acessa o Datacar e extrai automaticamente as contas a pagar, contas a receber e vendas do período com total precisão.
+            <h3 className="text-lg font-bold text-[#0D2137] dark:text-white mb-2">
+              Busca & Captura
+            </h3>
+            <p className="text-sm text-[#5A6B7C] dark:text-[#A9B8C7] leading-relaxed">
+              O DCX LINK acessa o Datacar e extrai automaticamente as contas a pagar, contas a
+              receber e vendas do período com total precisão.
             </p>
           </div>
 
-          <div className="bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] rounded-2xl p-5 hover:border-emerald-500/40 dark:hover:border-[#2ee88a]/40 shadow-xs dark:shadow-md transition-all">
-            <div className="flex items-center justify-between mb-3.5">
-              <div className="w-10 h-10 rounded-xl bg-[#2ee88a]/15 text-[#2ee88a] flex items-center justify-center">
+          <div className="bg-white dark:bg-[#0D2137] border border-slate-200/90 dark:border-white/10 rounded-2xl p-6 hover:border-[#5FD68B] dark:hover:border-[#5FD68B]/60 shadow-xs transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-11 h-11 rounded-xl bg-[#0D2137] dark:bg-[#10294A] text-[#5FD68B] flex items-center justify-center">
                 <CreditCard size={20} />
               </div>
-              <span className="text-2xl font-black text-slate-300 dark:text-[#1c2436]">02</span>
+              <span className="text-2xl font-extrabold text-slate-300 dark:text-white/20">02</span>
             </div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1.5">Gestão de Pagamentos</h3>
-            <p className="text-xs text-slate-600 dark:text-[#8b94ab] leading-relaxed">
-              Organiza boletos, DDAs e agendamentos por loja e conta bancária. Permite aprovar e executar pagamentos sem retrabalho manual.
+            <h3 className="text-lg font-bold text-[#0D2137] dark:text-white mb-2">
+              Gestão de Pagamentos
+            </h3>
+            <p className="text-sm text-[#5A6B7C] dark:text-[#A9B8C7] leading-relaxed">
+              Organiza boletos, DDAs e agendamentos por loja e conta bancária. Permite aprovar e
+              executar pagamentos sem retrabalho manual.
             </p>
           </div>
 
-          <div className="bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] rounded-2xl p-5 hover:border-emerald-500/40 dark:hover:border-[#2ee88a]/40 shadow-xs dark:shadow-md transition-all">
-            <div className="flex items-center justify-between mb-3.5">
-              <div className="w-10 h-10 rounded-xl bg-[#9b8cf0]/15 text-[#9b8cf0] flex items-center justify-center">
+          <div className="bg-white dark:bg-[#0D2137] border border-slate-200/90 dark:border-white/10 rounded-2xl p-6 hover:border-[#5FD68B] dark:hover:border-[#5FD68B]/60 shadow-xs transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-11 h-11 rounded-xl bg-[#0D2137] dark:bg-[#10294A] text-[#5FD68B] flex items-center justify-center">
                 <Receipt size={20} />
               </div>
-              <span className="text-2xl font-black text-slate-300 dark:text-[#1c2436]">03</span>
+              <span className="text-2xl font-extrabold text-slate-300 dark:text-white/20">03</span>
             </div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1.5">NFe & Conta Azul</h3>
-            <p className="text-xs text-slate-600 dark:text-[#8b94ab] leading-relaxed">
-              Sincroniza os lançamentos aprovados com o Conta Azul e habilita a emissão automática de Notas Fiscais com um único clique.
+            <h3 className="text-lg font-bold text-[#0D2137] dark:text-white mb-2">
+              NFe & Conta Azul
+            </h3>
+            <p className="text-sm text-[#5A6B7C] dark:text-[#A9B8C7] leading-relaxed">
+              Sincroniza os lançamentos aprovados com o Conta Azul e habilita a emissão automática
+              de Notas Fiscais com um único clique.
             </p>
           </div>
         </div>
       </section>
 
-      {/* INTEGRAÇÕES COM ÍCONES LUCIDE */}
-      <section id="integracoes" className="relative z-10 max-w-[1120px] mx-auto px-4 py-12 border-t border-slate-200 dark:border-[#1c2436]/50">
-        <div className="bg-gradient-to-r from-slate-100 via-emerald-50/20 to-slate-100 dark:from-[#0c1120] dark:via-[#142238] dark:to-[#0c1120] border border-slate-200 dark:border-[#1c2436] rounded-3xl p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6 shadow-lg dark:shadow-2xl">
+      {/* INTEGRAÇÕES (#integracoes) */}
+      <section
+        id="integracoes"
+        className="relative z-10 max-w-[1120px] mx-auto px-4 md:px-8 py-14 border-t border-slate-200/80 dark:border-white/10"
+      >
+        <div className="bg-[#0D2137] border border-white/10 rounded-3xl p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
           <div className="max-w-xl">
-            <div className="text-xs font-bold tracking-widest text-emerald-600 dark:text-[#2ee88a] uppercase mb-1.5">Integrações Conectadas</div>
-            <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white mb-3">Datacar e Conta Azul em Perfeita Sincronia</h2>
-            <p className="text-xs md:text-sm text-slate-600 dark:text-[#8b94ab] leading-relaxed mb-4">
-              Integração nativa de alta velocidade conectando o seu ERP Datacar ao Conta Azul para automação financeira completa de BPO.
+            <div className="text-xs font-bold tracking-[0.16em] text-[#5FD68B] uppercase mb-2">
+              Integrações Conectadas · DCX LINK
+            </div>
+            <h2 className="dcx-on-dark-heading text-xl md:text-2xl font-bold !text-[#ffffff] mb-3">
+              Datacar e Conta Azul em Perfeita Sincronia
+            </h2>
+            <p className="text-sm text-[#A9B8C7] leading-relaxed mb-5">
+              Integração nativa de alta velocidade conectando o seu ERP Datacar ao Conta Azul para
+              automação financeira completa de BPO — o elo entre seus sistemas.
             </p>
-            <div className="inline-flex items-center gap-2 bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] px-3 py-1 rounded-full text-xs text-slate-600 dark:text-[#8b94ab] shadow-xs">
-              <span className="w-2 h-2 rounded-full bg-[#2ee88a]" />
-              Conexões multi-empresas e multi-bancos ativas
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="dcx-on-dark inline-flex items-center gap-2 bg-white/[0.06] border border-white/15 px-3.5 py-1.5 rounded-full text-xs !text-[#ffffff]">
+                <span className="w-2 h-2 rounded-full bg-[#5FD68B]" />
+                <span className="dcx-on-dark !text-[#ffffff]">
+                  Conexões multi-empresas e multi-bancos ativas
+                </span>
+              </div>
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0D2137] bg-[#5FD68B] hover:bg-[#7FE3A4] px-3.5 py-1.5 rounded-full transition-colors"
+              >
+                <LogIn size={13} />
+                Acessar painel
+              </Link>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 bg-white dark:bg-[#0c1120] border border-slate-200 dark:border-[#1c2436] p-5 rounded-2xl shadow-md dark:shadow-xl">
+          <div className="flex items-center gap-4 bg-[#10294A] border border-white/15 p-5 rounded-2xl shadow-lg">
             <div className="text-center">
-              <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 dark:text-amber-400 mb-1.5">
+              <div className="w-14 h-14 rounded-2xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-300 mb-1.5">
                 <Car size={26} />
               </div>
-              <div className="text-xs font-bold text-slate-900 dark:text-white">Datacar</div>
+              <div className="dcx-on-dark text-xs font-bold !text-[#ffffff]">Datacar</div>
             </div>
 
-            <div className="text-emerald-600 dark:text-[#2ee88a] p-2 bg-emerald-500/10 dark:bg-[#2ee88a]/10 rounded-xl border border-emerald-500/20 dark:border-[#2ee88a]/20">
+            <div className="text-[#5FD68B] p-2.5 bg-[#5FD68B]/15 rounded-xl border border-[#5FD68B]/30">
               <ArrowLeftRight size={18} />
             </div>
 
             <div className="text-center">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 dark:bg-[#2ee88a]/10 border border-emerald-500/20 dark:border-[#2ee88a]/20 flex items-center justify-center text-emerald-600 dark:text-[#2ee88a] mb-1.5">
+              <div className="w-14 h-14 rounded-2xl bg-[#5FD68B]/15 border border-[#5FD68B]/30 flex items-center justify-center text-[#5FD68B] mb-1.5">
                 <Building2 size={26} />
               </div>
-              <div className="text-xs font-bold text-slate-900 dark:text-white">Conta Azul</div>
+              <div className="dcx-on-dark text-xs font-bold !text-[#ffffff]">Conta Azul</div>
             </div>
           </div>
         </div>
       </section>
 
       {/* FOOTER */}
-      <footer className="relative z-10 max-w-[1120px] mx-auto px-4 py-12 border-t border-slate-200 dark:border-[#1c2436]/50 text-center md:text-left">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-[#8b94ab]">
-          <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white">
-            <div className="w-6 h-6 rounded-md bg-[#2ee88a] text-[#04150c] flex items-center justify-center font-black text-xs">C</div>
-            <span>CONNECTA<span className="text-emerald-600 dark:text-[#2ee88a]">AI</span></span>
+      <footer className="relative z-10 max-w-[1120px] mx-auto px-4 md:px-8 py-12 border-t border-slate-200/80 dark:border-white/10 text-center md:text-left">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-[#5A6B7C] dark:text-[#A9B8C7]">
+          <div className="flex items-center gap-3">
+            <div className="bg-[#0D2137] px-2.5 py-1.5 rounded-lg flex items-center gap-2">
+              <DcxLinkMark size={20} />
+              <span className="dcx-on-dark font-semibold tracking-[0.24em] !text-[#ffffff] text-xs">
+                DCX LINK
+              </span>
+            </div>
+            <span className="font-semibold text-[#0D2137] dark:text-white">
+              O elo entre seus sistemas
+            </span>
           </div>
           <div>BPO Financeiro · Automação Inteligente · Gestão Eficiente</div>
-          <div>© 2026 CONNECTA AI. Todos os direitos reservados.</div>
+          <div>© 2026 DCX LINK · Dinheiro em Caixa. Todos os direitos reservados.</div>
         </div>
       </footer>
-
     </div>
   )
 }
+
+
