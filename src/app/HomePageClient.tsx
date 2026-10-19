@@ -55,33 +55,6 @@ function DcxLinkMark({ size = 22 }: { size?: number }) {
   )
 }
 
-const API_LOGS = [
-  {
-    time: '14:02:11',
-    tag: 'GET ',
-    color: '#7FB4F0',
-    message: 'datacar → 38 contas a pagar importadas',
-  },
-  {
-    time: '14:02:13',
-    tag: 'OK  ',
-    color: '#5FD68B',
-    message: '38 títulos validados · 0 divergências',
-  },
-  {
-    time: '14:02:15',
-    tag: 'POST',
-    color: '#F2C46D',
-    message: 'contaazul → 38 lançamentos criados',
-  },
-  {
-    time: '14:02:16',
-    tag: 'NF-e',
-    color: '#5FD68B',
-    message: '12 notas emitidas na Conta Azul',
-  },
-] as const
-
 export default function HomePageClient() {
   const { config, update } = useAppConfig()
 
@@ -123,7 +96,7 @@ export default function HomePageClient() {
             className="hidden lg:flex items-center gap-1 flex-1 min-w-0 overflow-hidden whitespace-nowrap"
           >
             <a
-              href="#integracao-api"
+              href="#agente-financeiro"
               className="dcx-on-dark !text-[#ffffff] hover:bg-white/[0.07] font-semibold text-[15px] px-3 py-2 rounded-[7px] flex items-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5FD68B]"
             >
               <span className="text-[#5FD68B] text-xs" aria-hidden="true">
@@ -190,7 +163,7 @@ export default function HomePageClient() {
           className="lg:hidden border-t border-white/10 px-4 py-2 flex items-center gap-2 overflow-x-auto text-xs font-semibold text-[#A9B8C7]"
         >
           <a
-            href="#integracao-api"
+            href="#agente-financeiro"
             className="dcx-on-dark !text-[#ffffff] bg-white/[0.06] px-2.5 py-1 rounded-md flex items-center gap-1.5 whitespace-nowrap"
           >
             <span className="text-[#5FD68B]" aria-hidden="true">
@@ -220,53 +193,47 @@ export default function HomePageClient() {
       </header>
 
       {/* CONTEÚDO PRINCIPAL & HERO SECTION */}
-      <main id="inicio" className="max-w-[1220px] mx-auto px-4 md:px-8 pt-10 md:pt-14 pb-16 md:pb-20">
+      <main
+        id="inicio"
+        className="max-w-[1220px] mx-auto px-4 md:px-8 pt-8 md:pt-[56px] pb-16 md:pb-[80px]"
+      >
         <div className="max-w-[1010px] mx-auto">
-          {/* Breadcrumbs + Badge Institucional */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <nav
-              aria-label="Trilha de navegação"
-              className="flex items-center gap-2.5 text-sm flex-wrap"
+          {/* 1. Trilha de navegação (Breadcrumbs) idêntica à referência */}
+          <nav
+            aria-label="Trilha de navegação"
+            className="flex items-center gap-[10px] text-[14px] flex-wrap"
+          >
+            <a
+              href="#inicio"
+              className="text-[#1B4F8A] dark:text-[#7FB4F0] underline underline-offset-[3px] decoration-[#9DB3C9] dark:decoration-[#7FB4F0]/50 hover:text-[#0D2137] dark:hover:!text-[#ffffff] transition-colors"
             >
-              <a
-                href="#inicio"
-                className="text-[#1B4F8A] dark:text-[#7FB4F0] underline underline-offset-[3px] decoration-[#9DB3C9] dark:decoration-[#7FB4F0]/50 hover:text-[#0D2137] dark:hover:!text-[#ffffff] transition-colors"
-              >
-                Início
-              </a>
-              <span className="text-[#8A99A8] text-[10px]" aria-hidden="true">
-                ›
-              </span>
-              <a
-                href="#recursos"
-                className="text-[#1B4F8A] dark:text-[#7FB4F0] underline underline-offset-[3px] decoration-[#9DB3C9] dark:decoration-[#7FB4F0]/50 hover:text-[#0D2137] dark:hover:!text-[#ffffff] transition-colors"
-              >
-                BPO Financeiro
-              </a>
-              <span className="text-[#8A99A8] text-[10px]" aria-hidden="true">
-                ›
-              </span>
-              <a
-                href="#integracao-api"
-                className="text-[#1B4F8A] dark:text-[#7FB4F0] underline underline-offset-[3px] decoration-[#9DB3C9] dark:decoration-[#7FB4F0]/50 hover:text-[#0D2137] dark:hover:!text-[#ffffff] transition-colors"
-              >
-                Automação com IA
-              </a>
-            </nav>
+              Início
+            </a>
+            <span className="text-[#8A99A8] text-[10px]" aria-hidden="true">
+              ›
+            </span>
+            <a
+              href="#recursos"
+              className="text-[#1B4F8A] dark:text-[#7FB4F0] underline underline-offset-[3px] decoration-[#9DB3C9] dark:decoration-[#7FB4F0]/50 hover:text-[#0D2137] dark:hover:!text-[#ffffff] transition-colors"
+            >
+              BPO Financeiro
+            </a>
+            <span className="text-[#8A99A8] text-[10px]" aria-hidden="true">
+              ›
+            </span>
+            <a
+              href="#como"
+              className="text-[#1B4F8A] dark:text-[#7FB4F0] underline underline-offset-[3px] decoration-[#9DB3C9] dark:decoration-[#7FB4F0]/50 hover:text-[#0D2137] dark:hover:!text-[#ffffff] transition-colors"
+            >
+              Automação com IA
+            </a>
+          </nav>
 
-            <div className="dcx-on-dark inline-flex items-center gap-2 bg-[#0D2137] !text-[#ffffff] px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide shadow-xs">
-              <span className="w-2 h-2 rounded-full bg-[#5FD68B] animate-pulse" />
-              <span className="tracking-[0.14em] font-bold text-[#5FD68B]">DCX LINK</span>
-              <span className="!text-[#ffffff]/40">—</span>
-              <span className="dcx-on-dark !text-[#ffffff]">O elo entre seus sistemas</span>
-            </div>
-          </div>
-
-          {/* Título Principal idêntico à referência */}
+          {/* 2. Título Principal idêntico à referência */}
           <h1
-            className="mt-6 text-[#0D2137] dark:text-white font-bold tracking-[-0.045em] text-balance"
+            className="mt-[26px] text-[#0D2137] dark:!text-[#ffffff] font-bold tracking-[-0.045em] text-balance"
             style={{
-              fontSize: 'clamp(32px, 4.6vw, 52px)',
+              fontSize: 'clamp(36px, 4.6vw, 52px)',
               lineHeight: 1.12,
             }}
           >
@@ -274,19 +241,8 @@ export default function HomePageClient() {
             automático para sua empresa
           </h1>
 
-          {/* Parágrafo Descritivo com Assinatura da Marca */}
-          <p className="mt-4 text-base md:text-lg text-[#435567] dark:text-[#A9B8C7] max-w-3xl leading-relaxed">
-            O <strong className="font-bold text-[#0D2137] dark:text-white">DCX LINK</strong> —{' '}
-            <span className="text-[#1E8449] dark:text-[#5FD68B] font-semibold">
-              o elo entre seus sistemas
-            </span>{' '}
-            — busca contas a pagar, contas a receber e vendas no seu sistema, deixa você conferir
-            tudo, executa os pagamentos e emite a NF-e automaticamente — do lançamento à nota
-            fiscal, sem digitação e sem retrabalho.
-          </p>
-
-          {/* Linha de Assinatura e Credibilidade idêntica à referência */}
-          <div className="flex items-center gap-3.5 mt-7 text-sm text-[#5A6B7C] dark:text-[#A9B8C7] flex-wrap">
+          {/* 3. Linha de Assinatura e Credibilidade idêntica à referência */}
+          <div className="flex items-center gap-[14px] mt-[28px] text-[14px] text-[#5A6B7C] dark:text-[#A9B8C7] flex-wrap">
             <div
               className="w-[34px] h-[34px] rounded-full bg-[#0D2137] dark:bg-[#10294A] border border-transparent dark:border-[#5FD68B]/40 text-[#5FD68B] text-[11px] font-bold flex items-center justify-center flex-none"
               aria-hidden="true"
@@ -295,7 +251,7 @@ export default function HomePageClient() {
             </div>
             <span>
               Por{' '}
-              <strong className="text-[#0D2137] dark:text-white font-bold">
+              <strong className="text-[#0D2137] dark:!text-[#ffffff] font-bold">
                 Dinheiro em Caixa
               </strong>
               , BPO Financeiro
@@ -307,7 +263,7 @@ export default function HomePageClient() {
             <span className="text-[#B4C0CC] dark:text-white/25" aria-hidden="true">
               ·
             </span>
-            <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-[6px]">
               <span
                 className="w-[11px] h-[11px] border-[1.5px] border-[#5A6B7C] dark:border-[#5FD68B] rounded-full inline-block"
                 aria-hidden="true"
@@ -317,165 +273,19 @@ export default function HomePageClient() {
           </div>
         </div>
 
-        {/* PAINEL DE ARQUITETURA: INTEGRAÇÃO VIA API (#integracao-api) */}
-        <section
-          id="integracao-api"
-          aria-label="Arquitetura de Integração via API"
-          className="max-w-[980px] mx-auto mt-11 rounded-[18px] overflow-hidden bg-[#0D2137] border border-white/10 shadow-xl p-5 sm:p-7 md:p-11 flex flex-col gap-6"
-          style={{
-            backgroundImage:
-              'linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px)',
-            backgroundSize: '32px 32px',
-          }}
-        >
-          {/* Topo do Painel */}
-          <div className="flex justify-between items-center gap-3 flex-wrap">
-            <span className="text-[#A9B8C7] text-[13px] font-semibold tracking-[0.08em] uppercase">
-              INTEGRAÇÃO VIA API
-            </span>
-            <span className="flex items-center gap-2 text-[#5FD68B] text-[13px] font-semibold">
-              <span
-                className="w-2 h-2 rounded-full bg-[#5FD68B] animate-pulse"
-                style={{ boxShadow: '0 0 0 4px rgba(95,214,139,0.18)' }}
-                aria-hidden="true"
-              />
-              Sincronizando agora
-            </span>
-          </div>
-
-          {/* Fluxo Responsivo de 5 Colunas (Empilhado no Mobile, 5 Colunas no Desktop) */}
-          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(28px,80px)_minmax(0,1.25fr)_minmax(28px,80px)_minmax(0,1fr)] items-center gap-3 md:gap-0">
-            {/* Card ORIGEM: Datacar */}
-            <div className="bg-white/[0.05] border border-white/[0.14] rounded-[14px] p-[18px] flex flex-col gap-1.5">
-              <span className="text-[#5FD68B] text-[11px] font-bold tracking-[0.1em] uppercase">
-                ORIGEM
-              </span>
-              <span className="dcx-on-dark !text-[#ffffff] text-[20px] font-bold tracking-[-0.02em]">
-                Datacar
-              </span>
-              <span className="text-[#A9B8C7] text-[13px] leading-[1.45]">
-                Dados preenchidos pelos seus clientes
-              </span>
-            </div>
-
-            {/* Conector API 1 */}
-            <div
-              className="flex flex-col items-center justify-center gap-1.5 py-1 md:py-0 md:px-1"
-              aria-hidden="true"
-            >
-              <span className="text-[#A9B8C7] text-[10px] font-bold tracking-[0.1em]">API</span>
-              <div
-                className="hidden md:block w-full h-[2px]"
-                style={{
-                  background:
-                    'repeating-linear-gradient(90deg, #5FD68B 0 8px, transparent 8px 14px)',
-                }}
-              />
-              <div
-                className="md:hidden w-[2px] h-5"
-                style={{
-                  background:
-                    'repeating-linear-gradient(180deg, #5FD68B 0 6px, transparent 6px 10px)',
-                }}
-              />
-            </div>
-
-            {/* Card Central: DCX LINK */}
-            <div className="bg-[#10294A] border-[1.5px] border-[#5FD68B] rounded-[16px] p-[22px] flex flex-col gap-2.5 shadow-[0_0_70px_rgba(95,214,139,0.22)]">
-              <div className="dcx-on-dark flex items-center gap-2.5 !text-[#ffffff] flex-wrap">
-                <DcxLinkMark size={26} />
-                <div className="flex flex-col">
-                  <span className="dcx-on-dark !text-[#ffffff] text-[17px] font-semibold tracking-[0.24em] leading-tight">
-                    DCX LINK
-                  </span>
-                  <span className="text-[11px] font-medium text-[#5FD68B] tracking-normal">
-                    O elo entre seus sistemas
-                  </span>
-                </div>
-              </div>
-              <span className="text-[#A9B8C7] text-[13px] leading-[1.45]">
-                Extrai, confere e organiza — sem digitação
-              </span>
-              <div className="flex gap-1.5 flex-wrap pt-0.5">
-                <span className="text-[11px] font-semibold text-[#0D2137] bg-[#5FD68B] px-2 py-[3px] rounded-[5px]">
-                  Contas a pagar
-                </span>
-                <span className="dcx-on-dark text-[11px] font-semibold !text-[#ffffff] bg-white/10 px-2 py-[3px] rounded-[5px]">
-                  A receber
-                </span>
-                <span className="dcx-on-dark text-[11px] font-semibold !text-[#ffffff] bg-white/10 px-2 py-[3px] rounded-[5px]">
-                  Vendas
-                </span>
-                <span className="dcx-on-dark text-[11px] font-semibold !text-[#ffffff] bg-white/10 px-2 py-[3px] rounded-[5px]">
-                  Emissão de NF-e
-                </span>
-              </div>
-            </div>
-
-            {/* Conector API 2 */}
-            <div
-              className="flex flex-col items-center justify-center gap-1.5 py-1 md:py-0 md:px-1"
-              aria-hidden="true"
-            >
-              <span className="text-[#A9B8C7] text-[10px] font-bold tracking-[0.1em]">API</span>
-              <div
-                className="hidden md:block w-full h-[2px]"
-                style={{
-                  background:
-                    'repeating-linear-gradient(90deg, #5FD68B 0 8px, transparent 8px 14px)',
-                }}
-              />
-              <div
-                className="md:hidden w-[2px] h-5"
-                style={{
-                  background:
-                    'repeating-linear-gradient(180deg, #5FD68B 0 6px, transparent 6px 10px)',
-                }}
-              />
-            </div>
-
-            {/* Card DESTINO: Conta Azul */}
-            <div className="bg-white/[0.05] border border-white/[0.14] rounded-[14px] p-[18px] flex flex-col gap-1.5">
-              <span className="text-[#5FD68B] text-[11px] font-bold tracking-[0.1em] uppercase">
-                DESTINO
-              </span>
-              <span className="dcx-on-dark !text-[#ffffff] text-[20px] font-bold tracking-[-0.02em]">
-                Conta Azul
-              </span>
-              <span className="text-[#A9B8C7] text-[13px] leading-[1.45]">
-                Notas fiscais e financeiro
-              </span>
-            </div>
-          </div>
-
-          {/* Console de Logs em Tempo Real */}
-          <div className="bg-black/25 border border-white/[0.08] rounded-[12px] px-4 py-2 font-mono">
-            {API_LOGS.map((log, index) => (
-              <div
-                key={log.time}
-                className={`grid grid-cols-[auto_auto_minmax(0,1fr)] gap-3.5 items-center py-2.5 text-[12.5px] ${
-                  index < API_LOGS.length - 1 ? 'border-b border-white/[0.07]' : ''
-                }`}
-              >
-                <span className="text-[#6F8399]">{log.time}</span>
-                <span className="font-semibold whitespace-pre" style={{ color: log.color }}>
-                  {log.tag}
-                </span>
-                <span className="text-[#D5DEE7] truncate">{log.message}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-
         {/* CONTAINER DA IMAGEM HERO OFICIAL (/images/hero-dados.png) */}
-        <div className="max-w-[900px] mx-auto mt-10 rounded-[16px] overflow-hidden bg-[#E6ECF2] dark:bg-[#0D2137] shadow-lg border border-slate-200/80 dark:border-white/10">
+        <section
+          id="agente-financeiro"
+          aria-label="Visão da Plataforma DCX LINK"
+          className="max-w-[900px] mx-auto mt-10 md:mt-12 rounded-[16px] overflow-hidden bg-[#E6ECF2] dark:bg-[#0D2137] shadow-lg border border-slate-200/80 dark:border-white/10"
+        >
           <img
             src="/images/hero-dados.png"
             alt="DCX LINK — Dados conectados entre Datacar e Conta Azul"
             className="w-full h-auto max-h-[534px] object-cover block"
             loading="eager"
           />
-        </div>
+        </section>
 
         {/* SEÇÃO DE RECURSOS (#recursos) PRESERVADA COM PALETA DCX LINK */}
         <section id="recursos" className="max-w-[980px] mx-auto mt-12">
