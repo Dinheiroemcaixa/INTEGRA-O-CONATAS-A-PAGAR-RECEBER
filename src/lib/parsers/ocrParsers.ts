@@ -111,16 +111,71 @@ export function parseDDAFromOCR(texto: string) {
   return resultados
 }
 
+export function validarResultadoFolhaNativa(
+  parsedText: string,
+  resultadoNativo: {
+    tipoCalculo: string
+    dados: Array<{
+      fornecedor: string
+      cpf_cnpj: string
+      valor: number
+      tipo: string
+      descricao: string
+      data_vencimento: string
+    }>
+  }
+): boolean {
+  if (!parsedText || !parsedText.trim()) return false
+  if (!resultadoNativo || !Array.isArray(resultadoNativo.dados) || resultadoNativo.dados.length === 0) {
+    return false
+  }
+
+  const todosCamposValidos = resultadoNativo.dados.every(
+    (item) => Boolean(item.fornecedor && item.fornecedor.trim().length > 1) && Number(item.valor) > 0
+  )
+  if (!todosCamposValidos) return false
+
+  const matchTotalEmpresa = parsedText.match(
+    /Total\s+da\s+Empresa:\s*(?:R\$)?\s*(\d{1,3}(?:\.\d{3})*,\d{2})/i
+  )
+  if (matchTotalEmpresa) {
+    const totalEsperado = parseCurrency(matchTotalEmpresa[1])
+    const somaExtraida = resultadoNativo.dados.reduce((acc, item) => acc + Number(item.valor || 0), 0)
+    if (Math.abs(somaExtraida - totalEsperado) > 0.02) {
+      return false
+    }
+  }
+
+  const matchQtdEmpregados = parsedText.match(/Empregados:\s*(\d+)/i)
+  const matchQtdEstagiarios = parsedText.match(/Estagi[aá]rios:\s*(\d+)/i)
+  const matchQtdContribuintes = parsedText.match(/Contribuintes:\s*(\d+)/i)
+
+  if (matchQtdEmpregados) {
+    const qtdEsperada =
+      parseInt(matchQtdEmpregados[1], 10) +
+      (matchQtdEstagiarios ? parseInt(matchQtdEstagiarios[1], 10) : 0) +
+      (matchQtdContribuintes ? parseInt(matchQtdContribuintes[1], 10) : 0)
+
+    if (qtdEsperada > 0 && resultadoNativo.dados.length !== qtdEsperada) {
+      return false
+    }
+  }
+
+  return true
+}
+
 export function parseFolhaFromOCR(texto: string) {
     const linhas = texto.split('\n').map(l => l.trim()).filter(Boolean)
     const resultados = []
     let tipoCalculo = 'Folha Mensal'
     
-    for (const linha of linhas) {
-        if (linha.toLowerCase().includes('cálculo:')) {
-            if (linha.toLowerCase().includes('adiantamento')) {
+    for (let i = 0; i < linhas.length; i++) {
+        const linhaLower = linhas[i].toLowerCase()
+        if (linhaLower.includes('cálculo:')) {
+            const trechoCalculo = `${linhaLower} ${(linhas[i + 1] || '').toLowerCase()}`
+            if (trechoCalculo.includes('adiantamento')) {
                 tipoCalculo = 'Adiantamento'
-            } else if (linha.toLowerCase().includes('folha')) {
+            } else if (trechoCalculo.includes('folha')) {
                 tipoCalculo = 'Folha Mensal'
             }
         }

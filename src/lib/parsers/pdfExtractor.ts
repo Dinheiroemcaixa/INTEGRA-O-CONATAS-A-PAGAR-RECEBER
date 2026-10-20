@@ -1,7 +1,11 @@
+import path from 'node:path'
+import { pathToFileURL } from 'node:url'
+
 export async function extrairTextoPDF(file: File): Promise<string> {
-  const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist')
-  // @ts-expect-error - worker path
-  GlobalWorkerOptions.workerSrc = false
+  const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist/legacy/build/pdf.mjs')
+  GlobalWorkerOptions.workerSrc = pathToFileURL(
+    path.resolve(process.cwd(), 'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs')
+  ).href
 
   const buffer = await file.arrayBuffer()
   const uint8 = new Uint8Array(buffer)
@@ -10,7 +14,8 @@ export async function extrairTextoPDF(file: File): Promise<string> {
       data: uint8, 
       useWorkerFetch: false, 
       isEvalSupported: false, 
-      useSystemFonts: true 
+      useSystemFonts: true,
+      disableFontFace: true
   }).promise
 
   let textoCompleto = ''
@@ -22,7 +27,7 @@ export async function extrairTextoPDF(file: File): Promise<string> {
     const linhasMap = new Map<number, any[]>()
     
     for (const item of items) {
-      if (!item.str.trim()) continue
+      if (!item.str || !item.str.trim()) continue
       const y = Math.round(item.transform[5])
       let linhaY = y
       for (const key of Array.from(linhasMap.keys())) {

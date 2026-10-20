@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parseDDAFromOCR, parseFolhaFromOCR } from '@/lib/parsers/ocrParsers';
-import { extrairDDAComGemini, extrairFolhaComGemini, ItemDDA } from '@/lib/parsers/geminiExtractor';
+import { parseDDAFromOCR, parseFolhaFromOCR, validarResultadoFolhaNativa } from '@/lib/parsers/ocrParsers';
+import { extrairDDAComGemini, extrairFolhaComGemini, type ItemDDA } from '@/lib/parsers/geminiExtractor';
 import { parseItauDDAXlsx } from '@/lib/parsers/itauDdaXlsxParser';
 
 export const runtime = 'nodejs';
@@ -75,6 +75,32 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    let parsedText = ''
+    let pdfJaExtraido = false
+
+    // Priorizar extração nativa de texto (pdfjs-dist) + parser determinístico para PDFs de folha,
+    // preservando o Gemini como fallback quando o PDF for escaneado ou não produzir resultado válido.
+    if (tipo !== 'dda' && (ext === 'pdf' || file.type === 'application/pdf')) {
+      try {
+        const { extrairTextoPDF } = await import('@/lib/parsers/pdfExtractor')
+        parsedText = await extrairTextoPDF(file)
+        pdfJaExtraido = true
+
+        if (parsedText.trim()) {
+          const resultadoNativo = parseFolhaFromOCR(parsedText)
+          if (validarResultadoFolhaNativa(parsedText, resultadoNativo)) {
+            return NextResponse.json({
+              dados: resultadoNativo.dados,
+              tipoCalculo: resultadoNativo.tipoCalculo,
+              fonte: 'pdf-nativo',
+            })
+          }
+        }
+      } catch (pdfError) {
+        console.warn('[Conversor Folha PDF] Falha na extração nativa, acionando fallback Gemini:', pdfError)
+      }
+    }
+
     if (process.env.GEMINI_API_KEY) {
       try {
         if (tipo === 'dda') {
@@ -94,11 +120,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    let parsedText = ''
-    
     if (ext === 'pdf') {
-       const { extrairTextoPDF } = await import('@/lib/parsers/pdfExtractor')
-       parsedText = await extrairTextoPDF(file)
+       if (!pdfJaExtraido) {
+         const { extrairTextoPDF } = await import('@/lib/parsers/pdfExtractor')
+         parsedText = await extrairTextoPDF(file)
+       }
     } else {
        if (!process.env.OCR_SPACE_API_KEY) {
          return NextResponse.json({ error: 'Chave GEMINI_API_KEY ou OCR_SPACE_API_KEY não configurada.' }, { status: 500 });
