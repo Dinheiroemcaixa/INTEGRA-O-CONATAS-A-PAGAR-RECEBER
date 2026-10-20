@@ -85,7 +85,7 @@ export default function RouteAccessGuard({ children }: { children: React.ReactNo
           </h2>
 
           <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-6">
-            A liberação deste card deve ser realizada pelo administrador no módulo de Controle de Acesso do Connecta AI.
+            A liberação deste card deve ser realizada pelo administrador no módulo de Controle de Acesso do DCX LINK.
           </p>
 
           <button

@@ -257,18 +257,21 @@ export default function Sidebar() {
             <span>Sair do sistema</span>
           </button>
 
-          {/* Logo Connecta AI */}
+          {/* Logo DCX LINK */}
           <div className="pt-2 border-t border-slate-200/60 dark:border-white/[0.06] flex flex-col items-center">
             {config.appLogoUrl ? (
               <img src={config.appLogoUrl} alt={config.appNome} className="h-7 max-w-[110px] object-contain opacity-80 hover:opacity-100 transition-opacity" />
             ) : (
               <div className="flex items-center gap-2 opacity-80 hover:opacity-100 transition-opacity">
-                <div className={`w-6 h-6 ${accentClasses.bg} rounded-lg flex items-center justify-center shadow-xs flex-shrink-0`}>
-                  <span className="text-white font-black text-xs">{config.appNome.charAt(0)}</span>
+                <div className="w-6 h-6 bg-[#0D2137] rounded-lg flex items-center justify-center shadow-xs flex-shrink-0">
+                  <svg width="15" height="15" viewBox="0 0 26 26" className="flex-none block" aria-hidden="true">
+                    <circle cx="9.5" cy="13" r="6.5" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
+                    <circle cx="16.5" cy="13" r="6.5" fill="none" stroke="#5FD68B" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
+                  </svg>
                 </div>
                 <div>
                   <p className="text-slate-800 dark:text-white font-bold text-xs leading-tight">{config.appNome}</p>
-                  <p className="text-slate-400 dark:text-dark-500 text-[8px] uppercase tracking-wider">Inteligência Financeira</p>
+                  <p className="text-slate-400 dark:text-dark-500 text-[8px] uppercase tracking-wider">O elo entre seus sistemas</p>
                 </div>
               </div>
             )}

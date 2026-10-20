@@ -96,7 +96,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           </h2>
 
           <p className="text-sm text-slate-300 leading-relaxed mb-6">
-            O acesso a esta conta foi bloqueado pelo administrador da plataforma. Para regularizar seu acesso, procure a gerência ou o suporte do Connecta AI.
+            O acesso a esta conta foi bloqueado pelo administrador da plataforma. Para regularizar seu acesso, procure a gerência ou o suporte do DCX LINK.
           </p>
 
           <button

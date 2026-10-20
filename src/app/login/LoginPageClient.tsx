@@ -138,15 +138,18 @@ export default function LoginPageClient() {
         {/* Topo: Logo */}
         <div className="relative z-10">
           <Link href="/" className="inline-flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-[#2ee88a] text-[#04150c] flex items-center justify-center font-black text-xl shadow-lg shadow-[#2ee88a]/30 group-hover:scale-105 transition-transform">
-              C
+            <div className="w-11 h-11 rounded-xl bg-[#0D2137] border border-white/15 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+              <svg width="24" height="24" viewBox="0 0 26 26" className="flex-none block" aria-hidden="true">
+                <circle cx="9.5" cy="13" r="6.5" fill="none" stroke="#fff" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" />
+                <circle cx="16.5" cy="13" r="6.5" fill="none" stroke="#5FD68B" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" />
+              </svg>
             </div>
             <div className="flex flex-col">
               <span className="text-xl font-extrabold tracking-wider leading-none text-slate-900 dark:text-white">
-                CONNECTA<span className="text-emerald-600 dark:text-[#2ee88a] ml-1">AI</span>
+                DCX <span className="text-[#1A6B4A] dark:text-[#5FD68B]">LINK</span>
               </span>
               <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-widest uppercase mt-0.5">
-                BPO Financeiro & Automação Fiscal
+                O elo entre seus sistemas
               </span>
             </div>
           </Link>
@@ -199,7 +202,7 @@ export default function LoginPageClient() {
             <ShieldCheck size={16} className="text-emerald-600 dark:text-emerald-400" />
             <span>Conexão Criptografada SSL 256-bit</span>
           </div>
-          <div>© 2026 Connecta AI</div>
+          <div>© 2026 DCX LINK · Dinheiro em Caixa</div>
         </div>
       </div>
 
@@ -218,8 +221,8 @@ export default function LoginPageClient() {
             <span>Voltar ao início</span>
           </Link>
 
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-400">
-            <ShieldCheck size={14} className="text-emerald-400" />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+            <ShieldCheck size={14} className="text-emerald-600 dark:text-emerald-400" />
             <span>Ambiente Seguro</span>
           </div>
         </div>
@@ -229,11 +232,14 @@ export default function LoginPageClient() {
           
           {/* Logo exibido apenas no Mobile */}
           <div className="lg:hidden flex items-center justify-center gap-2.5 mb-8 text-center">
-            <div className="w-9 h-9 rounded-xl bg-[#2ee88a] text-[#04150c] flex items-center justify-center font-black text-lg shadow-md shadow-[#2ee88a]/30">
-              C
+            <div className="w-9 h-9 rounded-xl bg-[#0D2137] flex items-center justify-center shadow-md">
+              <svg width="20" height="20" viewBox="0 0 26 26" className="flex-none block" aria-hidden="true">
+                <circle cx="9.5" cy="13" r="6.5" fill="none" stroke="#fff" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" />
+                <circle cx="16.5" cy="13" r="6.5" fill="none" stroke="#5FD68B" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" />
+              </svg>
             </div>
             <span className="text-lg font-extrabold tracking-wider text-slate-900 dark:text-white">
-              CONNECTA<span className="text-[#2ee88a] ml-1">AI</span>
+              DCX <span className="text-[#1A6B4A]">LINK</span>
             </span>
           </div>
 
@@ -346,7 +352,7 @@ export default function LoginPageClient() {
             <button
               type="submit"
               disabled={carregando}
-              className="w-full h-11 bg-emerald-500 hover:bg-emerald-600 dark:bg-[#2ee88a] dark:hover:bg-[#25c474] disabled:opacity-60 text-white dark:text-[#04150c] font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-500/20 dark:shadow-[#2ee88a]/30 mt-5 cursor-pointer text-sm"
+              className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 dark:bg-[#2ee88a] dark:hover:bg-[#25c474] disabled:opacity-60 !text-[#ffffff] dark:!text-[#04150c] font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-600/20 dark:shadow-[#2ee88a]/30 mt-5 cursor-pointer text-sm"
             >
               {carregando ? (
                 <>
@@ -410,7 +416,7 @@ export default function LoginPageClient() {
 
         {/* Rodapé Coluna Direita */}
         <div className="w-full text-center text-[11px] text-slate-500 dark:text-slate-500 pt-4">
-          <span>Ao continuar, você concorda com os Termos de Serviço e Política de Privacidade do Connecta AI.</span>
+          <span>Ao continuar, você concorda com os Termos de Serviço e Política de Privacidade do DCX LINK.</span>
         </div>
 
       </div>

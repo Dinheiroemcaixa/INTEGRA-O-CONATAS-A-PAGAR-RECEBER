@@ -8,8 +8,8 @@ import { UserPermissionsProvider } from '@/contexts/UserPermissionsContext'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Connecta AI | Gestão Financeira Inteligente',
-  description: 'Sistema de Integração e Automação Financeira BPO',
+  title: 'DCX LINK | O elo entre seus sistemas',
+  description: 'DCX LINK — O elo entre seus sistemas. Sistema de Integração e Automação Financeira BPO',
 }
 
 export default function RootLayout({

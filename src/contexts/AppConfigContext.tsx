@@ -20,7 +20,7 @@ export interface AppConfig {
 const DEFAULT: AppConfig = {
   accentColor: 'violet',
   appLogoUrl: null,
-  appNome: 'Connecta AI',
+  appNome: 'DCX LINK',
   themeMode: 'system',
   darkModeResolved: false,
   darkMode: false,
@@ -84,7 +84,9 @@ function loadAppShared(): Pick<AppConfig, 'appLogoUrl' | 'appNome'> {
     const raw = localStorage.getItem(APP_STORAGE_KEY)
     if (raw) {
       const parsed = JSON.parse(raw)
-      return { appLogoUrl: parsed.appLogoUrl ?? DEFAULT.appLogoUrl, appNome: parsed.appNome ?? DEFAULT.appNome }
+      const rawNome = typeof parsed.appNome === 'string' ? parsed.appNome.trim() : ''
+      const appNome = rawNome && rawNome.toLowerCase() !== 'connecta ai' ? rawNome : DEFAULT.appNome
+      return { appLogoUrl: parsed.appLogoUrl ?? DEFAULT.appLogoUrl, appNome }
     }
   } catch { /* empty */ }
   return { appLogoUrl: DEFAULT.appLogoUrl, appNome: DEFAULT.appNome }

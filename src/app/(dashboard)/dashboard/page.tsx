@@ -33,7 +33,7 @@ export default function DashboardPage() {
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.15]">
             Bem-vindo ao{' '}
             <span className="text-emerald-500 dark:text-[#2ee88a] drop-shadow-[0_0_24px_rgba(46,232,138,0.35)]">
-              Connecta AI
+              DCX LINK
             </span>
           </h1>
 
@@ -121,13 +121,16 @@ export default function DashboardPage() {
                 </span>
               </div>
 
-              {/* Card 2: Connecta AI (Hub Proeminente com Glow Ciano/Esmeralda) */}
+              {/* Card 2: DCX LINK (Hub Proeminente com Glow Ciano/Esmeralda) */}
               <div className="relative flex flex-col items-center justify-center px-4 py-2.5 rounded-2xl bg-white dark:bg-[#071324] border-2 border-emerald-400 dark:border-cyan-400/80 shadow-[0_0_25px_rgba(6,182,212,0.35)]">
-                <div className="w-9 h-9 rounded-full bg-slate-900 border border-emerald-400 flex items-center justify-center mb-1 shadow-md shadow-emerald-500/40">
-                  <span className="text-emerald-400 font-black text-sm tracking-tighter">C</span>
+                <div className="w-9 h-9 rounded-full bg-[#0D2137] border border-emerald-400 flex items-center justify-center mb-1 shadow-md shadow-emerald-500/40">
+                  <svg width="20" height="20" viewBox="0 0 26 26" className="flex-none block" aria-hidden="true">
+                    <circle cx="9.5" cy="13" r="6.5" fill="none" stroke="#fff" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" />
+                    <circle cx="16.5" cy="13" r="6.5" fill="none" stroke="#5FD68B" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" />
+                  </svg>
                 </div>
                 <span className="text-[11px] font-black text-slate-900 dark:text-white tracking-wide">
-                  Connecta AI
+                  DCX LINK
                 </span>
               </div>
 
@@ -277,9 +280,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Seção 3: Ecossistema Connecta AI & Status do Sistema */}
+      {/* Seção 3: Ecossistema DCX LINK & Status do Sistema */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Bloco 1: Ecossistema Connecta AI (Institucional) */}
+        {/* Bloco 1: Ecossistema DCX LINK (Institucional) */}
         <div className="rounded-2xl bg-white dark:bg-[#0c1220] border border-slate-200/90 dark:border-white/[0.08] p-5 sm:p-6 shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/[0.06]">
@@ -287,7 +290,7 @@ export default function DashboardPage() {
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    Ecossistema Connecta AI
+                    Ecossistema DCX LINK
                   </h3>
                   <p className="text-[11px] text-slate-500 dark:text-dark-400">
                     Arquitetura e integrações corporativas
@@ -322,7 +325,7 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-3">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20 shrink-0" />
                   <div>
-                    <h4 className="text-xs font-bold text-slate-800 dark:text-white">Connecta AI</h4>
+                    <h4 className="text-xs font-bold text-slate-800 dark:text-white">DCX LINK</h4>
                     <p className="text-[11px] text-slate-500 dark:text-dark-400">Motor inteligente de conferência, de-para e regras</p>
                   </div>
                 </div>

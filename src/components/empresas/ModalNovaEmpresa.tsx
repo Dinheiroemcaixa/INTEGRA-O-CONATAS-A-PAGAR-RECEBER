@@ -154,7 +154,7 @@ export function ModalNovaEmpresa({ aberto, onFechar, onCriada }: ModalNovaEmpres
             </div>
             <div>
               <h3 className="font-semibold text-white text-base">Cadastrar Nova Empresa</h3>
-              <p className="text-xs text-dark-400">Adicione uma nova organização ao Connecta AI</p>
+              <p className="text-xs text-dark-400">Adicione uma nova organização ao DCX LINK</p>
             </div>
           </div>
           <button

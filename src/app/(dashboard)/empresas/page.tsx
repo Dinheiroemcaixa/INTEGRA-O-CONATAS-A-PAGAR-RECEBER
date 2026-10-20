@@ -41,7 +41,7 @@ function formatarMensagemWhatsApp(empresa: Empresa, modulo: 'financeiro' | 'vend
   const urlAuth = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/conta-azul/autorizar?empresa_id=${empresa.id}&modulo=${modulo}`
   const nomeContaCa = (empresa.nome_fantasia || empresa.nome || empresa.razao_social || 'Empresa').trim()
 
-  return `Olá! Preciso que você autorize a integração do Connecta AI com o Conta Azul (${nomeModulo}) da empresa *${empresa.nome}*.
+  return `Olá! Preciso que você autorize a integração do DCX LINK com o Conta Azul (${nomeModulo}) da empresa *${empresa.nome}*.
 
 *INSTRUÇÕES IMPORTANTES:*
 1. Faça login na conta: *${emailLogin || 'seu e-mail de acesso'}*
