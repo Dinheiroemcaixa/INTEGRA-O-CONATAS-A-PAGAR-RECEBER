@@ -1,15 +1,21 @@
-﻿export interface ContaPagarChaveInput {
+export interface ContaPagarChaveInput {
+  id?: string
   empresa_id: string
   fornecedor: string
   valor: number | string
   vencimento: string
   doc?: string | null
   descricao?: string | null
+  status?: string | null
+  conta_azul_id?: string | null
+  erro_mensagem?: string | null
 }
 
 export interface ResultadoDedupContasPagar<T extends ContaPagarChaveInput> {
   unicosParaInserir: T[]
   duplicadosIgnorados: T[]
+  existentesParaReativarIds: string[]
+  jaPendentesCount: number
 }
 
 /**
@@ -86,39 +92,104 @@ export function gerarChaveDedupContaPagar(item: ContaPagarChaveInput): string {
 }
 
 /**
- * Filtra de forma pura um lote de contas a pagar contra os registros já existentes no banco
- * (independentemente de status: pendente, erro ou enviado) e também remove duplicatas
- * internas dentro do próprio lote enviado.
+ * Verifica se um registro existente possui envio efetivamente confirmado na Conta Azul
+ * (status 'enviado' ou `conta_azul_id` preenchido com UUID real) ou se exige reconciliação
+ * manual devido a resposta ambígua/timeout de rede.
+ */
+export function possuiEnvioConfirmadoOuAmbiguo(existente: ContaPagarChaveInput): boolean {
+  const statusNorm = String(existente.status || '').trim().toLowerCase()
+  const caId = typeof existente.conta_azul_id === 'string' ? existente.conta_azul_id.trim() : ''
+  if (caId && caId.toLowerCase() !== 'enviado') {
+    return true
+  }
+  if (statusNorm === 'enviado') {
+    return true
+  }
+  const erroMsg = String(existente.erro_mensagem || '')
+  if (/RECONCILIA[CÇ][AÃ]O NECESS[AÁ]RIA/i.test(erroMsg)) {
+    return true
+  }
+  return false
+}
+
+/**
+ * Filtra de forma pura um lote de contas a pagar contra os registros já existentes no banco:
+ * - Títulos inéditos entram em `unicosParaInserir`.
+ * - Títulos já existentes com status `erro`/`cancelado` SEM confirmação de envio (`conta_azul_id` nulo)
+ *   e SEM bloqueio de reconciliação ambígua entram em `existentesParaReativarIds` para voltar a `pendente`
+ *   e permanecer disponíveis na fila de envio à Conta Azul (evitando duplicar linhas no banco local).
+ * - Títulos já `pendente` permanecem disponíveis na fila local sem duplicar linha.
+ * - Títulos cujo envio anterior à Conta Azul já está confirmado (`conta_azul_id` preenchido / status `enviado`)
+ *   ou com reconciliação ambígua pendente são preservados em `duplicadosIgnorados` (idempotência).
  */
 export function filtrarContasPagarNaoDuplicadas<T extends ContaPagarChaveInput>(
   novosItens: T[],
   existentesNoBanco: ContaPagarChaveInput[] = []
 ): ResultadoDedupContasPagar<T> {
-  const chavesVistas = new Set<string>()
+  const mapaExistentes = new Map<string, ContaPagarChaveInput[]>()
 
   for (const existente of existentesNoBanco) {
-    chavesVistas.add(gerarChaveDedupContaPagar(existente))
+    const chave = gerarChaveDedupContaPagar(existente)
+    const lista = mapaExistentes.get(chave) || []
+    lista.push(existente)
+    mapaExistentes.set(chave, lista)
   }
 
+  const chavesNovasVistas = new Set<string>()
   const unicosParaInserir: T[] = []
   const duplicadosIgnorados: T[] = []
+  const reativarSet = new Set<string>()
+  let jaPendentesCount = 0
 
   for (const item of novosItens) {
     const chave = gerarChaveDedupContaPagar(item)
-    if (chavesVistas.has(chave)) {
+    const existentes = mapaExistentes.get(chave)
+
+    if (existentes && existentes.length > 0) {
+      // Se já existe envio confirmado na Conta Azul ou resposta ambígua pendente, preserva controle de idempotência
+      const confirmadoOuAmbiguo = existentes.some((e) => possuiEnvioConfirmadoOuAmbiguo(e))
+      if (confirmadoOuAmbiguo) {
+        duplicadosIgnorados.push(item)
+        continue
+      }
+
+      // Se já existe um registro 'pendente' correspondente no banco, ele já está disponível na fila de envio
+      const jaPendente = existentes.some(
+        (e) => String(e.status || '').trim().toLowerCase() === 'pendente'
+      )
+      if (jaPendente) {
+        jaPendentesCount++
+        continue
+      }
+
+      // Registro existente não confirmado (ex.: status 'erro' sem conta_azul_id): reativar para 'pendente'
+      const candidatoReativar = existentes.find((e) => e.id && !reativarSet.has(e.id))
+      if (candidatoReativar?.id) {
+        reativarSet.add(candidatoReativar.id)
+      }
+      continue
+    }
+
+    if (chavesNovasVistas.has(chave)) {
       duplicadosIgnorados.push(item)
     } else {
-      chavesVistas.add(chave)
+      chavesNovasVistas.add(chave)
       unicosParaInserir.push(item)
     }
   }
 
-  return { unicosParaInserir, duplicadosIgnorados }
+  return {
+    unicosParaInserir,
+    duplicadosIgnorados,
+    existentesParaReativarIds: Array.from(reativarSet),
+    jaPendentesCount,
+  }
 }
 
 /**
- * Consulta os títulos já existentes da empresa nas datas de vencimento do lote e
- * retorna apenas os títulos inéditos, prevenindo duplicatas mesmo quando `doc` é NULL.
+ * Consulta os títulos já existentes da empresa nas datas de vencimento do lote,
+ * reativa para `pendente` os registros locais com erro que ainda não foram enviados à Conta Azul,
+ * e retorna os títulos inéditos para inserção.
  */
 export async function deduplicarContasPagarContraBanco<T extends ContaPagarChaveInput>(
   supabaseClient: any,
@@ -126,7 +197,7 @@ export async function deduplicarContasPagarContraBanco<T extends ContaPagarChave
   itensParaSalvar: T[]
 ): Promise<ResultadoDedupContasPagar<T>> {
   if (!itensParaSalvar || itensParaSalvar.length === 0) {
-    return { unicosParaInserir: [], duplicadosIgnorados: [] }
+    return { unicosParaInserir: [], duplicadosIgnorados: [], existentesParaReativarIds: [], jaPendentesCount: 0 }
   }
 
   const vencimentosUnicos = Array.from(
@@ -135,7 +206,7 @@ export async function deduplicarContasPagarContraBanco<T extends ContaPagarChave
 
   let query = supabaseClient
     .from('contas_pagar_importadas')
-    .select('empresa_id, fornecedor, valor, vencimento, doc, descricao')
+    .select('id, empresa_id, fornecedor, valor, vencimento, doc, descricao, status, conta_azul_id, erro_mensagem')
     .eq('empresa_id', empresaId)
 
   if (vencimentosUnicos.length > 0) {
@@ -145,5 +216,23 @@ export async function deduplicarContasPagarContraBanco<T extends ContaPagarChave
   const { data: existentes, error } = await query
   if (error) throw error
 
-  return filtrarContasPagarNaoDuplicadas(itensParaSalvar, (existentes || []) as ContaPagarChaveInput[])
+  const resultado = filtrarContasPagarNaoDuplicadas(
+    itensParaSalvar,
+    (existentes || []) as ContaPagarChaveInput[]
+  )
+
+  if (resultado.existentesParaReativarIds.length > 0) {
+    const { error: updateErr } = await supabaseClient
+      .from('contas_pagar_importadas')
+      .update({
+        status: 'pendente',
+        erro_mensagem: null,
+      })
+      .eq('empresa_id', empresaId)
+      .in('id', resultado.existentesParaReativarIds)
+
+    if (updateErr) throw updateErr
+  }
+
+  return resultado
 }

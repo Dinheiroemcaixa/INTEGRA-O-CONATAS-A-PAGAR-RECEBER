@@ -430,7 +430,12 @@ export default function ContasPagarPage() {
           metadata: { ...(d.metadata || {}), anexo_url: d.anexo_url || d.metadata?.anexo_url || null },
       }))
 
-      const { unicosParaInserir, duplicadosIgnorados } = await deduplicarContasPagarContraBanco(
+      const {
+        unicosParaInserir,
+        duplicadosIgnorados,
+        existentesParaReativarIds,
+        jaPendentesCount,
+      } = await deduplicarContasPagarContraBanco(
         supabase,
         empresaAtiva.id,
         itensParaSalvar
@@ -447,13 +452,17 @@ export default function ContasPagarPage() {
         if (error) throw error
       }
 
-      if (unicosParaInserir.length === 0) {
-        toast.success('Todas as contas selecionadas já estavam importadas (nenhuma duplicata inserida).')
+      const disponiveisFila =
+        unicosParaInserir.length + existentesParaReativarIds.length + jaPendentesCount
+
+      if (disponiveisFila === 0) {
+        toast.success('Todas as contas selecionadas já possuem envio confirmado na Conta Azul.')
       } else if (duplicadosIgnorados.length > 0) {
-        toast.success(`${unicosParaInserir.length} conta(s) salva(s) com sucesso (${duplicadosIgnorados.length} duplicada(s) ignorada(s))!`)
+        toast.success(`${disponiveisFila} conta(s) disponível(is) para envio (${duplicadosIgnorados.length} já enviada(s) ignorada(s))!`)
       } else {
-        toast.success(`${unicosParaInserir.length} contas salvas com sucesso!`)
+        toast.success(`${disponiveisFila} conta(s) salva(s) e disponível(is) para envio!`)
       }
+      setRefreshContas(prev => prev + 1)
       setEtapa('upload')
       setSubAba('datacar')
       setResultado(null)

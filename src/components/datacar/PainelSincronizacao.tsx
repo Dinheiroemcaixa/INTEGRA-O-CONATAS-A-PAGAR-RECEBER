@@ -194,14 +194,25 @@ export default function PainelSincronizacao({ empresa }: Props) {
         status: 'pendente',
       }))
 
-      const { unicosParaInserir: contasNovas } = await deduplicarContasPagarContraBanco(
+      const {
+        unicosParaInserir: contasNovas,
+        existentesParaReativarIds,
+        jaPendentesCount,
+      } = await deduplicarContasPagarContraBanco(
         supabase,
         empresa.id,
         itensParaSalvar
       )
 
+      const disponiveisFila =
+        contasNovas.length + existentesParaReativarIds.length + jaPendentesCount
+
       if (contasNovas.length === 0) {
-        toast.success('Sucesso! As contas já estavam salvas no Card de Contas a Pagar.')
+        if (disponiveisFila > 0) {
+          toast.success(`Sucesso! ${disponiveisFila} conta(s) disponível(is) para envio no Card de Contas a Pagar.`)
+        } else {
+          toast.success('Sucesso! As contas selecionadas já possuem envio confirmado na Conta Azul.')
+        }
         setContasPreviewDados(null)
         setEnviandoContas(false)
         return
@@ -214,7 +225,7 @@ export default function PainelSincronizacao({ empresa }: Props) {
 
       if (error) throw error
 
-      toast.success(`Sucesso! ${data.length} novas contas salvas no Card de Contas a Pagar.`)
+      toast.success(`Sucesso! ${data.length + existentesParaReativarIds.length + jaPendentesCount} conta(s) disponível(is) para envio no Card de Contas a Pagar.`)
       setContasPreviewDados(null)
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Erro ao salvar contas no Card')
