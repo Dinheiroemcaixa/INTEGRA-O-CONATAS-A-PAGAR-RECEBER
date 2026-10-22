@@ -1,26 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { Plus_Jakarta_Sans, IBM_Plex_Mono } from 'next/font/google'
 import './homepage.css'
-
-const plusJakarta = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
-  variable: '--font-plus-jakarta',
-  display: 'swap',
-})
-
-const ibmPlexMono = IBM_Plex_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500'],
-  variable: '--font-ibm-plex-mono',
-  display: 'swap',
-})
 
 export default function HomePageClient() {
   return (
-    <div className={`dcx-landing-wrapper ${plusJakarta.variable} ${ibmPlexMono.variable}`}>
+    <div className="dcx-landing-wrapper">
       <main className="tela">
         <div className="fundo" aria-hidden="true"></div>
 

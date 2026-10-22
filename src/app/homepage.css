@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
 .dcx-landing-wrapper {
   --navy: #0B1E5B;
   --navy-2: #13297A;
@@ -7,7 +9,7 @@
   --ink-3: #8A96AC;
   --line: #EDF0F5;
   --tile: #F5F7FB;
-  font-family: var(--font-plus-jakarta), 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
   background: var(--navy);
   color: var(--navy);
@@ -137,7 +139,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  font-family: var(--font-ibm-plex-mono), 'IBM Plex Mono', monospace;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 14px;
   letter-spacing: .18em;
   color: #CFDBFA !important;
@@ -301,7 +303,7 @@
 }
 
 .dcx-landing-wrapper .modulos .titulo {
-  font-family: var(--font-ibm-plex-mono), 'IBM Plex Mono', monospace;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;
   letter-spacing: .16em;
   font-weight: 600;
