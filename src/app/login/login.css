@@ -1,0 +1,450 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+/* Tela de login do DCX LINK — estilos restritos a .dcx-login (não afetam outras telas) */
+
+.dcx-login {
+  --navy: #0B1E5B;
+  --deep: #071445;
+  --blue: #1E4FD8;
+  --soft: #8FB0FF;
+  --mint: #5FD68B;
+  --paper: #F5F7FB;
+  --muted: #5B6880;
+  --line: #D9E0EE;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: var(--navy);
+  background: var(--paper);
+  min-height: 100vh;
+}
+
+.dcx-login *,
+.dcx-login *::before,
+.dcx-login *::after {
+  box-sizing: border-box;
+}
+
+.dcx-login a {
+  text-decoration: none;
+}
+
+.dcx-login-grid {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 46fr 54fr;
+}
+
+/* ───────── Painel de marca (imagem + camada azul-marinho) ───────── */
+.dcx-login-brand {
+  position: relative;
+  overflow: hidden;
+  background: var(--deep);
+  color: #fff;
+  padding: 48px 56px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.dcx-login-brand::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url('/assets/login-hero.jpg') 24% 50% / cover no-repeat;
+}
+
+.dcx-login-brand::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(7, 20, 69, 0.62) 0%, rgba(7, 20, 69, 0.3) 34%, rgba(7, 20, 69, 0.78) 66%, rgba(7, 20, 69, 0.94) 100%),
+    linear-gradient(90deg, rgba(11, 30, 91, 0.42), rgba(11, 30, 91, 0) 70%);
+}
+
+.dcx-login-brand > * {
+  position: relative;
+  z-index: 2;
+}
+
+.dcx-login-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: #fff;
+  align-self: flex-start;
+}
+
+.dcx-login-mk {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #0D2137;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.dcx-login-wordmark,
+.dcx-login-logo b {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+}
+
+.dcx-login-wordmark i,
+.dcx-login-logo b i {
+  font-style: normal;
+  color: var(--mint);
+}
+
+.dcx-login-logo b {
+  display: block;
+}
+
+.dcx-login-logo small {
+  display: block;
+  font-size: 12px;
+  color: var(--soft);
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.dcx-login-hero {
+  margin-top: auto;
+  padding-bottom: 40px;
+}
+
+.dcx-login .dcx-login-hero h1 {
+  font-size: clamp(34px, 3.3vw, 46px);
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  max-width: 13em;
+  margin: 0;
+  /* o tema claro global força h1/h2 com !important (html:not(.dark) h1); seletor mais específico para vencer */
+  color: #fff !important;
+  text-shadow: 0 2px 18px rgba(3, 10, 40, 0.55);
+}
+
+.dcx-login-hero p {
+  margin: 18px 0 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #C9D6F5;
+  max-width: 27em;
+  font-weight: 500;
+  text-shadow: 0 1px 12px rgba(3, 10, 40, 0.6);
+}
+
+.dcx-login-chain {
+  margin-top: 40px;
+  display: flex;
+  align-items: center;
+  max-width: 30em;
+}
+
+.dcx-login-node {
+  font-size: 14px;
+  font-weight: 700;
+  padding: 11px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+
+.dcx-login-link {
+  width: 28px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--soft), var(--mint));
+  flex: none;
+}
+
+.dcx-login-foot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #9FB2E6;
+  font-weight: 500;
+  max-width: 34em;
+}
+
+/* ───────── Lado do formulário ───────── */
+.dcx-login-side {
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+  padding: 32px 56px 28px;
+}
+
+.dcx-login-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.dcx-login-top a {
+  color: var(--muted);
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.dcx-login-top a:hover {
+  color: var(--navy);
+}
+
+.dcx-login-secure {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+}
+
+.dcx-login-secure svg {
+  color: #1A6B4A;
+}
+
+.dcx-login-form {
+  margin: auto;
+  width: 100%;
+  max-width: 440px;
+  padding: 32px 0;
+}
+
+.dcx-login .dcx-login-form h2 {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: var(--navy) !important;
+}
+
+.dcx-login-sub {
+  margin: 8px 0 0;
+  font-size: 15px;
+  color: var(--muted);
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.dcx-login-field {
+  margin-top: 22px;
+}
+
+.dcx-login-field label {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--navy);
+}
+
+.dcx-login-lblrow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.dcx-login-lblrow label {
+  margin-bottom: 8px;
+}
+
+.dcx-login-forgot {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--blue);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.dcx-login-forgot:hover {
+  text-decoration: underline;
+}
+
+.dcx-login-inp {
+  position: relative;
+}
+
+.dcx-login-ico {
+  position: absolute;
+  left: 16px;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  color: #8A96AC;
+  pointer-events: none;
+}
+
+.dcx-login-inp input {
+  width: 100%;
+  height: 50px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line);
+  background: #fff;
+  padding: 0 16px 0 46px;
+  font: 500 15px 'Plus Jakarta Sans', sans-serif;
+  color: var(--navy);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.dcx-login-inp input.has-eye {
+  padding-right: 48px;
+}
+
+.dcx-login-inp input::placeholder {
+  color: #9AA6BC;
+}
+
+.dcx-login-inp input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 4px rgba(30, 79, 216, 0.14);
+}
+
+.dcx-login-eye {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  color: #8A96AC;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.dcx-login-eye:hover {
+  color: var(--navy);
+}
+
+.dcx-login-btn {
+  margin-top: 28px;
+  width: 100%;
+  height: 52px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--blue);
+  color: #fff;
+  font: 800 16px 'Plus Jakarta Sans', sans-serif;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 20px rgba(30, 79, 216, 0.28);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.dcx-login-btn:hover:not(:disabled) {
+  background: #1840B5;
+}
+
+.dcx-login-btn:focus-visible {
+  outline: 3px solid rgba(30, 79, 216, 0.4);
+  outline-offset: 2px;
+}
+
+.dcx-login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dcx-login-alt {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.dcx-login-alt p {
+  margin: 0;
+}
+
+.dcx-login-alt button {
+  color: var(--blue);
+  font-weight: 700;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.dcx-login-alt button:hover {
+  text-decoration: underline;
+}
+
+.dcx-login-legal {
+  text-align: center;
+  font-size: 12px;
+  color: #8A96AC;
+  line-height: 1.5;
+}
+
+/* ───────── Faixa superior (celular e tablet) ───────── */
+.dcx-login-mhead {
+  display: none;
+  background:
+    linear-gradient(rgba(7, 20, 69, 0.55), rgba(7, 20, 69, 0.82)),
+    url('/assets/login-hero-sm.jpg') 24% 50% / cover no-repeat;
+  padding: 34px 24px 26px;
+  color: #fff;
+  align-items: center;
+  gap: 12px;
+}
+
+.dcx-login-mhead .dcx-login-mk {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+}
+
+.dcx-login-mhead .dcx-login-wordmark {
+  font-size: 18px;
+}
+
+@media (max-width: 1023px) {
+  .dcx-login-grid {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .dcx-login-brand {
+    display: none;
+  }
+
+  .dcx-login-mhead {
+    display: flex;
+  }
+
+  .dcx-login-side {
+    padding: 20px 24px 24px;
+  }
+
+  .dcx-login-form {
+    margin: 0 auto;
+    padding: 36px 0 24px;
+  }
+
+  .dcx-login .dcx-login-form h2 {
+    font-size: 27px;
+  }
+}
