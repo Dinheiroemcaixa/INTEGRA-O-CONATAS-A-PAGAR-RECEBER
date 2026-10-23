@@ -2,14 +2,12 @@
 
 import React from 'react'
 import { Menu } from 'lucide-react'
-import { usePathname } from 'next/navigation'
 import { useSidebar } from '@/contexts/SidebarContext'
 import ThemeSwitcher from '@/components/layout/ThemeSwitcher'
 
 export default function Header() {
   const { toggleMobile } = useSidebar()
-  const pathname = usePathname()
-  const isHome = pathname === '/dashboard' || pathname === '/gestao-pagamentos' // marca DCX LINK (página inicial e Meus Grupos)
+  const isHome = true // marca DCX LINK no topo mobile (aprovada) em todas as telas
 
   return (
     <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white/95 dark:bg-[#0c1017]/95 backdrop-blur-md border-b border-slate-200/80 dark:border-white/[0.08] sticky top-0 z-30 transition-colors">

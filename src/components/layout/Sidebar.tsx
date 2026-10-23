@@ -84,7 +84,7 @@ const navSections: NavSection[] = [
 
 export default function Sidebar() {
   const pathname = usePathname()
-  const isHome = pathname === '/dashboard' || pathname === '/gestao-pagamentos' // visual DCX LINK (página inicial e Meus Grupos)
+  const isHome = true // visual DCX LINK do menu lateral (aprovado) em todas as telas
   const router = useRouter()
   const { config, update, accentClasses } = useAppConfig()
   const { isMobileOpen, closeMobile } = useSidebar()
