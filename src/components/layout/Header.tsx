@@ -2,11 +2,13 @@
 
 import React from 'react'
 import { Menu } from 'lucide-react'
+import { usePathname } from 'next/navigation'
 import { useSidebar } from '@/contexts/SidebarContext'
 import ThemeSwitcher from '@/components/layout/ThemeSwitcher'
 
 export default function Header() {
   const { toggleMobile } = useSidebar()
+  const isHome = usePathname() === '/dashboard' // primeira página após o login: marca DCX LINK
 
   return (
     <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white/95 dark:bg-[#0c1017]/95 backdrop-blur-md border-b border-slate-200/80 dark:border-white/[0.08] sticky top-0 z-30 transition-colors">
@@ -21,11 +23,21 @@ export default function Header() {
         </button>
 
         <div className="flex items-center gap-2">
-          <img
-            src="/images/dinheiro-em-caixa-logo.png"
-            alt="Dinheiro em Caixa"
-            className="h-7 w-auto object-contain"
-          />
+          {isHome ? (
+            <>
+              <svg width="26" height="26" viewBox="0 0 26 26" className="flex-none block" aria-hidden="true">
+                <circle cx="9.5" cy="13" r="6.5" fill="none" stroke="#0B1E5B" strokeWidth="1.8" />
+                <circle cx="16.5" cy="13" r="6.5" fill="none" stroke="#17A862" strokeWidth="1.8" />
+              </svg>
+              <span className="text-base font-bold tracking-tight text-[#0B1E5B] dark:text-white">DCX LINK</span>
+            </>
+          ) : (
+            <img
+              src="/images/dinheiro-em-caixa-logo.png"
+              alt="Dinheiro em Caixa"
+              className="h-7 w-auto object-contain"
+            />
+          )}
         </div>
       </div>
 

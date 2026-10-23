@@ -1,0 +1,220 @@
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&display=swap');
+
+/* =========================================================================
+   DCX LINK — Primeira página após o login (Opção E, aprovada)
+   Somente visual. Tudo escopado em .dcx-home para não afetar outras telas.
+   ========================================================================= */
+
+.dcx-home {
+  --dcx-navy: #0b1e5b;
+  --dcx-deep: #071445;
+  --dcx-blue: #1e4fd8;
+  --dcx-mint: #5fd68b;
+  --dcx-teal: #17a39a;
+  --dcx-page: #eef1f8;
+  --dcx-surface: #ffffff;
+  --dcx-ink: #0f1a3d;
+  --dcx-mu: #5b6585;
+  --dcx-tile: #f3f6fd;
+  --dcx-soft: #eef2ff;
+  --dcx-ok-bg: #ddf6e8;
+  --dcx-ok-tx: #0b7a47;
+  --dcx-shadow: 0 26px 50px -26px rgba(7, 20, 69, 0.55);
+  --dcx-shadow-sm: 0 20px 44px -30px rgba(7, 20, 69, 0.45);
+  --dcx-display: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
+
+  /* Faixa ocupa toda a largura da área de conteúdo (anula o padding do <main>) */
+  margin: -14px;
+  background: var(--dcx-page);
+  color: var(--dcx-ink);
+  min-height: calc(100% + 28px);
+}
+@media (min-width: 640px) {
+  .dcx-home { margin: -20px; min-height: calc(100% + 40px); }
+}
+@media (min-width: 1024px) {
+  .dcx-home { margin: -24px; min-height: calc(100% + 48px); }
+}
+
+html.dark .dcx-home {
+  --dcx-page: #070d1a;
+  --dcx-surface: #0c1424;
+  --dcx-ink: #f1f5f9;
+  --dcx-mu: #94a3b8;
+  --dcx-tile: rgba(255, 255, 255, 0.04);
+  --dcx-soft: rgba(30, 79, 216, 0.18);
+  --dcx-ok-bg: rgba(46, 232, 138, 0.12);
+  --dcx-ok-tx: #5fe0a0;
+  --dcx-shadow: 0 26px 50px -26px rgba(0, 0, 0, 0.8);
+  --dcx-shadow-sm: 0 20px 44px -30px rgba(0, 0, 0, 0.8);
+}
+
+.dcx-home *,
+.dcx-home *::before,
+.dcx-home *::after { box-sizing: border-box; }
+
+/* ── Faixa principal ─────────────────────────────────────────────────── */
+.dcx-home .dcx-hero {
+  position: relative;
+  padding: 20px 18px 112px;
+  color: #fff;
+  background:
+    linear-gradient(100deg, rgba(7, 20, 69, 0.96) 28%, rgba(11, 30, 91, 0.7) 62%, rgba(30, 79, 216, 0.35)),
+    url('/assets/login-hero-sm.jpg') center / cover;
+}
+@media (min-width: 900px) {
+  .dcx-home .dcx-hero {
+    padding: 30px 52px 132px;
+    background:
+      linear-gradient(100deg, rgba(7, 20, 69, 0.96) 28%, rgba(11, 30, 91, 0.7) 62%, rgba(30, 79, 216, 0.35)),
+      url('/assets/login-hero.jpg') center / cover;
+  }
+}
+.dcx-home .dcx-hero-top { position: relative; z-index: 30; display: flex; justify-content: flex-end; } /* menu do seletor fica acima dos cards */
+
+.dcx-home .dcx-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 26px; padding: 6px 14px; border-radius: 999px;
+  background: rgba(95, 214, 139, 0.16); border: 1px solid rgba(95, 214, 139, 0.4);
+  font-size: 12.5px; font-weight: 600; color: #a8f0c6;
+}
+.dcx-home .dcx-chip i {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--dcx-mint);
+  box-shadow: 0 0 0 4px rgba(95, 214, 139, 0.25);
+}
+
+/* O global força h1..h6 escuros no tema claro; aqui precisamos de branco */
+html .dcx-home .dcx-hero h1 {
+  display: block;
+  margin-top: 18px; max-width: 720px;
+  font-family: var(--dcx-display);
+  font-weight: 600; font-size: 40px; line-height: 1; letter-spacing: -0.035em;
+  color: #fff !important;
+}
+@media (min-width: 900px) {
+  html .dcx-home .dcx-hero h1 { font-size: clamp(48px, 5vw, 72px); }
+}
+.dcx-home .dcx-lead { margin-top: 20px; font-size: 18px; font-weight: 500; color: #fff; }
+.dcx-home .dcx-txt { margin-top: 10px; max-width: 600px; font-size: 15px; line-height: 1.65; color: #b9c8f0; }
+
+/* ── Módulos ─────────────────────────────────────────────────────────── */
+.dcx-home .dcx-wrap { padding: 0 14px 40px; }
+@media (min-width: 900px) { .dcx-home .dcx-wrap { padding: 0 52px 56px; } }
+
+.dcx-home .dcx-sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+.dcx-home .dcx-mods {
+  position: relative; z-index: 2;
+  display: grid; gap: 16px; grid-template-columns: 1fr;
+  margin-top: -80px;
+}
+@media (min-width: 640px) { .dcx-home .dcx-mods { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1100px) { .dcx-home .dcx-mods { grid-template-columns: repeat(3, 1fr); margin-top: -96px; } }
+@media (min-width: 1400px) { .dcx-home .dcx-mods { grid-template-columns: repeat(5, 1fr); } }
+
+.dcx-home .dcx-card {
+  position: relative; display: flex; flex-direction: column;
+  min-height: 236px; padding: 22px; border-radius: 22px;
+  background: var(--dcx-surface); box-shadow: var(--dcx-shadow);
+  text-decoration: none; color: var(--dcx-ink);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.dcx-home .dcx-card:hover { transform: translateY(-4px); }
+.dcx-home .dcx-card:focus-visible { outline: 3px solid var(--dcx-blue); outline-offset: 3px; }
+
+.dcx-home .dcx-group { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--dcx-mu); }
+.dcx-home .dcx-group::before { content: ''; width: 8px; height: 8px; border-radius: 3px; background: var(--dcx-blue); }
+.dcx-home .dcx-ven .dcx-group::before { background: var(--dcx-teal); }
+
+.dcx-home .dcx-ci {
+  margin-top: 16px; width: 58px; height: 58px; border-radius: 18px;
+  display: grid; place-items: center; color: #fff;
+  background: linear-gradient(145deg, #1e4fd8, #0b1e5b);
+}
+.dcx-home .dcx-ven .dcx-ci { background: linear-gradient(145deg, #17a39a, #0b5c73); }
+
+html .dcx-home .dcx-card h3 {
+  margin-top: 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  font-family: var(--dcx-display); font-size: 18px; font-weight: 600; line-height: 1.2;
+  color: var(--dcx-ink) !important;
+}
+html.dark .dcx-home .dcx-card h3 { color: #f1f5f9 !important; }
+
+.dcx-home .dcx-card p { margin-top: 7px; flex: 1; font-size: 12.5px; line-height: 1.55; color: var(--dcx-mu); }
+.dcx-home .dcx-soon {
+  font-style: normal; font-family: inherit; font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em;
+  padding: 3px 8px; border-radius: 999px; background: #fff0d0; color: #9a5b00;
+}
+.dcx-home .dcx-go { margin-top: 12px; display: flex; justify-content: flex-end; }
+.dcx-home .dcx-go > span {
+  width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--dcx-soft); color: var(--dcx-blue); transition: background 0.2s, color 0.2s;
+}
+html.dark .dcx-home .dcx-go > span { color: #8fb0ff; }
+.dcx-home .dcx-first .dcx-go > span,
+.dcx-home .dcx-card:hover .dcx-go > span { background: var(--dcx-blue); color: #fff; }
+
+/* ── Ecossistema + Status ────────────────────────────────────────────── */
+.dcx-home .dcx-two { display: grid; gap: 18px; grid-template-columns: 1fr; margin-top: 22px; }
+@media (min-width: 1250px) { .dcx-home .dcx-two { grid-template-columns: 1.15fr 1fr; } }
+
+.dcx-home .dcx-pan { background: var(--dcx-surface); border-radius: 22px; padding: 20px; box-shadow: var(--dcx-shadow-sm); }
+@media (min-width: 900px) { .dcx-home .dcx-pan { padding: 26px; } }
+html .dcx-home .dcx-pan h2 {
+  font-family: var(--dcx-display); font-size: 22px; font-weight: 600; letter-spacing: -0.01em;
+  color: var(--dcx-ink) !important;
+}
+html.dark .dcx-home .dcx-pan h2 { color: #f1f5f9 !important; }
+.dcx-home .dcx-pan-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.dcx-home .dcx-details { font-size: 12px; font-weight: 600; color: var(--dcx-blue); cursor: default; }
+html.dark .dcx-home .dcx-details { color: #8fb0ff; }
+.dcx-home .dcx-pan-sub { margin-top: 5px; font-size: 13px; line-height: 1.5; color: var(--dcx-mu); }
+
+/* Linha do tempo do ecossistema */
+.dcx-home .dcx-tl { position: relative; margin-top: 20px; display: grid; gap: 18px; grid-template-columns: 1fr; }
+.dcx-home .dcx-tn { position: relative; display: grid; grid-template-columns: 30px 1fr; column-gap: 12px; align-content: start; }
+.dcx-home .dcx-tn i {
+  grid-row: 1 / 4; display: block; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--dcx-surface); border: 3px solid var(--dcx-blue);
+}
+.dcx-home .dcx-tn.dcx-core i { background: var(--dcx-blue); box-shadow: 0 0 0 7px rgba(30, 79, 216, 0.15); }
+.dcx-home .dcx-tn b { font-size: 14px; font-weight: 600; color: var(--dcx-ink); }
+.dcx-home .dcx-tn small { display: block; margin-top: 4px; font-size: 11.5px; line-height: 1.45; color: var(--dcx-mu); }
+.dcx-home .dcx-tn em {
+  justify-self: start; margin-top: 8px; font-style: normal; font-size: 11px; font-weight: 600;
+  color: var(--dcx-ok-tx); background: var(--dcx-ok-bg); padding: 3px 10px; border-radius: 999px;
+}
+@media (min-width: 900px) {
+  .dcx-home .dcx-tl { grid-template-columns: repeat(4, 1fr); gap: 0; }
+  .dcx-home .dcx-tl::before {
+    content: ''; position: absolute; left: 12%; right: 12%; top: 13px; height: 2px;
+    background: linear-gradient(90deg, #1e4fd8, #5fd68b);
+  }
+  .dcx-home .dcx-tn { display: block; text-align: center; padding: 0 8px; }
+  .dcx-home .dcx-tn i { margin: 0 auto; }
+  .dcx-home .dcx-tn b { display: block; margin-top: 12px; }
+  .dcx-home .dcx-tn em { display: inline-block; margin-top: 9px; }
+}
+
+/* Itens de status */
+.dcx-home .dcx-st { margin-top: 16px; display: grid; gap: 12px; grid-template-columns: 1fr; }
+@media (min-width: 640px) { .dcx-home .dcx-st { grid-template-columns: 1fr 1fr; } }
+.dcx-home .dcx-si { display: flex; gap: 11px; padding: 14px; border-radius: 16px; background: var(--dcx-tile); }
+.dcx-home .dcx-sic {
+  width: 38px; height: 38px; flex: none; border-radius: 12px; display: grid; place-items: center;
+  background: var(--dcx-surface); color: var(--dcx-blue);
+}
+html.dark .dcx-home .dcx-sic { color: #8fb0ff; }
+.dcx-home .dcx-si b { display: block; font-size: 13px; font-weight: 600; color: var(--dcx-ink); }
+.dcx-home .dcx-si small { display: block; font-size: 11.5px; color: var(--dcx-mu); }
+.dcx-home .dcx-si em {
+  display: inline-block; margin-top: 5px; font-style: normal; font-size: 11px; font-weight: 600;
+  color: var(--dcx-ok-tx); background: var(--dcx-ok-bg); padding: 2px 9px; border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dcx-home .dcx-card { transition: none; }
+  .dcx-home .dcx-card:hover { transform: none; }
+}

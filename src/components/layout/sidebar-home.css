@@ -1,0 +1,74 @@
+/* =========================================================================
+   Menu lateral — visual da Opção E (aprovada) SOMENTE na página /dashboard.
+   Ativado pelo atributo data-dcx-home no <aside> (ver Sidebar.tsx).
+   Nas demais telas o menu continua exatamente como era.
+   ========================================================================= */
+
+aside[data-dcx-home] {
+  width: 17.25rem !important;
+  background: linear-gradient(185deg, #0d2570 0%, #071445 70%) !important;
+  border-color: transparent !important;
+  color: #fff;
+}
+
+/* Marca DCX LINK (substitui o logo da Dinheiro em Caixa nesta tela) */
+aside[data-dcx-home] .dcx-brand-wrap {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  margin-bottom: 0.25rem;
+}
+aside[data-dcx-home] .dcx-brand { display: flex; align-items: center; gap: 12px; padding: 14px 10px 8px; }
+aside[data-dcx-home] .dcx-brand b {
+  display: block; color: #fff; font-family: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
+  font-size: 21px; font-weight: 700; letter-spacing: 0.01em; line-height: 1.1;
+}
+aside[data-dcx-home] .dcx-brand small { display: block; margin-top: 2px; font-size: 11px; color: #9db2e8; }
+
+/* Títulos de seção */
+aside[data-dcx-home] .dcx-sec {
+  text-transform: none !important; letter-spacing: 0 !important;
+  font-size: 11.5px !important; font-weight: 600 !important; color: #7f97d6 !important;
+  padding-top: 14px !important;
+}
+
+/* Itens */
+aside[data-dcx-home] .dcx-item {
+  min-height: 42px; border-radius: 12px !important;
+  font-size: 13.5px !important; line-height: 1.3;
+  color: #c9d6f7 !important; background: transparent !important; border: 0 !important; box-shadow: none !important;
+  transform: none !important;
+}
+aside[data-dcx-home] .dcx-item span.flex-1 { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+aside[data-dcx-home] .dcx-item svg { color: #8fa8e8 !important; }
+aside[data-dcx-home] a.dcx-item:hover { background: rgba(255, 255, 255, 0.08) !important; color: #fff !important; }
+aside[data-dcx-home] .dcx-item-on { background: rgba(255, 255, 255, 0.12) !important; color: #fff !important; font-weight: 600 !important; }
+aside[data-dcx-home] .dcx-item-on svg { color: #5fd68b !important; }
+aside[data-dcx-home] .dcx-item-on > svg:last-child { display: none; } /* seta do item ativo */
+aside[data-dcx-home] .dcx-item-on > span.absolute { background: #5fd68b !important; left: -12px; width: 4px; }
+aside[data-dcx-home] .dcx-locked { opacity: 0.55; }
+aside[data-dcx-home] .dcx-locked svg:last-child { color: #ffd27a !important; }
+
+/* Etiquetas (FASE 2, EM BREVE, MASTER) */
+aside[data-dcx-home] .dcx-badge { border: 0 !important; font-size: 9px !important; letter-spacing: 0.03em; }
+aside[data-dcx-home] .dcx-badge[data-tone='ind'] { background: rgba(143, 176, 255, 0.2) !important; color: #bfd1ff !important; }
+aside[data-dcx-home] .dcx-badge[data-tone='amb'] { background: rgba(255, 200, 87, 0.18) !important; color: #ffd27a !important; }
+
+/* Rodapé: usuário + Sair */
+aside[data-dcx-home] .dcx-foot {
+  background: transparent !important; backdrop-filter: none !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+aside[data-dcx-home] .dcx-user {
+  background: rgba(255, 255, 255, 0.07) !important; border-color: rgba(255, 255, 255, 0.12) !important;
+}
+aside[data-dcx-home] .dcx-user p { color: #fff !important; }
+aside[data-dcx-home] .dcx-user p + p { color: #9db2e8 !important; }
+aside[data-dcx-home] .dcx-out { color: #c9d6f7 !important; background: rgba(255, 255, 255, 0.06) !important; }
+aside[data-dcx-home] .dcx-out svg { color: #9db2e8 !important; }
+aside[data-dcx-home] .dcx-out:hover { background: rgba(244, 63, 94, 0.18) !important; color: #fecdd3 !important; }
+aside[data-dcx-home] .dcx-logo-bottom { display: none; }
+
+/* Botão de tema (dentro do cartão do usuário) combinando com o menu escuro */
+aside[data-dcx-home] .dcx-user button {
+  background: rgba(255, 255, 255, 0.1) !important; border-color: rgba(255, 255, 255, 0.16) !important; color: #c9d6f7 !important;
+}
+aside[data-dcx-home] .dcx-user button svg { color: #c9d6f7 !important; }

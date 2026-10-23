@@ -17,6 +17,15 @@ import { useUserPermissions } from '@/contexts/UserPermissionsContext'
 import ThemeSwitcher from '@/components/layout/ThemeSwitcher'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
+import './sidebar-home.css'
+
+// Visual da página inicial: "FINANCEIRO" -> "Financeiro", "SISTEMA & INTEGRAÇÕES" -> "Sistema & Integrações"
+const tituloSecaoInicio = (titulo: string) =>
+  titulo
+    .toLowerCase()
+    .split(' ')
+    .map((p) => (p === '&' ? p : p.charAt(0).toUpperCase() + p.slice(1)))
+    .join(' ')
 
 interface NavItem {
   label: string
@@ -75,6 +84,7 @@ const navSections: NavSection[] = [
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const isHome = pathname === '/dashboard' // visual especial só na primeira página após o login
   const router = useRouter()
   const { config, update, accentClasses } = useAppConfig()
   const { isMobileOpen, closeMobile } = useSidebar()
@@ -108,6 +118,7 @@ export default function Sidebar() {
 
       {/* Aside com Drawer Responsivo */}
       <aside
+        data-dcx-home={isHome ? 'true' : undefined}
         className={cn(
           "w-64 bg-white dark:bg-[#0c1017] border-r border-slate-200/80 dark:border-white/[0.08] flex flex-col select-none transition-all duration-300 z-50",
           // Em telas mobile/tablet: fixo à esquerda com animação de slide
@@ -116,14 +127,28 @@ export default function Sidebar() {
         )}
       >
         {/* Logo da Marca Dinheiro em Caixa (Opção B: Card Off-White Suave) */}
-        <div className="relative px-3 py-3 border-b border-slate-200/70 dark:border-white/[0.08] mb-1">
+        <div className="dcx-brand-wrap relative px-3 py-3 border-b border-slate-200/70 dark:border-white/[0.08] mb-1">
+          {isHome ? (
+            /* Página inicial: marca DCX LINK no lugar do logo da Dinheiro em Caixa */
+            <div className="dcx-brand">
+              <svg width="34" height="34" viewBox="0 0 26 26" className="flex-none block" aria-hidden="true">
+                <circle cx="9.5" cy="13" r="6.5" fill="none" stroke="#fff" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" />
+                <circle cx="16.5" cy="13" r="6.5" fill="none" stroke="#5FD68B" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" />
+              </svg>
+              <div>
+                <b>{config.appNome || 'DCX LINK'}</b>
+                <small>O elo entre seus sistemas</small>
+              </div>
+            </div>
+          ) : (
           <div className="w-full bg-slate-100/95 dark:bg-slate-100 rounded-xl p-2.5 shadow-xs flex items-center justify-center border border-slate-200 dark:border-slate-300/80">
-            <img 
-              src="/images/dinheiro-em-caixa-logo.png" 
-              alt="Dinheiro em Caixa" 
-              className="w-full max-w-[228px] h-auto object-contain transition-transform duration-300 hover:scale-[1.02]" 
+            <img
+              src="/images/dinheiro-em-caixa-logo.png"
+              alt="Dinheiro em Caixa"
+              className="w-full max-w-[228px] h-auto object-contain transition-transform duration-300 hover:scale-[1.02]"
             />
           </div>
+          )}
           <button
             onClick={closeMobile}
             className="absolute right-4 top-4 lg:hidden p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-dark-800 transition-colors cursor-pointer"
@@ -143,8 +168,8 @@ export default function Sidebar() {
             return (
               <div key={sIdx} className="space-y-1">
                 {section.title && (
-                  <p className="px-3 pt-2.5 pb-1 text-[10px] font-bold text-slate-400 dark:text-dark-500 tracking-wider uppercase select-none">
-                    {section.title}
+                  <p className="dcx-sec px-3 pt-2.5 pb-1 text-[10px] font-bold text-slate-400 dark:text-dark-500 tracking-wider uppercase select-none">
+                    {isHome ? tituloSecaoInicio(section.title) : section.title}
                   </p>
                 )}
                 {visibleItems.map((item) => {
@@ -159,7 +184,7 @@ export default function Sidebar() {
                         key={item.href}
                         type="button"
                         onClick={() => toast.error('Você não possui acesso a este módulo.')}
-                        className="relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-400 dark:text-dark-500 opacity-60 hover:opacity-90 hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-all cursor-pointer select-none text-left group"
+                        className="dcx-item dcx-locked relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-400 dark:text-dark-500 opacity-60 hover:opacity-90 hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-all cursor-pointer select-none text-left group"
                         title="Você não possui acesso a este módulo."
                       >
                         <Icon size={17} className="flex-shrink-0 text-slate-400 dark:text-dark-500 group-hover:text-amber-500/70 transition-colors" />
@@ -177,8 +202,9 @@ export default function Sidebar() {
                         if (isMobileOpen) closeMobile()
                       }}
                       className={cn(
-                        'relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 group',
-                        isActive 
+                        'dcx-item relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 group',
+                        isActive && 'dcx-item-on',
+                        isActive
                           ? 'bg-brand-500/10 dark:bg-brand-500/15 text-brand-600 dark:text-brand-400 font-semibold border border-brand-500/20 shadow-xs' 
                           : 'text-slate-600 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/90 dark:hover:bg-white/[0.06] hover:translate-x-0.5',
                         item.disabled && 'opacity-40 cursor-not-allowed pointer-events-none'
@@ -194,11 +220,11 @@ export default function Sidebar() {
                         isActive ? 'text-brand-600 dark:text-brand-400' : 'text-slate-400 dark:text-dark-400 group-hover:text-slate-700 dark:group-hover:text-white'
                       )} />
                       
-                      <span className="flex-1 truncate">{item.label}</span>
+                      <span className="flex-1 truncate">{isHome ? item.label.replace('🔐 ', '') : item.label}</span>
 
                       {item.badge && !item.disabled && (
-                        <span className={cn(
-                          'text-[9px] px-1.5 py-0.5 rounded-full font-bold border tracking-wider',
+                        <span data-tone={item.badgeColor?.includes('indigo') ? 'ind' : 'amb'} className={cn(
+                          'dcx-badge text-[9px] px-1.5 py-0.5 rounded-full font-bold border tracking-wider',
                           item.badgeColor || 'bg-brand-500/10 dark:bg-brand-500/20 text-brand-600 dark:text-brand-400 border-brand-500/30'
                         )}>
                           {item.badge}
@@ -223,9 +249,9 @@ export default function Sidebar() {
         </nav>
 
         {/* Footer */}
-        <div className="p-3 border-t border-slate-200/80 dark:border-white/[0.08] space-y-2 bg-slate-50/60 dark:bg-dark-900/70 backdrop-blur-md">
+        <div className="dcx-foot p-3 border-t border-slate-200/80 dark:border-white/[0.08] space-y-2 bg-slate-50/60 dark:bg-dark-900/70 backdrop-blur-md">
           {/* Avatar do Usuário Estilo SaaS Premium */}
-          <div className="flex items-center justify-between bg-white dark:bg-dark-850/90 hover:bg-slate-50 dark:hover:bg-dark-800 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl p-2.5 shadow-xs transition-all group">
+          <div className="dcx-user flex items-center justify-between bg-white dark:bg-dark-850/90 hover:bg-slate-50 dark:hover:bg-dark-800 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl p-2.5 shadow-xs transition-all group">
             <div className="flex-1 flex items-center gap-3 min-w-0 text-left select-none">
               <div className="relative flex-shrink-0">
                 <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 p-[1.5px] shadow-xs">
@@ -251,14 +277,14 @@ export default function Sidebar() {
 
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-500 dark:text-dark-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all group cursor-pointer"
+            className="dcx-out w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-500 dark:text-dark-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all group cursor-pointer"
           >
             <LogOut size={15} className="text-slate-400 dark:text-dark-400 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors" />
             <span>Sair do sistema</span>
           </button>
 
           {/* Logo DCX LINK */}
-          <div className="pt-2 border-t border-slate-200/60 dark:border-white/[0.06] flex flex-col items-center">
+          <div className="dcx-logo-bottom pt-2 border-t border-slate-200/60 dark:border-white/[0.06] flex flex-col items-center">
             {config.appLogoUrl ? (
               <img src={config.appLogoUrl} alt={config.appNome} className="h-7 max-w-[110px] object-contain opacity-80 hover:opacity-100 transition-opacity" />
             ) : (
