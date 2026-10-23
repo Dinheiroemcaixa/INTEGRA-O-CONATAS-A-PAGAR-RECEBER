@@ -84,7 +84,7 @@ const navSections: NavSection[] = [
 
 export default function Sidebar() {
   const pathname = usePathname()
-  const isHome = pathname === '/dashboard' // visual especial só na primeira página após o login
+  const isHome = pathname === '/dashboard' || pathname === '/gestao-pagamentos' // visual DCX LINK (página inicial e Meus Grupos)
   const router = useRouter()
   const { config, update, accentClasses } = useAppConfig()
   const { isMobileOpen, closeMobile } = useSidebar()

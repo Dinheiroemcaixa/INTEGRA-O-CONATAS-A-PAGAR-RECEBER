@@ -8,7 +8,8 @@ import ThemeSwitcher from '@/components/layout/ThemeSwitcher'
 
 export default function Header() {
   const { toggleMobile } = useSidebar()
-  const isHome = usePathname() === '/dashboard' // primeira página após o login: marca DCX LINK
+  const pathname = usePathname()
+  const isHome = pathname === '/dashboard' || pathname === '/gestao-pagamentos' // marca DCX LINK (página inicial e Meus Grupos)
 
   return (
     <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white/95 dark:bg-[#0c1017]/95 backdrop-blur-md border-b border-slate-200/80 dark:border-white/[0.08] sticky top-0 z-30 transition-colors">
