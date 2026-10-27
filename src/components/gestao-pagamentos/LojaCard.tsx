@@ -6,7 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Trash2, Upload, Search, Calendar, RefreshCw, ChevronDown, ChevronLeft, ChevronRight,
   ArrowRightLeft, Sparkles, Edit2, X, Paperclip, FileText, Send,
-  Copy, CheckCircle2, ArrowDownRight, ArrowUpRight, TrendingUp, TrendingDown, Clock, ShieldCheck, Wallet, Plus, Barcode
+  Copy, CheckCircle2, ArrowDownRight, ArrowUpRight, TrendingUp, TrendingDown, Clock, ShieldCheck, Wallet, Plus, Barcode,
+  Eye
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ModalAgendamento from '@/components/agendamento/ModalAgendamento'
@@ -30,13 +31,18 @@ interface LojaCardProps {
   onTransferenciaGlobal?: () => void
   onPeriodoChange?: (lojaId: string, dataInicio: string, dataFim: string) => void
   onLojaRemovida?: () => void
+  /** Apenas apresentação: nome do grupo exibido no cabeçalho da loja */
+  nomeGrupo?: string
+  /** Avisa a página quando o saldo em caixa é salvo (mantém a lateral em sincronia) */
+  onSaldoSalvo?: (lojaId: string, novoSaldo: number) => void
 }
 
-export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransferenciaGlobal, onPeriodoChange, onLojaRemovida }: LojaCardProps) {
+export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransferenciaGlobal, onPeriodoChange, onLojaRemovida, nomeGrupo, onSaldoSalvo }: LojaCardProps) {
   const supabase = createClient()
   const router = useRouter()
   const { setEmpresaAtiva } = useEmpresa()
-  const hoje = new Date().toISOString().split('T')[0]
+  const agoraInit = new Date()
+  const hoje = `${agoraInit.getFullYear()}-${String(agoraInit.getMonth() + 1).padStart(2, '0')}-${String(agoraInit.getDate()).padStart(2, '0')}`
   const [dataInicio, setDataInicio] = useState(hoje)
   const [dataFim, setDataFim] = useState(hoje)
 
@@ -66,6 +72,8 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   const [itemCodigoBarras, setItemCodigoBarras] = useState<any | null>(null)
   const [selecionadosIndividuais, setSelecionadosIndividuais] = useState<string[]>([])
   const [buscaLocal, setBuscaLocal] = useState('')
+  const [filtroTipo, setFiltroTipo] = useState<'todos' | 'DDA' | 'Agendamento' | 'Folha' | 'Transferência'>('todos')
+  const [filtroSituacao, setFiltroSituacao] = useState<'todas' | 'agendado' | 'aberto'>('todas')
 
   const toggleItemIndividual = (id: string) => {
     setSelecionadosIndividuais(prev =>
@@ -148,6 +156,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       const { error } = await supabase.from('empresas').update({ saldo_caixa: saldoCaixaPendente }).eq('id', empresa.id)
       if (error) throw error
       setSaldoCaixa(saldoCaixaPendente)
+      onSaldoSalvo?.(empresa.id, saldoCaixaPendente)
       toast.success('Saldo em caixa atualizado!')
     } catch (err: any) {
       toast.error(err.message || 'Erro ao salvar saldo em caixa')
@@ -173,7 +182,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   ]
 
   function fmtISO(d: Date) {
-    return d.toISOString().split('T')[0]
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   }
 
   function aplicarPeriodo(key: string) {
@@ -388,11 +397,13 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       supabase
         .from('pagamentos_dda')
         .select('*')
-        .eq('empresa_id', empresa.id),
+        .eq('empresa_id', empresa.id)
+        .order('created_at', { ascending: false }),
       supabase
         .from('agendamentos')
         .select(COLUNAS_AGENDAMENTOS_LEVES)
-        .eq('empresa_id', empresa.id),
+        .eq('empresa_id', empresa.id)
+        .order('created_at', { ascending: false }),
       supabase
         .from('agendamentos')
         .select('id')
@@ -403,18 +414,24 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
     // Mapeia quais IDs possuem anexo sem precisar baixar 25MB de Base64
     const setIdsComAnexo = new Set(((anexosIds as any[]) || []).map(x => x.id))
 
-    // Filtra no frontend para garantir resiliencia contra campos nulos de data
+    // Filtra no frontend considerando data_pagamento ou data_vencimento dentro do periodo selecionado
     const ddasFiltrados = (ddas || []).filter(d => {
-      const dt = d.data_pagamento || d.data_vencimento
-      if (!dt) return true
-      return dt >= dataInicio && dt <= dataFim
+      const dtPgto = d.data_pagamento
+      const dtVenc = d.data_vencimento
+      if (!dtPgto && !dtVenc) return true
+      const matchPgto = dtPgto ? (dtPgto >= dataInicio && dtPgto <= dataFim) : false
+      const matchVenc = dtVenc ? (dtVenc >= dataInicio && dtVenc <= dataFim) : false
+      return matchPgto || matchVenc
     })
 
     const listaAgendamentos = (agendamentos as any[] || [])
     const agendFiltrados = listaAgendamentos.filter(a => {
-      const dt = a.data_pagamento || a.data_vencimento
-      if (!dt) return true
-      return dt >= dataInicio && dt <= dataFim
+      const dtPgto = a.data_pagamento
+      const dtVenc = a.data_vencimento
+      if (!dtPgto && !dtVenc) return true
+      const matchPgto = dtPgto ? (dtPgto >= dataInicio && dtPgto <= dataFim) : false
+      const matchVenc = dtVenc ? (dtVenc >= dataInicio && dtVenc <= dataFim) : false
+      return matchPgto || matchVenc
     })
 
     const unificados = [
@@ -732,9 +749,16 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
   const termoBusca = buscaLocal.trim().toLowerCase()
 
+  const combinaSituacao = (status: string | null | undefined) =>
+    filtroSituacao === 'todas' || (filtroSituacao === 'agendado' ? status === 'agendado' : status !== 'agendado')
+
   const pagamentosIndividuaisFiltrados = useMemo(() => {
-    if (!termoBusca) return pagamentosIndividuais
-    return pagamentosIndividuais.filter(p => {
+    const porTipoSituacao = pagamentosIndividuais.filter(p => {
+      const tipoOk = filtroTipo === 'todos' || p.origem === filtroTipo
+      return tipoOk && combinaSituacao(p.status)
+    })
+    if (!termoBusca) return porTipoSituacao
+    return porTipoSituacao.filter(p => {
       const fornecedor = (p.fornecedor || '').toLowerCase()
       const beneficiario = (p.beneficiario || '').toLowerCase()
       const descricao = (p.descricao || '').toLowerCase()
@@ -754,22 +778,60 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         valorFmt.includes(termoBusca)
       )
     })
-  }, [pagamentosIndividuais, termoBusca])
+  }, [pagamentosIndividuais, termoBusca, filtroTipo, filtroSituacao])
 
-  const mostrarDda = pagamentosDda.length > 0 && (
+  const grupoCombinaSituacao = (itens: any[]) =>
+    filtroSituacao === 'todas' || itens.some(i => combinaSituacao(i.status))
+
+  const mostrarDda = pagamentosDda.length > 0 && (filtroTipo === 'todos' || filtroTipo === 'DDA') && grupoCombinaSituacao(pagamentosDda) && (
     !termoBusca ||
     'dda'.includes(termoBusca) ||
     'lançamentos dda'.includes(termoBusca) ||
     categoriaDda.toLowerCase().includes(termoBusca)
   )
 
-  const mostrarFolha = pagamentosFolha.length > 0 && (
+  const mostrarFolha = pagamentosFolha.length > 0 && (filtroTipo === 'todos' || filtroTipo === 'Folha') && grupoCombinaSituacao(pagamentosFolha) && (
     !termoBusca ||
     'folha'.includes(termoBusca) ||
     'salários'.includes(termoBusca) ||
     'salario'.includes(termoBusca) ||
     categoriaFolha.toLowerCase().includes(termoBusca)
   )
+
+  const filtrosAtivos = Boolean(termoBusca) || filtroTipo !== 'todos' || filtroSituacao !== 'todas'
+
+  function limparFiltros() {
+    setBuscaLocal('')
+    setFiltroTipo('todos')
+    setFiltroSituacao('todas')
+  }
+
+  const registrosTotais = pagamentosDda.length + pagamentosFolha.length + pagamentosIndividuais.length
+  const registrosVisiveis =
+    (mostrarDda ? pagamentosDda.length : 0) + (mostrarFolha ? pagamentosFolha.length : 0) + pagamentosIndividuaisFiltrados.length
+
+  // Totais por situação do período (apenas leitura dos dados já carregados)
+  const resumoPeriodo = useMemo(() => {
+    const somar = (itens: any[]) => itens.reduce((acc, curr) => acc + Number(curr.valor || 0), 0)
+    const ehTransf = (p: any) => p.origem === 'Transferência' || p.origem === 'Transferência Recebida'
+    const pagaveis = pagamentos.filter(p => !ehTransf(p))
+    const aguardando = pagaveis.filter(p => p.status !== 'agendado')
+    const agendados = pagaveis.filter(p => p.status === 'agendado')
+    const transferencias = pagamentos.filter(ehTransf)
+    return {
+      total: { qtd: pagaveis.length },
+      aguardando: { qtd: aguardando.length, valor: somar(aguardando) },
+      agendados: { qtd: agendados.length, valor: somar(agendados) },
+      transferencias: { qtd: transferencias.length, valor: somar(transferencias) },
+    }
+  }, [pagamentos])
+
+  function classePilulaGrupo(label: string) {
+    if (label === 'AGENDADO') return 'is-ok'
+    if (label === 'PARCIAL') return 'is-info'
+    if (label === 'EM ABERTO') return 'is-open'
+    return 'is-none'
+  }
 
   function getEstiloVencimento(dataVencOuPg: string | null | undefined, status: string) {
     if (!dataVencOuPg) return { texto: 'text-slate-600 dark:text-dark-300', dot: 'bg-slate-400' }
@@ -787,12 +849,12 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
     }
     if (dataVencOuPg === hoje) {
       return {
-        texto: 'text-amber-600 dark:text-amber-400 font-bold',
+        texto: 'text-amber-700 dark:text-amber-400 font-bold',
         dot: 'bg-amber-500'
       }
     }
     return {
-      texto: 'text-emerald-600 dark:text-emerald-400 font-semibold',
+      texto: 'text-emerald-700 dark:text-emerald-400 font-semibold',
       dot: 'bg-emerald-500'
     }
   }
@@ -1117,127 +1179,34 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
     }
   }
 
+  const cnpjFormatado = formatarDocumentoFiscal(empresa.cnpj)
+  const saldoNegativo = saldoCaixaPendente < 0
+
   return (
-    <div className="bg-white dark:bg-dark-850/90 border border-slate-200/80 dark:border-dark-700/70 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-shadow">
-      <div className="p-4 sm:p-5 border-b border-slate-200/80 dark:border-dark-700 bg-slate-50/60 dark:bg-dark-900/40">
-        {/* Linha 1: Cabeçalho Principal (Área Esquerda, Área Central e Área Direita) */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          {/* Área Esquerda: Nome da empresa, Status, Última atualização */}
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-brand-500/10 dark:bg-brand-500/15 border border-brand-500/20 dark:border-brand-500/30 flex items-center justify-center text-brand-600 dark:text-brand-400 font-bold shadow-xs">
-              {empresa.nome.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                  {empresa.nome}
-                </h2>
-                {/* Selo de Status Ativo */}
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-xs">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  ATIVA
-                </span>
-              </div>
-              <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 dark:text-dark-400">
-                <Clock size={11} className="text-slate-400 dark:text-dark-500" />
-                <span>Última atualização: {new Date().toLocaleDateString('pt-BR')}</span>
-              </div>
+    <div className="gp-loja">
+      {/* Cabeçalho da loja: identificação, saldo em caixa, período e ações */}
+      <section className="gp-card gp-head">
+        <div className="gp-head-top">
+          <div className="gp-id">
+            <div className="gp-avatar" aria-hidden="true">{empresa.nome.charAt(0).toUpperCase()}</div>
+            <div className="min-w-0">
+              <h2 className="gp-loja-nome" title={empresa.nome}>{empresa.nome}</h2>
+              <p className="gp-loja-sub">
+                {nomeGrupo && <span>Grupo {nomeGrupo}</span>}
+                {nomeGrupo && cnpjFormatado && <span className="gp-dot">•</span>}
+                {cnpjFormatado && <span>{cnpjFormatado}</span>}
+                <span className="gp-ativa"><i />Ativa</span>
+              </p>
             </div>
           </div>
 
-          {/* Área Central: Navegação de datas, Calendário, Botões anterior/próximo */}
-          <div className="flex items-center justify-center gap-2 flex-wrap flex-1 min-w-0">
-            <div className="flex items-center gap-1 bg-white dark:bg-dark-800 p-1 rounded-2xl border border-slate-200 dark:border-dark-700 shadow-xs">
-              <button
-                onClick={navegarPeriodoAnterior}
-                title="Voltar período (anterior)"
-                className="p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-dark-700 text-slate-600 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white rounded-xl transition-colors flex items-center justify-center cursor-pointer"
-              >
-                <ChevronLeft size={16} />
-              </button>
-
-              <div className="relative">
-                <button
-                  onClick={() => setMenuPeriodoAberto(!menuPeriodoAberto)}
-                  className="flex items-center gap-2 bg-slate-50 dark:bg-dark-750 hover:bg-slate-100 dark:hover:bg-dark-700 text-slate-800 dark:text-white rounded-xl px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-all min-w-[140px] sm:min-w-[155px] justify-between cursor-pointer"
-                >
-                  <span className="flex items-center gap-1.5">
-                    <Calendar size={13} className="text-slate-500 dark:text-dark-400" />
-                    {labelPeriodoAtivo()}
-                  </span>
-                  <ChevronDown size={13} className={menuPeriodoAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
-                </button>
-
-                {menuPeriodoAberto && (
-                  <div className="absolute top-full mt-2 left-0 w-52 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
-                    {OPCOES_PERIODO.map(op => (
-                      <button
-                        key={op.key}
-                        onClick={() => aplicarPeriodo(op.key)}
-                        className={`w-full text-left px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer ${
-                          periodoAtivo === op.key ? 'bg-brand-600 text-white' : 'text-slate-700 dark:text-dark-200 hover:bg-slate-100 dark:hover:bg-dark-700'
-                        } ${op.key === 'personalizado' ? 'border-t border-slate-200 dark:border-dark-700' : ''}`}
-                      >
-                        {op.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <button
-                onClick={navegarPeriodoProximo}
-                title="Avançar período (próximo)"
-                className="p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-dark-700 text-slate-600 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white rounded-xl transition-colors flex items-center justify-center cursor-pointer"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-
-            {/* Período Personalizado */}
-            {periodoAtivo === 'personalizado' && (
-              <div className="flex items-center gap-2 animate-fade-in bg-white dark:bg-dark-800 px-2 py-1 rounded-xl border border-slate-200 dark:border-dark-700 shadow-xs">
-                <input
-                  type="date"
-                  value={dataInicio}
-                  onChange={e => {
-                    const novaDataInicio = e.target.value
-                    setDataInicio(novaDataInicio)
-                    if (dataFim < novaDataInicio) setDataFim(novaDataInicio)
-                  }}
-                  className="bg-transparent border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-lg px-2.5 py-1 text-xs outline-none w-32 focus:border-brand-500"
-                />
-                <span className="text-slate-400 dark:text-dark-500 text-xs">até</span>
-                <input
-                  type="date"
-                  value={dataFim}
-                  min={dataInicio}
-                  onChange={e => setDataFim(e.target.value)}
-                  className="bg-transparent border border-slate-200 dark:border-dark-600 text-slate-900 dark:text-white rounded-lg px-2.5 py-1 text-xs outline-none w-32 focus:border-brand-500"
-                />
-                <button onClick={carregarPagamentos} className="flex items-center gap-1.5 bg-brand-600 hover:bg-brand-500 text-white px-2.5 py-1 rounded-lg text-xs font-bold transition-colors shadow-xs cursor-pointer">
-                  <Search size={12} /> Filtrar
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Área Direita: Card Saldo em Caixa */}
-          <div className="flex items-center justify-end shrink-0 self-start lg:self-center">
-            <div className="relative group shrink-0">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-xl blur-xs opacity-70 group-hover:opacity-100 transition duration-300" />
-              <div className="relative bg-white dark:bg-dark-850 border border-emerald-500/30 dark:border-emerald-500/40 rounded-xl px-3.5 py-2 text-right shadow-xs hover:shadow-emerald-500/10 transition-all flex flex-col justify-between min-w-[200px] sm:min-w-[210px]">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                    <Wallet size={10} /> Saldo em Caixa
-                  </span>
-                  <span className="text-[9px] font-semibold text-slate-400 dark:text-dark-400">
-                    {salvandoSaldo ? 'Salvando...' : 'Clique para editar'}
-                  </span>
-                </div>
-
-                <div className="flex items-baseline gap-1 justify-end my-0.5">
-                  <span className="text-emerald-600/70 dark:text-emerald-400/70 font-extrabold text-xs">R$</span>
+          <div className="gp-metrics">
+            {/* Saldo em caixa (editável) */}
+            <div className="gp-saldo">
+              <p className="gp-m-label"><Wallet size={13} /> Saldo em caixa</p>
+              <div className="gp-saldo-row">
+                <div className="gp-saldo-val">
+                  <span>R$</span>
                   <InputMoeda
                     value={saldoCaixaPendente}
                     onChange={setSaldoCaixaPendente}
@@ -1245,43 +1214,124 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                     onBlur={handleSalvarSaldoCaixa}
                     permiteNegativo
                     title="Digite o saldo real da conta desta loja (pode ser negativo)"
-                    className={`text-lg sm:text-xl font-black bg-transparent text-right w-32 sm:w-36 outline-none border-b border-transparent hover:border-emerald-500/30 focus:border-emerald-500 transition-colors disabled:opacity-50 font-mono tabular-nums tracking-tight ${
-                      saldoCaixaPendente < 0 ? 'text-rose-500 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
-                    }`}
+                    className={cn('gp-saldo-input', saldoNegativo && 'is-neg')}
                   />
                 </div>
-
-                <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-slate-100 dark:border-dark-750">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                  <p className="text-[10px] font-medium text-slate-500 dark:text-dark-400 leading-none">
-                    Disponível para operação
-                  </p>
-                </div>
+                <span className={cn('gp-saldo-pill', saldoNegativo && 'is-neg')}>{saldoNegativo ? 'Negativo' : 'Disponível'}</span>
               </div>
+              <p className="gp-saldo-hint">{salvandoSaldo ? 'Salvando...' : 'Clique no valor para editar'}</p>
+            </div>
+
+            {/* Período de consulta */}
+            <div className="gp-periodo">
+              <p className="gp-m-label"><Calendar size={13} /> Período de consulta</p>
+              <div className="gp-nav">
+                <button
+                  type="button"
+                  onClick={navegarPeriodoAnterior}
+                  title="Voltar período (anterior)"
+                  aria-label="Voltar período"
+                  className="gp-nav-btn"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+
+                <div className="relative">
+                  <button type="button" onClick={() => setMenuPeriodoAberto(!menuPeriodoAberto)} className="gp-periodo-btn" aria-expanded={menuPeriodoAberto}>
+                    <span><Calendar size={13} />{labelPeriodoAtivo()}</span>
+                    <ChevronDown size={13} className={menuPeriodoAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                  </button>
+
+                  {menuPeriodoAberto && (
+                    <div className="absolute top-full mt-2 left-0 w-52 bg-white dark:bg-[#0f1523] border border-slate-200 dark:border-white/[0.1] rounded-xl shadow-2xl shadow-black/30 z-50 overflow-hidden">
+                      {OPCOES_PERIODO.map(op => (
+                        <button
+                          key={op.key}
+                          onClick={() => aplicarPeriodo(op.key)}
+                          className={`w-full text-left px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer ${
+                            periodoAtivo === op.key ? 'bg-blue-600 text-white' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
+                          } ${op.key === 'personalizado' ? 'border-t border-slate-200 dark:border-white/[0.07]' : ''}`}
+                        >
+                          {op.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={navegarPeriodoProximo}
+                  title="Avançar período (próximo)"
+                  aria-label="Avançar período"
+                  className="gp-nav-btn"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+
+              {periodoAtivo === 'personalizado' && (
+                <div className="gp-custom animate-fade-in">
+                  <input
+                    type="date"
+                    value={dataInicio}
+                    onChange={e => {
+                      const novaDataInicio = e.target.value
+                      setDataInicio(novaDataInicio)
+                      if (dataFim < novaDataInicio) setDataFim(novaDataInicio)
+                    }}
+                    aria-label="Data inicial"
+                  />
+                  <em>até</em>
+                  <input
+                    type="date"
+                    value={dataFim}
+                    min={dataInicio}
+                    onChange={e => setDataFim(e.target.value)}
+                    aria-label="Data final"
+                  />
+                  <button type="button" onClick={carregarPagamentos} className="gp-btn is-primary" style={{ height: 32 }}>
+                    <Search size={12} /> Filtrar
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Última atualização */}
+            <div className="gp-upd">
+              <div>
+                <p className="gp-m-label"><Clock size={13} /> Última atualização</p>
+                <p className="gp-upd-val">{new Date().toLocaleDateString('pt-BR')}</p>
+              </div>
+              <button
+                type="button"
+                onClick={carregarPagamentos}
+                className={cn('gp-refresh', carregando && 'is-busy')}
+                title="Atualizar lançamentos"
+                aria-label="Atualizar lançamentos"
+              >
+                <RefreshCw size={15} />
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Linha 2: Ações Operacionais (Importar Arquivos, Agendamento, Transferência) */}
-        <div className="mt-4 pt-3.5 border-t border-slate-200/70 dark:border-dark-700/70 flex items-center justify-between flex-wrap gap-2.5">
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Importar Arquivos */}
+        {/* Ações operacionais */}
+        <div className="gp-actions">
+          <div className="gp-actions-group">
             <div className="relative">
-              <button
-                onClick={() => setMenuImportarAberto(!menuImportarAberto)}
-                className="flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs cursor-pointer"
-              >
-                <Upload size={14} /> Importar Arquivos <ChevronDown size={13} className={menuImportarAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
+              <button type="button" onClick={() => setMenuImportarAberto(!menuImportarAberto)} className="gp-btn is-primary" aria-expanded={menuImportarAberto}>
+                <Upload size={14} /> Importar arquivos <ChevronDown size={13} className={menuImportarAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
               </button>
 
               {menuImportarAberto && (
-                <div className="absolute top-full mt-2 left-0 w-56 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-100 dark:divide-dark-700/50">
-                  <label className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-dark-700 cursor-pointer transition-colors">
+                <div className="absolute top-full mt-2 left-0 w-56 bg-white dark:bg-[#0f1523] border border-slate-200 dark:border-white/[0.1] rounded-xl shadow-2xl shadow-black/30 z-50 overflow-hidden divide-y divide-slate-100 dark:divide-white/[0.06]">
+                  <label className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/[0.05] cursor-pointer transition-colors">
                     <FileText size={16} className="text-blue-500 dark:text-blue-400" />
                     <span className="text-sm font-semibold text-slate-800 dark:text-white">DDA</span>
                     <input data-loja={empresa.id} type="file" accept="image/*,application/pdf,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden" onChange={e => handleImportarArquivo(e, 'dda')} disabled={importando} />
                   </label>
-                  <label className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-dark-700 cursor-pointer transition-colors">
+                  <label className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/[0.05] cursor-pointer transition-colors">
                     <FileText size={16} className="text-emerald-500 dark:text-emerald-400" />
                     <span className="text-sm font-semibold text-slate-800 dark:text-white">Folha de Pagamento</span>
                     <input data-loja={empresa.id} type="file" accept="application/pdf" className="hidden" onChange={e => handleImportarArquivo(e, 'folha')} disabled={importando} />
@@ -1290,37 +1340,30 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
               )}
             </div>
 
-            {/* Agendamento */}
-            <button
-              onClick={() => setModalAgendamentoAberto(true)}
-              className="flex items-center gap-1.5 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 hover:bg-slate-100 dark:hover:bg-dark-750 text-slate-700 dark:text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer"
-            >
-              <Calendar size={14} className="text-blue-500 dark:text-blue-400" /> Agendamento
+            <button type="button" onClick={() => setModalAgendamentoAberto(true)} className="gp-btn">
+              <Calendar size={14} className="is-blue" /> Agendamento
             </button>
 
-            {/* Transferência */}
-            <button
-              onClick={() => setModalTransferenciaAberto(true)}
-              className="flex items-center gap-1.5 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 hover:bg-slate-100 dark:hover:bg-dark-750 text-slate-700 dark:text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer"
-            >
-              <ArrowRightLeft size={14} className="text-emerald-500 dark:text-emerald-400" /> Transferência
+            <button type="button" onClick={() => setModalTransferenciaAberto(true)} className="gp-btn">
+              <ArrowRightLeft size={14} className="is-mint" /> Transferência
             </button>
           </div>
 
-          {/* Opções da Loja / Limpar */}
           <div className="relative">
             <button
+              type="button"
               onClick={() => setMenuExcluirAberto(!menuExcluirAberto)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 hover:bg-rose-50 text-slate-500 hover:text-rose-600 dark:text-dark-300 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-colors cursor-pointer text-xs font-semibold shadow-xs"
+              className="gp-btn is-danger-soft"
               title="Opções da loja"
+              aria-expanded={menuExcluirAberto}
             >
               <Trash2 size={13} />
-              <span>Opções da Loja</span>
+              <span>Opções da loja</span>
               <ChevronDown size={12} className={menuExcluirAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
             </button>
 
             {menuExcluirAberto && (
-              <div className="absolute top-full mt-2 right-0 w-64 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-100 dark:divide-dark-700/50">
+              <div className="absolute top-full mt-2 right-0 w-64 bg-white dark:bg-[#0f1523] border border-slate-200 dark:border-white/[0.1] rounded-xl shadow-2xl shadow-black/30 z-50 overflow-hidden divide-y divide-slate-100 dark:divide-white/[0.06]">
                 <button
                   onClick={() => { setMenuExcluirAberto(false); handleLimparRegistrosDoDia() }}
                   className="w-full text-left px-4 py-3 text-sm font-semibold text-slate-700 dark:text-dark-200 hover:bg-slate-50 dark:hover:bg-dark-700 transition-colors cursor-pointer"
@@ -1337,10 +1380,19 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             )}
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* Painel de lançamentos */}
+      <section className="gp-card gp-panel">
+        <div className="gp-panel-head">
+          <div className="gp-panel-title">
+            <h3>Pagamentos</h3>
+            <span className="gp-badge">{registrosVisiveis} {registrosVisiveis === 1 ? 'registro' : 'registros'}</span>
+          </div>
+        </div>
 
       {selecionadosIndividuais.length > 0 && (
-        <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border-b border-blue-200 dark:border-blue-500/30 flex flex-wrap items-center justify-between gap-3 animate-fade-in">
+        <div className="gp-selbar animate-fade-in">
           <div className="flex items-center gap-3">
             <span className="bg-brand-600 text-white text-xs font-black px-2.5 py-1 rounded-full shadow-xs">
               {selecionadosIndividuais.length} selecionado{selecionadosIndividuais.length > 1 ? 's' : ''}
@@ -1405,7 +1457,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                 handleExcluirEmLote(selecionadosIndividuais)
                 setSelecionadosIndividuais([])
               }}
-              className="flex items-center gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-600 dark:text-rose-400 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+              className="flex items-center gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-700 dark:text-rose-400 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer"
             >
               <Trash2 size={14} /> Excluir
             </button>
@@ -1421,41 +1473,10 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         </div>
       )}
 
-      {/* Barra de Busca Rápida Local */}
-      {pagamentos.length > 0 && (
-        <div className="p-3 bg-slate-50/70 dark:bg-dark-900/60 border-b border-slate-200/80 dark:border-dark-700/70 flex flex-wrap items-center justify-between gap-3">
-          <div className="relative flex-1 min-w-[220px] max-w-md">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400" />
-            <input
-              type="text"
-              value={buscaLocal}
-              onChange={e => setBuscaLocal(e.target.value)}
-              placeholder="Busca rápida por fornecedor, descrição, conta ou valor..."
-              className="w-full bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl pl-8 pr-8 py-1.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:border-brand-500 transition-colors shadow-xs"
-            />
-            {buscaLocal && (
-              <button
-                type="button"
-                onClick={() => setBuscaLocal('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
-                title="Limpar busca"
-              >
-                <X size={13} />
-              </button>
-            )}
-          </div>
-          {buscaLocal && (
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-dark-400">
-              {pagamentosIndividuaisFiltrados.length} de {pagamentosIndividuais.length} resultado(s)
-            </span>
-          )}
-        </div>
-      )}
-
-      <div className="overflow-x-auto min-h-[150px] custom-scrollbar">
-        <table className="w-full text-left border-collapse min-w-[960px] xl:min-w-full">
+      <div className="gp-table-wrap custom-scrollbar">
+        <table className="gp-table">
           <thead>
-            <tr className="bg-slate-100/95 dark:bg-dark-900/95 backdrop-blur-md border-b border-slate-200 dark:border-dark-700/80 text-[10px] uppercase font-bold tracking-widest text-slate-500 dark:text-dark-400">
+            <tr>
               <th className="w-10 px-2 py-3 text-center">
                 {pagamentosIndividuaisFiltrados.filter(p => p.origem !== 'Transferência' && p.origem !== 'Transferência Recebida').length > 0 && (
                   <input
@@ -1472,20 +1493,20 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                   />
                 )}
               </th>
-              <th className="w-24 px-3 py-3 whitespace-nowrap">TIPO</th>
-              <th className="w-[23%] min-w-[190px] px-3 py-3">BENEFICIÁRIO / CONTA</th>
-              <th className="w-[13%] min-w-[120px] px-3 py-3">CATEGORIA</th>
-              <th className="w-[27%] min-w-[210px] px-3 py-3">DESCRIÇÃO</th>
-              <th className="w-28 px-3 py-3 text-center whitespace-nowrap">SITUAÇÃO</th>
-              <th className="w-32 px-3 py-3 whitespace-nowrap">DATA PAGAMENTO</th>
-              <th className="w-32 px-3 py-3 text-right whitespace-nowrap">VALOR</th>
-              <th className="w-[136px] min-w-[136px] max-w-[136px] px-2 py-3 text-center whitespace-nowrap">AÇÕES</th>
+              <th className="w-[124px] whitespace-nowrap">Tipo</th>
+              <th className="min-w-[170px]">Beneficiário / Conta</th>
+              <th className="min-w-[100px]">Categoria</th>
+              <th className="min-w-[150px]">Descrição</th>
+              <th className="w-[124px] whitespace-nowrap">Data pagamento</th>
+              <th className="w-[112px] text-center whitespace-nowrap">Situação</th>
+              <th className="w-[116px] text-right whitespace-nowrap">Valor</th>
+              <th className="w-[140px] min-w-[140px] max-w-[140px] text-center whitespace-nowrap">Ações</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-dark-700/50">
+          <tbody>
             {carregando ? (
               <tr>
-                <td colSpan={9} className="p-12 text-center text-slate-400 dark:text-dark-500 font-semibold text-sm">
+                <td colSpan={9} className="p-12 text-center text-slate-500 font-semibold text-sm">
                   <RefreshCw className="animate-spin mx-auto mb-3 text-brand-500" size={24} />
                   Carregando lançamentos...
                 </td>
@@ -1522,62 +1543,62 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
               </tr>
             ) : (!mostrarDda && !mostrarFolha && pagamentosIndividuaisFiltrados.length === 0) ? (
               <tr>
-                <td colSpan={9} className="py-12 px-4 text-center text-slate-400 dark:text-dark-400 text-sm font-medium">
-                  Nenhum lançamento encontrado para a busca "{buscaLocal}".
+                <td colSpan={9} className="py-12 px-4 text-center text-slate-500 dark:text-dark-400 text-sm font-medium">
+                  Nenhum lançamento encontrado para os filtros aplicados.
                 </td>
               </tr>
             ) : (
               <>
                 {mostrarDda && (
-                  <tr className="bg-blue-50/50 dark:bg-dark-800/20 hover:bg-blue-100/50 dark:hover:bg-dark-800/40 transition-colors border-l-4 border-l-blue-500">
+                  <tr className="gp-row-dda">
                     <td className="w-10 px-2 py-2.5 text-center"></td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
-                      <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">DDA</span>
+                      <span className="gp-tipo is-dda">DDA</span>
                     </td>
                     <td className="px-3 py-2.5 font-bold text-slate-900 dark:text-white text-sm truncate">Lançamentos DDA</td>
                     <td className="px-3 py-2.5 text-sm text-slate-600 dark:text-dark-300 truncate">{categoriaDda}</td>
                     <td className="px-3 py-2.5 text-sm text-slate-600 dark:text-dark-300 truncate">Total de {pagamentosDda.length} itens importados</td>
-                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                      <span className={`text-[10px] font-bold px-3 py-1 rounded border uppercase tracking-wider ${situacaoDda.classe}`}>{situacaoDda.label}</span>
-                    </td>
                     <td className="px-3 py-2.5 text-sm text-slate-500 dark:text-dark-300 font-semibold whitespace-nowrap">—</td>
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                      <span className={`gp-pill ${classePilulaGrupo(situacaoDda.label)}`}>{situacaoDda.label}</span>
+                    </td>
                     <td className="px-3 py-2.5 font-black text-rose-600 dark:text-rose-400 text-sm text-right tabular-nums whitespace-nowrap">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pagamentosDda.reduce((acc, curr) => acc + Number(curr.valor), 0))}
                     </td>
-                    <td className="w-[136px] min-w-[136px] max-w-[136px] px-2 py-2.5 text-center whitespace-nowrap">
-                      <button onClick={() => setModalDetalhesDda(true)} className="bg-white hover:bg-slate-100 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-700 dark:text-white rounded-lg p-1.5 transition-colors cursor-pointer shadow-xs" title="Visualizar Lançamentos">
-                        <Search size={16} className="text-slate-500 dark:text-dark-300" />
+                    <td className="w-[140px] min-w-[140px] max-w-[140px] px-1 py-2.5 text-center whitespace-nowrap">
+                      <button onClick={() => setModalDetalhesDda(true)} className="gp-ico-btn is-blue" title="Visualizar lançamentos" aria-label="Visualizar lançamentos DDA">
+                        <Eye size={15} />
                       </button>
                     </td>
                   </tr>
                 )}
 
                 {mostrarFolha && (
-                  <tr className="bg-emerald-50/50 dark:bg-dark-800/10 hover:bg-emerald-100/50 dark:hover:bg-dark-800/30 transition-colors border-l-4 border-l-emerald-500">
+                  <tr className="gp-row-folha">
                     <td className="w-10 px-2 py-2.5 text-center"></td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
-                      <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">FOLHA</span>
+                      <span className="gp-tipo is-folha">FOLHA</span>
                     </td>
                     <td className="px-3 py-2.5 font-bold text-slate-900 dark:text-white text-sm truncate">Folha de Pagamento</td>
                     <td className="px-3 py-2.5 text-sm text-slate-600 dark:text-dark-300 truncate">{categoriaFolha}</td>
                     <td className="px-3 py-2.5 text-sm text-slate-600 dark:text-dark-300 truncate">Total de {pagamentosFolha.length} colaboradores</td>
-                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                      <span className={`text-[10px] font-bold px-3 py-1 rounded border uppercase tracking-wider ${situacaoFolha.classe}`}>{situacaoFolha.label}</span>
-                    </td>
                     <td className="px-3 py-2.5 text-sm text-slate-500 dark:text-dark-300 font-semibold whitespace-nowrap">—</td>
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                      <span className={`gp-pill ${classePilulaGrupo(situacaoFolha.label)}`}>{situacaoFolha.label}</span>
+                    </td>
                     <td className="px-3 py-2.5 font-black text-rose-600 dark:text-rose-400 text-sm text-right tabular-nums whitespace-nowrap">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pagamentosFolha.reduce((acc, curr) => acc + Number(curr.valor), 0))}
                     </td>
-                    <td className="w-[136px] min-w-[136px] max-w-[136px] px-2 py-2.5 text-center whitespace-nowrap">
-                      <button onClick={() => setModalDetalhesFolha(true)} className="bg-white hover:bg-slate-100 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-700 dark:text-white rounded-lg p-1.5 transition-colors cursor-pointer shadow-xs" title="Visualizar Lançamentos">
-                        <Search size={16} className="text-slate-500 dark:text-dark-300" />
+                    <td className="w-[140px] min-w-[140px] max-w-[140px] px-1 py-2.5 text-center whitespace-nowrap">
+                      <button onClick={() => setModalDetalhesFolha(true)} className="gp-ico-btn is-blue" title="Visualizar lançamentos" aria-label="Visualizar lançamentos da folha">
+                        <Eye size={15} />
                       </button>
                     </td>
                   </tr>
                 )}
 
                 {pagamentosIndividuaisFiltrados.map((pag, idx) => (
-                  <tr key={pag.id || idx} className={cn("hover:bg-slate-100/60 dark:hover:bg-white/[0.035] transition-colors border-b border-slate-100 dark:border-dark-700/50 even:bg-slate-50/50 dark:even:bg-white/[0.015]", selecionadosIndividuais.includes(pag.id) ? "bg-blue-50/70 dark:bg-blue-950/20" : "bg-transparent")}>
+                  <tr key={pag.id || idx} className={selecionadosIndividuais.includes(pag.id) ? 'is-sel' : undefined}>
                     <td className="w-10 px-2 py-2.5 text-center">
                       {pag.origem !== 'Transferência' && pag.origem !== 'Transferência Recebida' ? (
                         <input
@@ -1589,10 +1610,10 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                       ) : null}
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
-                      <span className={`text-[10px] font-black uppercase px-2 py-1 rounded ${
-                        pag.origem === 'Transferência Recebida' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        : pag.origem === 'Transferência' ? 'bg-slate-100 dark:bg-dark-700 text-slate-600 dark:text-dark-300'
-                        : 'bg-violet-500/10 text-violet-600 dark:text-violet-400'
+                      <span className={`gp-tipo ${
+                        pag.origem === 'Transferência Recebida' ? 'is-receb'
+                        : pag.origem === 'Transferência' ? 'is-transf'
+                        : 'is-agend'
                       }`}>
                         {pag.origem === 'Agendamento' ? 'AGEND' : pag.origem === 'Transferência Recebida' ? 'TRANSF. RECEB.' : pag.origem}
                       </span>
@@ -1612,7 +1633,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                       })()}
                       {pag.conta_pagamento && (
                         <div className="flex items-center gap-1 mt-0.5 text-[11px] font-normal text-slate-500 dark:text-dark-400 truncate" title={`Conta de pagamento: ${pag.conta_pagamento}`}>
-                          <Wallet size={11} className="shrink-0 text-slate-400 dark:text-dark-500" />
+                          <Wallet size={11} className="shrink-0 text-slate-500 dark:text-dark-400" />
                           <span className="truncate">{pag.conta_pagamento}</span>
                         </div>
                       )}
@@ -1667,15 +1688,6 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         )
                       })()}
                     </td>
-                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                      <button onClick={() => toggleStatus(pag)} className={`text-[10px] font-bold px-2 py-1 rounded border uppercase tracking-wider transition-colors cursor-pointer ${
-                        pag.status === 'agendado'
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20'
-                          : 'bg-amber-500/10 text-amber-600 dark:text-amber-500 border-amber-500/20 hover:bg-amber-500/20'
-                      }`}>
-                        {pag.status === 'agendado' ? 'AGENDADO' : 'EM ABERTO'}
-                      </button>
-                    </td>
                     <td className="px-3 py-2.5 text-sm whitespace-nowrap">
                       {(() => {
                         const dataPgto = pag.data_pagamento || pag.data_vencimento
@@ -1696,7 +1708,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                               </span>
                             </div>
                             {temVencDiferente && (
-                              <span className="text-[10px] text-slate-400 dark:text-dark-400 pl-3.5 tracking-tight font-normal" title={`Vencimento original: ${dataVencFmt}`}>
+                              <span className="text-[10px] text-slate-500 dark:text-dark-400 pl-3.5 tracking-tight font-normal" title={`Vencimento original: ${dataVencFmt}`}>
                                 Venc: {dataVencFmt}
                               </span>
                             )}
@@ -1704,16 +1716,21 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         )
                       })()}
                     </td>
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                      <button onClick={() => toggleStatus(pag)} className={`gp-pill ${pag.status === 'agendado' ? 'is-ok' : 'is-open'}`} title="Clique para alternar a situação">
+                        {pag.status === 'agendado' ? 'Agendado' : 'Em aberto'}
+                      </button>
+                    </td>
                     <td className={`px-3 py-2.5 font-bold text-sm text-right tabular-nums whitespace-nowrap ${pag.origem === 'Transferência Recebida' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pag.valor)}
                     </td>
-                    <td className="w-[136px] min-w-[136px] max-w-[136px] px-2 py-2.5 text-center whitespace-nowrap">
+                    <td className="w-[140px] min-w-[140px] max-w-[140px] px-1 py-2.5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1">
                         {pag.anexo_url && (
                           <button
                             type="button"
                             onClick={() => handleAbrirAnexo(pag)}
-                            className="bg-white hover:bg-blue-50 dark:bg-dark-800 dark:hover:bg-blue-500/10 border border-slate-200 dark:border-dark-600 text-blue-600 dark:text-blue-400 rounded-lg p-1.5 transition-colors cursor-pointer shadow-xs hover:border-blue-300"
+                            className="gp-ico-btn is-blue"
                             title="Abrir anexo"
                           >
                             <Paperclip size={15} />
@@ -1725,26 +1742,29 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                             setItemEditando(pag)
                             setModalEdicaoAberto(true)
                           }}
-                          className="bg-white hover:bg-slate-100 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-700 dark:text-white rounded-lg p-1.5 transition-colors cursor-pointer shadow-xs hover:text-brand-600"
+                          className="gp-ico-btn"
                           title="Editar lançamento"
+                          aria-label="Editar lançamento"
                         >
                           <Edit2 size={15} />
                         </button>
                         <button
                           type="button"
                           onClick={() => handleExcluirIndividual(pag.id, pag.origem)}
-                          className="bg-white hover:bg-rose-50 dark:bg-dark-800 dark:hover:bg-rose-500/10 border border-slate-200 dark:border-dark-600 text-slate-500 hover:text-rose-600 dark:text-dark-300 dark:hover:text-rose-400 rounded-lg p-1.5 transition-colors cursor-pointer shadow-xs"
+                          className="gp-ico-btn is-danger"
                           title="Excluir lançamento"
+                          aria-label="Excluir lançamento"
                         >
                           <Trash2 size={15} />
                         </button>
                         <button
                           type="button"
                           onClick={() => abrirAcoesLancamento(pag)}
-                          className="bg-white hover:bg-slate-100 dark:bg-dark-800 dark:hover:bg-dark-700 border border-slate-200 dark:border-dark-600 text-slate-400 hover:text-slate-700 dark:text-dark-400 dark:hover:text-white rounded-lg p-1.5 transition-colors cursor-pointer shadow-xs"
+                          className="gp-ico-btn is-blue"
                           title="Ver detalhes completos"
+                          aria-label="Ver detalhes completos"
                         >
-                          <Search size={15} />
+                          <Eye size={15} />
                         </button>
                       </div>
                     </td>
@@ -1756,57 +1776,55 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         </table>
       </div>
 
-      {/* KPIs da Loja Modernizados (Padrão Fintech Stripe/Brex) */}
-      <div className="bg-slate-50/80 dark:bg-dark-900/60 border-t border-slate-200/80 dark:border-dark-700 px-6 py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 transition-colors">
-        <div className="bg-white dark:bg-dark-850 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl p-4 shadow-xs hover:border-rose-500/30 transition-all flex items-center justify-between">
+      {/* Rodapé da tabela */}
+      <div className="gp-foot">
+        <span>
+          Mostrando <b>{registrosVisiveis}</b> de <b>{registrosTotais}</b> {registrosTotais === 1 ? 'registro' : 'registros'}
+        </span>
+        <span className="gp-foot-note">
+          <span className="gp-info-dot" aria-hidden="true">i</span>
+          DDA e folha entram por importação de arquivo; os agendamentos são enviados ao Conta Azul.
+        </span>
+      </div>
+
+      {/* Resumo financeiro do período: despesas, entradas e saldo final estimado */}
+      <div className="gp-resumo">
+        <div className="gp-res">
           <div>
-            <p className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-1">Total Despesas</p>
-            <p className="text-xl font-black text-rose-600 dark:text-rose-400 tabular-nums font-mono">
+            <p className="gp-res-label">Total de despesas</p>
+            <p className="gp-res-val is-bad">
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalDespesas)}
             </p>
-            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5">Saídas programadas</p>
+            <p className="gp-res-sub">Saídas programadas</p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center shadow-xs flex-shrink-0">
-            <ArrowDownRight size={20} />
-          </div>
+          <span className="gp-res-ico is-bad"><ArrowDownRight size={20} /></span>
         </div>
 
-        <div className="bg-white dark:bg-dark-850 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl p-4 shadow-xs hover:border-emerald-500/30 transition-all flex items-center justify-between">
+        <div className="gp-res">
           <div>
-            <p className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-1">Entradas (Transf)</p>
-            <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums font-mono">
+            <p className="gp-res-label">Entradas (transferências)</p>
+            <p className="gp-res-val is-ok">
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalEntradas)}
             </p>
-            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5">Aportes e transferências</p>
+            <p className="gp-res-sub">Aportes e transferências</p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs flex-shrink-0">
-            <ArrowUpRight size={20} />
-          </div>
+          <span className="gp-res-ico is-ok"><ArrowUpRight size={20} /></span>
         </div>
 
-        <div className={`bg-white dark:bg-dark-850 border rounded-2xl p-4 shadow-xs transition-all flex items-center justify-between ${
-          saldoFinalEstimado < 0
-            ? 'border-rose-500/30 dark:border-rose-500/40 hover:border-rose-500/50'
-            : 'border-emerald-500/30 dark:border-emerald-500/40 hover:border-emerald-500/50'
-        }`}>
+        <div className={cn('gp-res is-final', saldoFinalEstimado < 0 && 'is-neg')}>
           <div>
-            <p className="text-[11px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider mb-1">Saldo Final Estimado</p>
-            <p className={`text-xl font-black tabular-nums font-mono ${
-              saldoFinalEstimado < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
-            }`}>
+            <p className="gp-res-label">Saldo final estimado</p>
+            <p className={cn('gp-res-val', saldoFinalEstimado < 0 ? 'is-bad' : 'is-ok')}>
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(saldoFinalEstimado)}
             </p>
-            <p className="text-[10px] text-slate-400 dark:text-dark-500 mt-0.5">Caixa + Entradas - Despesas</p>
+            <p className="gp-res-sub">Caixa + entradas − despesas</p>
           </div>
-          <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shadow-xs flex-shrink-0 ${
-            saldoFinalEstimado < 0
-              ? 'bg-rose-500/10 dark:bg-rose-500/15 border-rose-500/20 text-rose-600 dark:text-rose-400'
-              : 'bg-emerald-500/10 dark:bg-emerald-500/15 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-          }`}>
+          <span className={cn('gp-res-ico', saldoFinalEstimado < 0 ? 'is-bad' : 'is-ok')}>
             {saldoFinalEstimado < 0 ? <TrendingDown size={20} /> : <TrendingUp size={20} />}
-          </div>
+          </span>
         </div>
       </div>
+      </section>
 
       {modalAgendamentoAberto && (
         <ModalAgendamento
@@ -1814,6 +1832,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
           onClose={() => setModalAgendamentoAberto(false)}
           empresaAtiva={empresa}
           onSuccess={carregarPagamentos}
+          dataPadrao={dataInicio}
         />
       )}
 
@@ -1829,7 +1848,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
       {modalFolhaAberto && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-white dark:bg-[#11141c] border border-slate-200 dark:border-dark-600 rounded-2xl p-6 w-full max-w-md shadow-2xl relative overflow-hidden transition-colors">
+          <div className="bg-white dark:bg-[#0f1523] border border-slate-200 dark:border-white/[0.08] rounded-2xl p-6 w-full max-w-md shadow-2xl shadow-black/60 relative overflow-hidden transition-colors">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Importar Folha de Pagamento</h2>
             <p className="text-slate-500 dark:text-dark-300 text-sm mb-6 leading-relaxed">Por favor, informe a data de vencimento desta folha. A competência será calculada automaticamente.</p>
 
@@ -1931,8 +1950,8 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
       {modalEdicaoAberto && itemEditando && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
-          <form onSubmit={handleSalvarEdicao} className="bg-white dark:bg-[#11141c] border border-slate-200 dark:border-dark-600 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-colors">
-            <div className="p-5 border-b border-slate-200 dark:border-dark-700 flex items-center justify-between shrink-0 bg-slate-50/50 dark:bg-transparent">
+          <form onSubmit={handleSalvarEdicao} className="bg-white dark:bg-[#0f1523] border border-slate-200 dark:border-white/[0.08] rounded-2xl w-full max-w-2xl shadow-2xl shadow-black/60 overflow-hidden flex flex-col max-h-[90vh] transition-colors">
+            <div className="p-5 border-b border-slate-200 dark:border-white/[0.07] flex items-center justify-between shrink-0 bg-slate-50/50 dark:bg-[#0b101b]">
               <h3 className="text-slate-900 dark:text-white font-bold text-lg">Editar Lançamento</h3>
               <button type="button" onClick={() => setModalEdicaoAberto(false)} className="text-slate-400 hover:text-slate-700 dark:text-dark-400 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-dark-800 transition-colors cursor-pointer">
                 <X size={20} />
@@ -1957,7 +1976,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                           onClick={() => setEditandoFornecedorEdicao(true)}
                           className="w-full text-left bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl px-3 py-2 text-slate-900 dark:text-white text-sm hover:border-brand-500 transition-all truncate cursor-pointer shadow-xs"
                         >
-                          {itemEditando.beneficiario || <span className="text-slate-400 dark:text-dark-500">Clique para buscar...</span>}
+                          {itemEditando.beneficiario || <span className="text-slate-500 dark:text-dark-400">Clique para buscar...</span>}
                         </button>
                       )}
                     </div>
@@ -1982,7 +2001,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                           onClick={() => setEditandoCategoriaEdicao(true)}
                           className="w-full text-left bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl px-3 py-2 text-slate-900 dark:text-white text-sm hover:border-brand-500 transition-all truncate cursor-pointer shadow-xs"
                         >
-                          {itemEditando.categoria || <span className="text-slate-400 dark:text-dark-500">Clique para buscar...</span>}
+                          {itemEditando.categoria || <span className="text-slate-500 dark:text-dark-400">Clique para buscar...</span>}
                         </button>
                       )}
                     </div>
@@ -2001,7 +2020,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                           onClick={() => setEditandoContaEdicao(true)}
                           className="w-full text-left bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl px-3 py-2 text-slate-900 dark:text-white text-sm hover:border-brand-500 transition-all truncate cursor-pointer shadow-xs"
                         >
-                          {itemEditando.conta_pagamento || <span className="text-slate-400 dark:text-dark-500">Clique para buscar...</span>}
+                          {itemEditando.conta_pagamento || <span className="text-slate-500 dark:text-dark-400">Clique para buscar...</span>}
                         </button>
                       )}
                     </div>
@@ -2054,7 +2073,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                           onClick={() => setEditandoFornecedorEdicao(true)}
                           className="w-full text-left bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl px-3 py-2 text-slate-900 dark:text-white text-sm hover:border-brand-500 transition-all truncate cursor-pointer shadow-xs"
                         >
-                          {itemEditando.fornecedor || <span className="text-slate-400 dark:text-dark-500">Clique para buscar...</span>}
+                          {itemEditando.fornecedor || <span className="text-slate-500 dark:text-dark-400">Clique para buscar...</span>}
                         </button>
                       )}
                     </div>
@@ -2089,10 +2108,10 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                           onClick={() => setEditandoCategoriaEdicao(true)}
                           className="w-full text-left bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl px-3 py-2 text-slate-900 dark:text-white text-sm hover:border-brand-500 transition-all truncate flex items-center justify-between cursor-pointer shadow-xs"
                         >
-                          <span className={itemEditando.categoria ? "text-slate-900 dark:text-white" : "text-slate-400 dark:text-dark-500"}>
+                          <span className={itemEditando.categoria ? "text-slate-900 dark:text-white" : "text-slate-500 dark:text-dark-400"}>
                             {itemEditando.categoria || 'Clique para buscar categoria do Conta Azul...'}
                           </span>
-                          <ChevronDown size={14} className="text-slate-400 dark:text-dark-500" />
+                          <ChevronDown size={14} className="text-slate-500 dark:text-dark-400" />
                         </button>
                       )}
                     </div>
@@ -2111,7 +2130,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                           onClick={() => setEditandoContaEdicao(true)}
                           className="w-full text-left bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl px-3 py-2 text-slate-900 dark:text-white text-sm hover:border-brand-500 transition-all truncate cursor-pointer shadow-xs"
                         >
-                          {itemEditando.conta_pagamento || <span className="text-slate-400 dark:text-dark-500">Clique para buscar...</span>}
+                          {itemEditando.conta_pagamento || <span className="text-slate-500 dark:text-dark-400">Clique para buscar...</span>}
                         </button>
                       )}
                     </div>
@@ -2186,9 +2205,9 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       )}
       {modalAcoesAberto && itemAcoes && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-white dark:bg-[#11141c] border border-slate-200 dark:border-dark-600 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col transition-colors">
+          <div className="bg-white dark:bg-[#0f1523] border border-slate-200 dark:border-white/[0.08] rounded-2xl w-full max-w-md shadow-2xl shadow-black/60 overflow-hidden flex flex-col transition-colors">
             
-            <div className="p-5 border-b border-slate-200 dark:border-dark-700 flex items-center justify-between shrink-0 bg-slate-50/50 dark:bg-transparent">
+            <div className="p-5 border-b border-slate-200 dark:border-white/[0.07] flex items-center justify-between shrink-0 bg-slate-50/50 dark:bg-[#0b101b]">
               <h3 className="text-slate-900 dark:text-white font-bold text-lg">Ações do Lançamento</h3>
               <button onClick={() => setModalAcoesAberto(false)} className="text-slate-400 hover:text-slate-700 dark:text-dark-400 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-dark-800 transition-colors cursor-pointer">
                 <X size={20} />
@@ -2220,13 +2239,13 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
               <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 dark:bg-dark-850 p-3 rounded-xl border border-slate-200 dark:border-dark-700/50">
                 <div>
-                  <span className="text-slate-400 dark:text-dark-500 uppercase font-bold block mb-1">Data Pagamento</span>
+                  <span className="text-slate-500 dark:text-dark-400 uppercase font-bold block mb-1">Data Pagamento</span>
                   <span className="text-slate-900 dark:text-white font-semibold">
                     {itemAcoes.data_pagamento ? itemAcoes.data_pagamento.split('-').reverse().join('/') : '—'}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 dark:text-dark-500 uppercase font-bold block mb-1">Vencimento</span>
+                  <span className="text-slate-500 dark:text-dark-400 uppercase font-bold block mb-1">Vencimento</span>
                   <span className="text-slate-900 dark:text-white font-semibold">
                     {itemAcoes.data_vencimento ? itemAcoes.data_vencimento.split('-').reverse().join('/') : '—'}
                   </span>
@@ -2254,12 +2273,12 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                 </div>
               ) : (
                 (itemAcoes.tipo === 'Boleto' || itemAcoes.tipo === 'Imposto') && (
-                  <p className="text-slate-400 dark:text-dark-500 text-xs italic text-center">Nenhum código de barras cadastrado.</p>
+                  <p className="text-slate-500 dark:text-dark-400 text-xs italic text-center">Nenhum código de barras cadastrado.</p>
                 )
               )}
 
               <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-dark-700/50">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-dark-500 uppercase tracking-widest block mb-1">Ações disponíveis</span>
+                <span className="text-[10px] font-bold text-slate-500 dark:text-dark-400 uppercase tracking-widest block mb-1">Ações disponíveis</span>
                 
                 <div className="grid grid-cols-2 gap-2.5">
                   {itemAcoes.anexo_url ? (
@@ -2273,7 +2292,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                   ) : (
                     <button
                       disabled
-                      className="flex items-center justify-center gap-2 bg-slate-100/50 dark:bg-dark-800/40 border border-slate-200 dark:border-dark-700/30 text-slate-400 dark:text-dark-500 py-2.5 px-3 rounded-xl text-xs font-semibold cursor-not-allowed"
+                      className="flex items-center justify-center gap-2 bg-slate-100/50 dark:bg-dark-800/40 border border-slate-200 dark:border-dark-700/30 text-slate-500 dark:text-dark-400 py-2.5 px-3 rounded-xl text-xs font-semibold cursor-not-allowed"
                     >
                       <Paperclip size={14} /> Sem Anexo
                     </button>
@@ -2304,7 +2323,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                       <Send size={14} /> Enviar p/ CP
                     </button>
                   ) : (
-                    <div className="flex items-center justify-center text-slate-400 dark:text-dark-500 text-xs italic bg-slate-100 dark:bg-dark-800/20 rounded-xl border border-slate-200 dark:border-dark-700/20">
+                    <div className="flex items-center justify-center text-slate-500 dark:text-dark-400 text-xs italic bg-slate-100 dark:bg-dark-800/20 rounded-xl border border-slate-200 dark:border-dark-700/20">
                       Transf. externa
                     </div>
                   )}
@@ -2314,7 +2333,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                       setModalAcoesAberto(false)
                       handleExcluirIndividual(itemAcoes.id, itemAcoes.origem)
                     }}
-                    className="flex items-center justify-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-600 dark:text-rose-400 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                    className="flex items-center justify-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-700 dark:text-rose-400 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer"
                   >
                     <Trash2 size={14} /> Excluir
                   </button>
@@ -2329,7 +2348,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       {/* Modal de Visualização Expandida de Código de Barras */}
       {itemCodigoBarras && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-white dark:bg-[#11141c] border border-slate-200 dark:border-dark-600 rounded-2xl p-6 w-full max-w-lg shadow-2xl relative overflow-hidden transition-colors">
+          <div className="bg-white dark:bg-[#0f1523] border border-slate-200 dark:border-white/[0.08] rounded-2xl p-6 w-full max-w-lg shadow-2xl shadow-black/60 relative overflow-hidden transition-colors">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-dark-700 mb-4">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
@@ -2352,25 +2371,25 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             <div className="space-y-4">
               <div className="bg-slate-50 dark:bg-dark-800/60 rounded-xl p-3.5 border border-slate-200 dark:border-dark-700/60 grid grid-cols-2 gap-3 text-xs">
                 <div>
-                  <span className="text-slate-400 dark:text-dark-500 block uppercase font-bold text-[10px]">Beneficiário</span>
+                  <span className="text-slate-500 dark:text-dark-400 block uppercase font-bold text-[10px]">Beneficiário</span>
                   <span className="font-semibold text-slate-900 dark:text-white truncate block">
                     {itemCodigoBarras.beneficiario || itemCodigoBarras.fornecedor || '—'}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 dark:text-dark-500 block uppercase font-bold text-[10px]">Valor</span>
+                  <span className="text-slate-500 dark:text-dark-400 block uppercase font-bold text-[10px]">Valor</span>
                   <span className="font-black text-rose-600 dark:text-rose-400 tabular-nums">
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemCodigoBarras.valor || 0)}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 dark:text-dark-500 block uppercase font-bold text-[10px]">Vencimento</span>
+                  <span className="text-slate-500 dark:text-dark-400 block uppercase font-bold text-[10px]">Vencimento</span>
                   <span className="font-semibold text-slate-900 dark:text-white">
                     {itemCodigoBarras.data_vencimento ? itemCodigoBarras.data_vencimento.split('-').reverse().join('/') : '—'}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 dark:text-dark-500 block uppercase font-bold text-[10px]">Nº Documento</span>
+                  <span className="text-slate-500 dark:text-dark-400 block uppercase font-bold text-[10px]">Nº Documento</span>
                   <span className="font-semibold text-slate-900 dark:text-white">
                     {itemCodigoBarras.documento || 'S/N'}
                   </span>

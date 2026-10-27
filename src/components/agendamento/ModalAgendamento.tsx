@@ -15,16 +15,19 @@ interface ModalAgendamentoProps {
   onClose: () => void
   empresaAtiva: Empresa | null
   onSuccess: () => void
+  dataPadrao?: string
 }
 
-export default function ModalAgendamento({ open, onClose, empresaAtiva, onSuccess }: ModalAgendamentoProps) {
-  const hoje = new Date().toISOString().split('T')[0]
+export default function ModalAgendamento({ open, onClose, empresaAtiva, onSuccess, dataPadrao }: ModalAgendamentoProps) {
+  const agora = new Date()
+  const hoje = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`
+  const dataBase = dataPadrao && dataPadrao !== '2000-01-01' ? dataPadrao : hoje
   const [fornecedor, setFornecedor] = useState('')
   const [descricao, setDescricao] = useState('')
   const [observacao, setObservacao] = useState('')
-  const [dataVencimento, setDataVencimento] = useState(hoje)
-  const [dataPagamento, setDataPagamento] = useState(hoje)
-  const [dataCompetencia, setDataCompetencia] = useState(hoje)
+  const [dataVencimento, setDataVencimento] = useState(dataBase)
+  const [dataPagamento, setDataPagamento] = useState(dataBase)
+  const [dataCompetencia, setDataCompetencia] = useState(dataBase)
   const [valor, setValor] = useState(0)
   const [categoria, setCategoria] = useState('')
   const [contaPagamento, setContaPagamento] = useState('')
@@ -43,6 +46,14 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
   const supabase = createClient()
 
   const [categoriasCA, setCategoriasCA] = useState<string[]>([])
+
+  useEffect(() => {
+    if (open) {
+      setDataVencimento(dataBase)
+      setDataPagamento(dataBase)
+      setDataCompetencia(dataBase)
+    }
+  }, [open, dataBase])
 
   useEffect(() => {
     if (!open || !empresaAtiva?.id) return
@@ -128,8 +139,9 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
     setFornecedor('')
     setDescricao('')
     setObservacao('')
-    setDataVencimento(hoje)
-    setDataCompetencia('')
+    setDataVencimento(dataBase)
+    setDataPagamento(dataBase)
+    setDataCompetencia(dataBase)
     setValor(0)
     setCategoria('')
     setContaPagamento('')
@@ -177,9 +189,9 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
       if (dados.fornecedor) setFornecedor(dados.fornecedor)
       if (dados.data_vencimento) setDataVencimento(dados.data_vencimento)
       if (dados.data_pagamento) setDataPagamento(dados.data_pagamento)
-      else setDataPagamento(hoje)
+      else setDataPagamento(dados.data_vencimento || dataBase)
       if (dados.data_documento) setDataCompetencia(dados.data_documento)
-      else setDataCompetencia(hoje)
+      else setDataCompetencia(dados.data_vencimento || dataBase)
       if (dados.valor) setValor(Number(dados.valor) || 0)
       // Não forçar categorias genéricas (ex: Impostos, Boleto, Diversos)
       // O carregarCategoriaAprendida cuidará de puxar a categoria real do CA caso já aprendida
@@ -255,8 +267,8 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
         fornecedor: fornecedor || null,
         descricao: descricaoFinal,
         data_vencimento: dataVencimento,
-        data_pagamento: dataPagamento || hoje,
-        competencia: dataCompetencia || hoje,
+        data_pagamento: dataPagamento || dataVencimento || dataBase,
+        competencia: dataCompetencia || dataVencimento || dataBase,
         valor,
         categoria: categoria || null,
         conta_pagamento: contaPagamento,

@@ -1,0 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+/* =========================================================================
+   DCX LINK — Base visual global (tokens).
+   Prefixo --dx-* (não conflita com a paleta do Tailwind).
+   Claro = :root (padrão oficial) | Escuro = html.dark.
+   Tipografia 100% sans-serif moderna e corporativa (sem fontes serifadas).
+   ========================================================================= */
+:root {
+  /* Identidade */
+  --dx-navy: #0b1e5b;       /* azul-marinho institucional */
+  --dx-blue: #1868db;       /* azul corporativo principal */
+  --dx-mint: #10b981;       /* verde esmeralda */
+
+  /* Superfícies e texto (Tema Claro oficial) */
+  --dx-bg: #f0f5fc;         /* fundo azul-gelo suave da página */
+  --dx-card: #ffffff;       /* cartões e painéis brancos */
+  --dx-soft: #f4f8fe;       /* cabeçalho de tabela e faixas suaves */
+  --dx-input: #ffffff;      /* campos de formulário e busca */
+  --dx-ink: #122347;        /* texto principal azul-marinho escuro */
+  --dx-muted: #5e7196;      /* texto secundário azul-acinzentado */
+  --dx-title: #0b1e5b;      /* títulos principais */
+  --dx-line: #dce6f7;       /* bordas suaves azuladas */
+  --dx-line-soft: #eaf0fa;  /* divisórias internas de tabela */
+  --dx-control-line: #9bb2d9;
+
+  /* Ações e estados */
+  --dx-primary: #1868db;    /* botão principal azul vibrante */
+  --dx-link: #1868db;       /* links e ícones de destaque */
+  --dx-selected: #e8f1ff;   /* linha ou filtro ativo */
+  --dx-chip: #edf2fb;       /* etiquetas neutras */
+  --dx-ok: #0ca668;   --dx-ok-bg: #e3f8ef;     --dx-ok-solid: #10b981;
+  --dx-warn: #d97706; --dx-warn-bg: #fff2d6;
+  --dx-bad: #e11d48;  --dx-bad-bg: #ffe8ee;
+
+  /* Tipografia — moderna, corporativa e sem serifa */
+  --dx-font: 'Plus Jakarta Sans', Inter, 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --dx-font-title: 'Plus Jakarta Sans', Inter, 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --dx-font-mono: 'Plus Jakarta Sans', Inter, 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+  /* Raios */
+  --dx-r-sm: 8px;  --dx-r-md: 10px;  --dx-r-lg: 14px;  --dx-r-xl: 16px;  --dx-r-pill: 999px;
+
+  /* Sombras */
+  --dx-shadow-seg: 0 2px 6px rgba(15, 35, 71, .08);
+  --dx-shadow-card: 0 8px 26px -12px rgba(13, 37, 112, .10);
+  --dx-shadow-pop: 0 20px 42px -22px rgba(11, 30, 91, .35);
+
+  /* Espaçamento entre blocos */
+  --dx-gap: 18px;
+
+  /* Avatares de empresa */
+  --dx-av-1: #1868db; --dx-av-2: #0ca668; --dx-av-3: #6d28d9; --dx-av-4: #0b1e5b; --dx-av-5: #d97706; --dx-av-6: #0284c7;
+}
+
+html.dark {
+  --dx-navy: #e2ebff;
+  --dx-bg: #08112b;
+  --dx-card: #0e1b42;
+  --dx-soft: #132354;
+  --dx-input: #0b1636;
+  --dx-ink: #eef3ff;
+  --dx-muted: #94a9d6;
+  --dx-title: #ffffff;
+  --dx-line: rgba(130, 160, 230, .18);
+  --dx-line-soft: rgba(130, 160, 230, .10);
+  --dx-control-line: #5b76b8;
+
+  --dx-primary: #2563eb;
+  --dx-link: #689dff;
+  --dx-selected: rgba(59, 130, 246, .18);
+  --dx-chip: #172a63;
+  --dx-ok: #34d399;   --dx-ok-bg: rgba(16, 185, 129, .15);  --dx-ok-solid: #10b981;
+  --dx-warn: #fbbf24; --dx-warn-bg: rgba(245, 158, 11, .16);
+  --dx-bad: #fb7185;  --dx-bad-bg: rgba(244, 63, 94, .16);
+  --dx-shadow-card: 0 12px 30px -14px rgba(0, 0, 0, .55);
+}
