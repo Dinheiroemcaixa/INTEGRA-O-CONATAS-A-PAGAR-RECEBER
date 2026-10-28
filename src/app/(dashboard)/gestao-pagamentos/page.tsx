@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Plus, Building2, Loader2, X, CheckCircle2, Edit2, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Plus, Building2, Loader2, X, CheckCircle2, Edit2, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Grupo } from '@/types'
+import './grupos.css'
 
 export default function MeusGrupos() {
   const router = useRouter()
@@ -104,54 +105,48 @@ export default function MeusGrupos() {
   }
 
   return (
-    <>
-      <div className="bg-[#0b0e14] border-b border-dark-700 flex items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-6">
-          <button onClick={() => router.push('/dashboard')} className="flex items-center gap-2 text-dark-300 hover:text-white transition-colors bg-dark-800 px-3 py-1.5 rounded-lg text-sm font-semibold">
-            <ArrowLeft size={16} /> Voltar
-          </button>
-          <div>
-            <h1 className="text-xl font-bold text-white leading-tight">Meus Grupos</h1>
-            <p className="text-dark-400 text-xs uppercase tracking-wider">Gestão BPO Financeiro</p>
+    <div className="dcx-grp">
+      <div className="dcx-grp-in">
+        <header className="dcx-grp-top">
+          <div className="dcx-grp-id">
+            <button type="button" onClick={() => router.push('/dashboard')} className="dcx-grp-back">
+              <ArrowLeft size={15} /> Voltar
+            </button>
+            <h1 className="dcx-grp-h1">Meus Grupos</h1>
+            <p className="dcx-grp-sub">Gestão BPO Financeiro</p>
           </div>
-        </div>
+          <button type="button" onClick={() => setModalNovoGrupoAberto(true)} className="dcx-grp-btn is-primary">
+            <Plus size={16} /> Novo Grupo
+          </button>
+        </header>
 
-        <button
-          onClick={() => setModalNovoGrupoAberto(true)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-blue-900/20"
-        >
-          <Plus size={16} /> Novo Grupo
-        </button>
-      </div>
-
-      <div className="p-4 sm:p-6 w-full max-w-[1920px] mx-auto animate-fade-in">
         {carregando ? (
-          <div className="flex items-center justify-center h-72">
-            <Loader2 className="animate-spin text-dark-400" size={32} />
+          <div className="dcx-grp-loading">
+            <Loader2 className="animate-spin" size={32} />
           </div>
         ) : grupos.length === 0 ? (
-          <div className="bg-[#11141c] border border-dark-700 rounded-2xl p-16 flex flex-col items-center justify-center gap-4 text-center">
-            <Building2 className="text-dark-600" size={40} />
-            <p className="text-dark-400 font-semibold">Você ainda não criou nenhum grupo.</p>
-            <p className="text-dark-500 text-sm max-w-sm">Um grupo reúne as lojas de um mesmo cliente (ex: "Grupo do Seu Zé"). Crie um grupo e depois adicione as lojas dele.</p>
-            <button onClick={() => setModalNovoGrupoAberto(true)} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors">
+          <div className="dcx-grp-empty">
+            <div className="dcx-grp-empty-ic"><Building2 size={28} /></div>
+            <p className="dcx-grp-empty-t">Você ainda não criou nenhum grupo.</p>
+            <p className="dcx-grp-empty-d">Um grupo reúne as lojas de um mesmo cliente (ex: "Grupo do Seu Zé"). Crie um grupo e depois adicione as lojas dele.</p>
+            <button type="button" onClick={() => setModalNovoGrupoAberto(true)} className="dcx-grp-btn is-primary">
               <Plus size={16} /> Criar meu primeiro grupo
             </button>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-              <div className="bg-[#11141c] border border-dark-700 rounded-xl p-4">
-                <p className="text-dark-400 text-xs font-semibold mb-1">Grupos</p>
-                <p className="text-white text-2xl font-bold">{grupos.length}</p>
+            <div className="dcx-grp-sum">
+              <div>
+                <small>Grupos</small>
+                <b>{grupos.length}</b>
               </div>
-              <div className="bg-[#11141c] border border-dark-700 rounded-xl p-4">
-                <p className="text-dark-400 text-xs font-semibold mb-1">Lojas no total</p>
-                <p className="text-white text-2xl font-bold">{grupos.reduce((acc, g) => acc + g.totalLojas, 0)}</p>
+              <div>
+                <small>Lojas no total</small>
+                <b>{grupos.reduce((acc, g) => acc + g.totalLojas, 0)}</b>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="dcx-grp-grid">
               {grupos.map(grupo => (
                 <div
                   key={grupo.id}
@@ -159,42 +154,47 @@ export default function MeusGrupos() {
                   role="button"
                   tabIndex={0}
                   onKeyDown={e => { if (e.key === 'Enter') router.push(`/gestao-pagamentos/${grupo.id}`) }}
-                  className="bg-[#11141c] border border-dark-700 hover:border-brand-500 rounded-2xl p-5 text-left transition-all shadow-lg group cursor-pointer"
+                  className="dcx-grp-card"
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 bg-brand-500/10 border border-brand-500/20 rounded-xl flex items-center justify-center group-hover:bg-brand-500/20 transition-colors">
-                      <Building2 size={18} className="text-brand-400" />
+                  <div className="dcx-grp-ct">
+                    <div className="dcx-grp-ic" aria-hidden="true">
+                      <Building2 size={20} />
                     </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="dcx-grp-ac">
                       <button
+                        type="button"
                         onClick={e => { e.stopPropagation(); abrirEdicaoGrupo(grupo) }}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-dark-400 hover:text-white hover:bg-dark-700 transition-colors"
                         title="Editar grupo"
+                        aria-label={`Editar grupo ${grupo.nome}`}
                       >
                         <Edit2 size={14} />
                       </button>
                       <button
+                        type="button"
+                        className="d"
                         onClick={e => { e.stopPropagation(); handleExcluirGrupo(grupo) }}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-dark-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
                         title="Excluir grupo"
+                        aria-label={`Excluir grupo ${grupo.nome}`}
                       >
                         <Trash2 size={14} />
                       </button>
                     </div>
                   </div>
-                  <p className="text-white font-bold text-base truncate mb-1">{grupo.nome}</p>
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-blue-500/10 text-blue-400">
-                    {grupo.totalLojas} {grupo.totalLojas === 1 ? 'loja' : 'lojas'}
-                  </span>
+                  <div>
+                    <p className="dcx-grp-name" title={grupo.nome}>{grupo.nome}</p>
+                    <div className="dcx-grp-meta">
+                      <span className="dcx-grp-chip">
+                        {grupo.totalLojas} {grupo.totalLojas === 1 ? 'loja' : 'lojas'}
+                      </span>
+                      <ArrowRight size={16} className="dcx-grp-go" aria-hidden="true" />
+                    </div>
+                  </div>
                 </div>
               ))}
 
-              <button
-                onClick={() => setModalNovoGrupoAberto(true)}
-                className="border-2 border-dashed border-dark-700 hover:border-brand-500 hover:bg-brand-500/5 rounded-2xl p-5 flex flex-col items-center justify-center gap-2 transition-all text-dark-400 hover:text-brand-400 min-h-[128px]"
-              >
-                <Plus size={20} />
-                <span className="text-sm font-semibold">Novo Grupo</span>
+              <button type="button" onClick={() => setModalNovoGrupoAberto(true)} className="dcx-grp-add">
+                <span className="dcx-grp-add-ic"><Plus size={20} /></span>
+                <span>Novo Grupo</span>
               </button>
             </div>
           </>
@@ -202,31 +202,32 @@ export default function MeusGrupos() {
       </div>
 
       {modalNovoGrupoAberto && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-dark-900 border border-dark-700 rounded-2xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between p-5 border-b border-dark-700">
-              <h3 className="text-white font-bold text-lg">Novo Grupo</h3>
-              <button onClick={() => setModalNovoGrupoAberto(false)} className="p-2 rounded-lg text-dark-400 hover:text-white hover:bg-dark-800 transition-all">
+        <div className="dcx-grp-ov">
+          <div className="dcx-grp-modal" role="dialog" aria-modal="true" aria-label="Novo Grupo">
+            <div className="dcx-grp-mh">
+              <h3>Novo Grupo</h3>
+              <button type="button" onClick={() => setModalNovoGrupoAberto(false)} className="dcx-grp-x" aria-label="Fechar">
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6 space-y-2">
-              <label className="text-xs font-semibold text-dark-400 uppercase">Nome do grupo</label>
+            <div className="dcx-grp-mb">
+              <label htmlFor="grp-novo-nome">Nome do grupo</label>
               <input
+                id="grp-novo-nome"
                 type="text"
                 autoFocus
                 value={nomeNovoGrupo}
                 onChange={e => setNomeNovoGrupo(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleCriarGrupo() }}
                 placeholder='Ex: "Grupo do Seu Zé"'
-                className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all"
+                className="dcx-grp-input"
               />
             </div>
-            <div className="p-5 border-t border-dark-700 flex justify-end gap-3">
-              <button onClick={() => setModalNovoGrupoAberto(false)} className="px-5 py-2.5 rounded-xl font-semibold bg-dark-800 text-dark-300 hover:text-white hover:bg-dark-700 transition-all">
+            <div className="dcx-grp-mf">
+              <button type="button" onClick={() => setModalNovoGrupoAberto(false)} className="dcx-grp-btn">
                 Cancelar
               </button>
-              <button onClick={handleCriarGrupo} disabled={criando} className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-900/30 transition-all disabled:opacity-50">
+              <button type="button" onClick={handleCriarGrupo} disabled={criando} className="dcx-grp-btn is-primary">
                 {criando ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                 {criando ? 'Criando...' : 'Criar Grupo'}
               </button>
@@ -236,31 +237,32 @@ export default function MeusGrupos() {
       )}
 
       {grupoEditando && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-dark-900 border border-dark-700 rounded-2xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between p-5 border-b border-dark-700">
-              <h3 className="text-white font-bold text-lg">Editar Grupo</h3>
-              <button onClick={() => setGrupoEditando(null)} className="p-2 rounded-lg text-dark-400 hover:text-white hover:bg-dark-800 transition-all">
+        <div className="dcx-grp-ov">
+          <div className="dcx-grp-modal" role="dialog" aria-modal="true" aria-label="Editar Grupo">
+            <div className="dcx-grp-mh">
+              <h3>Editar Grupo</h3>
+              <button type="button" onClick={() => setGrupoEditando(null)} className="dcx-grp-x" aria-label="Fechar">
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6 space-y-2">
-              <label className="text-xs font-semibold text-dark-400 uppercase">Nome do grupo</label>
+            <div className="dcx-grp-mb">
+              <label htmlFor="grp-edit-nome">Nome do grupo</label>
               <input
+                id="grp-edit-nome"
                 type="text"
                 autoFocus
                 value={nomeEditado}
                 onChange={e => setNomeEditado(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleSalvarEdicaoGrupo() }}
                 placeholder='Ex: "Grupo do Seu Zé"'
-                className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all"
+                className="dcx-grp-input"
               />
             </div>
-            <div className="p-5 border-t border-dark-700 flex justify-end gap-3">
-              <button onClick={() => setGrupoEditando(null)} className="px-5 py-2.5 rounded-xl font-semibold bg-dark-800 text-dark-300 hover:text-white hover:bg-dark-700 transition-all">
+            <div className="dcx-grp-mf">
+              <button type="button" onClick={() => setGrupoEditando(null)} className="dcx-grp-btn">
                 Cancelar
               </button>
-              <button onClick={handleSalvarEdicaoGrupo} disabled={salvandoEdicao} className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-900/30 transition-all disabled:opacity-50">
+              <button type="button" onClick={handleSalvarEdicaoGrupo} disabled={salvandoEdicao} className="dcx-grp-btn is-primary">
                 {salvandoEdicao ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                 {salvandoEdicao ? 'Salvando...' : 'Salvar'}
               </button>
@@ -268,6 +270,6 @@ export default function MeusGrupos() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }

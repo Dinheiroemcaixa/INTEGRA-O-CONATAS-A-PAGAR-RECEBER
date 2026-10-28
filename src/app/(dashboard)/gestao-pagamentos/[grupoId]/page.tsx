@@ -5,12 +5,21 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   ArrowLeft, FileText, Upload, ChevronDown, Plus,
-  Loader2, Building2, X, Calendar, FileSpreadsheet
+  Loader2, Building2, X, Calendar, FileSpreadsheet, Search, Layers
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import LojaCard from '@/components/gestao-pagamentos/LojaCard'
 import { Empresa, Grupo } from '@/types'
 import type { LojaRelatorio, PagamentoRelatorio } from '@/lib/exporters/relatorio-grupo-xlsx'
+import '@/styles/gp-layout.css'
+
+interface GrupoLateral {
+  id: string
+  nome: string
+  totalLojas: number
+}
+
+const fmtBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
 export default function GrupoDetalhe() {
   const params = useParams()
@@ -35,6 +44,11 @@ export default function GrupoDetalhe() {
   const [exportando, setExportando] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
 
+  // Apresentação: loja selecionada na lateral e lista de grupos (somente leitura)
+  const [lojaSelecionadaId, setLojaSelecionadaId] = useState<string | null>(null)
+  const [gruposLateral, setGruposLateral] = useState<GrupoLateral[]>([])
+  const [buscaLateral, setBuscaLateral] = useState('')
+
   const periodosPorLojaRef = useRef<Record<string, { inicio: string; fim: string }>>({})
   const handlePeriodoChange = (lojaId: string, inicio: string, fim: string) => {
     periodosPorLojaRef.current[lojaId] = { inicio, fim }
@@ -58,6 +72,32 @@ export default function GrupoDetalhe() {
       .order('nome', { ascending: true })
     setLojas(lojasData || [])
     setCarregando(false)
+  }
+
+  // Mantém uma loja sempre selecionada na lateral (primeira do grupo por padrão)
+  useEffect(() => {
+    setLojaSelecionadaId(atual => (atual && lojas.some(l => l.id === atual) ? atual : (lojas[0]?.id ?? null)))
+  }, [lojas])
+
+  // Lista de grupos para a lateral (leitura simples; não altera nenhum dado)
+  useEffect(() => {
+    let ativo = true
+    ;(async () => {
+      const [{ data: gs }, { data: es }] = await Promise.all([
+        supabase.from('grupos').select('id, nome').order('nome', { ascending: true }),
+        supabase.from('empresas').select('grupo_id').not('grupo_id', 'is', null),
+      ])
+      if (!ativo) return
+      const contagem: Record<string, number> = {}
+      ;(es || []).forEach((e: any) => { contagem[e.grupo_id] = (contagem[e.grupo_id] || 0) + 1 })
+      setGruposLateral((gs || []).map((g: any) => ({ id: g.id, nome: g.nome, totalLojas: contagem[g.id] || 0 })))
+    })()
+    return () => { ativo = false }
+  }, [grupoId, lojas.length])
+
+  // Mantém o saldo mostrado na lateral igual ao saldo editado no cartão da loja
+  function handleSaldoSalvo(lojaId: string, novoSaldo: number) {
+    setLojas(prev => prev.map(l => (l.id === lojaId ? { ...l, saldo_caixa: novoSaldo } : l)))
   }
 
   async function abrirModalNovaLoja() {
@@ -171,17 +211,23 @@ export default function GrupoDetalhe() {
               .eq('empresa_id', loja.id),
           ])
 
-          // Filtra exclusivamente pela Data de Pagamento (Inclusão)
+          // Filtra pela DATA DO PAGAMENTO no período (mesma regra da listagem diária).
+          // A data de vencimento continua preservada no relatório, mas não define o dia do lançamento.
+          // Registro legado sem data de pagamento mantém o comportamento anterior (fallback pelo vencimento).
           const ddasFiltrados = (ddas || []).filter((d: any) => {
-            const dt = d.data_pagamento || d.data_vencimento
-            if (!dt) return false
-            return dt >= exportInicio && dt <= exportFim
+            const dtPgto = d.data_pagamento
+            const dtVenc = d.data_vencimento
+            if (!dtPgto && !dtVenc) return false
+            if (dtPgto) return dtPgto >= exportInicio && dtPgto <= exportFim
+            return dtVenc >= exportInicio && dtVenc <= exportFim
           })
 
           const agendFiltrados = (agendamentos || []).filter((a: any) => {
-            const dt = a.data_pagamento || a.data_vencimento
-            if (!dt) return false
-            return dt >= exportInicio && dt <= exportFim
+            const dtPgto = a.data_pagamento
+            const dtVenc = a.data_vencimento
+            if (!dtPgto && !dtVenc) return false
+            if (dtPgto) return dtPgto >= exportInicio && dtPgto <= exportFim
+            return dtVenc >= exportInicio && dtVenc <= exportFim
           })
 
           const pagamentos: PagamentoRelatorio[] = [
@@ -282,80 +328,168 @@ export default function GrupoDetalhe() {
     )
   }
 
+  const termoLateral = buscaLateral.trim().toLowerCase()
+  const lojasLateral = termoLateral ? lojas.filter(l => l.nome.toLowerCase().includes(termoLateral)) : lojas
+  const outrosGrupos = gruposLateral.filter(
+    g => g.id !== grupoId && (!termoLateral || g.nome.toLowerCase().includes(termoLateral))
+  )
+
   return (
-    <>
-      <div className="bg-[#0b0e14] border-b border-dark-700 flex items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-6">
-          <button onClick={() => router.push('/gestao-pagamentos')} className="flex items-center gap-2 text-dark-300 hover:text-white transition-colors bg-dark-800 px-3 py-1.5 rounded-lg text-sm font-semibold">
-            <ArrowLeft size={16} /> Voltar
-          </button>
-          <div>
-            <h1 className="text-xl font-bold text-white leading-tight">Pagamentos BPO Financeiro</h1>
-            <p className="text-dark-400 text-xs">Grupo: <span className="text-dark-300 font-semibold">{grupo.nome}</span></p>
+    <div className="gp-page">
+      <div className="gp-page-in">
+        <header className="gp-banner">
+          <div className="gp-banner-id">
+            <div className="gp-banner-ico" aria-hidden="true"><Layers size={24} /></div>
+            <div className="min-w-0">
+              <h1>Gestão de Pagamentos</h1>
+              <p>Controle e acompanhe os pagamentos, agendamentos e transferências do grupo {grupo.nome}.</p>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-4">
-          <button
-            onClick={abrirModalNovaLoja}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-blue-900/20"
-          >
-            <Plus size={16} /> Nova Loja
-          </button>
-
-          <div className="relative">
-            <button
-              onClick={() => setMenuExportarAberto(!menuExportarAberto)}
-              disabled={exportando}
-              className="flex items-center gap-2 bg-dark-800 border border-dark-600 hover:bg-dark-700 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
-            >
-              {exportando ? <Loader2 size={16} className="animate-spin text-dark-300" /> : <Upload size={16} className="text-dark-300" />}
-              Exportar <ChevronDown size={14} className={menuExportarAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
+          <div className="gp-banner-actions">
+            <button type="button" onClick={() => router.push('/gestao-pagamentos')} className="gp-back">
+              <ArrowLeft size={15} /> Meus grupos
+            </button>
+            <button type="button" onClick={abrirModalNovaLoja} className="gp-btn is-primary">
+              <Plus size={16} /> Nova loja
             </button>
 
-            {menuExportarAberto && (
-              <div className="absolute top-full right-0 mt-2 w-64 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
-                <button onClick={abrirModalExportar} className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors cursor-pointer">
-                  <FileSpreadsheet size={18} className="text-emerald-400" />
-                  <div>
-                    <span className="text-sm font-semibold text-white block">Excel Geral (.xlsx)</span>
-                    <span className="text-[11px] text-dark-400 block">Filtrar por período de pagamento</span>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setMenuExportarAberto(!menuExportarAberto)}
+                disabled={exportando}
+                className="gp-btn"
+              >
+                {exportando ? <Loader2 size={16} className="animate-spin" /> : <Upload size={15} className="is-blue" />}
+                Exportar <ChevronDown size={14} className={menuExportarAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
+              </button>
+
+              {menuExportarAberto && (
+                <div className="absolute top-full right-0 mt-2 w-64 bg-white dark:bg-[#0f1523] border border-slate-200 dark:border-white/[0.1] rounded-xl shadow-2xl shadow-black/30 z-50 overflow-hidden">
+                  <button onClick={abrirModalExportar} className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-colors cursor-pointer">
+                    <FileSpreadsheet size={18} className="text-emerald-500" />
+                    <div>
+                      <span className="text-sm font-semibold text-slate-900 dark:text-white block">Excel Geral (.xlsx)</span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Filtrar por período de pagamento</span>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+
+        <div className="gp-shell">
+          <aside className="gp-side" aria-label="Grupos e lojas">
+            <h2 className="gp-side-title">Grupos</h2>
+
+            <label className="gp-side-search">
+              <Search size={14} aria-hidden="true" />
+              <input
+                type="text"
+                value={buscaLateral}
+                onChange={e => setBuscaLateral(e.target.value)}
+                placeholder="Buscar grupo ou loja..."
+                aria-label="Buscar grupo ou loja"
+              />
+            </label>
+
+            <div className="gp-grupo is-atual">
+              <div className="gp-grupo-btn" aria-current="true">
+                <span className="gp-grupo-ico"><Building2 size={18} /></span>
+                <span className="gp-grupo-txt">
+                  <span className="gp-grupo-nome" title={grupo.nome}>{grupo.nome}</span>
+                  <span className="gp-grupo-meta">{lojas.length} {lojas.length === 1 ? 'loja' : 'lojas'}</span>
+                </span>
+                <ChevronDown size={16} aria-hidden="true" />
+              </div>
+
+              <div className="gp-lojas" role="list">
+                {lojasLateral.map(loja => {
+                  const saldo = Number(loja.saldo_caixa || 0)
+                  const ativa = loja.id === lojaSelecionadaId
+                  return (
+                    <button
+                      key={loja.id}
+                      type="button"
+                      role="listitem"
+                      onClick={() => setLojaSelecionadaId(loja.id)}
+                      className={`gp-loja-item${ativa ? ' is-on' : ''}`}
+                      aria-pressed={ativa}
+                      title={loja.nome}
+                    >
+                      <span className="gp-loja-dot" aria-hidden="true">{loja.nome.charAt(0).toUpperCase()}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="gp-loja-item-nome">{loja.nome}</span>
+                        <span className={`gp-loja-item-saldo${saldo < 0 ? ' is-neg' : ''}`}>{fmtBRL(saldo)}</span>
+                      </span>
+                    </button>
+                  )
+                })}
+                {lojas.length > 0 && lojasLateral.length === 0 && (
+                  <p className="gp-side-vazio">Nenhuma loja encontrada para "{buscaLateral}".</p>
+                )}
+              </div>
+
+              <button type="button" onClick={abrirModalNovaLoja} className="gp-side-add">
+                <Plus size={14} /> Adicionar loja
+              </button>
+            </div>
+
+            {outrosGrupos.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                {outrosGrupos.map(g => (
+                  <div key={g.id} className="gp-grupo">
+                    <button type="button" className="gp-grupo-btn" onClick={() => router.push(`/gestao-pagamentos/${g.id}`)}>
+                      <span className="gp-grupo-ico"><Building2 size={18} /></span>
+                      <span className="gp-grupo-txt">
+                        <span className="gp-grupo-nome" title={g.nome}>{g.nome}</span>
+                        <span className="gp-grupo-meta">{g.totalLojas} {g.totalLojas === 1 ? 'loja' : 'lojas'}</span>
+                      </span>
+                      <ChevronDown size={16} aria-hidden="true" style={{ transform: 'rotate(-90deg)' }} />
+                    </button>
                   </div>
-                </button>
+                ))}
               </div>
             )}
-          </div>
-        </div>
-      </div>
+          </aside>
 
-      <div className="p-4 sm:p-6 w-full max-w-[1920px] mx-auto space-y-5 animate-fade-in">
-        {lojas.length === 0 ? (
-          <div className="bg-[#11141c] border border-dark-700 rounded-2xl p-16 flex flex-col items-center justify-center gap-4 text-center">
-            <Building2 className="text-dark-600" size={40} />
-            <p className="text-dark-400 font-semibold">Esse grupo ainda não tem nenhuma loja.</p>
-            <button onClick={abrirModalNovaLoja} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors">
-              <Plus size={16} /> Adicionar loja
-            </button>
-          </div>
-        ) : (
-          lojas.map(loja => (
-            <LojaCard
-              key={loja.id}
-              empresa={loja}
-              lojasDoGrupo={lojas}
-              refreshTick={refreshTick}
-              onTransferenciaGlobal={() => setRefreshTick(t => t + 1)}
-              onPeriodoChange={handlePeriodoChange}
-              onLojaRemovida={carregarGrupo}
-            />
-          ))
-        )}
+          <main className="gp-main">
+            {lojas.length === 0 ? (
+              <div className="gp-card gp-vazio">
+                <Building2 size={40} className="text-slate-400" />
+                <p>Esse grupo ainda não tem nenhuma loja.</p>
+                <button type="button" onClick={abrirModalNovaLoja} className="gp-btn is-primary">
+                  <Plus size={16} /> Adicionar loja
+                </button>
+              </div>
+            ) : (
+              // Todas as lojas continuam montadas (cada uma mantém seu período, filtros e dados);
+              // apenas a loja escolhida na lateral fica visível.
+              lojas.map(loja => (
+                <div key={loja.id} className={loja.id === lojaSelecionadaId ? 'min-w-0' : 'hidden'}>
+                  <LojaCard
+                    empresa={loja}
+                    lojasDoGrupo={lojas}
+                    nomeGrupo={grupo.nome}
+                    refreshTick={refreshTick}
+                    onTransferenciaGlobal={() => setRefreshTick(t => t + 1)}
+                    onPeriodoChange={handlePeriodoChange}
+                    onLojaRemovida={carregarGrupo}
+                    onSaldoSalvo={handleSaldoSalvo}
+                  />
+                </div>
+              ))
+            )}
+          </main>
+        </div>
       </div>
 
       {modalNovaLojaAberto && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-dark-900 border border-dark-700 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[80vh]">
-            <div className="flex items-center justify-between p-5 border-b border-dark-700 shrink-0">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-[#0f1523] border border-white/[0.08] rounded-2xl w-full max-w-lg shadow-2xl shadow-black/60 flex flex-col max-h-[80vh] overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-white/[0.07] bg-[#0b101b] shrink-0">
               <div>
                 <h3 className="text-white font-bold text-lg">Adicionar loja ao grupo</h3>
                 <p className="text-dark-400 text-xs">Escolha uma empresa já cadastrada (com CA/Datacar conectados)</p>
@@ -403,9 +537,9 @@ export default function GrupoDetalhe() {
 
       {modalExportarAberto && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-dark-900 border border-dark-700 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col overflow-hidden">
+          <div className="bg-[#0f1523] border border-white/[0.08] rounded-2xl w-full max-w-lg shadow-2xl shadow-black/60 flex flex-col overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-dark-700 bg-dark-850">
+            <div className="flex items-center justify-between p-5 border-b border-white/[0.07] bg-[#0b101b]">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
                   <FileSpreadsheet size={20} />
@@ -539,6 +673,6 @@ export default function GrupoDetalhe() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }

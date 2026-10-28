@@ -4,6 +4,8 @@ import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
 import AuthGuard from '@/components/AuthGuard'
 import RouteAccessGuard from '@/components/RouteAccessGuard'
+import '@/styles/dx-tokens.css'
+import '@/styles/dx-ui.css'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
