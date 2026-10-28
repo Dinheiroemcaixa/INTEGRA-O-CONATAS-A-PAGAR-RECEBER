@@ -1,32 +1,37 @@
 /* =========================================================================
-   Menu lateral — visual da Opção E (aprovada) SOMENTE na página /dashboard.
-   Ativado pelo atributo data-dcx-home no <aside> (ver Sidebar.tsx).
-   Nas demais telas o menu continua exatamente como era.
+   Menu lateral DCX LINK (ativado pelo atributo data-dcx-home no <aside>,
+   ver Sidebar.tsx).
+   - Tema claro: padrão oficial (menu claro, conforme proposta aprovada).
+   - Tema escuro (.dark): mesma identidade, em azul-marinho.
+   - data-collapsed="true": menu recolhido (somente ícones) em desktop.
    ========================================================================= */
 
+/* ---------- Base (tema claro) ---------- */
 aside[data-dcx-home] {
   width: 17.25rem !important;
-  background: linear-gradient(185deg, #0d2570 0%, #071445 70%) !important;
-  border-color: transparent !important;
-  color: #fff;
+  background: linear-gradient(185deg, #ffffff 0%, #f4f8ff 100%) !important;
+  border-color: #e3eaf6 !important;
+  color: #1b2a4a;
+  transition: width 0.25s ease;
 }
 
-/* Marca DCX LINK (substitui o logo da Dinheiro em Caixa nesta tela) */
+/* Marca DCX LINK */
 aside[data-dcx-home] .dcx-brand-wrap {
-  border-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: #e3eaf6 !important;
   margin-bottom: 0.25rem;
 }
 aside[data-dcx-home] .dcx-brand { display: flex; align-items: center; gap: 12px; padding: 14px 10px 8px; }
+aside[data-dcx-home] .dcx-brand svg circle:first-child { stroke: #0d2570; }
 aside[data-dcx-home] .dcx-brand b {
-  display: block; color: #fff; font-family: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
+  display: block; color: #0d2570; font-family: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
   font-size: 21px; font-weight: 700; letter-spacing: 0.01em; line-height: 1.1;
 }
-aside[data-dcx-home] .dcx-brand small { display: block; margin-top: 2px; font-size: 11px; color: #9db2e8; }
+aside[data-dcx-home] .dcx-brand small { display: block; margin-top: 2px; font-size: 11px; color: #6b7a99; }
 
 /* Títulos de seção */
 aside[data-dcx-home] .dcx-sec {
   text-transform: none !important; letter-spacing: 0 !important;
-  font-size: 11.5px !important; font-weight: 600 !important; color: #7f97d6 !important;
+  font-size: 11.5px !important; font-weight: 600 !important; color: #6b7a99 !important;
   padding-top: 14px !important;
 }
 
@@ -34,41 +39,128 @@ aside[data-dcx-home] .dcx-sec {
 aside[data-dcx-home] .dcx-item {
   min-height: 42px; border-radius: 12px !important;
   font-size: 13.5px !important; line-height: 1.3;
-  color: #c9d6f7 !important; background: transparent !important; border: 0 !important; box-shadow: none !important;
+  color: #33415f !important; background: transparent !important; border: 0 !important; box-shadow: none !important;
   transform: none !important;
 }
 aside[data-dcx-home] .dcx-item span.flex-1 { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
-aside[data-dcx-home] .dcx-item svg { color: #8fa8e8 !important; }
-aside[data-dcx-home] a.dcx-item:hover { background: rgba(255, 255, 255, 0.08) !important; color: #fff !important; }
-aside[data-dcx-home] .dcx-item-on { background: rgba(255, 255, 255, 0.12) !important; color: #fff !important; font-weight: 600 !important; }
-aside[data-dcx-home] .dcx-item-on svg { color: #5fd68b !important; }
+aside[data-dcx-home] .dcx-item svg { color: #5b6b8c !important; }
+aside[data-dcx-home] a.dcx-item:hover { background: #eef3fd !important; color: #0d2570 !important; }
+aside[data-dcx-home] .dcx-item-on { background: #e6efff !important; color: #1f5eff !important; font-weight: 600 !important; }
+aside[data-dcx-home] .dcx-item-on svg { color: #1f5eff !important; }
 aside[data-dcx-home] .dcx-item-on > svg:last-child { display: none; } /* seta do item ativo */
-aside[data-dcx-home] .dcx-item-on > span.absolute { background: #5fd68b !important; left: -12px; width: 4px; }
+aside[data-dcx-home] .dcx-item-on > span.absolute { background: #1f5eff !important; left: -12px; width: 4px; }
 aside[data-dcx-home] .dcx-locked { opacity: 0.55; }
-aside[data-dcx-home] .dcx-locked svg:last-child { color: #ffd27a !important; }
+aside[data-dcx-home] .dcx-locked svg:last-child { color: #d98a00 !important; }
+aside[data-dcx-home] .dcx-item:focus-visible,
+aside[data-dcx-home] .dcx-toggle:focus-visible { outline: 2px solid #1f5eff; outline-offset: 2px; }
 
 /* Etiquetas (FASE 2, EM BREVE, MASTER) */
 aside[data-dcx-home] .dcx-badge { border: 0 !important; font-size: 9px !important; letter-spacing: 0.03em; }
-aside[data-dcx-home] .dcx-badge[data-tone='ind'] { background: rgba(143, 176, 255, 0.2) !important; color: #bfd1ff !important; }
-aside[data-dcx-home] .dcx-badge[data-tone='amb'] { background: rgba(255, 200, 87, 0.18) !important; color: #ffd27a !important; }
+aside[data-dcx-home] .dcx-badge[data-tone='ind'] { background: #e4ebff !important; color: #4361c9 !important; }
+aside[data-dcx-home] .dcx-badge[data-tone='amb'] { background: #fff1d6 !important; color: #b45f06 !important; }
 
 /* Rodapé: usuário + Sair */
 aside[data-dcx-home] .dcx-foot {
   background: transparent !important; backdrop-filter: none !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: #e3eaf6 !important;
 }
 aside[data-dcx-home] .dcx-user {
-  background: rgba(255, 255, 255, 0.07) !important; border-color: rgba(255, 255, 255, 0.12) !important;
+  background: #ffffff !important; border-color: #e3eaf6 !important;
 }
-aside[data-dcx-home] .dcx-user p { color: #fff !important; }
-aside[data-dcx-home] .dcx-user p + p { color: #9db2e8 !important; }
-aside[data-dcx-home] .dcx-out { color: #c9d6f7 !important; background: rgba(255, 255, 255, 0.06) !important; }
-aside[data-dcx-home] .dcx-out svg { color: #9db2e8 !important; }
-aside[data-dcx-home] .dcx-out:hover { background: rgba(244, 63, 94, 0.18) !important; color: #fecdd3 !important; }
+aside[data-dcx-home] .dcx-user p { color: #0d2570 !important; }
+aside[data-dcx-home] .dcx-user p + p { color: #6b7a99 !important; }
+aside[data-dcx-home] .dcx-out { color: #33415f !important; background: #f1f5fc !important; }
+aside[data-dcx-home] .dcx-out svg { color: #5b6b8c !important; }
+aside[data-dcx-home] .dcx-out:hover { background: #ffe9ee !important; color: #be123c !important; }
 aside[data-dcx-home] .dcx-logo-bottom { display: none; }
 
-/* Botão de tema (dentro do cartão do usuário) combinando com o menu escuro */
+/* Botão de tema (dentro do cartão do usuário) */
 aside[data-dcx-home] .dcx-user button {
+  background: #eef3fd !important; border-color: #dbe5f7 !important; color: #33415f !important;
+}
+aside[data-dcx-home] .dcx-user button svg { color: #33415f !important; }
+
+/* Botão expandir/recolher */
+aside[data-dcx-home] .dcx-toggle {
+  align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 10px;
+  background: #ffffff; border: 1px solid #dbe5f7; color: #1f5eff; cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+aside[data-dcx-home] .dcx-toggle:hover { background: #eef3fd; border-color: #b9ccf3; }
+aside[data-dcx-home] .dcx-toggle-top { position: absolute; right: 14px; top: 22px; }
+
+/* Tooltip do menu recolhido (renderizado em document.body) */
+.dcx-tip {
+  position: fixed; z-index: 1000; transform: translateY(-50%); pointer-events: none;
+  background: #0d2570; color: #fff; font-size: 12px; font-weight: 600; line-height: 1;
+  padding: 8px 11px; border-radius: 8px; white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(13, 37, 112, 0.28);
+}
+.dark .dcx-tip { background: #e9efff; color: #0d2570; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5); }
+
+/* ---------- Tema escuro (mesma identidade, azul-marinho) ---------- */
+.dark aside[data-dcx-home] {
+  background: linear-gradient(185deg, #0d2570 0%, #071445 70%) !important;
+  border-color: transparent !important;
+  color: #fff;
+}
+.dark aside[data-dcx-home] .dcx-brand-wrap { border-color: rgba(255, 255, 255, 0.1) !important; }
+.dark aside[data-dcx-home] .dcx-brand svg circle:first-child { stroke: #fff; }
+.dark aside[data-dcx-home] .dcx-brand b { color: #fff; }
+.dark aside[data-dcx-home] .dcx-brand small { color: #9db2e8; }
+.dark aside[data-dcx-home] .dcx-sec { color: #7f97d6 !important; }
+.dark aside[data-dcx-home] .dcx-item { color: #c9d6f7 !important; }
+.dark aside[data-dcx-home] .dcx-item svg { color: #8fa8e8 !important; }
+.dark aside[data-dcx-home] a.dcx-item:hover { background: rgba(255, 255, 255, 0.08) !important; color: #fff !important; }
+.dark aside[data-dcx-home] .dcx-item-on { background: rgba(255, 255, 255, 0.12) !important; color: #fff !important; }
+.dark aside[data-dcx-home] .dcx-item-on svg { color: #5fd68b !important; }
+.dark aside[data-dcx-home] .dcx-item-on > span.absolute { background: #5fd68b !important; }
+.dark aside[data-dcx-home] .dcx-locked svg:last-child { color: #ffd27a !important; }
+.dark aside[data-dcx-home] .dcx-item:focus-visible,
+.dark aside[data-dcx-home] .dcx-toggle:focus-visible { outline-color: #5fd68b; }
+.dark aside[data-dcx-home] .dcx-badge[data-tone='ind'] { background: rgba(143, 176, 255, 0.2) !important; color: #bfd1ff !important; }
+.dark aside[data-dcx-home] .dcx-badge[data-tone='amb'] { background: rgba(255, 200, 87, 0.18) !important; color: #ffd27a !important; }
+.dark aside[data-dcx-home] .dcx-foot { border-color: rgba(255, 255, 255, 0.1) !important; }
+.dark aside[data-dcx-home] .dcx-user { background: rgba(255, 255, 255, 0.07) !important; border-color: rgba(255, 255, 255, 0.12) !important; }
+.dark aside[data-dcx-home] .dcx-user p { color: #fff !important; }
+.dark aside[data-dcx-home] .dcx-user p + p { color: #9db2e8 !important; }
+.dark aside[data-dcx-home] .dcx-out { color: #c9d6f7 !important; background: rgba(255, 255, 255, 0.06) !important; }
+.dark aside[data-dcx-home] .dcx-out svg { color: #9db2e8 !important; }
+.dark aside[data-dcx-home] .dcx-out:hover { background: rgba(244, 63, 94, 0.18) !important; color: #fecdd3 !important; }
+.dark aside[data-dcx-home] .dcx-user button {
   background: rgba(255, 255, 255, 0.1) !important; border-color: rgba(255, 255, 255, 0.16) !important; color: #c9d6f7 !important;
 }
-aside[data-dcx-home] .dcx-user button svg { color: #c9d6f7 !important; }
+.dark aside[data-dcx-home] .dcx-user button svg { color: #c9d6f7 !important; }
+.dark aside[data-dcx-home] .dcx-toggle { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.16); color: #c9d6f7; }
+.dark aside[data-dcx-home] .dcx-toggle:hover { background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.28); }
+
+/* ---------- Menu recolhido (somente desktop) ---------- */
+@media (min-width: 1024px) {
+  aside[data-dcx-home][data-collapsed='true'] { width: 4.75rem !important; }
+
+  /* Marca: só o símbolo */
+  aside[data-dcx-home][data-collapsed='true'] .dcx-brand { justify-content: center; padding: 14px 0 8px; }
+  aside[data-dcx-home][data-collapsed='true'] .dcx-brand > div { display: none; }
+  aside[data-dcx-home][data-collapsed='true'] .dcx-toggle-top { display: none !important; }
+  aside[data-dcx-home][data-collapsed='true'] .dcx-toggle-expand { display: flex !important; margin: 0 auto; }
+
+  /* Navegação: ícones centralizados, sem rótulos/etiquetas */
+  aside[data-dcx-home][data-collapsed='true'] nav { padding-left: 0.5rem; padding-right: 0.5rem; }
+  aside[data-dcx-home][data-collapsed='true'] .dcx-sec { display: none; }
+  aside[data-dcx-home][data-collapsed='true'] .dcx-item {
+    justify-content: center; padding-left: 0 !important; padding-right: 0 !important; gap: 0;
+  }
+  aside[data-dcx-home][data-collapsed='true'] .dcx-item span.flex-1,
+  aside[data-dcx-home][data-collapsed='true'] .dcx-badge,
+  aside[data-dcx-home][data-collapsed='true'] .dcx-item > svg:last-child:not(:first-child) { display: none !important; }
+  aside[data-dcx-home][data-collapsed='true'] .dcx-item > span.absolute { left: -8px; }
+
+  /* Rodapé: somente avatar e ícone de sair */
+  aside[data-dcx-home][data-collapsed='true'] .dcx-foot { padding-left: 0.5rem; padding-right: 0.5rem; }
+  aside[data-dcx-home][data-collapsed='true'] .dcx-user { justify-content: center; padding: 0.5rem 0; }
+  aside[data-dcx-home][data-collapsed='true'] .dcx-user > div:first-child { flex: 0 0 auto; }
+  aside[data-dcx-home][data-collapsed='true'] .dcx-user > div:first-child > div:last-child { display: none; }
+  aside[data-dcx-home][data-collapsed='true'] .dcx-user > :not(:first-child) { display: none; }
+  aside[data-dcx-home][data-collapsed='true'] .dcx-out { justify-content: center; padding-left: 0; padding-right: 0; }
+  aside[data-dcx-home][data-collapsed='true'] .dcx-out span { display: none; }
+}

@@ -1,11 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import {
-  Mail, Lock, Eye, EyeOff, LogIn, Loader2, ArrowLeft,
+  Mail, Lock, Eye, EyeOff, LogIn, Loader2,
   ShieldCheck, User
 } from 'lucide-react'
 import './login.css'
@@ -112,7 +111,7 @@ export default function LoginPageClient() {
       <div className="dcx-login-grid">
         {/* Painel de marca (computador) */}
         <aside className="dcx-login-brand">
-          <Link href="/" className="dcx-login-logo">
+          <div className="dcx-login-logo">
             <span className="dcx-login-mk">
               <svg width="24" height="24" viewBox="0 0 26 26" className="flex-none block" aria-hidden="true">
                 <circle cx="9.5" cy="13" r="6.5" fill="none" stroke="#fff" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" />
@@ -123,10 +122,11 @@ export default function LoginPageClient() {
               <b>DCX <i>LINK</i></b>
               <small>O elo entre seus sistemas</small>
             </span>
-          </Link>
+          </div>
 
           <div className="dcx-login-hero">
-            <h1>Gestão financeira e fiscal integrada, sem retrabalho.</h1>
+            <span className="dcx-login-label">PLATAFORMA DE INTEGRAÇÃO FINANCEIRA</span>
+            <h1>Sua operação financeira, conectada e inteligente.</h1>
             <p>Conecte seu ERP ao Conta Azul e ao Gov.br. Acompanhe pagamentos, confira categorias e emita notas fiscais com segurança.</p>
             <div className="dcx-login-chain" aria-hidden="true">
               <span className="dcx-login-node">ERP</span>
@@ -147,10 +147,7 @@ export default function LoginPageClient() {
         {/* Formulário */}
         <main className="dcx-login-side">
           <div className="dcx-login-top">
-            <Link href="/">
-              <ArrowLeft size={16} />
-              <span>Voltar ao início</span>
-            </Link>
+            <img className="dcx-login-company" src="/assets/logo-dinheiro-em-caixa.png" alt="Dinheiro em Caixa" />
             <span className="dcx-login-secure">
               <ShieldCheck size={16} />
               <span>Ambiente seguro</span>

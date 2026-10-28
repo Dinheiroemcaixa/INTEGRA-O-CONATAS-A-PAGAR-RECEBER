@@ -8,9 +8,10 @@ import {
   Building2, Settings, ChevronRight, User, LogOut,
   ShoppingBag, Receipt, Link2, Layers,
   ShieldCheck, X, KeyRound, Lock,
-  Home
+  Home, ChevronsLeft, ChevronsRight
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useAppConfig } from '@/contexts/AppConfigContext'
 import { useSidebar } from '@/contexts/SidebarContext'
 import { useUserPermissions } from '@/contexts/UserPermissionsContext'
@@ -36,6 +37,8 @@ interface NavItem {
   disabled?: boolean
   cardKey?: string
   masterOnly?: boolean
+  /** Item que abre submenu: ao clicar, o menu lateral é recolhido (nenhum item atual usa) */
+  temSubmenu?: boolean
 }
 
 interface NavSection {
@@ -87,10 +90,20 @@ export default function Sidebar() {
   const isHome = true // visual DCX LINK do menu lateral (aprovado) em todas as telas
   const router = useRouter()
   const { config, update, accentClasses } = useAppConfig()
-  const { isMobileOpen, closeMobile } = useSidebar()
+  const { isMobileOpen, closeMobile, isCollapsed, setCollapsed, toggleCollapsed } = useSidebar()
   const { isMaster, temPermissao } = useUserPermissions()
   const [userEmail, setUserEmail] = useState('')
   const supabase = createClient()
+  const [tip, setTip] = useState<{ label: string; top: number; left: number } | null>(null)
+
+  // Tooltip acessível (hover e foco por teclado) para o menu recolhido, só em desktop
+  const showTip = (label: string) => (e: React.SyntheticEvent<HTMLElement>) => {
+    if (!isCollapsed || !window.matchMedia('(min-width: 1024px)').matches) return
+    const r = e.currentTarget.getBoundingClientRect()
+    setTip({ label, top: r.top + r.height / 2, left: r.right + 10 })
+  }
+  const hideTip = () => setTip(null)
+  useEffect(() => { if (!isCollapsed) setTip(null) }, [isCollapsed])
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -119,6 +132,7 @@ export default function Sidebar() {
       {/* Aside com Drawer Responsivo */}
       <aside
         data-dcx-home={isHome ? 'true' : undefined}
+        data-collapsed={isCollapsed ? 'true' : 'false'}
         className={cn(
           "w-64 bg-white dark:bg-[#0c1017] border-r border-slate-200/80 dark:border-white/[0.08] flex flex-col select-none transition-all duration-300 z-50",
           // Em telas mobile/tablet: fixo à esquerda com animação de slide
@@ -149,6 +163,15 @@ export default function Sidebar() {
             />
           </div>
           )}
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            className="dcx-toggle dcx-toggle-top hidden lg:flex"
+            aria-label="Recolher menu lateral"
+            aria-expanded={!isCollapsed}
+          >
+            <ChevronsLeft size={16} aria-hidden="true" />
+          </button>
           <button
             onClick={closeMobile}
             className="absolute right-4 top-4 lg:hidden p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-dark-800 transition-colors cursor-pointer"
@@ -185,7 +208,12 @@ export default function Sidebar() {
                         type="button"
                         onClick={() => toast.error('Você não possui acesso a este módulo.')}
                         className="dcx-item dcx-locked relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-400 dark:text-dark-500 opacity-60 hover:opacity-90 hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-all cursor-pointer select-none text-left group"
-                        title="Você não possui acesso a este módulo."
+                        aria-label={`${item.label.replace('🔐 ', '')} — sem acesso`}
+                        onMouseEnter={showTip(item.label.replace('🔐 ', ''))}
+                        onMouseLeave={hideTip}
+                        onFocus={showTip(item.label.replace('🔐 ', ''))}
+                        onBlur={hideTip}
+                        title={isCollapsed ? undefined : 'Você não possui acesso a este módulo.'}
                       >
                         <Icon size={17} className="flex-shrink-0 text-slate-400 dark:text-dark-500 group-hover:text-amber-500/70 transition-colors" />
                         <span className="flex-1 truncate">{item.label}</span>
@@ -198,8 +226,14 @@ export default function Sidebar() {
                     <Link
                       key={item.href}
                       href={item.disabled ? '#' : item.href}
+                      aria-label={item.label.replace('🔐 ', '')}
+                      onMouseEnter={showTip(item.label.replace('🔐 ', ''))}
+                      onMouseLeave={hideTip}
+                      onFocus={showTip(item.label.replace('🔐 ', ''))}
+                      onBlur={hideTip}
                       onClick={() => {
                         if (isMobileOpen) closeMobile()
+                        if (item.temSubmenu) setCollapsed(true)
                       }}
                       className={cn(
                         'dcx-item relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 group',
@@ -250,6 +284,20 @@ export default function Sidebar() {
 
         {/* Footer */}
         <div className="dcx-foot p-3 border-t border-slate-200/80 dark:border-white/[0.08] space-y-2 bg-slate-50/60 dark:bg-dark-900/70 backdrop-blur-md">
+          {/* Expandir menu (visível apenas com o menu recolhido, em desktop) */}
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            className="dcx-toggle dcx-toggle-expand hidden"
+            aria-label="Expandir menu lateral"
+            aria-expanded={!isCollapsed}
+            onMouseEnter={showTip('Expandir menu')}
+            onMouseLeave={hideTip}
+            onFocus={showTip('Expandir menu')}
+            onBlur={hideTip}
+          >
+            <ChevronsRight size={16} aria-hidden="true" />
+          </button>
           {/* Avatar do Usuário Estilo SaaS Premium */}
           <div className="dcx-user flex items-center justify-between bg-white dark:bg-dark-850/90 hover:bg-slate-50 dark:hover:bg-dark-800 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl p-2.5 shadow-xs transition-all group">
             <div className="flex-1 flex items-center gap-3 min-w-0 text-left select-none">
@@ -304,6 +352,13 @@ export default function Sidebar() {
           </div>
         </div>
       </aside>
+
+      {tip && typeof document !== 'undefined' && createPortal(
+        <div role="tooltip" className="dcx-tip" style={{ top: tip.top, left: tip.left }}>
+          {tip.label}
+        </div>,
+        document.body
+      )}
     </>
   )
 }

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 /* Tela de login do DCX LINK — estilos restritos a .dcx-login (não afetam outras telas) */
 
@@ -14,8 +14,33 @@
   font-family: 'Plus Jakarta Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
   color: var(--navy);
-  background: var(--paper);
+  background: var(--deep);
   min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Foto empresarial (a mesma da página inicial) + camada azul-marinho */
+.dcx-login::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url('/assets/fundo-equipe.jpg') 30% 50% / cover no-repeat;
+}
+
+.dcx-login::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(6, 16, 52, 0.7) 0%, rgba(6, 16, 52, 0) 24%),
+    linear-gradient(90deg, rgba(6, 16, 52, 0.3) 0%, rgba(6, 16, 52, 0.15) 40%, rgba(6, 16, 52, 0.6) 75%, rgba(6, 16, 52, 0.8) 100%),
+    linear-gradient(0deg, rgba(6, 16, 52, 0.9) 0%, rgba(6, 16, 52, 0.3) 40%, rgba(11, 30, 91, 0.1) 100%);
+}
+
+.dcx-login > * {
+  position: relative;
+  z-index: 1;
 }
 
 .dcx-login *,
@@ -31,35 +56,20 @@
 .dcx-login-grid {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 46fr 54fr;
+  grid-template-columns: minmax(0, 1fr) 430px;
+  gap: 48px;
+  align-items: center;
+  padding: 40px 72px 32px;
 }
 
 /* ───────── Painel de marca (imagem + camada azul-marinho) ───────── */
 .dcx-login-brand {
   position: relative;
-  overflow: hidden;
-  background: var(--deep);
   color: #fff;
-  padding: 48px 56px;
+  align-self: stretch;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-}
-
-.dcx-login-brand::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: url('/assets/login-hero.jpg') 24% 50% / cover no-repeat;
-}
-
-.dcx-login-brand::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgba(7, 20, 69, 0.62) 0%, rgba(7, 20, 69, 0.3) 34%, rgba(7, 20, 69, 0.78) 66%, rgba(7, 20, 69, 0.94) 100%),
-    linear-gradient(90deg, rgba(11, 30, 91, 0.42), rgba(11, 30, 91, 0) 70%);
 }
 
 .dcx-login-brand > * {
@@ -114,15 +124,33 @@
 
 .dcx-login-hero {
   margin-top: auto;
-  padding-bottom: 40px;
+  padding-bottom: 12px;
+}
+
+.dcx-login-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  color: #CFDBFA;
+}
+
+.dcx-login-label::before {
+  content: '';
+  width: 36px;
+  height: 2px;
+  background: var(--soft);
 }
 
 .dcx-login .dcx-login-hero h1 {
-  font-size: clamp(34px, 3.3vw, 46px);
+  font-size: clamp(34px, 3.6vw, 52px);
   line-height: 1.1;
   font-weight: 800;
   letter-spacing: -0.02em;
-  max-width: 13em;
+  max-width: 12em;
   margin: 0;
   /* o tema claro global força h1/h2 com !important (html:not(.dark) h1); seletor mais específico para vencer */
   color: #fff !important;
@@ -140,7 +168,7 @@
 }
 
 .dcx-login-chain {
-  margin-top: 40px;
+  margin-top: 28px;
   display: flex;
   align-items: center;
   max-width: 30em;
@@ -172,22 +200,36 @@
   color: #9FB2E6;
   font-weight: 500;
   max-width: 34em;
+  margin-top: 28px;
 }
 
 /* ───────── Lado do formulário ───────── */
 .dcx-login-side {
-  background: var(--paper);
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.4);
   display: flex;
   flex-direction: column;
-  padding: 32px 56px 28px;
+  padding: 28px 34px 22px;
+  width: 100%;
+  max-width: 430px;
+  justify-self: end;
 }
 
 .dcx-login-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 14px;
+  gap: 12px;
+  font-size: 13px;
   font-weight: 600;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #EDF0F5;
+}
+
+.dcx-login-company {
+  height: 54px;
+  width: auto;
 }
 
 .dcx-login-top a {
@@ -213,14 +255,12 @@
 }
 
 .dcx-login-form {
-  margin: auto;
   width: 100%;
-  max-width: 440px;
-  padding: 32px 0;
+  padding: 18px 0 6px;
 }
 
 .dcx-login .dcx-login-form h2 {
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 800;
   letter-spacing: -0.02em;
   margin: 0;
@@ -228,22 +268,22 @@
 }
 
 .dcx-login-sub {
-  margin: 8px 0 0;
-  font-size: 15px;
+  margin: 6px 0 0;
+  font-size: 13px;
   color: var(--muted);
   line-height: 1.5;
   font-weight: 500;
 }
 
 .dcx-login-field {
-  margin-top: 22px;
+  margin-top: 14px;
 }
 
 .dcx-login-field label {
   display: block;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   color: var(--navy);
 }
 
@@ -254,7 +294,7 @@
 }
 
 .dcx-login-lblrow label {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .dcx-login-forgot {
@@ -289,7 +329,7 @@
 
 .dcx-login-inp input {
   width: 100%;
-  height: 50px;
+  height: 46px;
   border-radius: 12px;
   border: 1.5px solid var(--line);
   background: #fff;
@@ -332,9 +372,9 @@
 }
 
 .dcx-login-btn {
-  margin-top: 28px;
+  margin-top: 20px;
   width: 100%;
-  height: 52px;
+  height: 50px;
   border: 0;
   border-radius: 12px;
   background: var(--blue);
@@ -364,8 +404,8 @@
 }
 
 .dcx-login-alt {
-  margin-top: 26px;
-  padding-top: 22px;
+  margin-top: 18px;
+  padding-top: 16px;
   border-top: 1px solid var(--line);
   text-align: center;
   font-size: 14px;
@@ -394,18 +434,16 @@
 
 .dcx-login-legal {
   text-align: center;
-  font-size: 12px;
+  font-size: 11px;
   color: #8A96AC;
   line-height: 1.5;
+  margin-top: 12px;
 }
 
 /* ───────── Faixa superior (celular e tablet) ───────── */
 .dcx-login-mhead {
   display: none;
-  background:
-    linear-gradient(rgba(7, 20, 69, 0.55), rgba(7, 20, 69, 0.82)),
-    url('/assets/login-hero-sm.jpg') 24% 50% / cover no-repeat;
-  padding: 34px 24px 26px;
+  padding: 26px 24px 4px;
   color: #fff;
   align-items: center;
   gap: 12px;
@@ -425,6 +463,9 @@
   .dcx-login-grid {
     grid-template-columns: 1fr;
     min-height: 0;
+    gap: 0;
+    padding: 12px 20px 28px;
+    align-items: start;
   }
 
   .dcx-login-brand {
@@ -436,15 +477,18 @@
   }
 
   .dcx-login-side {
-    padding: 20px 24px 24px;
+    justify-self: center;
+    margin-top: 12px;
+    padding: 24px 24px 20px;
+  }
+}
+
+@media (max-width: 420px) {
+  .dcx-login-grid {
+    padding: 8px 14px 24px;
   }
 
-  .dcx-login-form {
-    margin: 0 auto;
-    padding: 36px 0 24px;
-  }
-
-  .dcx-login .dcx-login-form h2 {
-    font-size: 27px;
+  .dcx-login-company {
+    height: 46px;
   }
 }
