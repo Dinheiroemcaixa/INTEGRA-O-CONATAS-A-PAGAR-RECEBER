@@ -163,13 +163,21 @@ export class OAuthError extends Error {
   statusCode: number
   errorCode?: string
   errorDescription?: string
+  errorSubtype?: string
 
-  constructor(message: string, statusCode: number, errorCode?: string, errorDescription?: string) {
+  constructor(
+    message: string,
+    statusCode: number,
+    errorCode?: string,
+    errorDescription?: string,
+    errorSubtype?: string
+  ) {
     super(message)
     this.name = 'OAuthError'
     this.statusCode = statusCode
     this.errorCode = errorCode
     this.errorDescription = errorDescription
+    this.errorSubtype = errorSubtype
   }
 }
 
@@ -257,6 +265,17 @@ export async function getTokenComCodigo(
   return res.json()
 }
 
+function redactSecrets(text: string | undefined, secrets: Array<string | undefined>): string | undefined {
+  if (!text) return undefined
+  let result = text
+  for (const secret of secrets) {
+    if (secret && secret.length >= 3) {
+      result = result.split(secret).join('[REDACTED]')
+    }
+  }
+  return result
+}
+
 export async function refreshToken(
   refreshTokenStr: string,
   clientId: string,
@@ -270,14 +289,51 @@ export async function refreshToken(
   })
   if (!res.ok) {
     const err = await res.text()
+    const secretsToRedact = [refreshTokenStr, clientId, clientSecret, credenciais]
     let errorCode: string | undefined
+    let errorSubtype: string | undefined
     let errorDescription: string | undefined
     try {
       const parsed = JSON.parse(err)
-      errorCode = parsed.error || parsed.code
-      errorDescription = parsed.error_description || parsed.message || parsed.descricao
+      if (parsed && typeof parsed === 'object') {
+        const rawCode =
+          typeof parsed.error === 'string'
+            ? parsed.error
+            : typeof parsed.code === 'string'
+              ? parsed.code
+              : undefined
+        const rawSubtype =
+          typeof parsed.error_subtype === 'string'
+            ? parsed.error_subtype
+            : typeof parsed.sub_type === 'string'
+              ? parsed.sub_type
+              : undefined
+        const rawDescription =
+          typeof parsed.error_description === 'string'
+            ? parsed.error_description
+            : typeof parsed.message === 'string'
+              ? parsed.message
+              : typeof parsed.descricao === 'string'
+                ? parsed.descricao
+                : undefined
+        errorCode = redactSecrets(rawCode, secretsToRedact)
+        errorSubtype = redactSecrets(rawSubtype, secretsToRedact)
+        errorDescription = redactSecrets(rawDescription, secretsToRedact)
+      }
     } catch {}
-    throw new OAuthError(`Erro ao renovar token: ${res.status} - ${err}`, res.status, errorCode, errorDescription)
+
+    const diagnosticParts = [
+      errorCode ? `error=${errorCode}` : null,
+      errorSubtype ? `error_subtype=${errorSubtype}` : null,
+      errorDescription ? `description=${errorDescription}` : null,
+    ].filter(Boolean)
+
+    const safeMessage =
+      diagnosticParts.length > 0
+        ? `Erro ao renovar token (HTTP ${res.status}): ${diagnosticParts.join(', ')}`
+        : `Erro ao renovar token (HTTP ${res.status})`
+
+    throw new OAuthError(safeMessage, res.status, errorCode, errorDescription, errorSubtype)
   }
   return res.json()
 }

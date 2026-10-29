@@ -18,8 +18,14 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+interface InFlightRefreshEntry {
+  promise: Promise<ValidTokenResult>
+  forceRefresh: boolean
+  didRefresh: boolean
+}
+
 /** Fila/Lock em memória para evitar renovações simultâneas da mesma empresa */
-const refreshPromises = new Map<string, Promise<ValidTokenResult>>()
+const refreshPromises = new Map<string, InFlightRefreshEntry>()
 
 /** Erro específico de token para tratamento nas rotas */
 export class TokenError extends Error {
@@ -36,6 +42,58 @@ export interface ValidTokenResult {
   empresa: Record<string, any>
 }
 
+export interface GetValidTokenOptions {
+  bypassInMemoryLock?: boolean
+}
+
+const INVALID_REFRESH_RECHECK_DELAY_MS = 150
+const EXPIRATION_SAFETY_MARGIN_MS = 5 * 60 * 1000
+
+function redactTokenSecrets(text: string, secrets: Array<string | undefined | null>): string {
+  let sanitized = text
+  for (const secret of secrets) {
+    if (typeof secret === 'string' && secret.length >= 3) {
+      sanitized = sanitized.split(secret).join('[REDACTED]')
+    }
+  }
+  return sanitized
+}
+
+function buildClearPayload(isVendas: boolean): Record<string, any> {
+  return isVendas
+    ? {
+        access_token_conta_azul_vendas: null,
+        refresh_token_conta_azul_vendas: null,
+        data_expiracao_token_vendas: null,
+        conta_azul_vendas_connected: false,
+      }
+    : {
+        access_token_conta_azul: null,
+        refresh_token_conta_azul: null,
+        data_expiracao_token: null,
+        conta_azul_connected: false,
+      }
+}
+
+/**
+ * Verifica se o registro possui um access_token preenchido e data de expiração comprovadamente válida
+ * (com margem de segurança de 5 minutos). Nunca considera válido um registro sem data de expiração.
+ */
+export function isAccessTokenValid(
+  registro: Record<string, any> | null | undefined,
+  tokenKey: string,
+  expiracaoKey: string
+): boolean {
+  if (!registro) return false
+  const token = registro[tokenKey]
+  if (typeof token !== 'string' || token.trim().length === 0) return false
+  const rawExp = registro[expiracaoKey]
+  if (typeof rawExp !== 'string' || rawExp.trim().length === 0) return false
+  const expMs = new Date(rawExp).getTime()
+  if (Number.isNaN(expMs)) return false
+  return expMs > Date.now() + EXPIRATION_SAFETY_MARGIN_MS
+}
+
 /**
  * Obtém um token de acesso válido para a empresa especificada.
  * Se o token estiver expirado (ou a menos de 5 min de expirar), 
@@ -44,38 +102,77 @@ export interface ValidTokenResult {
  * @param empresaId - UUID da empresa no Supabase
  * @param modulo - 'financeiro' ou 'vendas'
  * @param forceRefresh - Forçar renovação imediata
+ * @param options - Opções internas de controle (ex.: simulação de instâncias isoladas em testes)
  * @returns O accessToken válido e os dados da empresa
  * @throws TokenError se a empresa não existe, não tem token, ou não consegue renovar
  */
 export async function getValidToken(
   empresaId: string,
   modulo: 'financeiro' | 'vendas' = 'financeiro',
-  forceRefresh: boolean = false
+  forceRefresh: boolean = false,
+  options?: GetValidTokenOptions
 ): Promise<ValidTokenResult> {
   const lockKey = `${empresaId}:${modulo}`
+  const bypassLock = Boolean(options?.bypassInMemoryLock)
 
-  // Se já houver uma renovação em andamento para esta empresa/módulo, aguarda a mesma Promise
-  if (!forceRefresh && refreshPromises.has(lockKey)) {
-    console.log(`[token-manager] Aguardando renovação em andamento para ${lockKey}...`)
-    return await refreshPromises.get(lockKey)!
+  if (!bypassLock) {
+    const existing = refreshPromises.get(lockKey)
+    if (existing) {
+      // Se a chamada atual não exige forceRefresh, ou se a operação em andamento já é um forceRefresh,
+      // compartilha a mesma Promise em andamento para evitar renovações duplicadas concorrentes.
+      if (!forceRefresh || existing.forceRefresh) {
+        console.log(`[token-manager] Aguardando renovação em andamento para ${lockKey}...`)
+        return await existing.promise
+      }
+
+      // Caso exista uma operação com forceRefresh=false em andamento e chegue um forceRefresh=true:
+      // aguarda a operação atual terminar; se ela já tiver executado um refresh real, reutiliza o resultado.
+      try {
+        const res = await existing.promise
+        if (existing.didRefresh) {
+          return res
+        }
+      } catch {
+        // Se a operação anterior falhou, prossegue para tentar a renovação forçada
+      }
+
+      // Se outra chamada forceRefresh assumiu o lock enquanto aguardávamos, compartilha a Promise dela
+      const afterWait = refreshPromises.get(lockKey)
+      if (afterWait && afterWait.forceRefresh) {
+        return await afterWait.promise
+      }
+    }
   }
 
-  const promise = (async () => {
-    try {
-      return await executeGetValidToken(empresaId, modulo, forceRefresh)
-    } finally {
+  const entry: InFlightRefreshEntry = {
+    promise: null as unknown as Promise<ValidTokenResult>,
+    forceRefresh,
+    didRefresh: false,
+  }
+
+  entry.promise = executeGetValidToken(empresaId, modulo, forceRefresh, 0, () => {
+    entry.didRefresh = true
+  })
+
+  if (!bypassLock) {
+    refreshPromises.set(lockKey, entry)
+  }
+
+  try {
+    return await entry.promise
+  } finally {
+    if (!bypassLock && refreshPromises.get(lockKey) === entry) {
       refreshPromises.delete(lockKey)
     }
-  })()
-
-  refreshPromises.set(lockKey, promise)
-  return await promise
+  }
 }
 
 async function executeGetValidToken(
   empresaId: string,
   modulo: 'financeiro' | 'vendas',
-  forceRefresh: boolean
+  forceRefresh: boolean,
+  retryCount: number = 0,
+  onRefreshTriggered?: () => void
 ): Promise<ValidTokenResult> {
   // 1. Buscar empresa
   const { data: empresa, error: errEmp } = await supabaseAdmin
@@ -106,9 +203,7 @@ async function executeGetValidToken(
 
   // 2. Verificar expiração (margem de 5 minutos)
   let accessToken = rawToken
-  const expiracao = targetEmpresa[expiracaoKey] ? new Date(targetEmpresa[expiracaoKey]) : null
-  const agora = new Date()
-  const tokenExpirado = expiracao && expiracao <= new Date(agora.getTime() + 5 * 60 * 1000)
+  const tokenExpirado = !isAccessTokenValid(targetEmpresa, tokenKey, expiracaoKey)
 
   // 3. Se expirado (e não forçado), faz uma re-checagem no banco para ver se outro processo acabou de renovar
   if (tokenExpirado && !forceRefresh) {
@@ -119,8 +214,7 @@ async function executeGetValidToken(
       .single()
 
     if (latestEmpresa) {
-      const latestExp = latestEmpresa[expiracaoKey] ? new Date(latestEmpresa[expiracaoKey]) : null
-      if (latestExp && latestExp > new Date(Date.now() + 5 * 60 * 1000) && latestEmpresa[tokenKey]) {
+      if (isAccessTokenValid(latestEmpresa, tokenKey, expiracaoKey)) {
         console.log(`[token-manager] Token (${modulo}) já foi renovado por outro processo para empresa ${latestEmpresa.nome || empresaId}`)
         return { accessToken: latestEmpresa[tokenKey], empresa: latestEmpresa }
       }
@@ -143,7 +237,57 @@ async function executeGetValidToken(
       )
     }
 
+    /**
+     * Avalia se outra instância concorrente já substituiu o refresh_token no banco.
+     * - Se substituiu e o novo access_token está comprovadamente válido (isAccessTokenValid), reutiliza.
+     * - Se substituiu mas o access_token relido está expirado ou sem validade confirmada, tenta no máximo
+     *   1 renovação controlada (retryCount < 1); se o limite de tentativas já foi atingido ou o token
+     *   for inválido, lança TokenError sem jamais devolver token expirado.
+     * - Se não houve substituição do refresh_token, retorna null.
+     */
+    const tryReuseOrRetryIfReplaced = async (
+      registroAtual: Record<string, any> | null | undefined
+    ): Promise<ValidTokenResult | null> => {
+      if (
+        registroAtual &&
+        typeof registroAtual[refreshKey] === 'string' &&
+        registroAtual[refreshKey].trim().length > 0 &&
+        registroAtual[refreshKey] !== currentRefreshToken
+      ) {
+        if (isAccessTokenValid(registroAtual, tokenKey, expiracaoKey)) {
+          console.log(
+            `[token-manager] Token (${modulo}) já foi atualizado por outra operação para empresa ${registroAtual.nome || empresaId}. Reutilizando estado atualizado.`
+          )
+          return { accessToken: registroAtual[tokenKey], empresa: registroAtual }
+        }
+
+        if (
+          retryCount < 1 &&
+          typeof registroAtual[tokenKey] === 'string' &&
+          registroAtual[tokenKey].trim().length > 0
+        ) {
+          console.log(
+            `[token-manager] Novo refresh_token detectado no banco com access_token expirado para empresa ${registroAtual.nome || empresaId} (${modulo}), executando 1 nova tentativa controlada...`
+          )
+          return await executeGetValidToken(
+            empresaId,
+            modulo,
+            forceRefresh,
+            retryCount + 1,
+            onRefreshTriggered
+          )
+        }
+
+        throw new TokenError(
+          `Não foi possível obter um token válido para a Conta Azul (${modulo}) após atualização concorrente: o token registrado no banco está expirado ou sem validade confirmada.`,
+          401
+        )
+      }
+      return null
+    }
+
     try {
+      onRefreshTriggered?.()
       const novosTokens = await refreshToken(
         currentRefreshToken,
         clientId,
@@ -163,60 +307,268 @@ async function executeGetValidToken(
         updateData.conta_azul_connected = true
       }
 
-      const { error: errUpdate } = await supabaseAdmin
+      // Salvamento condicional (Compare-and-Swap pelo refresh_token anterior)
+      let { data: updatedRows, error: errUpdate } = await supabaseAdmin
         .from('empresas')
         .update(updateData)
         .eq('id', targetEmpresa.id)
+        .eq(refreshKey, currentRefreshToken)
+        .select('id')
+
+      // Se houver falha de escrita no Supabase, faz 1 re-tentativa imediata do UPDATE condicional
+      // sem chamar refreshToken novamente na Conta Azul (pois o refresh_token é de uso único).
+      if (errUpdate) {
+        const safeErrMsg = redactTokenSecrets(errUpdate.message || String(errUpdate), [
+          currentRefreshToken,
+          accessToken,
+          novosTokens.refresh_token,
+          clientId,
+          clientSecret,
+        ])
+        console.warn(
+          `[token-manager] Falha ao persistir novos tokens (${modulo}) na 1ª tentativa para empresa ${targetEmpresa.nome || targetEmpresa.id}: ${safeErrMsg}. Retentando escrita no banco...`
+        )
+        const retryWrite = await supabaseAdmin
+          .from('empresas')
+          .update(updateData)
+          .eq('id', targetEmpresa.id)
+          .eq(refreshKey, currentRefreshToken)
+          .select('id')
+        updatedRows = retryWrite.data
+        errUpdate = retryWrite.error
+      }
 
       if (errUpdate) {
-        console.error('[token-manager] Falha ao salvar novos tokens:', errUpdate.message)
+        const safeErrMsg = redactTokenSecrets(errUpdate.message || String(errUpdate), [
+          currentRefreshToken,
+          accessToken,
+          novosTokens.refresh_token,
+          clientId,
+          clientSecret,
+        ])
+        console.error(
+          `[token-manager] Falha persistente ao salvar novos tokens (${modulo}) no Supabase para empresa ${targetEmpresa.nome || targetEmpresa.id}: ${safeErrMsg}`
+        )
+
+        const { data: atualPosErro } = await supabaseAdmin
+          .from('empresas')
+          .select('*')
+          .eq('id', empresaId)
+          .single()
+
+        const reusedAfterWriteError = await tryReuseOrRetryIfReplaced(atualPosErro)
+        if (reusedAfterWriteError) {
+          return reusedAfterWriteError
+        }
+
+        throw new TokenError(
+          `Falha ao persistir os novos tokens da Conta Azul (${modulo}) no banco de dados: ${safeErrMsg}`,
+          500
+        )
+      }
+
+      if (!Array.isArray(updatedRows) || updatedRows.length === 0) {
+        console.warn(
+          `[token-manager] Atualização condicional não modificou linhas para empresa ${targetEmpresa.nome || targetEmpresa.id} (${modulo}). Relendo estado atual no banco...`
+        )
+        const { data: atual } = await supabaseAdmin
+          .from('empresas')
+          .select('*')
+          .eq('id', empresaId)
+          .single()
+
+        const reusedAfterZeroRows = await tryReuseOrRetryIfReplaced(atual)
+        if (reusedAfterZeroRows) {
+          return reusedAfterZeroRows
+        }
+
+        throw new TokenError(
+          `Sua conexão com a Conta Azul (${modulo}) foi alterada, desconectada ou não possui token válido após atualização concorrente. Acesse Empresas e conecte a Conta Azul.`,
+          401
+        )
       }
 
       console.log(`[token-manager] Token (${modulo}) renovado com sucesso para empresa ${targetEmpresa.nome || targetEmpresa.id}`)
       targetEmpresa = { ...targetEmpresa, ...updateData }
     } catch (errRefresh: any) {
-      console.error('[token-manager] Falha ao renovar token:', errRefresh)
+      if (errRefresh instanceof TokenError) {
+        throw errRefresh
+      }
 
-      // Limpa tokens no Supabase SOMENTE se a Conta Azul declarar explicitamente 'invalid_grant' (RFC 6749)
-      // (isto é: quando o usuário de fato revogou a autorização no painel do ERP ou o refresh token é inválido)
-      const isInvalidGrant = 
-        (errRefresh instanceof OAuthError && errRefresh.errorCode === 'invalid_grant') ||
-        (typeof errRefresh?.message === 'string' && errRefresh.message.includes('invalid_grant'))
+      const errorCode =
+        errRefresh instanceof OAuthError
+          ? errRefresh.errorCode
+          : typeof errRefresh?.errorCode === 'string'
+            ? errRefresh.errorCode
+            : typeof errRefresh?.error === 'string'
+              ? errRefresh.error
+              : undefined
+      const errorSubtype =
+        errRefresh instanceof OAuthError
+          ? errRefresh.errorSubtype
+          : typeof errRefresh?.errorSubtype === 'string'
+            ? errRefresh.errorSubtype
+            : typeof errRefresh?.error_subtype === 'string'
+              ? errRefresh.error_subtype
+              : undefined
+      const errorDescription =
+        errRefresh instanceof OAuthError
+          ? errRefresh.errorDescription
+          : typeof errRefresh?.errorDescription === 'string'
+            ? errRefresh.errorDescription
+            : typeof errRefresh?.error_description === 'string'
+              ? errRefresh.error_description
+              : undefined
 
-      if (isInvalidGrant) {
-        // Guard-rail para ambiente de desenvolvimento local: não executar limpeza automática no banco de produção
-        if (process.env.NODE_ENV !== 'production') {
-          console.warn(`[token-manager] [DEV GUARD-RAIL] 'invalid_grant' detectado em ambiente local. Limpeza automática suprimida no Supabase para empresa ${targetEmpresa.nome || targetEmpresa.id}.`)
-        } else {
-          const updateDataClear: Record<string, any> = isVendas ? {
-            access_token_conta_azul_vendas: null,
-            refresh_token_conta_azul_vendas: null,
-            data_expiracao_token_vendas: null,
-            conta_azul_vendas_connected: false,
-          } : {
-            access_token_conta_azul: null,
-            refresh_token_conta_azul: null,
-            data_expiracao_token: null,
-            conta_azul_connected: false,
-          }
-          await supabaseAdmin.from('empresas').update(updateDataClear).eq('id', targetEmpresa.id)
+      const rawErrorMsg = errRefresh instanceof Error ? errRefresh.message : String(errRefresh)
+      const safeErrorMsg = redactTokenSecrets(rawErrorMsg, [
+        currentRefreshToken,
+        accessToken,
+        clientId,
+        clientSecret,
+      ])
+      const safeDescription = errorDescription
+        ? redactTokenSecrets(errorDescription, [currentRefreshToken, accessToken, clientId, clientSecret])
+        : undefined
+
+      console.error(
+        `[token-manager] Falha ao renovar token (${modulo}) para empresa ${targetEmpresa.nome || targetEmpresa.id}:`,
+        {
+          statusCode: errRefresh instanceof OAuthError ? errRefresh.statusCode : undefined,
+          errorCode,
+          errorSubtype,
+          errorDescription: safeDescription,
+          message: safeErrorMsg,
         }
+      )
 
+      // Caso A — invalid_client (falha nas credenciais do aplicativo)
+      if (errorCode === 'invalid_client' || errorSubtype === 'invalid_client') {
+        console.warn(
+          `[token-manager] Falha de credenciais do aplicativo (invalid_client) ao renovar token (${modulo}) para ${targetEmpresa.nome || targetEmpresa.id}. Tokens da empresa PRESERVADOS.`
+        )
         throw new TokenError(
-          `Sua conexão com a Conta Azul (${modulo}) expirou ou foi revogada. Por favor, acesse Empresas e reconecte a Conta Azul.`,
-          401
+          `Falha de autenticação nas credenciais do aplicativo Conta Azul (invalid_client) ao renovar conexão (${modulo}). Os tokens da empresa foram preservados.`,
+          500
         )
       }
 
-      // Para QUALQUER outro erro (invalid_client, timeout, ECONNRESET, HTTP 500, 502, 503, 429, etc.):
-      // NÃO apaga tokens, NÃO grava NULL. Retorna erro operacional preservando a conexão.
-      const status = errRefresh instanceof OAuthError ? (errRefresh.statusCode || 502) : 502
-      const errorMsg = errRefresh instanceof Error ? errRefresh.message : String(errRefresh)
+      // Caso B — invalid_grant (requer releitura obrigatória e diferenciação por error_subtype)
+      if (errorCode === 'invalid_grant') {
+        // Releitura obrigatória antes de qualquer decisão destrutiva
+        const { data: atual } = await supabaseAdmin
+          .from('empresas')
+          .select('*')
+          .eq('id', empresaId)
+          .single()
 
-      console.warn(`[token-manager] Falha transitória/configuração ao renovar token (${modulo}) para ${targetEmpresa.nome || targetEmpresa.id}. Tokens PRESERVADOS no banco. Detalhe:`, errorMsg)
+        const reusedFirstRead = await tryReuseOrRetryIfReplaced(atual)
+        if (reusedFirstRead) {
+          return reusedFirstRead
+        }
+
+        const updateDataClear = buildClearPayload(isVendas)
+
+        // Subcaso B1 — access_revoked
+        if (errorSubtype === 'access_revoked') {
+          if (process.env.NODE_ENV === 'production') {
+            const { data: clearedRows } = await supabaseAdmin
+              .from('empresas')
+              .update(updateDataClear)
+              .eq('id', targetEmpresa.id)
+              .eq(refreshKey, currentRefreshToken)
+              .select('id')
+
+            if (Array.isArray(clearedRows) && clearedRows.length === 0) {
+              const { data: posClear } = await supabaseAdmin
+                .from('empresas')
+                .select('*')
+                .eq('id', empresaId)
+                .single()
+              const reusedAfterClear = await tryReuseOrRetryIfReplaced(posClear)
+              if (reusedAfterClear) {
+                return reusedAfterClear
+              }
+            }
+          } else {
+            console.warn(
+              `[token-manager] [DEV GUARD-RAIL] 'access_revoked' detectado em ambiente local. Limpeza automática suprimida no Supabase para empresa ${targetEmpresa.nome || targetEmpresa.id}.`
+            )
+          }
+
+          throw new TokenError(
+            `Sua conexão com a Conta Azul (${modulo}) foi revogada (access_revoked). Por favor, acesse Empresas e autorize novamente a Conta Azul.`,
+            401
+          )
+        }
+
+        // Subcaso B2 — invalid_refresh_token (refresh_token rotativo: aguarda breve intervalo e relê)
+        if (errorSubtype === 'invalid_refresh_token') {
+          await new Promise((resolve) => setTimeout(resolve, INVALID_REFRESH_RECHECK_DELAY_MS))
+
+          const { data: atualPosDelay } = await supabaseAdmin
+            .from('empresas')
+            .select('*')
+            .eq('id', empresaId)
+            .single()
+
+          const reusedSecondRead = await tryReuseOrRetryIfReplaced(atualPosDelay)
+          if (reusedSecondRead) {
+            return reusedSecondRead
+          }
+
+          if (process.env.NODE_ENV === 'production') {
+            const { data: clearedRows } = await supabaseAdmin
+              .from('empresas')
+              .update(updateDataClear)
+              .eq('id', targetEmpresa.id)
+              .eq(refreshKey, currentRefreshToken)
+              .select('id')
+
+            if (Array.isArray(clearedRows) && clearedRows.length === 0) {
+              const { data: posClear } = await supabaseAdmin
+                .from('empresas')
+                .select('*')
+                .eq('id', empresaId)
+                .single()
+              const reusedAfterClear = await tryReuseOrRetryIfReplaced(posClear)
+              if (reusedAfterClear) {
+                return reusedAfterClear
+              }
+            }
+          } else {
+            console.warn(
+              `[token-manager] [DEV GUARD-RAIL] 'invalid_refresh_token' detectado em ambiente local. Limpeza automática suprimida no Supabase para empresa ${targetEmpresa.nome || targetEmpresa.id}.`
+            )
+          }
+
+          throw new TokenError(
+            `Sua conexão com a Conta Azul (${modulo}) expirou (invalid_refresh_token). Por favor, acesse Empresas e reconecte a Conta Azul.`,
+            401
+          )
+        }
+
+        // Subcaso B3 — invalid_grant sem error_subtype ou com subtipo desconhecido/ambíguo
+        console.warn(
+          `[token-manager] 'invalid_grant' recebido sem error_subtype reconhecido (${errorSubtype || 'ausente'}) para empresa ${targetEmpresa.nome || targetEmpresa.id} (${modulo}). Tokens PRESERVADOS por segurança.`
+        )
+        throw new TokenError(
+          `Não foi possível renovar a conexão com o Conta Azul (${modulo}): resposta OAuth ambígua (invalid_grant sem subtipo reconhecido). Seus tokens foram preservados por segurança.`,
+          502
+        )
+      }
+
+      // Caso C — Falhas de rede, timeouts, HTTP 429/500/502/503/504 ou respostas inesperadas:
+      // Preserva integralmente os tokens no banco.
+      const status = errRefresh instanceof OAuthError ? (errRefresh.statusCode || 502) : 502
+
+      console.warn(
+        `[token-manager] Falha transitória/rede ao renovar token (${modulo}) para ${targetEmpresa.nome || targetEmpresa.id}. Tokens PRESERVADOS no banco. Detalhe:`,
+        safeErrorMsg
+      )
 
       throw new TokenError(
-        `Não foi possível renovar a conexão com o Conta Azul (${modulo}): ${errorMsg}. Seus dados de conexão foram preservados. Tente novamente mais tarde.`,
+        `Não foi possível renovar a conexão com o Conta Azul (${modulo}): ${safeErrorMsg}. Seus dados de conexão foram preservados. Tente novamente mais tarde.`,
         status
       )
     }
