@@ -430,7 +430,7 @@ export default function TabelaPreview({
                       : selecionados.has(idx)
                         ? 'bg-brand-50/80 dark:bg-brand-500/10 hover:bg-brand-100/60 dark:hover:bg-brand-500/20'
                         : 'even:bg-slate-50/50 dark:even:bg-white/[0.015] hover:bg-slate-100/60 dark:hover:bg-white/[0.035]',
-                    isEditing && 'bg-slate-100/90 dark:bg-dark-800/95 ring-1 ring-inset ring-brand-500/30'
+                    isEditing && 'z-20 bg-slate-100/90 dark:bg-dark-800/95 ring-1 ring-inset ring-brand-500/30'
                   )}
                 >
                   <td className="relative py-3 px-1 text-center">
@@ -602,7 +602,7 @@ export default function TabelaPreview({
                       </div>
                     )}
                   </td>
-                  <td className={cn("py-3 px-1.5 text-slate-700 dark:text-dark-200 text-xs", editingCatIdx === idx ? "overflow-visible relative" : "overflow-hidden")}>
+                  <td className={cn("py-3 px-1.5 text-slate-700 dark:text-dark-200 text-xs", editingCatIdx === idx ? "overflow-visible relative z-30" : "overflow-hidden")}>
                     {editingCatIdx === idx ? (
                       <SelectorCategoria 
                         valorInicial={item.categoria || 'Materiais para Revenda'}
@@ -626,7 +626,7 @@ export default function TabelaPreview({
                       </div>
                     )}
                   </td>
-                  <td className={cn("py-3 px-1.5 text-brand-700 dark:text-blue-300 text-xs", editingContaIdx === idx ? "overflow-visible relative" : "overflow-hidden")}>
+                  <td className={cn("py-3 px-1.5 text-brand-700 dark:text-blue-300 text-xs", editingContaIdx === idx ? "overflow-visible relative z-30" : "overflow-hidden")}>
                     {editingContaIdx === idx ? (
                       <SelectorContaFinanceira 
                         valorInicial={item.conta_financeira || ''}

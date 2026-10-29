@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import { Search, Loader2, X } from 'lucide-react'
@@ -23,12 +24,89 @@ export default function SelectorFornecedor({ valorInicial, onSelect, onCancel, e
   const [resultados, setResultados] = useState<{ nome: string }[]>([])
   const [loading, setLoading] = useState(false)
   const [aberto, setAberto] = useState(true)
+  const [mounted, setMounted] = useState(false)
+  const [menuStyle, setMenuStyle] = useState<{
+    top?: number
+    bottom?: number
+    left: number
+    width: number
+    maxHeight: number
+  } | null>(null)
   const supabase = useMemo(() => createClient(), [])
+  const containerRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
+    setMounted(true)
     inputRef.current?.focus()
   }, [])
+
+  const updatePosition = useCallback(() => {
+    if (!containerRef.current || typeof window === 'undefined') return
+    const rect = containerRef.current.getBoundingClientRect()
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    const desiredMaxHeight = 220
+    const bottomReserve = 64
+
+    const spaceBelow = vh - rect.bottom - 12
+    const spaceAbove = rect.top - 12
+    const openUpward = (spaceBelow - bottomReserve < desiredMaxHeight) && spaceAbove > spaceBelow
+
+    const width = Math.min(Math.max(rect.width, 260), vw - 16)
+    const left = Math.max(8, Math.min(rect.left, vw - width - 8))
+
+    if (openUpward) {
+      setMenuStyle({
+        bottom: vh - rect.top + 4,
+        left,
+        width,
+        maxHeight: Math.max(120, Math.min(desiredMaxHeight, spaceAbove - 8)),
+      })
+    } else {
+      setMenuStyle({
+        top: rect.bottom + 4,
+        left,
+        width,
+        maxHeight: Math.max(120, Math.min(desiredMaxHeight, spaceBelow - 8)),
+      })
+    }
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!aberto) return
+    updatePosition()
+  }, [aberto, busca, resultados.length, loading, updatePosition])
+
+  useEffect(() => {
+    if (!aberto) return
+    updatePosition()
+    const handleScroll = () => updatePosition()
+    const handleResize = () => updatePosition()
+
+    window.addEventListener('scroll', handleScroll, true)
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true)
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [aberto, updatePosition])
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(target) &&
+        (!menuRef.current || !menuRef.current.contains(target))
+      ) {
+        onCancel()
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [onCancel])
 
   useEffect(() => {
     const buscar = async () => {
@@ -76,7 +154,7 @@ export default function SelectorFornecedor({ valorInicial, onSelect, onCancel, e
   }, [busca, empresaIdFinal, supabase])
 
   return (
-    <div className="relative w-full min-w-[200px]">
+    <div ref={containerRef} className="relative w-full min-w-[200px]">
       <div className="flex items-center gap-2 bg-white dark:bg-dark-700 border border-slate-300 dark:border-brand-500/50 rounded-lg px-2 py-1 shadow-xs dark:shadow-lg dark:shadow-brand-900/20">
         <Search size={14} className="text-brand-600 dark:text-brand-400 shrink-0" />
         <input
@@ -84,6 +162,7 @@ export default function SelectorFornecedor({ valorInicial, onSelect, onCancel, e
           type="text"
           value={busca}
           onChange={(e) => { setBusca(e.target.value); setAberto(true) }}
+          onFocus={() => setAberto(true)}
           onKeyDown={(e) => {
             if (e.key === 'Escape') onCancel()
             if (e.key === 'Enter' && resultados.length > 0) {
@@ -103,8 +182,19 @@ export default function SelectorFornecedor({ valorInicial, onSelect, onCancel, e
         </button>
       </div>
 
-      {aberto && (
-        <div className="absolute z-50 mt-1 w-full bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-lg shadow-2xl overflow-hidden max-h-[220px] overflow-y-auto ring-1 ring-black/5 animate-in fade-in duration-100">
+      {aberto && mounted && menuStyle && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={menuRef}
+          style={{
+            position: 'fixed',
+            top: menuStyle.top,
+            bottom: menuStyle.bottom,
+            left: menuStyle.left,
+            width: menuStyle.width,
+            maxHeight: menuStyle.maxHeight,
+          }}
+          className="z-[9999] bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-lg shadow-2xl overflow-hidden overflow-y-auto ring-1 ring-black/5 dark:ring-black/50 animate-in fade-in duration-100"
+        >
           {loading && (
             <div className="p-3 flex items-center justify-center">
               <Loader2 size={16} className="animate-spin text-brand-500 dark:text-brand-400" />
@@ -139,7 +229,8 @@ export default function SelectorFornecedor({ valorInicial, onSelect, onCancel, e
               Usar "{busca}" (mesmo não cadastrado)
             </button>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

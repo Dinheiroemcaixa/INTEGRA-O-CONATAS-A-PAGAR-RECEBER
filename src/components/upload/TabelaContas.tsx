@@ -538,7 +538,7 @@ export default function TabelaContas({
                     <tr
                       key={conta.id}
                       className={cn(
-                        'transition-colors duration-150',
+                        'transition-colors duration-150', (editandoCategoriaId === conta.id || editandoContaId === conta.id) && 'relative z-20',
                         isSelected 
                           ? 'bg-brand-50/80 dark:bg-brand-500/10' 
                           : 'even:bg-slate-50/50 dark:even:bg-white/[0.015] hover:bg-slate-100/60 dark:hover:bg-white/[0.035]'
@@ -586,7 +586,7 @@ export default function TabelaContas({
                       </td>
 
                       {/* Categoria editável inline */}
-                      <td className="py-2.5 px-1 overflow-hidden">
+                      <td className={cn("py-2.5 px-1", editandoCategoriaId === conta.id ? "overflow-visible relative z-30" : "overflow-hidden")}>
                         {editandoCategoriaId === conta.id ? (
                           <SelectorCategoria
                             valorInicial={conta.categoria || ''}
@@ -607,7 +607,7 @@ export default function TabelaContas({
                       </td>
 
                       {/* Conta Bancária (Banco) */}
-                      <td className="py-2.5 px-1 overflow-hidden">
+                      <td className={cn("py-2.5 px-1", editandoContaId === conta.id ? "overflow-visible relative z-30" : "overflow-hidden")}>
                         {editandoContaId === conta.id ? (
                           <SelectorContaFinanceira
                             valorInicial={conta.conta_financeira || ''}
