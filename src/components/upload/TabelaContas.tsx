@@ -21,10 +21,10 @@ interface Props {
 }
 
 const STATUS_CONFIG = {
-  pendente: { label: 'Pendente', icon: Clock, color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
-  enviado: { label: 'Enviado', icon: CheckCircle, color: 'text-green-400', bg: 'bg-green-400/10' },
-  erro: { label: 'Erro', icon: AlertCircle, color: 'text-red-400', bg: 'bg-red-400/10' },
-  cancelado: { label: 'Cancelado', icon: AlertCircle, color: 'text-dark-500', bg: 'bg-dark-700' },
+  pendente: { label: 'Pendente', icon: Clock, color: 'dx-status', bg: '' },
+  enviado: { label: 'Enviado', icon: CheckCircle, color: 'dx-status is-ok', bg: '' },
+  erro: { label: 'Erro', icon: AlertCircle, color: 'dx-status is-bad', bg: '' },
+  cancelado: { label: 'Cancelado', icon: AlertCircle, color: 'dx-status is-muted', bg: '' },
 }
 
 export default function TabelaContas({
@@ -285,10 +285,10 @@ export default function TabelaContas({
   return (
     <div className="space-y-4">
       {/* Barra Operacional: Filtros à esquerda + Ações e Atualizar alinhados à direita */}
-      <div className="bg-white dark:bg-dark-850/90 border border-slate-200/80 dark:border-dark-700/60 rounded-2xl p-2.5 sm:p-3 shadow-xs animate-fade-in">
+      <div className="dx-panel shadow-[var(--dx-shadow-card)] p-3 animate-fade-in">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
           {/* Esquerda: Filtros em Formato Pill */}
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="dx-seg flex-wrap">
             {(['pendente', 'enviado', 'erro'] as const).map((f) => {
               const isSelected = filtro === f
               const qtd = f === 'pendente' ? qtdPendente : f === 'enviado' ? qtdEnviado : qtdErro
@@ -301,20 +301,14 @@ export default function TabelaContas({
                     setPaginaAtual(1)
                   }}
                   className={cn(
-                    'h-8 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5',
-                    isSelected
-                      ? 'bg-brand-600 text-white shadow-xs'
-                      : 'bg-slate-100 dark:bg-dark-900/90 text-slate-600 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/70 dark:hover:bg-dark-800 border border-slate-200 dark:border-dark-700/60'
+                    'dx-seg-btn',
+                    isSelected && 'is-on'
                   )}
                 >
                   <span>{label}</span>
                   <span className={cn(
-                    'px-1.5 py-0.5 rounded-full text-[10px] font-mono tabular-nums font-bold',
-                    isSelected
-                      ? 'bg-white/20 text-white'
-                      : f === 'erro' && qtd > 0
-                        ? 'bg-rose-500/20 text-rose-600 dark:text-rose-300 border border-rose-500/30'
-                        : 'bg-slate-200 dark:bg-dark-800 text-slate-500 dark:text-dark-400'
+                    'dx-count',
+                    f === 'erro' && qtd > 0 && 'is-bad'
                   )}>
                     {qtd}
                   </span>
@@ -324,11 +318,11 @@ export default function TabelaContas({
           </div>
 
           {/* Direita: Ações em Lote + Limpar + Atualizar + Exportar XLS + Enviar ao Conta Azul */}
-          <div className="flex items-center gap-2 flex-wrap lg:justify-end">
+          <div className="dx-actions lg:justify-end">
             {contas.length > 0 && (
-              <div className="flex items-center gap-2 flex-wrap animate-fade-in">
+              <div className="dx-actions animate-fade-in">
                 {selecionados.length > 0 && (
-                  <span className="text-xs text-brand-600 dark:text-brand-300 font-bold px-2.5 py-1 bg-brand-500/15 rounded-xl border border-brand-500/30">
+                  <span className="dx-chip">
                     {selecionados.length} selecionada(s)
                   </span>
                 )}
@@ -345,7 +339,7 @@ export default function TabelaContas({
                   ) : (
                     <button
                       onClick={() => setEditandoEmMassaConta(true)}
-                      className="h-8 flex items-center gap-1.5 bg-slate-100 dark:bg-dark-800 hover:bg-slate-200 dark:hover:bg-dark-700 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-dark-700 text-xs font-semibold px-2.5 rounded-xl transition-colors shadow-xs cursor-pointer"
+                      className="dx-btn is-sm"
                       title="Aplicar o mesmo banco a todas as contas selecionadas"
                     >
                       <Landmark size={13} /> {selecionados.length > 0 ? `Banco (${selecionados.length})` : 'Banco'}
@@ -364,7 +358,7 @@ export default function TabelaContas({
                   ) : (
                     <button
                       onClick={() => setEditandoEmMassaCat(true)}
-                      className="h-8 flex items-center gap-1.5 bg-slate-100 dark:bg-dark-800 hover:bg-slate-200 dark:hover:bg-dark-700 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-dark-700 text-xs font-semibold px-2.5 rounded-xl transition-colors shadow-xs cursor-pointer"
+                      className="dx-btn is-sm"
                       title="Aplicar a mesma categoria a todas as contas selecionadas"
                     >
                       <Tags size={13} /> {selecionados.length > 0 ? `Categoria (${selecionados.length})` : 'Categoria'}
@@ -375,21 +369,21 @@ export default function TabelaContas({
                 {/* Transferir para Outra Loja */}
                 <div className="relative">
                   {editandoEmMassaLoja ? (
-                    <div className="absolute right-0 top-full mt-1 z-30 bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-700 rounded-xl shadow-2xl p-2 w-56 space-y-1">
-                      <p className="text-[11px] font-bold text-slate-500 dark:text-dark-400 px-2 py-1 uppercase tracking-wider">Transferir para loja:</p>
+                    <div className="dx-menu is-right p-1.5 w-56 space-y-0.5">
+                      <p className="text-[11px] font-bold text-[var(--dx-muted)] px-2.5 py-1.5">Transferir para loja:</p>
                       {empresas.filter(e => e.id !== empresaId).map(emp => (
                         <button
                           key={emp.id}
                           onClick={() => handleMoverLoja(emp.id)}
-                          className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-dark-700 rounded-lg transition-colors flex items-center gap-2 truncate cursor-pointer"
+                          className="dx-menu-item rounded-lg py-2 px-2.5 text-xs"
                         >
-                          <Building2 size={13} className="text-brand-500 flex-shrink-0" />
+                          <Building2 size={13} className="text-[var(--dx-link)] flex-shrink-0" />
                           <span className="truncate">{emp.nome}</span>
                         </button>
                       ))}
                       <button
                         onClick={() => setEditandoEmMassaLoja(false)}
-                        className="w-full text-center text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-white pt-1 cursor-pointer"
+                        className="w-full text-center text-[11px] text-[var(--dx-muted)] hover:text-[var(--dx-ink)] py-1.5 cursor-pointer"
                       >
                         Cancelar
                       </button>
@@ -397,7 +391,7 @@ export default function TabelaContas({
                   ) : (
                     <button
                       onClick={() => setEditandoEmMassaLoja(true)}
-                      className="h-8 flex items-center gap-1.5 bg-slate-100 dark:bg-dark-800 hover:bg-slate-200 dark:hover:bg-dark-700 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-dark-700 text-xs font-semibold px-2.5 rounded-xl transition-colors shadow-xs cursor-pointer"
+                      className="dx-btn is-sm"
                       title="Transferir contas selecionadas para outra empresa"
                     >
                       <ArrowRightLeft size={13} /> {selecionados.length > 0 ? `Mover (${selecionados.length})` : 'Mover Loja'}
@@ -408,7 +402,7 @@ export default function TabelaContas({
                 {selecionados.length > 0 && (
                   <button
                     onClick={handleExcluirSelecionados}
-                    className="h-8 flex items-center gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-xs font-semibold px-2.5 rounded-xl transition-colors cursor-pointer"
+                    className="dx-btn is-sm is-danger"
                   >
                     <Trash2 size={13} /> Excluir ({selecionados.length})
                   </button>
@@ -419,7 +413,7 @@ export default function TabelaContas({
             {contas.some(c => c.status === 'pendente') && (
               <button
                 onClick={limparTudo}
-                className="h-8 flex items-center gap-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-700 hover:bg-rose-500/10 text-xs px-2.5 rounded-xl transition-all cursor-pointer font-medium"
+                className="dx-btn is-sm is-danger"
               >
                 <Trash2 size={13} />
                 <span>Limpar Pendentes</span>
@@ -430,10 +424,10 @@ export default function TabelaContas({
             <button
               onClick={carregar}
               disabled={loading}
-              className="h-8 flex items-center gap-1.5 text-slate-700 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white text-xs font-semibold px-3 rounded-xl border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-900/60 hover:bg-slate-50 dark:hover:bg-dark-800 transition-all cursor-pointer shadow-xs"
+              className="dx-btn is-sm"
               title="Atualizar lista de contas"
             >
-              {loading ? <Loader2 size={13} className="animate-spin text-brand-500" /> : <RefreshCw size={13} className="text-brand-500" />}
+              {loading ? <Loader2 size={13} className="animate-spin text-[var(--dx-link)]" /> : <RefreshCw size={13} className="text-[var(--dx-link)]" />}
               <span>Atualizar</span>
             </button>
 
@@ -442,7 +436,7 @@ export default function TabelaContas({
               <button
                 onClick={onExportarXls}
                 disabled={gerandoXls}
-                className="h-8 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-3.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                className="dx-btn is-sm is-ok"
                 title="Exportar contas para planilha Excel"
               >
                 {gerandoXls ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
@@ -455,7 +449,7 @@ export default function TabelaContas({
               <button
                 onClick={onEnviarContaAzul}
                 disabled={enviandoCA}
-                className="h-8 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                className="dx-btn is-sm is-primary"
                 title="Enviar contas pendentes ao Conta Azul"
               >
                 {enviandoCA ? (
@@ -476,25 +470,25 @@ export default function TabelaContas({
 
       {/* Tabela com Sticky Header, Zebra Rows e Contraste Claro/Escuro */}
       {loading ? (
-        <div className="flex items-center justify-center h-32">
-          <Loader2 size={24} className="text-brand-500 animate-spin" />
+        <div className="dx-panel dx-loading">
+          <Loader2 size={24} className="text-[var(--dx-link)] animate-spin" />
         </div>
       ) : contas.length === 0 ? (
-        <div className="bg-white dark:bg-dark-850/80 border border-slate-200/80 dark:border-dark-700/60 rounded-2xl py-9 px-4 text-center space-y-2 shadow-xs">
-          <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-dark-900 border border-slate-200 dark:border-dark-700/80 flex items-center justify-center mx-auto text-slate-400 dark:text-dark-400 shadow-inner">
+        <div className="dx-panel dx-empty shadow-[var(--dx-shadow-card)]">
+          <div className="dx-empty-ico">
             <Clock size={18} />
           </div>
-          <div className="space-y-0.5">
-            <p className="text-sm font-bold text-slate-900 dark:text-white">Nenhuma conta com status "{filtro}"</p>
-            <p className="text-xs text-slate-500 dark:text-dark-400 max-w-sm mx-auto leading-relaxed">
+          <div>
+            <b>Nenhuma conta com status "{filtro}"</b>
+            <p>
               Não há lançamentos financeiros registrados nesta categoria para a empresa selecionada.
             </p>
           </div>
         </div>
       ) : (
-        <div className="bg-white dark:bg-dark-850/90 border border-slate-200/80 dark:border-dark-700/70 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-shadow">
-          <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full min-w-[760px] text-xs border-collapse table-fixed select-none">
+        <div className="dx-panel shadow-[var(--dx-shadow-card)] overflow-hidden">
+          <div className="dx-table-wrap overflow-x-auto custom-scrollbar">
+            <table className="dx-table min-w-[760px] select-none">
               <colgroup>
                 <col style={{ width: '32px' }} />
                 <col style={{ width: '38%' }} />
@@ -507,28 +501,28 @@ export default function TabelaContas({
                 <col style={{ width: '74px' }} />
                 <col style={{ width: '34px' }} />
               </colgroup>
-              <thead className="sticky top-0 z-10 bg-slate-100/95 dark:bg-dark-900/95 backdrop-blur-md text-slate-600 dark:text-dark-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200 dark:border-dark-700/80">
+              <thead className="sticky top-0 z-10">
                 <tr>
-                  <th className="py-2.5 px-1 text-center">
+                  <th className="is-center">
                     <input
                       type="checkbox"
                       checked={contas.length > 0 && selecionados.length === contas.length}
                       onChange={toggleSelectAll}
-                      className="rounded border-slate-300 dark:border-dark-600 bg-white dark:bg-dark-900 text-brand-600 focus:ring-brand-500 cursor-pointer w-3.5 h-3.5"
+                      className="dx-check"
                     />
                   </th>
-                  <th className="py-2.5 px-2 text-left text-slate-900 dark:text-white font-bold">Fornecedor</th>
-                  <th className="py-2.5 px-1 text-right text-slate-700 dark:text-dark-300 font-semibold">Valor</th>
-                  <th className="py-2.5 px-0.5 text-center text-slate-700 dark:text-dark-300 font-semibold">Venc.</th>
-                  <th className="py-2.5 px-0.5 text-center text-slate-700 dark:text-dark-300 font-semibold">Comp.</th>
-                  <th className="py-2.5 px-1 text-left text-slate-700 dark:text-dark-300 font-semibold">Categoria</th>
-                  <th className="py-2.5 px-1 text-left text-slate-700 dark:text-dark-300 font-semibold">Banco</th>
-                  <th className="py-2.5 px-1 text-left text-slate-700 dark:text-dark-300 font-semibold">Desc.</th>
-                  <th className="py-2.5 px-0.5 text-center text-slate-700 dark:text-dark-300 font-semibold">Status</th>
-                  <th className="py-2.5 px-0.5 text-center"></th>
+                  <th>Fornecedor</th>
+                  <th className="is-right">Valor</th>
+                  <th className="is-center">Venc.</th>
+                  <th className="is-center">Comp.</th>
+                  <th>Categoria</th>
+                  <th>Banco</th>
+                  <th>Desc.</th>
+                  <th className="is-center">Status</th>
+                  <th className="is-center"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200/70 dark:divide-dark-800/60">
+              <tbody>
                 {contasExibidas.map((conta) => {
                   const cfg = STATUS_CONFIG[conta.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pendente
                   const Icon = cfg.icon
@@ -538,26 +532,24 @@ export default function TabelaContas({
                     <tr
                       key={conta.id}
                       className={cn(
-                        'transition-colors duration-150', (editandoCategoriaId === conta.id || editandoContaId === conta.id) && 'relative z-20',
-                        isSelected 
-                          ? 'bg-brand-50/80 dark:bg-brand-500/10' 
-                          : 'even:bg-slate-50/50 dark:even:bg-white/[0.015] hover:bg-slate-100/60 dark:hover:bg-white/[0.035]'
+                        (editandoCategoriaId === conta.id || editandoContaId === conta.id) && 'relative z-20',
+                        isSelected && 'is-selected'
                       )}
                     >
                       {/* Checkbox */}
-                      <td className="py-2.5 px-1 text-center">
+                      <td className="is-center">
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelect(conta.id)}
-                          className="rounded border-slate-300 dark:border-dark-600 bg-white dark:bg-dark-900 text-brand-600 focus:ring-brand-500 cursor-pointer w-3.5 h-3.5"
+                          className="dx-check"
                         />
                       </td>
 
                       {/* Fornecedor */}
-                      <td className="py-2.5 px-2 overflow-hidden">
+                      <td className="overflow-hidden">
                         <span
-                          className="text-slate-900 dark:text-white font-semibold text-xs block line-clamp-2 leading-snug break-words"
+                          className="dx-cell-name"
                           title={conta.fornecedor}
                         >
                           {conta.fornecedor}
@@ -565,28 +557,28 @@ export default function TabelaContas({
                       </td>
 
                       {/* Valor */}
-                      <td className="py-2.5 px-1 text-right whitespace-nowrap overflow-hidden">
-                        <span className="text-emerald-600 dark:text-emerald-400 font-mono font-bold tabular-nums text-xs">
+                      <td className="is-right whitespace-nowrap overflow-hidden">
+                        <span className="dx-cell-money tabular-nums">
                           {formatCurrency(Number(conta.valor))}
                         </span>
                       </td>
 
                       {/* Vencimento */}
-                      <td className="py-2.5 px-0.5 text-center whitespace-nowrap overflow-hidden">
-                        <span className="text-slate-600 dark:text-dark-300 font-mono text-[11px] tabular-nums">
+                      <td className="is-center whitespace-nowrap overflow-hidden">
+                        <span className="dx-cell-date tabular-nums">
                           {formatDate(conta.vencimento)}
                         </span>
                       </td>
 
                       {/* Competência */}
-                      <td className="py-2.5 px-0.5 text-center whitespace-nowrap overflow-hidden">
-                        <span className="text-slate-500 dark:text-dark-400 font-mono text-[11px] tabular-nums">
+                      <td className="is-center whitespace-nowrap overflow-hidden">
+                        <span className="dx-cell-date tabular-nums">
                           {conta.emissao ? formatDate(conta.emissao) : '-'}
                         </span>
                       </td>
 
                       {/* Categoria editável inline */}
-                      <td className={cn("py-2.5 px-1", editandoCategoriaId === conta.id ? "overflow-visible relative z-30" : "overflow-hidden")}>
+                      <td className={cn(editandoCategoriaId === conta.id ? "overflow-visible relative z-30" : "overflow-hidden")}>
                         {editandoCategoriaId === conta.id ? (
                           <SelectorCategoria
                             valorInicial={conta.categoria || ''}
@@ -597,17 +589,17 @@ export default function TabelaContas({
                           <button
                             type="button"
                             onClick={() => setEditandoCategoriaId(conta.id)}
-                            className="inline-flex items-center justify-between w-full gap-0.5 text-[10.5px] px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-dark-800 hover:bg-slate-200/80 dark:hover:bg-dark-700 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-dark-700 transition-colors font-medium truncate"
+                            className="dx-pill w-full"
                             title={conta.categoria || 'Materiais para Revenda'}
                           >
                             <span className="truncate">{conta.categoria || 'Materiais'}</span>
-                            <Edit2 size={8} className="opacity-50 shrink-0" />
+                            <Edit2 size={10} className="shrink-0" />
                           </button>
                         )}
                       </td>
 
                       {/* Conta Bancária (Banco) */}
-                      <td className={cn("py-2.5 px-1", editandoContaId === conta.id ? "overflow-visible relative z-30" : "overflow-hidden")}>
+                      <td className={cn(editandoContaId === conta.id ? "overflow-visible relative z-30" : "overflow-hidden")}>
                         {editandoContaId === conta.id ? (
                           <SelectorContaFinanceira
                             valorInicial={conta.conta_financeira || ''}
@@ -620,26 +612,24 @@ export default function TabelaContas({
                             type="button"
                             onClick={() => setEditandoContaId(conta.id)}
                             className={cn(
-                              'inline-flex items-center justify-between w-full gap-0.5 text-[10.5px] px-1.5 py-0.5 rounded-full border font-medium transition-all truncate',
-                              conta.conta_financeira
-                                ? 'bg-brand-500/10 dark:bg-brand-500/15 text-brand-700 dark:text-brand-300 border-brand-500/30 hover:bg-brand-500/20'
-                                : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
+                              'dx-pill w-full',
+                              conta.conta_financeira ? 'is-accent' : 'is-warn'
                             )}
                             title={conta.conta_financeira || 'Selecionar Banco...'}
                           >
-                            <span className="inline-flex items-center gap-0.5 truncate">
-                              <Landmark size={9} className="shrink-0 opacity-80" />
+                            <span className="truncate">
+                              <Landmark size={10} className="shrink-0" />
                               <span className="truncate">{conta.conta_financeira ? conta.conta_financeira.split('-')[0].trim() : 'Banco'}</span>
                             </span>
-                            <Edit2 size={8} className="opacity-50 shrink-0" />
+                            <Edit2 size={10} className="shrink-0" />
                           </button>
                         )}
                       </td>
 
                       {/* Descrição */}
-                      <td className="py-2.5 px-1 overflow-hidden">
+                      <td className="overflow-hidden">
                         <span
-                          className="text-slate-500 dark:text-dark-400 text-[10px] truncate block font-mono"
+                          className="dx-cell-text tabular-nums"
                           title={conta.descricao || ''}
                         >
                           {conta.descricao || '-'}
@@ -647,21 +637,19 @@ export default function TabelaContas({
                       </td>
 
                       {/* Status */}
-                      <td className="py-2.5 px-0.5 text-center overflow-hidden">
+                      <td className="is-center overflow-hidden">
                         <span
                           className={cn(
-                            'inline-flex items-center gap-0.5 text-[9.5px] px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap border',
                             cfg.color,
-                            cfg.bg,
-                            'border-current/20'
+                            cfg.bg
                           )}
                         >
-                          <Icon size={8} className="shrink-0" />
+                          <Icon size={10} className="shrink-0" />
                           {cfg.label}
                         </span>
                         {conta.status === 'erro' && conta.erro_mensagem && (
                           <p
-                            className="text-rose-600 dark:text-rose-400 text-[9px] mt-0.5 truncate"
+                            className="dx-status-error"
                             title={conta.erro_mensagem}
                           >
                             {conta.erro_mensagem}
@@ -670,24 +658,24 @@ export default function TabelaContas({
                       </td>
 
                       {/* Ações */}
-                      <td className="py-2.5 px-0.5 text-center overflow-hidden">
+                      <td className="is-center overflow-hidden">
                         <div className="flex items-center justify-center gap-1">
                           {(conta.metadata?.anexo_url || conta.anexo_url) && (
                             <button
                               type="button"
                               onClick={() => visualizarAnexo(conta.metadata?.anexo_url || conta.anexo_url)}
-                              className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 p-1 bg-emerald-500/10 rounded-md transition-colors"
+                              className="dx-btn-icon is-ok"
                               title="Visualizar Anexo/Comprovante"
                             >
-                              <Paperclip size={11} />
+                              <Paperclip size={12} />
                             </button>
                           )}
                           <button
                             onClick={() => removerConta(conta.id)}
-                            className="text-slate-400 dark:text-dark-500 hover:text-rose-600 dark:hover:text-rose-400 p-1 rounded-md transition-colors"
+                            className="dx-btn-icon"
                             title="Excluir"
                           >
-                            <Trash2 size={11} />
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       </td>
@@ -702,16 +690,16 @@ export default function TabelaContas({
 
       {/* Rodapé com paginação e contagem */}
       {contas.length > 0 && (
-        <div className="flex items-center justify-between flex-wrap gap-3 px-2 py-1 text-xs text-slate-500 dark:text-dark-400">
+        <div className="dx-panel dx-listfoot shadow-[var(--dx-shadow-card)] rounded-[var(--dx-r-xl)] border border-[var(--dx-line)]">
           <div>
-            Mostrando <span className="font-bold text-slate-900 dark:text-white font-mono">{contasExibidas.length}</span> de <span className="font-bold text-slate-900 dark:text-white font-mono">{contas.length}</span> registros
+            Mostrando <b>{contasExibidas.length}</b> de <b>{contas.length}</b> registros
           </div>
           {totalPaginas > 1 && (
-            <div className="flex items-center gap-1">
+            <div className="dx-pager">
               <button
                 onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
                 disabled={paginaAtual === 1}
-                className="w-7 h-7 rounded-lg border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-900 text-slate-600 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-dark-800 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors cursor-pointer shadow-xs"
+                className="dx-pager-btn"
               >
                 ‹
               </button>
@@ -722,10 +710,8 @@ export default function TabelaContas({
                     key={p}
                     onClick={() => setPaginaAtual(p)}
                     className={cn(
-                      'w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center font-mono',
-                      paginaAtual === p
-                        ? 'bg-brand-600 text-white shadow-xs'
-                        : 'border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-900 text-slate-600 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-dark-800'
+                      'dx-pager-btn',
+                      paginaAtual === p && 'is-on'
                     )}
                   >
                     {p}
@@ -734,7 +720,7 @@ export default function TabelaContas({
               <button
                 onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
                 disabled={paginaAtual === totalPaginas}
-                className="w-7 h-7 rounded-lg border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-900 text-slate-600 dark:text-dark-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-dark-800 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors cursor-pointer shadow-xs"
+                className="dx-pager-btn"
               >
                 ›
               </button>

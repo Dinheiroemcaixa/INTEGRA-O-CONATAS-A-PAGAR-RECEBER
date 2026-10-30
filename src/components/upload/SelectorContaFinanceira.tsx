@@ -109,8 +109,8 @@ export default function SelectorContaFinanceira({ valorInicial, contas, onSelect
 
   return (
     <div ref={containerRef} className="relative w-full min-w-[150px]">
-      <div className="flex items-center gap-2 bg-white dark:bg-dark-700 border border-blue-300 dark:border-blue-500/50 rounded-lg px-2 py-1 shadow-xs dark:shadow-lg dark:shadow-blue-900/20">
-        <Landmark size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
+      <div className="flex items-center gap-2 bg-[var(--dx-input)] border border-[var(--dx-control-line)] focus-within:border-[var(--dx-link)] rounded-[10px] px-2.5 py-1 shadow-[var(--dx-shadow-seg)]">
+        <Landmark size={14} className="text-[var(--dx-link)] shrink-0" />
         <input
           ref={inputRef}
           type="text"
@@ -124,12 +124,12 @@ export default function SelectorContaFinanceira({ valorInicial, contas, onSelect
             }
           }}
           placeholder="Buscar conta no Conta Azul..."
-          className="bg-transparent border-none outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-dark-400 text-xs w-full"
+          className="bg-transparent border-none outline-none text-[var(--dx-ink)] placeholder:text-[var(--dx-muted)] text-xs w-full"
         />
         <button
           type="button"
           onClick={onCancel}
-          className="text-slate-400 hover:text-slate-700 dark:text-dark-500 dark:hover:text-white p-0.5 transition-colors cursor-pointer"
+          className="text-[var(--dx-muted)] hover:text-[var(--dx-ink)] p-0.5 transition-colors cursor-pointer"
           title="Cancelar"
         >
           <X size={14} />
@@ -147,10 +147,10 @@ export default function SelectorContaFinanceira({ valorInicial, contas, onSelect
             width: menuStyle.width,
             maxHeight: menuStyle.maxHeight,
           }}
-          className="z-[9999] bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl overflow-hidden overflow-y-auto ring-1 ring-black/5 dark:ring-black/50 animate-in fade-in duration-150"
+          className="z-[9999] bg-[var(--dx-card)] border border-[var(--dx-line)] rounded-[14px] shadow-[var(--dx-shadow-pop)] overflow-hidden overflow-y-auto animate-in fade-in duration-150"
         >
           {filtrados.length === 0 && (
-            <div className="p-3 text-[10px] text-slate-500 dark:text-dark-400 italic text-center">
+            <div className="p-3 text-[10px] text-[var(--dx-muted)] italic text-center">
               {lista.length === 0
                 ? 'Carregando ou nenhuma conta cadastrada no Conta Azul para esta empresa.'
                 : 'Nenhuma conta encontrada na busca.'}
@@ -161,10 +161,10 @@ export default function SelectorContaFinanceira({ valorInicial, contas, onSelect
               key={conta.id}
               type="button"
               onClick={() => onSelect(conta.descricao, conta.id)}
-              className="w-full text-left px-3.5 py-2 text-xs text-slate-800 dark:text-white hover:bg-blue-50 dark:hover:bg-blue-600/25 hover:text-blue-700 dark:hover:text-blue-300 transition-all border-b border-slate-100 dark:border-dark-700/60 last:border-none flex items-center justify-between cursor-pointer"
+              className="w-full text-left px-3.5 py-2 text-xs text-[var(--dx-ink)] hover:bg-[var(--dx-selected)] hover:text-[var(--dx-link)] transition-all border-b border-[var(--dx-line-soft)] last:border-none flex items-center justify-between cursor-pointer"
             >
               <span className="truncate">{conta.descricao}</span>
-              <span className="text-[9px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-500/20 font-mono shrink-0 ml-2">Conta Azul</span>
+              <span className="text-[9px] text-[var(--dx-ok)] bg-[var(--dx-ok-bg)] px-1.5 py-0.5 rounded border border-[var(--dx-ok)]/30 font-semibold shrink-0 ml-2">Conta Azul</span>
             </button>
           ))}
         </div>,

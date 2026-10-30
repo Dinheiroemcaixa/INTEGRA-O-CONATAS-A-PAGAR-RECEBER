@@ -176,7 +176,7 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
       {/* Botão de Abertura */}
       <button 
         onClick={() => setModalOpen(true)}
-        className="flex items-center gap-2 px-4 py-2 bg-dark-800 hover:bg-dark-700 border border-dark-600 rounded-lg text-sm font-semibold text-brand-400 transition-all shadow-md mb-4"
+        className="dx-btn mb-4"
       >
         <Settings2 size={16} />
         Configurar Automação Diária
@@ -184,40 +184,40 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
 
       {/* Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-dark-900 border border-dark-700 rounded-2xl w-full max-w-3xl shadow-2xl animate-fade-in flex flex-col max-h-[90vh]">
+        <div className="dx-modal-back z-[100]">
+          <div className="dx-modal is-xl dx-modal-form animate-fade-in">
             
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-dark-700 shrink-0">
+            <div className="dx-modal-head shrink-0">
               <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${ativo ? 'bg-brand-500/20 text-brand-400' : 'bg-dark-800 text-dark-400'}`}>
+                <div className={`dx-ico-box ${ativo ? 'is-ok' : ''}`}>
                   <Clock size={18} />
                 </div>
                 <div>
-                  <h3 className="text-white font-bold text-lg">
+                  <h3 className="dx-modal-title">
                     Automação Diária — {tipo === 'contas_pagar' ? 'Contas a Pagar' : 'Vendas'}
                   </h3>
-                  <p className="text-dark-400 text-xs">Configure os filtros e horário do robô automático</p>
+                  <p className="dx-modal-sub">Configure os filtros e horário do robô automático</p>
                 </div>
               </div>
-              <button onClick={() => setModalOpen(false)} className="p-1.5 rounded-lg text-dark-400 hover:text-white hover:bg-dark-700 transition-all">
+              <button onClick={() => setModalOpen(false)} className="dx-btn-icon">
                 <X size={20} />
               </button>
             </div>
 
             {/* Conteúdo scrollable */}
-            <div className="p-6 overflow-y-auto custom-scrollbar flex flex-col gap-6">
+            <div className="dx-modal-body custom-scrollbar flex flex-col gap-6">
               {loading ? (
                 <div className="flex justify-center items-center py-10">
-                  <Loader2 className="animate-spin text-dark-500" size={30} />
+                  <Loader2 className="animate-spin text-[var(--dx-muted)]" size={30} />
                 </div>
               ) : (
                 <>
                   {/* Toggle Ativar */}
-                  <div className="flex items-center justify-between bg-dark-800 p-4 rounded-xl border border-dark-700">
+                  <div className="dx-box flex items-center justify-between">
                     <div>
-                      <p className="text-white font-semibold">Ativar Automação</p>
-                      <p className="text-dark-400 text-sm">O robô executará essa rotina automaticamente.</p>
+                      <p className="text-[var(--dx-ink)] font-semibold">Ativar Automação</p>
+                      <p className="text-[var(--dx-muted)] text-xs mt-0.5">O robô executará essa rotina automaticamente.</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input 
@@ -226,7 +226,7 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
                         checked={ativo} 
                         onChange={(e) => setAtivo(e.target.checked)} 
                       />
-                      <div className="w-11 h-6 bg-dark-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-500"></div>
+                      <div className="w-11 h-6 bg-[var(--dx-line)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[var(--dx-line)] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--dx-primary)]"></div>
                     </label>
                   </div>
 
@@ -234,15 +234,15 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
                       SEÇÃO 1: QUANDO EXECUTAR
                   ========================================== */}
                   <div className="space-y-4">
-                    <h4 className="text-sm font-bold text-white border-b border-dark-700 pb-2">Quando Executar</h4>
+                    <h4 className="text-sm font-bold text-[var(--dx-title)] border-b border-[var(--dx-line)] pb-2">Quando Executar</h4>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Ação</label>
+                      <div>
+                        <label className="dx-label">Ação</label>
                         <select 
                           value={acao}
                           onChange={(e) => setAcao(e.target.value)}
-                          className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
+                          className="dx-control"
                         >
                           <option value="importar_e_enviar">Importar do DataCar E Enviar p/ Conta Azul</option>
                           <option value="importar">APENAS Importar do DataCar</option>
@@ -250,25 +250,25 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
                         </select>
                       </div>
                       
-                      <div className="space-y-2">
-                        <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Horário (Brasília)</label>
+                      <div>
+                        <label className="dx-label">Horário (Brasília)</label>
                         <input 
                           type="time" 
                           value={horario}
                           onChange={(e) => setHorario(e.target.value)}
-                          className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
+                          className="dx-control"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Dias da Semana</label>
+                    <div>
+                      <label className="dx-label">Dias da Semana</label>
                       <div className="flex flex-wrap gap-2">
                         {diasOptions.map(d => (
                           <button
                             key={d.v}
                             onClick={() => toggleDia(d.v)}
-                            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${dias.includes(d.v) ? 'bg-brand-500/20 text-brand-400 border border-brand-500/50' : 'bg-dark-800 text-dark-400 border border-dark-700 hover:bg-dark-700'}`}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border cursor-pointer ${dias.includes(d.v) ? 'bg-[var(--dx-selected)] text-[var(--dx-link)] border-[var(--dx-link)]' : 'bg-[var(--dx-card)] text-[var(--dx-muted)] border-[var(--dx-line)] hover:bg-[var(--dx-soft)] hover:text-[var(--dx-ink)]'}`}
                           >
                             {d.l}
                           </button>
@@ -281,19 +281,19 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
                       SEÇÃO 2: FILTROS DE BUSCA (específicos por card)
                   ========================================== */}
                   <div className="space-y-4">
-                    <h4 className="text-sm font-bold text-white border-b border-dark-700 pb-2">
+                    <h4 className="text-sm font-bold text-[var(--dx-title)] border-b border-[var(--dx-line)] pb-2">
                       Filtros de Busca — {tipo === 'contas_pagar' ? 'Contas a Pagar' : 'Vendas'}
                     </h4>
 
                     {/* ===== FILTROS CONTAS A PAGAR ===== */}
                     {tipo === 'contas_pagar' && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Por data de:</label>
+                        <div>
+                          <label className="dx-label">Por data de:</label>
                           <select 
                             value={tipoPeriodoContas}
                             onChange={(e) => setTipoPeriodoContas(e.target.value)}
-                            className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
+                            className="dx-control"
                           >
                             <option value="venc">Vencimento</option>
                             <option value="emis">Emissão</option>
@@ -302,12 +302,12 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
                           </select>
                         </div>
                         
-                        <div className="space-y-2">
-                          <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Pagamento:</label>
+                        <div>
+                          <label className="dx-label">Pagamento:</label>
                           <select 
                             value={statusPagamento}
                             onChange={(e) => setStatusPagamento(e.target.value)}
-                            className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
+                            className="dx-control"
                           >
                             <option value="apagar">A pagar</option>
                             <option value="pagas">Pagas</option>
@@ -315,12 +315,12 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
                           </select>
                         </div>
 
-                        <div className="space-y-2">
-                          <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Local:</label>
+                        <div>
+                          <label className="dx-label">Local:</label>
                           <select 
                             value={localPagamento}
                             onChange={(e) => setLocalPagamento(e.target.value)}
-                            className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
+                            className="dx-control"
                           >
                             <option value="todos">(Todos)</option>
                             <option value="BANCO">BANCO</option>
@@ -334,12 +334,12 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
                     {/* ===== FILTROS VENDAS (Produtos e Serviços) ===== */}
                     {tipo === 'vendas' && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Tipo período:</label>
+                        <div>
+                          <label className="dx-label">Tipo período:</label>
                           <select 
                             value={tipoPeriodoVendas}
                             onChange={(e) => setTipoPeriodoVendas(e.target.value)}
-                            className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
+                            className="dx-control"
                           >
                             <option value="abertura">Abertura</option>
                             <option value="previsao">Previsão</option>
@@ -349,12 +349,12 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
                           </select>
                         </div>
 
-                        <div className="space-y-2">
-                          <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Situação:</label>
+                        <div>
+                          <label className="dx-label">Situação:</label>
                           <select 
                             value={situacaoVendas}
                             onChange={(e) => setSituacaoVendas(e.target.value)}
-                            className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
+                            className="dx-control"
                           >
                             <option value="todas">Todas</option>
                             <option value="em_andamento">Em Andamento</option>
@@ -364,12 +364,12 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
                           </select>
                         </div>
 
-                        <div className="space-y-2">
-                          <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Itens a Enviar:</label>
+                        <div>
+                          <label className="dx-label">Itens a Enviar:</label>
                           <select 
                             value={filtroTipoItens}
                             onChange={(e) => setFiltroTipoItens(e.target.value)}
-                            className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg p-2.5 focus:border-brand-500"
+                            className="dx-control"
                           >
                             <option value="tudo">Produtos e Serviços</option>
                             <option value="produtos">Apenas Produtos</option>
@@ -381,27 +381,27 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
 
                     {/* Datas (comuns a todos os cards) */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Data Início</label>
+                      <div>
+                        <label className="dx-label">Data Início</label>
                         <div className="relative">
-                          <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+                          <Calendar size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--dx-muted)] pointer-events-none" />
                           <input
                             type="date"
                             value={dtIni}
                             onChange={(e) => setDtIni(e.target.value)}
-                            className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg pl-10 pr-3 p-2.5 focus:border-brand-500 outline-none"
+                            className="dx-control has-icon"
                           />
                         </div>
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Data Fim</label>
+                      <div>
+                        <label className="dx-label">Data Fim</label>
                         <div className="relative">
-                          <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+                          <Calendar size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--dx-muted)] pointer-events-none" />
                           <input
                             type="date"
                             value={dtFim}
                             onChange={(e) => setDtFim(e.target.value)}
-                            className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg pl-10 pr-3 p-2.5 focus:border-brand-500 outline-none"
+                            className="dx-control has-icon"
                           />
                         </div>
                       </div>
@@ -409,24 +409,24 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
                   </div>
 
                   {/* Status Box */}
-                  <div className="flex flex-col sm:flex-row items-center justify-between bg-dark-800 border border-dark-700 rounded-xl p-4 mt-2">
+                  <div className="dx-box flex flex-col sm:flex-row items-center justify-between mt-2">
                     <div className="flex items-center gap-3">
                       {ultimoStatus === 'sucesso' ? (
-                        <CheckCircle className="text-emerald-400" size={24} />
+                        <CheckCircle className="text-[var(--dx-ok)]" size={24} />
                       ) : ultimoStatus === 'parcial' ? (
-                        <AlertCircle className="text-amber-400" size={24} />
+                        <AlertCircle className="text-[var(--dx-warn)]" size={24} />
                       ) : ultimoStatus === 'erro' ? (
-                        <XCircle className="text-rose-400" size={24} />
+                        <XCircle className="text-[var(--dx-bad)]" size={24} />
                       ) : (
-                        <Clock className="text-dark-500" size={24} />
+                        <Clock className="text-[var(--dx-muted)]" size={24} />
                       )}
                       
                       <div>
-                        <p className="text-sm text-white font-medium">
+                        <p className="text-sm text-[var(--dx-ink)] font-semibold">
                           {ultimaExecucao ? `Última execução: ${formatDate(ultimaExecucao)}` : 'Nunca executado'}
                         </p>
                         {ultimoLog && (
-                          <p className="text-xs text-dark-400 mt-0.5">
+                          <p className="text-xs text-[var(--dx-muted)] mt-0.5">
                             {ultimoLog.erro 
                               ? `Erro: ${ultimoLog.erro}`
                               : `Importados: ${ultimoLog.importados || 0} | Enviados: ${ultimoLog.enviados || 0} | Erros: ${ultimoLog.erros_envio || 0}`
@@ -439,7 +439,7 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
                     <button
                       onClick={handleTestar}
                       disabled={testing}
-                      className="mt-3 sm:mt-0 flex items-center gap-1.5 px-3 py-1.5 bg-dark-700 hover:bg-dark-600 border border-dark-600 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-50"
+                      className="dx-btn is-sm mt-3 sm:mt-0"
                       title="Executar agora manualmente usando esses filtros"
                     >
                       {testing ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
@@ -451,17 +451,17 @@ export default function PainelAgendamento({ tipo }: PainelAgendamentoProps) {
             </div>
             
             {/* Footer */}
-            <div className="p-5 border-t border-dark-700 flex justify-end gap-3 shrink-0 bg-dark-900 rounded-b-2xl">
+            <div className="dx-modal-foot shrink-0">
               <button 
                 onClick={() => setModalOpen(false)}
-                className="px-5 py-2.5 rounded-xl font-semibold bg-dark-800 text-dark-300 hover:text-white hover:bg-dark-700 transition-all"
+                className="dx-btn"
               >
                 Cancelar
               </button>
               <button 
                 onClick={handleSalvar}
                 disabled={saving || loading}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-900/30 transition-all disabled:opacity-50"
+                className="dx-btn is-primary"
               >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                 {saving ? 'Salvando...' : 'Salvar Configuração'}

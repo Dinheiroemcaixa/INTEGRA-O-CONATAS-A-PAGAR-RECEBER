@@ -98,12 +98,12 @@ export default function DropZone({ onResultado, processando }: Props) {
       <div
         {...getRootProps()}
         className={cn(
-          'border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all duration-200',
+          'dx-drop transition-all duration-200',
           isDragActive
-            ? 'border-primary-500 bg-primary-500/10 scale-[1.01]'
+            ? 'is-active scale-[1.01]'
             : arquivo
-            ? 'border-emerald-500/50 bg-emerald-500/5'
-            : 'border-dark-700 bg-dark-850/80 hover:border-primary-500/60 hover:bg-primary-500/5',
+            ? 'is-done'
+            : '',
           (carregando || processando) && 'opacity-60 cursor-not-allowed'
         )}
       >
@@ -111,45 +111,45 @@ export default function DropZone({ onResultado, processando }: Props) {
 
         {carregando ? (
           <div className="flex flex-col items-center gap-3">
-            <Loader2 size={40} className="text-primary-400 animate-spin" />
-            <p className="text-white font-medium">Processando arquivo...</p>
-            <p className="text-dark-400 text-sm">Extraindo dados do DataCar</p>
+            <Loader2 size={40} className="dx-drop-ico animate-spin" />
+            <p className="dx-drop-title is-sm">Processando arquivo...</p>
+            <p className="dx-drop-sub">Extraindo dados do DataCar</p>
           </div>
         ) : arquivo ? (
           <div className="flex flex-col items-center gap-3">
             <IconeArquivo tipo={arquivo.type} />
             <div>
-              <p className="text-white font-medium">{arquivo.name}</p>
-              <p className="text-dark-400 text-sm mt-0.5">
+              <p className="dx-drop-title is-sm">{arquivo.name}</p>
+              <p className="dx-drop-sub mt-0.5">
                 {(arquivo.size / 1024 / 1024).toFixed(2)} MB
               </p>
             </div>
-            <p className="text-green-400 text-sm">✓ Arquivo processado</p>
+            <p className="dx-drop-ok">✓ Arquivo processado</p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-4">
             <div className={cn(
-              'w-14 h-14 rounded-xl flex items-center justify-center transition-all',
-              isDragActive ? 'bg-primary-500/20 text-primary-400' : 'bg-dark-800 border border-dark-700 text-dark-400'
+              'dx-drop-badge transition-all',
+              isDragActive ? 'scale-105' : ''
             )}>
               <Upload size={26} />
             </div>
             <div>
-              <p className="text-white font-semibold text-lg">
+              <p className="dx-drop-title">
                 {isDragActive ? 'Solte o arquivo aqui' : 'Arraste o arquivo DataCar'}
               </p>
-              <p className="text-dark-400 text-sm mt-1">
-                ou <span className="text-primary-400 font-medium hover:text-primary-300">clique para selecionar</span>
+              <p className="dx-drop-sub mt-1">
+                ou <span className="dx-drop-link hover:underline">clique para selecionar</span>
               </p>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
               {['Excel .xlsx', 'CSV .csv', 'PDF .pdf', 'Imagem .png/.jpg'].map((fmt) => (
-                <span key={fmt} className="text-xs bg-dark-800 border border-dark-700 text-dark-300 px-2.5 py-1 rounded-md font-medium">
+                <span key={fmt} className="dx-pill">
                   {fmt}
                 </span>
               ))}
             </div>
-            <p className="text-dark-500 text-xs">Tamanho máximo: 20 MB</p>
+            <p className="dx-drop-sub is-xs">Tamanho máximo: 20 MB</p>
           </div>
         )}
       </div>
@@ -157,7 +157,7 @@ export default function DropZone({ onResultado, processando }: Props) {
       {arquivo && !carregando && (
         <button
           onClick={limpar}
-          className="flex items-center gap-2 text-dark-400 hover:text-white text-sm transition-colors"
+          className="dx-btn is-sm"
         >
           <X size={14} /> Remover e carregar outro arquivo
         </button>

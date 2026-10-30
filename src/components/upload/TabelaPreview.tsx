@@ -45,7 +45,7 @@ function BadgeMatch({
   if (origem === 'depara' || origem === 'manual' || foiCorrigido) {
     return (
       <span 
-        className="inline-flex items-center justify-center p-1 rounded-md text-primary-300 bg-primary-500/15 border border-primary-500/30 hover:bg-primary-500/25 hover:border-primary-500/50 shadow-xs cursor-help transition-all duration-150 flex-shrink-0" 
+        className="inline-flex items-center justify-center p-1 rounded-md text-[var(--dx-link)] bg-[var(--dx-selected)] border border-[var(--dx-line)] hover:border-[var(--dx-link)] cursor-help transition-all duration-150 flex-shrink-0" 
         title="Fornecedor conciliado por regra De-Para"
       >
         <RefreshCw size={12} className="stroke-[2.2]" />
@@ -57,7 +57,7 @@ function BadgeMatch({
   if (origem === 'direto' || origem === 'cnpj' || confianca === 'exato' || score === 100) {
     return (
       <span 
-        className="inline-flex items-center justify-center p-1 rounded-md text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 hover:bg-emerald-500/25 hover:border-emerald-500/50 shadow-xs cursor-help transition-all duration-150 flex-shrink-0" 
+        className="inline-flex items-center justify-center p-1 rounded-md text-[var(--dx-ok)] bg-[var(--dx-ok-bg)] border border-[var(--dx-ok)]/30 hover:border-[var(--dx-ok)] cursor-help transition-all duration-150 flex-shrink-0" 
         title="Correspondência exata encontrada"
       >
         <Check size={12} className="stroke-[2.5]" />
@@ -69,10 +69,10 @@ function BadgeMatch({
   if (score >= 50) {
     return (
       <span 
-        className="inline-flex items-center gap-1 text-xs text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-md font-medium shadow-xs whitespace-nowrap cursor-help flex-shrink-0" 
+        className="inline-flex items-center gap-1 text-xs text-[var(--dx-warn)] bg-[var(--dx-warn-bg)] border border-[var(--dx-warn)]/30 px-2 py-0.5 rounded-md font-semibold whitespace-nowrap cursor-help flex-shrink-0" 
         title={`Sugestão por similaridade (${score}%) — revise antes de enviar`}
       >
-        <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+        <span className="w-1.5 h-1.5 rounded-full bg-[var(--dx-warn)]" />
         🔍 {score}%
       </span>
     )
@@ -81,7 +81,7 @@ function BadgeMatch({
   // 4. Não encontrado (AMARELO ALERTA)
   return (
     <span 
-      className="inline-flex items-center justify-center p-1 rounded-md text-amber-400 bg-amber-500/15 border border-amber-500/30 hover:bg-amber-500/25 hover:border-amber-500/50 shadow-xs cursor-help transition-all duration-150 flex-shrink-0" 
+      className="inline-flex items-center justify-center p-1 rounded-md text-[var(--dx-warn)] bg-[var(--dx-warn-bg)] border border-[var(--dx-warn)]/30 hover:border-[var(--dx-warn)] cursor-help transition-all duration-150 flex-shrink-0" 
       title="Fornecedor sem correspondência"
     >
       <AlertTriangle size={12} className="stroke-[2.2]" />
@@ -167,38 +167,38 @@ export default function TabelaPreview({
   }, [buscaFornecedor, buscaCategoria, buscaValor, filtro, onToggleTodosLote])
 
   return (
-    <div className="bg-white dark:bg-dark-850/90 border border-slate-200/80 dark:border-dark-700/70 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-shadow">
+    <div className="dx-panel bg-[var(--dx-card)] border border-[var(--dx-line)] rounded-[16px] overflow-hidden shadow-[var(--dx-shadow-card)]">
       {/* Header da tabela */}
-      <div className="px-5 py-4 border-b border-slate-200 dark:border-dark-700 space-y-3.5">
-        <div className="flex items-center justify-between flex-wrap gap-2.5">
-          <p className="text-xs text-slate-500 dark:text-dark-400">
-            Mostrando <span className="text-slate-900 dark:text-white font-bold font-mono">{dadosFiltrados.length}</span> de <span className="text-slate-900 dark:text-white font-bold font-mono">{dados.length}</span> registros
+      <div className={cn("px-5 py-3.5 border-b border-[var(--dx-line)]", selecionados.size === 0 && "hidden")}>
+        <div className="hidden">
+          <p className="text-xs text-[var(--dx-muted)]">
+            Mostrando <span className="text-[var(--dx-ink)] font-bold tabular-nums">{dadosFiltrados.length}</span> de <span className="text-[var(--dx-ink)] font-bold tabular-nums">{dados.length}</span> registros
           </p>
           <div className="flex items-center gap-2 flex-wrap">
             {exatosCount > 0 && (
-              <span className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-200 dark:border-emerald-500/30 px-2.5 py-1 rounded-full font-bold">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span className="flex items-center gap-1.5 text-xs text-[var(--dx-ok)] bg-[var(--dx-ok-bg)] border border-[var(--dx-ok)]/30 px-2.5 py-1 rounded-full font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--dx-ok)]" />
                 {exatosCount} exatos
               </span>
             )}
             {deparaCount > 0 && (
-              <span className="flex items-center gap-1.5 text-xs text-brand-700 dark:text-brand-300 bg-brand-50 dark:bg-brand-500/15 border border-brand-200 dark:border-brand-500/30 px-2.5 py-1 rounded-full font-bold">
-                <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
+              <span className="flex items-center gap-1.5 text-xs text-[var(--dx-link)] bg-[var(--dx-selected)] border border-[var(--dx-line)] px-2.5 py-1 rounded-full font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--dx-link)]" />
                 {deparaCount} corrigidos
               </span>
             )}
             {naoEncontradosCount > 0 && (
-              <span className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/30 px-2.5 py-1 rounded-full font-bold">
+              <span className="flex items-center gap-1.5 text-xs text-[var(--dx-warn)] bg-[var(--dx-warn-bg)] border border-[var(--dx-warn)]/30 px-2.5 py-1 rounded-full font-semibold">
                 <AlertCircle size={11} />
                 {naoEncontradosCount} não encontrados
               </span>
             )}
-            <span className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold ml-1">
+            <span className="flex items-center gap-1.5 text-xs text-[var(--dx-ok)] font-semibold ml-1">
               <CheckCircle size={13} />
               {dados.filter((d) => d.valido).length} válidos
             </span>
             {dados.filter((d) => !d.valido).length > 0 && (
-              <span className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-semibold">
+              <span className="flex items-center gap-1.5 text-xs text-[var(--dx-bad)] font-semibold">
                 <AlertCircle size={13} />
                 {dados.filter((d) => !d.valido).length} com erro
               </span>
@@ -207,14 +207,14 @@ export default function TabelaPreview({
         </div>
 
         {/* Barra de Filtros Pesquisa */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="hidden">
           <div className="relative">
             <input 
               type="text" 
               placeholder="Filtrar fornecedor..."
               value={buscaFornecedor}
               onChange={(e) => setBuscaFornecedor(e.target.value)}
-              className="h-9 w-full bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 rounded-xl px-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-dark-500 outline-none focus:border-brand-500 focus:bg-white dark:focus:bg-dark-900 focus:ring-1 focus:ring-brand-500 transition-colors shadow-2xs"
+              className="dx-control"
             />
           </div>
           <div className="relative">
@@ -223,7 +223,7 @@ export default function TabelaPreview({
               placeholder="Filtrar categoria..."
               value={buscaCategoria}
               onChange={(e) => setBuscaCategoria(e.target.value)}
-              className="h-9 w-full bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 rounded-xl px-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-dark-500 outline-none focus:border-brand-500 focus:bg-white dark:focus:bg-dark-900 focus:ring-1 focus:ring-brand-500 transition-colors shadow-2xs"
+              className="dx-control"
             />
           </div>
           <div className="relative">
@@ -232,17 +232,17 @@ export default function TabelaPreview({
               placeholder="Filtrar valor..."
               value={buscaValor}
               onChange={(e) => setBuscaValor(e.target.value)}
-              className="h-9 w-full bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 rounded-xl px-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-dark-500 outline-none focus:border-brand-500 focus:bg-white dark:focus:bg-dark-900 focus:ring-1 focus:ring-brand-500 transition-colors shadow-2xs"
+              className="dx-control"
             />
           </div>
         </div>
 
         {/* Painel de Edição em Lote */}
         {selecionados.size > 0 && (
-          <div className="bg-brand-50/80 dark:bg-brand-950/60 border border-brand-200/80 dark:border-brand-500/30 rounded-xl p-3 flex items-center justify-between flex-wrap gap-2.5 animate-in slide-in-from-top-2">
+          <div className="gp-selbar bg-[var(--dx-selected)] border border-[var(--dx-line)] rounded-[14px] p-3 flex items-center justify-between flex-wrap gap-2.5 animate-in slide-in-from-top-2">
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-xs font-bold text-brand-700 dark:text-brand-300 px-2.5 py-1 rounded-full bg-brand-100 dark:bg-brand-500/20">{selecionados.size} selecionados</span>
-              <div className="h-4 w-px bg-brand-200 dark:bg-dark-600 hidden sm:block" />
+              <span className="dx-chip text-xs font-bold text-[var(--dx-link)] px-2.5 py-1 rounded-full bg-[var(--dx-card)] border border-[var(--dx-line)]">{selecionados.size} selecionados</span>
+              <div className="h-4 w-px bg-[var(--dx-line)] hidden sm:block" />
               {showBulkEdit ? (
                 <div className="flex items-center gap-3 flex-wrap">
                   {/* Categoria em Lote */}
@@ -254,15 +254,15 @@ export default function TabelaPreview({
                         value={loteCategoria}
                         onChange={(e) => { setLoteCategoria(e.target.value); setShowBulkList(true) }}
                         onFocus={() => setShowBulkList(true)}
-                        className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-600 rounded-lg px-2.5 py-1 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-dark-500 outline-none w-[160px] focus:border-brand-500 shadow-2xs"
+                        className="dx-control !h-8 !w-[160px] !px-2.5 !text-xs"
                       />
                       {showBulkList && (
-                        <div className="absolute z-50 mt-1 w-full bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl overflow-hidden max-h-[200px] overflow-y-auto p-1 divide-y divide-slate-100 dark:divide-dark-700/60">
+                        <div className="absolute z-50 mt-1 w-full bg-[var(--dx-card)] border border-[var(--dx-line)] rounded-[14px] shadow-[var(--dx-shadow-pop)] overflow-hidden max-h-[200px] overflow-y-auto p-1 divide-y divide-[var(--dx-line-soft)]">
                           {((categoriasCA && categoriasCA.length > 0) ? categoriasCA : LISTA_CATEGORIAS_FLAT).filter(c => c.toLowerCase().includes(loteCategoria.toLowerCase())).slice(0, 10).map((cat, i) => (
                             <button
                               key={i}
                               onClick={() => { setLoteCategoria(cat); setShowBulkList(false) }}
-                              className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 dark:text-white hover:bg-brand-50 dark:hover:bg-brand-600/20 rounded-md transition-colors truncate"
+                              className="w-full text-left px-2.5 py-1.5 text-xs text-[var(--dx-ink)] hover:bg-[var(--dx-selected)] hover:text-[var(--dx-link)] rounded-md transition-colors truncate"
                             >
                               {cat}
                             </button>
@@ -277,7 +277,7 @@ export default function TabelaPreview({
                         setLoteCategoria('')
                       }}
                       disabled={!loteCategoria}
-                      className="bg-brand-600 hover:bg-brand-500 text-white px-3 py-1 rounded-lg text-xs font-semibold disabled:opacity-50 transition-all cursor-pointer shadow-xs"
+                      className="dx-btn is-sm is-primary"
                     >
                       Aplicar
                     </button>
@@ -292,15 +292,15 @@ export default function TabelaPreview({
                         value={loteConta}
                         onChange={(e) => { setLoteConta(e.target.value); setShowBulkContaList(true) }}
                         onFocus={() => setShowBulkContaList(true)}
-                        className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-600 rounded-lg px-2.5 py-1 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-dark-500 outline-none w-[160px] focus:border-brand-500 shadow-2xs"
+                        className="dx-control !h-8 !w-[160px] !px-2.5 !text-xs"
                       />
                       {showBulkContaList && (
-                        <div className="absolute z-50 mt-1 w-full bg-white dark:bg-dark-800 border border-slate-200 dark:border-dark-600 rounded-xl shadow-2xl overflow-hidden max-h-[200px] overflow-y-auto p-1 divide-y divide-slate-100 dark:divide-dark-700/60">
+                        <div className="absolute z-50 mt-1 w-full bg-[var(--dx-card)] border border-[var(--dx-line)] rounded-[14px] shadow-[var(--dx-shadow-pop)] overflow-hidden max-h-[200px] overflow-y-auto p-1 divide-y divide-[var(--dx-line-soft)]">
                           {contasFinanceiras.filter(c => c.descricao.toLowerCase().includes(loteConta.toLowerCase())).map((c) => (
                             <button
                               key={c.id}
                               onClick={() => { setLoteConta(c.descricao); setShowBulkContaList(false) }}
-                              className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 dark:text-white hover:bg-brand-50 dark:hover:bg-brand-600/20 rounded-md transition-colors truncate"
+                              className="w-full text-left px-2.5 py-1.5 text-xs text-[var(--dx-ink)] hover:bg-[var(--dx-selected)] hover:text-[var(--dx-link)] rounded-md transition-colors truncate"
                             >
                               {c.descricao}
                             </button>
@@ -315,7 +315,7 @@ export default function TabelaPreview({
                         setLoteConta('')
                       }}
                       disabled={!loteConta}
-                      className="bg-brand-600 hover:bg-brand-500 text-white px-3 py-1 rounded-lg text-xs font-semibold disabled:opacity-50 transition-all cursor-pointer shadow-xs"
+                      className="dx-btn is-sm is-primary"
                     >
                       Aplicar
                     </button>
@@ -329,18 +329,18 @@ export default function TabelaPreview({
                         onUpdateFornecedorLote(Array.from(selecionados), '')
                       }
                     }}
-                    className="bg-amber-600 hover:bg-amber-500 text-white px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer"
+                    className="dx-btn is-sm bg-[var(--dx-warn-bg)] text-[var(--dx-warn)] border-[var(--dx-warn)]/40 hover:bg-[var(--dx-warn-bg)]"
                     title="Remove o fornecedor selecionado para enviar em branco"
                   >
                     Limpar Fornecedor
                   </button>
 
-                  <button onClick={() => { setShowBulkEdit(false); setShowBulkList(false); setShowBulkContaList(false) }} className="text-slate-500 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white px-2 py-1 rounded-lg text-xs transition-all cursor-pointer">Fechar</button>
+                  <button onClick={() => { setShowBulkEdit(false); setShowBulkList(false); setShowBulkContaList(false) }} className="dx-btn is-sm">Fechar</button>
                 </div>
               ) : (
                 <button 
                   onClick={() => setShowBulkEdit(true)}
-                  className="text-xs text-brand-700 dark:text-brand-300 hover:text-brand-900 dark:hover:text-white hover:bg-brand-100 dark:hover:bg-brand-600/30 px-2.5 py-1 rounded-lg border border-brand-200 dark:border-brand-500/30 font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                  className="dx-btn is-sm text-[var(--dx-link)] border-[var(--dx-line)]"
                 >
                   <Edit2 size={12} /> Alterar em Lote
                 </button>
@@ -352,7 +352,7 @@ export default function TabelaPreview({
                   onRemoverLote(Array.from(selecionados))
                 }
               }}
-              className="text-xs text-rose-600 dark:text-rose-400 hover:text-white hover:bg-rose-600 px-2.5 py-1 rounded-lg border border-rose-200 dark:border-rose-500/30 font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+              className="dx-btn is-sm is-danger"
             >
               <Trash2 size={12} /> Excluir selecionados
             </button>
@@ -360,8 +360,8 @@ export default function TabelaPreview({
         )}
       </div>
 
-      <div className="overflow-x-auto custom-scrollbar">
-        <table className="w-full min-w-[840px] text-xs border-collapse table-fixed select-text">
+      <div className="dx-table-wrap overflow-x-auto custom-scrollbar">
+        <table className="dx-table w-full min-w-[840px] text-xs border-collapse table-fixed select-text">
           <colgroup>
             <col style={{ width: '32px' }} />
             <col style={{ width: 'auto' }} />
@@ -374,7 +374,7 @@ export default function TabelaPreview({
             <col style={{ width: '56px' }} />
             <col style={{ width: '36px' }} />
           </colgroup>
-          <thead className="sticky top-0 z-10 bg-slate-100/95 dark:bg-dark-900/95 backdrop-blur-md text-slate-600 dark:text-dark-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200 dark:border-dark-700/80">
+          <thead className="sticky top-0 z-10 bg-[var(--dx-soft)] text-[var(--dx-muted)] text-[11px] font-semibold border-b border-[var(--dx-line)]">
             <tr>
               <th className="py-3 px-2 text-center">
                 <input
@@ -388,21 +388,21 @@ export default function TabelaPreview({
                       onToggleTodosLote(indicesFiltradosValidos, 'marcar')
                     }
                   }}
-                  className="w-3.5 h-3.5 rounded border-slate-300 dark:border-dark-500 bg-white dark:bg-dark-700 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                  className="dx-check"
                 />
               </th>
-              <th className="py-3 px-2 text-left text-slate-900 dark:text-white font-bold">Fornecedor</th>
-              <th className="py-3 px-2 text-right text-slate-700 dark:text-dark-300 font-semibold">Valor</th>
-              <th className="py-3 px-1 text-center text-slate-700 dark:text-dark-300 font-semibold">Vencimento</th>
-              <th className="py-3 px-1 text-center text-slate-700 dark:text-dark-300 font-semibold">Competência</th>
-              <th className="py-3 px-2 text-left text-slate-700 dark:text-dark-300 font-semibold">Categoria</th>
-              <th className="py-3 px-2 text-left text-slate-700 dark:text-dark-300 font-semibold">Conta</th>
-              <th className="py-3 px-2 text-left text-slate-700 dark:text-dark-300 font-semibold">Descrição</th>
-              <th className="py-3 px-1 text-center text-slate-700 dark:text-dark-300 font-semibold">Status</th>
+              <th className="py-3 px-2 text-left text-[var(--dx-muted)] font-semibold">Fornecedor</th>
+              <th className="py-3 px-2 text-right text-[var(--dx-muted)] font-semibold">Valor</th>
+              <th className="py-3 px-1 text-center text-[var(--dx-muted)] font-semibold">Vencimento</th>
+              <th className="py-3 px-1 text-center text-[var(--dx-muted)] font-semibold">Competência</th>
+              <th className="py-3 px-2 text-left text-[var(--dx-muted)] font-semibold">Categoria</th>
+              <th className="py-3 px-2 text-left text-[var(--dx-muted)] font-semibold">Conta</th>
+              <th className="py-3 px-2 text-left text-[var(--dx-muted)] font-semibold">Descrição</th>
+              <th className="py-3 px-1 text-center text-[var(--dx-muted)] font-semibold">Status</th>
               <th className="py-3 px-1 text-center"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200/70 dark:divide-dark-800/60">
+          <tbody className="divide-y divide-[var(--dx-line-soft)]">
             {dadosFiltrados.map((item) => {
               const idx = item.originalIdx ?? 0
               const match = item.matchFornecedor
@@ -424,13 +424,13 @@ export default function TabelaPreview({
                 <tr
                   key={idx}
                   className={cn(
-                    'group/row relative border-b border-slate-200/70 dark:border-dark-700/40 transition-colors duration-150',
+                    'group/row relative border-b border-[var(--dx-line-soft)] transition-colors duration-150',
                     !item.valido 
-                      ? 'bg-rose-50/60 dark:bg-rose-500/5 hover:bg-rose-100/60 dark:hover:bg-rose-500/10'
+                      ? 'bg-[var(--dx-bad-bg)] hover:bg-[var(--dx-bad-bg)]'
                       : selecionados.has(idx)
-                        ? 'bg-brand-50/80 dark:bg-brand-500/10 hover:bg-brand-100/60 dark:hover:bg-brand-500/20'
-                        : 'even:bg-slate-50/50 dark:even:bg-white/[0.015] hover:bg-slate-100/60 dark:hover:bg-white/[0.035]',
-                    isEditing && 'z-20 bg-slate-100/90 dark:bg-dark-800/95 ring-1 ring-inset ring-brand-500/30'
+                        ? 'is-selected bg-[var(--dx-selected)] hover:bg-[var(--dx-selected)]'
+                        : 'hover:bg-[var(--dx-soft)]',
+                    isEditing && 'z-20 bg-[var(--dx-selected)] ring-1 ring-inset ring-[var(--dx-link)]/40'
                   )}
                 >
                   <td className="relative py-3 px-1 text-center">
@@ -439,16 +439,16 @@ export default function TabelaPreview({
                       aria-hidden="true"
                       className={cn(
                         'absolute left-0 top-0 bottom-0 w-[3px] transition-all duration-150 rounded-r-[1px] pointer-events-none',
-                        isEditing
-                          ? 'bg-brand-500'
-                          : 'bg-transparent group-hover/row:bg-brand-500/60'
+                        isEditing || selecionados.has(idx)
+                          ? 'bg-[var(--dx-link)]'
+                          : 'bg-transparent group-hover/row:bg-[var(--dx-link)]/60'
                       )}
                     />
                     <input
                       type="checkbox"
                       checked={selecionados.has(idx)}
                       onChange={() => onToggle(idx)}
-                      className="w-3.5 h-3.5 rounded border-slate-300 dark:border-dark-500 bg-white dark:bg-dark-700 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                      className="dx-check"
                     />
                   </td>
                   <td className={cn(
@@ -469,8 +469,8 @@ export default function TabelaPreview({
                         <div className="flex items-center gap-2 flex-wrap">
                           <span
                             className={cn(
-                              'font-semibold text-xs sm:text-[13px] block line-clamp-2 leading-snug break-words',
-                              item.valido ? 'text-slate-900 dark:text-white' : 'text-rose-600 dark:text-red-400 font-bold'
+                              'dx-cell-name font-semibold text-xs sm:text-[13px] block line-clamp-2 leading-snug break-words',
+                              item.valido ? 'text-[var(--dx-ink)]' : 'text-[var(--dx-bad)] font-bold'
                             )}
                             title={item.fornecedor}
                           >
@@ -486,19 +486,19 @@ export default function TabelaPreview({
                           )}
                           <button 
                             onClick={() => setEditingIdx(idx)}
-                            className="opacity-40 group-hover:opacity-100 transition-all text-slate-400 dark:text-dark-400 hover:text-brand-600 dark:hover:text-brand-300 hover:scale-110 p-1 rounded cursor-pointer"
+                            className="opacity-40 group-hover:opacity-100 transition-all text-[var(--dx-muted)] hover:text-[var(--dx-link)] hover:scale-110 p-1 rounded cursor-pointer"
                             title="Editar ou corrigir fornecedor"
                           >
                             <Edit2 size={12} />
                           </button>
                         </div>
                         {foiCorrigido && match.nomeOriginal !== item.fornecedor && (
-                          <span className="text-xs text-slate-500 dark:text-dark-400 flex items-center gap-1 mt-0.5 font-mono">
+                          <span className="text-xs text-[var(--dx-muted)] flex items-center gap-1 mt-0.5">
                             original: {match.nomeOriginal}
                           </span>
                         )}
                         {item.ca_duplicidade?.encontrado && (
-                          <div className="mt-1 flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/15 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-500/30 w-max cursor-help" title={`Possível duplicidade no Conta Azul:\nStatus: ${item.ca_duplicidade.status}\nData: ${item.ca_duplicidade.vencimento}\nValor: R$ ${item.ca_duplicidade.valor}\nFornecedor: ${item.ca_duplicidade.fornecedor}`}>
+                          <div className="mt-1 flex items-center gap-1 text-[11px] text-[var(--dx-warn)] bg-[var(--dx-warn-bg)] px-2 py-0.5 rounded-md border border-[var(--dx-warn)]/30 w-max cursor-help" title={`Possível duplicidade no Conta Azul:\nStatus: ${item.ca_duplicidade.status}\nData: ${item.ca_duplicidade.vencimento}\nValor: R$ ${item.ca_duplicidade.valor}\nFornecedor: ${item.ca_duplicidade.fornecedor}`}>
                             <AlertCircle size={10} />
                             <span>Possível Duplicidade CA</span>
                           </div>
@@ -506,7 +506,7 @@ export default function TabelaPreview({
                       </div>
                     )}
                   </td>
-                  <td className="py-3 px-2 text-right font-mono text-slate-900 dark:text-white text-xs sm:text-[13px] font-bold tabular-nums whitespace-nowrap">
+                  <td className="py-3 px-2 text-right text-[var(--dx-ink)] text-xs sm:text-[13px] font-bold tabular-nums whitespace-nowrap">
                     {editingValorIdx === idx ? (
                       <input
                         type="number"
@@ -525,13 +525,13 @@ export default function TabelaPreview({
                             setEditingValorIdx(null)
                           } else if (e.key === 'Escape') setEditingValorIdx(null)
                         }}
-                        className="w-full bg-white dark:bg-dark-900 border border-brand-500 rounded px-2 py-1 text-xs text-right outline-none text-slate-900 dark:text-white"
+                        className="dx-control !h-7 !px-2 !text-xs text-right"
                       />
                     ) : (
                       <div className="group flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => setEditingValorIdx(idx)}
-                          className="opacity-40 group-hover:opacity-100 transition-all text-slate-400 dark:text-dark-400 hover:text-brand-600 dark:hover:text-brand-300 hover:scale-110 p-0.5 rounded cursor-pointer"
+                          className="opacity-40 group-hover:opacity-100 transition-all text-[var(--dx-muted)] hover:text-[var(--dx-link)] hover:scale-110 p-0.5 rounded cursor-pointer"
                           title="Editar valor"
                         >
                           <Edit2 size={11} />
@@ -540,7 +540,7 @@ export default function TabelaPreview({
                       </div>
                     )}
                   </td>
-                  <td className="py-3 px-1 text-slate-600 dark:text-dark-300 text-xs font-mono text-center whitespace-nowrap tabular-nums">
+                  <td className="py-3 px-1 text-[var(--dx-muted)] text-xs text-center whitespace-nowrap tabular-nums">
                     {editingVencIdx === idx ? (
                       <input
                         type="date"
@@ -556,14 +556,14 @@ export default function TabelaPreview({
                             setEditingVencIdx(null)
                           } else if (e.key === 'Escape') setEditingVencIdx(null)
                         }}
-                        className="w-full bg-white dark:bg-dark-900 border border-brand-500 rounded px-2 py-1 text-xs outline-none text-slate-900 dark:text-white"
+                        className="dx-control !h-7 !px-2 !text-xs"
                       />
                     ) : (
                       <div className="group flex items-center justify-center gap-1">
                         <span>{item.vencimento ? formatDate(item.vencimento) : '---'}</span>
                         <button
                           onClick={() => setEditingVencIdx(idx)}
-                          className="opacity-40 group-hover:opacity-100 transition-all text-slate-400 dark:text-dark-400 hover:text-brand-600 dark:hover:text-brand-300 hover:scale-110 p-0.5 rounded cursor-pointer"
+                          className="opacity-40 group-hover:opacity-100 transition-all text-[var(--dx-muted)] hover:text-[var(--dx-link)] hover:scale-110 p-0.5 rounded cursor-pointer"
                           title="Editar vencimento"
                         >
                           <Edit2 size={11} />
@@ -571,7 +571,7 @@ export default function TabelaPreview({
                       </div>
                     )}
                   </td>
-                  <td className="py-3 px-1 text-slate-500 dark:text-dark-400 text-xs font-mono text-center whitespace-nowrap tabular-nums">
+                  <td className="py-3 px-1 text-[var(--dx-muted)] text-xs text-center whitespace-nowrap tabular-nums">
                     {editingEmissaoIdx === idx ? (
                       <input
                         type="date"
@@ -587,14 +587,14 @@ export default function TabelaPreview({
                             setEditingEmissaoIdx(null)
                           } else if (e.key === 'Escape') setEditingEmissaoIdx(null)
                         }}
-                        className="w-full bg-white dark:bg-dark-900 border border-brand-500 rounded px-2 py-1 text-xs outline-none text-slate-900 dark:text-white"
+                        className="dx-control !h-7 !px-2 !text-xs"
                       />
                     ) : (
                       <div className="group flex items-center justify-center gap-1">
                         <span>{item.emissao ? formatDate(item.emissao) : '---'}</span>
                         <button
                           onClick={() => setEditingEmissaoIdx(idx)}
-                          className="opacity-40 group-hover:opacity-100 transition-all text-slate-400 dark:text-dark-400 hover:text-brand-600 dark:hover:text-brand-300 hover:scale-110 p-0.5 rounded cursor-pointer"
+                          className="opacity-40 group-hover:opacity-100 transition-all text-[var(--dx-muted)] hover:text-[var(--dx-link)] hover:scale-110 p-0.5 rounded cursor-pointer"
                           title="Editar competência (emissão)"
                         >
                           <Edit2 size={11} />
@@ -602,7 +602,7 @@ export default function TabelaPreview({
                       </div>
                     )}
                   </td>
-                  <td className={cn("py-3 px-1.5 text-slate-700 dark:text-dark-200 text-xs", editingCatIdx === idx ? "overflow-visible relative z-30" : "overflow-hidden")}>
+                  <td className={cn("py-3 px-1.5 text-[var(--dx-ink)] text-xs", editingCatIdx === idx ? "overflow-visible relative z-30" : "overflow-hidden")}>
                     {editingCatIdx === idx ? (
                       <SelectorCategoria 
                         valorInicial={item.categoria || 'Materiais para Revenda'}
@@ -615,18 +615,18 @@ export default function TabelaPreview({
                       />
                     ) : (
                       <div 
-                        className="group flex items-center justify-between gap-1.5 bg-slate-100 dark:bg-dark-900/60 border border-slate-200 dark:border-dark-700/60 hover:border-brand-500 dark:hover:border-brand-500/60 hover:bg-slate-200/70 dark:hover:bg-dark-800 rounded-lg px-2.5 py-1.5 cursor-pointer transition-all"
+                        className="dx-pill group flex items-center justify-between gap-1.5 w-full bg-[var(--dx-chip)] border border-[var(--dx-line)] hover:border-[var(--dx-control-line)] rounded-lg px-2.5 py-1.5 cursor-pointer transition-all"
                         onClick={() => setEditingCatIdx(idx)}
                         title={item.categoria || 'Materiais para Revenda'}
                       >
-                        <span className="truncate text-slate-800 dark:text-dark-200 font-medium" title={item.categoria || 'Materiais para Revenda'}>
+                        <span className="truncate text-[var(--dx-ink)] font-medium" title={item.categoria || 'Materiais para Revenda'}>
                           {item.categoria || 'Materiais para Revenda'}
                         </span>
-                        <ChevronDown size={11} className="text-slate-400 dark:text-dark-500 group-hover:text-slate-600 dark:group-hover:text-dark-300 shrink-0" />
+                        <ChevronDown size={11} className="text-[var(--dx-muted)] group-hover:text-[var(--dx-ink)] shrink-0" />
                       </div>
                     )}
                   </td>
-                  <td className={cn("py-3 px-1.5 text-brand-700 dark:text-blue-300 text-xs", editingContaIdx === idx ? "overflow-visible relative z-30" : "overflow-hidden")}>
+                  <td className={cn("py-3 px-1.5 text-[var(--dx-link)] text-xs", editingContaIdx === idx ? "overflow-visible relative z-30" : "overflow-hidden")}>
                     {editingContaIdx === idx ? (
                       <SelectorContaFinanceira 
                         valorInicial={item.conta_financeira || ''}
@@ -639,21 +639,21 @@ export default function TabelaPreview({
                       />
                     ) : (
                       <div 
-                        className="group flex items-center justify-between gap-1.5 bg-brand-50/60 dark:bg-blue-950/20 border border-brand-200/80 dark:border-blue-500/25 hover:border-brand-400 dark:hover:border-blue-400/60 hover:bg-brand-100/50 dark:hover:bg-blue-900/30 rounded-lg px-2.5 py-1.5 cursor-pointer transition-all"
+                        className="dx-pill is-accent group flex items-center justify-between gap-1.5 w-full bg-[var(--dx-selected)] border border-[var(--dx-line)] hover:border-[var(--dx-link)] rounded-lg px-2.5 py-1.5 cursor-pointer transition-all"
                         onClick={() => setEditingContaIdx(idx)}
                         title={item.conta_financeira || 'Selecionar conta...'}
                       >
                         <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                          <Landmark size={12} className="text-brand-600 dark:text-blue-400 shrink-0" />
-                          <span className="truncate text-brand-800 dark:text-blue-300 font-medium" title={item.conta_financeira || 'Selecionar conta...'}>
+                          <Landmark size={12} className="text-[var(--dx-link)] shrink-0" />
+                          <span className="truncate text-[var(--dx-link)] font-medium" title={item.conta_financeira || 'Selecionar conta...'}>
                             {item.conta_financeira || 'Selecionar conta...'}
                           </span>
                         </div>
-                        <ChevronDown size={11} className="text-brand-500 dark:text-blue-500 group-hover:text-brand-700 dark:group-hover:text-blue-300 shrink-0 ml-1" />
+                        <ChevronDown size={11} className="text-[var(--dx-link)] shrink-0 ml-1" />
                       </div>
                     )}
                   </td>
-                  <td className="py-3 px-1.5 text-slate-500 dark:text-dark-300 text-xs font-mono overflow-hidden">
+                  <td className="py-3 px-1.5 text-[var(--dx-muted)] text-xs overflow-hidden">
                     {editingDescIdx === idx ? (
                       <input
                         type="text"
@@ -669,14 +669,14 @@ export default function TabelaPreview({
                             setEditingDescIdx(null)
                           } else if (e.key === 'Escape') setEditingDescIdx(null)
                         }}
-                        className="w-full bg-white dark:bg-dark-900 border border-brand-500 rounded px-2 py-1 text-xs outline-none text-slate-900 dark:text-white"
+                        className="dx-control !h-7 !px-2 !text-xs"
                       />
                     ) : (
                       <div className="group flex items-center gap-1.5 truncate">
                         <span className="truncate" title={item.descricao}>{item.descricao || '---'}</span>
                         <button
                           onClick={() => setEditingDescIdx(idx)}
-                          className="opacity-40 group-hover:opacity-100 transition-all text-slate-400 dark:text-dark-400 hover:text-brand-600 dark:hover:text-brand-300 hover:scale-110 p-0.5 rounded shrink-0 cursor-pointer"
+                          className="opacity-40 group-hover:opacity-100 transition-all text-[var(--dx-muted)] hover:text-[var(--dx-link)] hover:scale-110 p-0.5 rounded shrink-0 cursor-pointer"
                           title="Editar descrição"
                         >
                           <Edit2 size={11} />
@@ -686,15 +686,15 @@ export default function TabelaPreview({
                   </td>
                   <td className="py-3 px-1 text-center">
                     {item.valido ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30">
+                      <span className="dx-status is-ok inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--dx-ok-bg)] text-[var(--dx-ok)]">
                         OK
                       </span>
                     ) : (
                       <div className="flex flex-col items-center">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30">
+                        <span className="dx-status is-bad inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--dx-bad-bg)] text-[var(--dx-bad)]">
                           Erro
                         </span>
-                        <p className="text-[9px] text-rose-600 dark:text-red-400/80 max-w-[100px] leading-tight mt-0.5">
+                        <p className="dx-status-error text-[9px] text-[var(--dx-bad)] max-w-[100px] leading-tight mt-0.5">
                           {item.erros?.[0]}
                         </p>
                       </div>
@@ -706,7 +706,7 @@ export default function TabelaPreview({
                         <button
                           type="button"
                           onClick={() => visualizarAnexo(item.anexo_url || item.metadata?.anexo_url)}
-                          className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-white hover:bg-emerald-50 dark:hover:bg-emerald-600/30 border border-emerald-200 dark:border-emerald-500/20 p-1.5 rounded-lg transition-all cursor-pointer"
+                          className="dx-btn-icon is-ok"
                           title="Visualizar Anexo/Comprovante"
                         >
                           <Paperclip size={13} />
@@ -714,7 +714,7 @@ export default function TabelaPreview({
                       )}
                       <button
                         onClick={() => onRemover(idx)}
-                        className="text-slate-400 dark:text-dark-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/15 p-1.5 rounded-lg transition-all cursor-pointer"
+                        className="dx-btn-icon"
                         title="Excluir"
                       >
                         <Trash2 size={13} />

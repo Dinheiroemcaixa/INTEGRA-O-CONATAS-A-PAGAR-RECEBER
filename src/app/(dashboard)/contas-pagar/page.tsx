@@ -75,25 +75,25 @@ function ModalEnvioContaAzul({
   })
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-dark-850 border border-dark-700/80 rounded-xl w-full max-w-md shadow-2xl animate-fade-in flex flex-col max-h-[90vh]">
+    <div className="dx-modal-back">
+      <div className="dx-modal is-lg dx-modal-form animate-fade-in">
 
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-dark-700 flex-shrink-0">
+        <div className="dx-modal-head flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-brand-500/15 border border-brand-500/30 rounded-lg flex items-center justify-center">
-              <Send size={16} className="text-brand-400" />
+            <div className="dx-ico-box">
+              <Send size={16} />
             </div>
-            <h3 className="text-white font-bold">Enviar ao Conta Azul</h3>
+            <h3 className="dx-modal-title">Enviar ao Conta Azul</h3>
           </div>
-          <button onClick={onCancelar} className="p-1.5 rounded-lg text-dark-400 hover:text-white hover:bg-dark-700 transition-all">
+          <button onClick={onCancelar} className="dx-btn-icon">
             <X size={16} />
           </button>
         </div>
 
         {/* Conteúdo com scroll */}
-        <div className="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1">
-          <p className="text-dark-300 text-sm">Empresa de destino dos lançamentos:</p>
+        <div className="dx-modal-body space-y-4 custom-scrollbar flex-1">
+          <p className="text-[var(--dx-muted)] text-xs font-semibold">Empresa de destino dos lançamentos:</p>
 
           {/* Seletor de empresa */}
           <div className="relative">
@@ -101,59 +101,59 @@ function ModalEnvioContaAzul({
               onClick={() => setAbrirSeletor(!abrirSeletor)}
               disabled={enviando}
               className={cn(
-                'w-full rounded-xl border p-4 flex items-center gap-3 text-left transition-all',
+                'w-full rounded-[var(--dx-r-lg)] border p-3.5 flex items-center gap-3 text-left transition-all cursor-pointer bg-[var(--dx-soft)]',
                 conectado
-                  ? 'bg-dark-900 border-emerald-500/30 hover:border-emerald-500/60'
-                  : 'bg-dark-900 border-amber-500/30 hover:border-amber-500/60'
+                  ? 'border-[var(--dx-ok)]/40 hover:border-[var(--dx-ok)]'
+                  : 'border-[var(--dx-warn)]/40 hover:border-[var(--dx-warn)]'
               )}
             >
-              <div className="w-10 h-10 bg-brand-500/15 border border-brand-500/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                <span className="text-brand-300 font-bold text-sm">
+              <div className="dx-avatar">
+                <span>
                   {empresaSelecionada?.nome?.charAt(0).toUpperCase() || '?'}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-white font-semibold truncate">{empresaSelecionada?.nome || '—'}</p>
+                <p className="text-[var(--dx-ink)] font-semibold truncate">{empresaSelecionada?.nome || '—'}</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   {conectado ? (
                     <>
-                      <ShieldCheck size={11} className="text-emerald-400" />
-                      <span className="text-emerald-400 text-xs font-medium">Conta Azul conectado</span>
+                      <ShieldCheck size={12} className="text-[var(--dx-ok)]" />
+                      <span className="text-[var(--dx-ok)] text-xs font-semibold">Conta Azul conectado</span>
                     </>
                   ) : (
                     <>
-                      <AlertCircle size={11} className="text-amber-400" />
-                      <span className="text-amber-400 text-xs font-medium">Conta Azul não conectado</span>
+                      <AlertCircle size={12} className="text-[var(--dx-warn)]" />
+                      <span className="text-[var(--dx-warn)] text-xs font-semibold">Conta Azul não conectado</span>
                     </>
                   )}
                 </div>
               </div>
               {todasEmpresas.length > 1 && (
-                <ChevronDown size={16} className={cn('text-dark-400 flex-shrink-0 transition-transform', abrirSeletor && 'rotate-180')} />
+                <ChevronDown size={16} className={cn('text-[var(--dx-muted)] flex-shrink-0 transition-transform', abrirSeletor && 'rotate-180')} />
               )}
             </button>
 
             {/* Dropdown de empresas com busca e rolagem */}
             {abrirSeletor && todasEmpresas.length > 1 && (
-              <div className="absolute top-full mt-1 left-0 right-0 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-20 overflow-hidden animate-fade-in">
+              <div className="dx-menu left-0 right-0 w-full animate-fade-in">
                 {/* Campo de Busca */}
-                <div className="p-2 border-b border-dark-700 bg-dark-900/90">
+                <div className="p-2 border-b border-[var(--dx-line)] bg-[var(--dx-soft)]">
                   <div className="relative">
-                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-dark-400" />
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--dx-muted)] pointer-events-none" />
                     <input
                       type="text"
                       value={busca}
                       onChange={(e) => setBusca(e.target.value)}
                       placeholder="Pesquisar loja por nome ou CNPJ..."
-                      className="w-full h-10 bg-dark-900 border border-dark-700 rounded-lg pl-9 pr-3 text-sm text-white placeholder-dark-500 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-colors"
+                      className="dx-control has-icon"
                     />
                   </div>
                 </div>
 
                 {/* Lista rolável */}
-                <div className="max-h-60 overflow-y-auto divide-y divide-dark-700/50 custom-scrollbar">
+                <div className="max-h-60 overflow-y-auto divide-y divide-[var(--dx-line-soft)] custom-scrollbar">
                   {empresasFiltradas.length === 0 ? (
-                    <div className="p-4 text-center text-xs text-dark-400">
+                    <div className="p-4 text-center text-xs text-[var(--dx-muted)]">
                       Nenhuma loja encontrada para "{busca}"
                     </div>
                   ) : (
@@ -165,23 +165,23 @@ function ModalEnvioContaAzul({
                           key={emp.id}
                           onClick={() => { setEmpresaSelecionada(emp); setAbrirSeletor(false); setBusca('') }}
                           className={cn(
-                            'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
-                            isSelected ? 'bg-brand-950/60 text-brand-300 border border-brand-500/40' : 'hover:bg-dark-800 text-dark-200'
+                            'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors cursor-pointer',
+                            isSelected ? 'bg-[var(--dx-selected)] text-[var(--dx-link)]' : 'hover:bg-[var(--dx-soft)] text-[var(--dx-ink)]'
                           )}
                         >
-                          <div className="w-8 h-8 bg-brand-500/15 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <span className="text-brand-300 font-bold text-xs">{emp.nome.charAt(0).toUpperCase()}</span>
+                          <div className="dx-avatar">
+                            <span className="text-xs">{emp.nome.charAt(0).toUpperCase()}</span>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-white text-sm font-medium truncate">{emp.nome}</p>
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <span className={`w-1.5 h-1.5 rounded-full ${empConectada ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                              <span className={`text-xs ${empConectada ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            <p className="text-[var(--dx-ink)] text-sm font-semibold truncate">{emp.nome}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className={`w-1.5 h-1.5 rounded-full ${empConectada ? 'bg-[var(--dx-ok)]' : 'bg-[var(--dx-warn)]'}`} />
+                              <span className={`text-xs font-medium ${empConectada ? 'text-[var(--dx-ok)]' : 'text-[var(--dx-warn)]'}`}>
                                 {empConectada ? 'Conta Azul conectado' : 'Não conectado'}
                               </span>
                             </div>
                           </div>
-                          {isSelected && <CheckCircle size={14} className="text-emerald-400 flex-shrink-0" />}
+                          {isSelected && <CheckCircle size={14} className="text-[var(--dx-ok)] flex-shrink-0" />}
                         </button>
                       )
                     })
@@ -193,13 +193,13 @@ function ModalEnvioContaAzul({
 
           {/* Aviso se a loja NÃO estiver conectada ao Conta Azul */}
           {!conectado && empresaSelecionada && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 space-y-2.5 animate-fade-in">
+            <div className="bg-[var(--dx-warn-bg)] border border-[var(--dx-warn)]/30 rounded-[var(--dx-r-lg)] p-4 space-y-2.5 animate-fade-in">
               <div className="flex items-start gap-2">
-                <AlertCircle size={16} className="text-amber-400 flex-shrink-0 mt-0.5" />
+                <AlertCircle size={16} className="text-[var(--dx-warn)] flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-amber-300 text-xs font-semibold">Conta Azul Financeiro não conectado</p>
-                  <p className="text-xs text-dark-300 mt-1 leading-relaxed">
-                    A loja <strong className="text-white">{empresaSelecionada.nome}</strong> ainda não está conectada ao Conta Azul no módulo Financeiro.
+                  <p className="text-[var(--dx-warn)] text-xs font-bold">Conta Azul Financeiro não conectado</p>
+                  <p className="text-xs text-[var(--dx-ink)] mt-1 leading-relaxed">
+                    A loja <strong className="font-bold">{empresaSelecionada.nome}</strong> ainda não está conectada ao Conta Azul no módulo Financeiro.
                   </p>
                 </div>
               </div>
@@ -209,7 +209,7 @@ function ModalEnvioContaAzul({
                   href={`/conectar?empresa_id=${empresaSelecionada.id}&modulo=financeiro`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-all shadow-md shadow-emerald-900/20"
+                  className="dx-btn is-ok is-sm no-underline"
                 >
                   <ExternalLink size={13} />
                   Conectar Conta Azul de {empresaSelecionada.nome}
@@ -220,36 +220,36 @@ function ModalEnvioContaAzul({
 
           {/* Aviso se o usuário escolheu propositalmente enviar para outra loja */}
           {conectado && lojaDiferente && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 space-y-1.5 animate-fade-in">
+            <div className="bg-[var(--dx-warn-bg)] border border-[var(--dx-warn)]/30 rounded-[var(--dx-r-lg)] p-3.5 space-y-1.5 animate-fade-in">
               <div className="flex items-start gap-2">
-                <AlertCircle size={15} className="text-amber-400 flex-shrink-0 mt-0.5" />
-                <p className="text-amber-300 text-xs font-semibold">Atenção: Loja de destino diferente!</p>
+                <AlertCircle size={15} className="text-[var(--dx-warn)] flex-shrink-0 mt-0.5" />
+                <p className="text-[var(--dx-warn)] text-xs font-bold">Atenção: Loja de destino diferente!</p>
               </div>
-              <p className="text-xs text-dark-300 pl-5 leading-relaxed">
-                Você está visualizando os lançamentos de <strong className="text-white">{empresaAtiva?.nome}</strong>, mas selecionou enviar para a conexão do Conta Azul da loja <strong className="text-amber-300">{empresaSelecionada?.nome}</strong>.
+              <p className="text-xs text-[var(--dx-ink)] pl-5 leading-relaxed">
+                Você está visualizando os lançamentos de <strong className="font-bold">{empresaAtiva?.nome}</strong>, mas selecionou enviar para a conexão do Conta Azul da loja <strong className="text-[var(--dx-warn)] font-bold">{empresaSelecionada?.nome}</strong>.
               </p>
             </div>
           )}
 
           {conectado && !lojaDiferente && (
-            <p className="text-dark-500 text-xs">
-              Todas as contas <strong className="text-dark-300">pendentes</strong> desta empresa serão enviadas ao Conta Azul oficial de <strong className="text-white">{empresaSelecionada?.nome}</strong>.
+            <p className="text-[var(--dx-muted)] text-xs">
+              Todas as contas <strong className="text-[var(--dx-ink)]">pendentes</strong> desta empresa serão enviadas ao Conta Azul oficial de <strong className="text-[var(--dx-ink)]">{empresaSelecionada?.nome}</strong>.
             </p>
           )}
         </div>
 
         {/* Ações */}
-        <div className="p-5 border-t border-dark-700 flex gap-3 flex-shrink-0">
+        <div className="dx-modal-foot flex-shrink-0">
           <button
             onClick={onCancelar}
-            className="flex-1 bg-dark-700 hover:bg-dark-600 text-dark-300 hover:text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
+            className="dx-btn flex-1"
           >
             Cancelar
           </button>
           <button
             onClick={() => empresaSelecionada && onConfirmar(empresaSelecionada.id)}
             disabled={!conectado || enviando || !empresaSelecionada}
-            className="flex-1 h-10 bg-brand-600 hover:bg-brand-500 disabled:opacity-40 disabled:cursor-not-allowed text-white px-4 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm"
+            className="dx-btn is-primary flex-1"
           >
             {enviando ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
             {enviando ? 'Enviando...' : 'Confirmar envio'}
@@ -792,24 +792,24 @@ export default function ContasPagarPage() {
       />
     )}
 
-    <div className="w-full px-2 sm:px-4 py-5 space-y-5 animate-fade-in">
+    <div className="dx-page space-y-5 animate-fade-in">
       {/* CABEÇALHO EXECUTIVO (Padrão Dashboard / Linear) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200/70 dark:border-white/[0.08]">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-full bg-brand-500/10 dark:bg-brand-500/20 border border-brand-500/20 flex items-center justify-center text-brand-600 dark:text-brand-400 flex-shrink-0 shadow-xs">
+      <div className="dx-head bg-[var(--dx-card)] border border-[var(--dx-line)] rounded-[18px] px-4 py-3 shadow-[var(--dx-shadow-card)]">
+        <div className="dx-head-id">
+          <div className="dx-head-ico w-11 h-11 rounded-[13px] bg-gradient-to-br from-[#12388f] to-[#0b1e5b] text-white shadow-md">
             <FileText size={20} />
           </div>
           <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="dx-title">
                 Contas a Pagar
               </h1>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <span className="dx-tag">
                 <Sparkles size={11} />
                 <span>Produção</span>
               </span>
             </div>
-            <p className="text-xs text-slate-500 dark:text-dark-400 mt-0.5 font-normal">
+            <p className="dx-subtitle">
               Importação DataCar (CpRi010), conciliação e envio ao Conta Azul
             </p>
           </div>
@@ -820,7 +820,7 @@ export default function ContasPagarPage() {
           {subAba === 'planilha' && etapa !== 'upload' && (
             <button
               onClick={() => { setEtapa('upload'); setResultado(null) }}
-              className="px-3.5 py-2 bg-white dark:bg-dark-800 hover:bg-slate-50 dark:hover:bg-dark-700 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-dark-700 rounded-xl text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className="dx-btn"
             >
               <ArrowLeft size={13} />
               <span>Voltar</span>
@@ -829,7 +829,7 @@ export default function ContasPagarPage() {
           {subAba === 'datacar' && contasPreviewDados && (
             <button
               onClick={() => { setContasPreviewDados(null) }}
-              className="px-3.5 py-2 bg-white dark:bg-dark-800 hover:bg-slate-50 dark:hover:bg-dark-700 text-slate-700 dark:text-dark-200 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-dark-700 rounded-xl text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className="dx-btn"
             >
               <ArrowLeft size={13} />
               <span>Voltar à Busca</span>
@@ -839,14 +839,12 @@ export default function ContasPagarPage() {
       </div>
 
       {/* Barra de Abas Horizontais (Padrão Pill Switcher Fintech) */}
-      <div className="flex items-center justify-between pb-1">
-        <div className="inline-flex p-1.5 bg-slate-200/60 dark:bg-dark-900/80 border border-slate-300/60 dark:border-dark-700/80 rounded-2xl gap-1 shadow-inner">
+      <div className="dx-tabs">
+        <div className="dx-tablist">
           <button
             onClick={() => setSubAba('datacar')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-              subAba === 'datacar'
-                ? 'bg-brand-600 text-white shadow-sm'
-                : 'text-slate-600 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-dark-800/50'
+            className={`dx-tab ${
+              subAba === 'datacar' ? 'is-on' : ''
             }`}
           >
             <Database size={15} />
@@ -854,10 +852,8 @@ export default function ContasPagarPage() {
           </button>
           <button
             onClick={() => setSubAba('planilha')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-              subAba === 'planilha'
-                ? 'bg-brand-600 text-white shadow-sm'
-                : 'text-slate-600 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-dark-800/50'
+            className={`dx-tab ${
+              subAba === 'planilha' ? 'is-on' : ''
             }`}
           >
             <FileSpreadsheet size={15} />
@@ -870,9 +866,9 @@ export default function ContasPagarPage() {
       {subAba === 'datacar' && (
         <div className="space-y-4 pt-2">
           {!empresaAtiva ? (
-            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-center gap-3">
-              <AlertCircle size={18} className="text-yellow-400 flex-shrink-0" />
-              <p className="text-yellow-300 text-sm">
+            <div className="dx-alert">
+              <AlertCircle size={18} className="flex-shrink-0" />
+              <p className="text-sm font-medium">
                 Selecione uma empresa no menu superior para ver as contas importadas.
               </p>
             </div>
@@ -891,50 +887,51 @@ export default function ContasPagarPage() {
             <>
               {/* Painel de Agendamento Automático */}
               {empresaAtiva.datacar_token && (
-                <PainelAgendamento 
-                  tipo="contas_pagar" 
-                />
+                <div className="dx-tabs-action">
+                  <PainelAgendamento 
+                    tipo="contas_pagar" 
+                  />
+                </div>
               )}
 
               {/* Formulário de Busca do Datacar (Design System Connecta AI - Expandido e Harmonizado) */}
-              <div className="bg-white dark:bg-dark-850/90 border border-slate-200/80 dark:border-dark-700/80 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4 animate-fade-in">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/70 dark:border-dark-700/60">
+              <div className="dx-panel shadow-[var(--dx-shadow-card)] animate-fade-in">
+                <div className="dx-panel-head border-b border-[var(--dx-line)]">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-brand-500/10 dark:bg-brand-500/15 border border-brand-500/20 dark:border-brand-500/30 flex items-center justify-center text-brand-600 dark:text-brand-400 flex-shrink-0 shadow-xs">
+                    <div className="w-9 h-9 rounded-[11px] bg-[var(--dx-selected)] flex items-center justify-center text-[var(--dx-link)] flex-shrink-0">
                       <Database size={16} />
                     </div>
                     <div>
-                      <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-tight">Buscar Contas do Datacar</h3>
-                      <p className="text-xs text-slate-500 dark:text-dark-400 leading-none mt-1">Consulte lançamentos financeiros cadastrados no sistema Datacar</p>
+                      <h3 className="dx-panel-title">Buscar Contas do Datacar</h3>
+                      <p className="dx-panel-sub">Consulte lançamentos financeiros cadastrados no sistema Datacar</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {empresaAtiva.datacar_token ? (
-                      <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-50 dark:bg-dark-900/80 border border-emerald-200 dark:border-dark-700 text-emerald-700 dark:text-dark-200 shadow-xs">
-                        <Database size={12} className="text-emerald-500 dark:text-emerald-400" />
+                      <span className="dx-indicator">
+                        <Database size={12} />
                         <span>Datacar Ativo</span>
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 shadow-glow-sm" />
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-300">
-                        <AlertCircle size={12} className="text-amber-500 dark:text-amber-400" />
+                      <span className="dx-indicator is-warn">
+                        <AlertCircle size={12} />
                         <span>Não Configurado</span>
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-3.5 items-end">
+                <div className="dx-filters pt-4">
                   {/* Filtro: Por */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold block text-slate-700 dark:text-dark-200">
+                  <div>
+                    <label className="dx-label">
                       Por:
                     </label>
                     <select
                       id="tipoPeriodoContas"
                       value={tipoPeriodoContas}
                       onChange={(e) => setTipoPeriodoContas(e.target.value as any)}
-                      className="w-full h-10 bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 hover:border-slate-300 dark:hover:border-dark-600 rounded-xl px-3 text-slate-900 dark:text-white text-xs sm:text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all shadow-xs"
+                      className="dx-control"
                     >
                       <option value="venc">Vencimento</option>
                       <option value="emis">Emissão</option>
@@ -944,14 +941,14 @@ export default function ContasPagarPage() {
                   </div>
 
                   {/* Filtro: Pagamento */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold block text-slate-700 dark:text-dark-200">
+                  <div>
+                    <label className="dx-label">
                       Pagamento:
                     </label>
                     <select
                       value={statusPagamento}
                       onChange={(e) => setStatusPagamento(e.target.value as any)}
-                      className="w-full h-10 bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 hover:border-slate-300 dark:hover:border-dark-600 rounded-xl px-3 text-slate-900 dark:text-white text-xs sm:text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all shadow-xs"
+                      className="dx-control"
                     >
                       <option value="todas">A pagar e pagas</option>
                       <option value="apagar">A pagar</option>
@@ -960,14 +957,14 @@ export default function ContasPagarPage() {
                   </div>
 
                   {/* Filtro: Local */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold block text-slate-700 dark:text-dark-200">
+                  <div>
+                    <label className="dx-label">
                       Local:
                     </label>
                     <select
                       value={localPagamento}
                       onChange={(e) => setLocalPagamento(e.target.value as any)}
-                      className="w-full h-10 bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 hover:border-slate-300 dark:hover:border-dark-600 rounded-xl px-3 text-slate-900 dark:text-white text-xs sm:text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all shadow-xs"
+                      className="dx-control"
                     >
                       <option value="todos">(Todos)</option>
                       <option value="BANCO">BANCO</option>
@@ -977,43 +974,43 @@ export default function ContasPagarPage() {
                   </div>
 
                   {/* Filtro: Data Inicial */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold block text-slate-700 dark:text-dark-200">
+                  <div>
+                    <label className="dx-label">
                       Data Inicial:
                     </label>
                     <div className="relative">
-                      <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400 pointer-events-none" />
+                      <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--dx-muted)] pointer-events-none" />
                       <input
                         type="date"
                         value={dtIni}
                         onChange={(e) => setDtIni(e.target.value)}
-                        className="w-full h-10 bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 hover:border-slate-300 dark:hover:border-dark-600 rounded-xl pl-9 pr-3 text-slate-900 dark:text-white text-xs sm:text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all shadow-xs"
+                        className="dx-control has-icon"
                       />
                     </div>
                   </div>
                   
                   {/* Filtro: Data Final */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold block text-slate-700 dark:text-dark-200">
+                  <div>
+                    <label className="dx-label">
                       Data Final:
                     </label>
                     <div className="relative">
-                      <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-dark-400 pointer-events-none" />
+                      <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--dx-muted)] pointer-events-none" />
                       <input
                         type="date"
                         value={dtFim}
                         onChange={(e) => setDtFim(e.target.value)}
-                        className="w-full h-10 bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-dark-700 hover:border-slate-300 dark:hover:border-dark-600 rounded-xl pl-9 pr-3 text-slate-900 dark:text-white text-xs sm:text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all shadow-xs"
+                        className="dx-control has-icon"
                       />
                     </div>
                   </div>
 
                   {/* Botão de Busca */}
-                  <div>
+                  <div className="dx-filters-go">
                     <button
                       onClick={handleBuscarContasDatacar}
                       disabled={buscando || !empresaAtiva.datacar_token}
-                      className="w-full h-10 bg-brand-600 hover:bg-brand-500 hover:shadow-lg hover:shadow-brand-950/20 hover:border-brand-400/50 border border-brand-500 active:scale-[0.98] disabled:opacity-50 text-white rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer shadow-sm"
+                      className="dx-btn is-primary is-lg is-block"
                     >
                       {buscando ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
                       <span>{buscando ? 'Buscando...' : 'Buscar'}</span>
@@ -1022,7 +1019,7 @@ export default function ContasPagarPage() {
                 </div>
 
                 {!empresaAtiva.datacar_token && (
-                   <p className="text-amber-500 dark:text-amber-400 text-xs pt-1 flex items-center gap-1.5">
+                   <p className="dx-panel-note flex items-center gap-1.5">
                      <span>⚠️ Credenciais do Datacar não configuradas para esta empresa. Configure na aba "Empresas".</span>
                    </p>
                 )}
@@ -1070,16 +1067,16 @@ export default function ContasPagarPage() {
                       setEtapa(e)
                       if (e === 'upload') setResultado(null)
                     }}
-                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                      isActive ? 'bg-brand-600 text-white shadow-sm' :
-                      isDone ? 'bg-green-600/20 text-green-400 hover:bg-green-600/30' :
-                      'bg-dark-800 text-dark-400 hover:text-white hover:bg-dark-700'
+                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
+                      isActive ? 'bg-[var(--dx-primary)] border-[var(--dx-primary)] text-white shadow-sm' :
+                      isDone ? 'bg-[var(--dx-ok-bg)] border-[var(--dx-ok)]/30 text-[var(--dx-ok)]' :
+                      'bg-[var(--dx-card)] border-[var(--dx-line)] text-[var(--dx-muted)] hover:text-[var(--dx-ink)] hover:bg-[var(--dx-soft)]'
                     }`}
                   >
                     {isDone && <CheckCircle size={12} />}
                     {labels[i]}
                   </button>
-                  {i < 1 && <div className="w-8 h-px bg-dark-700" />}
+                  {i < 1 && <div className="w-8 h-px bg-[var(--dx-line)]" />}
                 </div>
               )
             })}
@@ -1089,21 +1086,21 @@ export default function ContasPagarPage() {
           {etapa === 'upload' && (
             <div className="space-y-4">
               {!empresaAtiva ? (
-                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-center gap-3">
-                  <AlertCircle size={18} className="text-yellow-400 flex-shrink-0" />
-                  <p className="text-yellow-300 text-sm">
+                <div className="dx-alert">
+                  <AlertCircle size={18} className="flex-shrink-0" />
+                  <p className="text-sm font-medium">
                     Selecione uma empresa no menu superior antes de importar.
                   </p>
                 </div>
               ) : null}
               <DropZone onResultado={handleResultado} />
-              <div className="bg-dark-800/50 border border-dark-700 rounded-xl p-4">
-                <p className="text-sm text-dark-400 font-medium mb-2">💡 Formatos suportados:</p>
-                <ul className="text-xs text-dark-500 space-y-1">
-                  <li>• <strong className="text-dark-300">Excel (.xlsx)</strong> — Relatório DataCar CpRl010 (Previsão de Pagamentos)</li>
-                  <li>• <strong className="text-dark-300">CSV (.csv)</strong> — Arquivo com colunas: FORNECEDOR, VALOR, VENCIMENTO</li>
-                  <li>• <strong className="text-dark-300">PDF (.pdf)</strong> — Extração automática de texto</li>
-                  <li>• <strong className="text-dark-300">Imagem (.png, .jpg)</strong> — Recomendamos converter para Excel para maior precisão</li>
+              <div className="dx-panel p-4 shadow-[var(--dx-shadow-card)]">
+                <p className="text-sm text-[var(--dx-ink)] font-semibold mb-2">💡 Formatos suportados:</p>
+                <ul className="text-xs text-[var(--dx-muted)] space-y-1.5">
+                  <li>• <strong className="text-[var(--dx-ink)]">Excel (.xlsx)</strong> — Relatório DataCar CpRl010 (Previsão de Pagamentos)</li>
+                  <li>• <strong className="text-[var(--dx-ink)]">CSV (.csv)</strong> — Arquivo com colunas: FORNECEDOR, VALOR, VENCIMENTO</li>
+                  <li>• <strong className="text-[var(--dx-ink)]">PDF (.pdf)</strong> — Extração automática de texto</li>
+                  <li>• <strong className="text-[var(--dx-ink)]">Imagem (.png, .jpg)</strong> — Recomendamos converter para Excel para maior precisão</li>
                 </ul>
               </div>
             </div>

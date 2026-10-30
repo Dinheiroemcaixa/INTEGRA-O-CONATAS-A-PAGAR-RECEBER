@@ -616,23 +616,23 @@ export default function ContasPreviewSection({
 
   if (loadingMatch) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 bg-white dark:bg-dark-800 rounded-2xl border border-slate-200/80 dark:border-dark-700 shadow-xs">
-        <Loader2 className="w-10 h-10 animate-spin text-brand-600 dark:text-brand-400 mb-4" />
-        <p className="text-slate-900 dark:text-white font-bold text-sm">Analisando fornecedores...</p>
-        <p className="text-slate-500 dark:text-dark-400 text-xs mt-1">Comparando nomes e sugerindo categorias</p>
+      <div className="dx-panel flex flex-col items-center justify-center p-12 shadow-[var(--dx-shadow-card)]">
+        <Loader2 className="w-10 h-10 animate-spin text-[var(--dx-link)] mb-4" />
+        <p className="text-[var(--dx-ink)] font-bold text-sm">Analisando fornecedores...</p>
+        <p className="text-[var(--dx-muted)] text-xs mt-1">Comparando nomes e sugerindo categorias</p>
       </div>
     )
   }
 
   if (dadosEditados.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 bg-white dark:bg-dark-850/80 rounded-2xl border border-slate-200/80 dark:border-dark-700/60 space-y-4 animate-fade-in text-center my-4 shadow-xs">
-        <div className="w-14 h-14 rounded-full bg-brand-500/10 dark:bg-primary-500/15 border border-brand-500/20 flex items-center justify-center text-brand-600 dark:text-primary-400 mx-auto shadow-inner">
+      <div className="dx-panel flex flex-col items-center justify-center p-12 space-y-4 animate-fade-in text-center my-4 shadow-[var(--dx-shadow-card)]">
+        <div className="w-14 h-14 rounded-full bg-[var(--dx-selected)] border border-[var(--dx-line)] flex items-center justify-center text-[var(--dx-link)] mx-auto">
           <Upload size={24} />
         </div>
         <div>
-          <h3 className="text-slate-900 dark:text-white font-bold text-base">Nenhum registro para importação</h3>
-          <p className="text-slate-500 dark:text-dark-400 text-xs mt-1 max-w-md mx-auto">
+          <h3 className="text-[var(--dx-ink)] font-bold text-base">Nenhum registro para importação</h3>
+          <p className="text-[var(--dx-muted)] text-xs mt-1 max-w-md mx-auto">
             A lista está limpa. Clique no botão abaixo para selecionar ou arrastar uma nova planilha Excel / CSV.
           </p>
         </div>
@@ -645,7 +645,7 @@ export default function ContasPreviewSection({
               else window.location.reload()
             }
           }}
-          className="h-10 bg-brand-600 hover:bg-brand-500 text-white px-5 rounded-xl font-semibold text-xs flex items-center gap-2 transition-all shadow-xs cursor-pointer"
+          className="dx-btn is-primary is-lg"
         >
           <Upload size={15} /> Arraste ou Selecione Nova Planilha
         </button>
@@ -661,30 +661,30 @@ export default function ContasPreviewSection({
         <button
           onClick={() => setFiltroPreview('todos')}
           className={cn(
-            "rounded-2xl p-4 text-left transition-all duration-200 cursor-pointer flex flex-col justify-between shadow-xs",
+            "rounded-[14px] p-4 text-left transition-all duration-150 cursor-pointer flex flex-col justify-between shadow-[var(--dx-shadow-card)]",
             filtroPreview === 'todos' 
-              ? "border border-brand-500/70 ring-2 ring-brand-500/20 bg-brand-50/50 dark:bg-brand-950/30 shadow-md scale-[1.01]" 
-              : "border border-slate-200/80 dark:border-dark-700/60 hover:border-slate-300 dark:hover:border-dark-500 hover:shadow-md bg-white dark:bg-dark-850/80"
+              ? "border border-[var(--dx-link)] bg-[var(--dx-selected)]" 
+              : "border border-[var(--dx-line)] hover:border-[var(--dx-control-line)] bg-[var(--dx-card)]"
           )}
         >
           <div className="flex items-center justify-between">
-            <p className="text-slate-500 dark:text-dark-400 text-[10px] font-bold uppercase tracking-wider">Total</p>
-            <div className="w-8 h-8 rounded-full bg-brand-500/10 dark:bg-brand-500/20 flex items-center justify-center text-brand-600 dark:text-brand-400">
+            <p className="text-[var(--dx-muted)] text-xs font-semibold">Total</p>
+            <div className="w-9 h-9 rounded-full bg-[var(--dx-selected)] flex items-center justify-center text-[var(--dx-link)]">
               <Layers size={15} />
             </div>
           </div>
-          <p className="text-slate-900 dark:text-white text-2xl font-extrabold font-mono tabular-nums mt-2">{dadosEditados.length}</p>
+          <p className="text-[var(--dx-ink)] text-2xl font-bold tabular-nums tracking-tight mt-2">{dadosEditados.length}</p>
         </button>
 
         {/* Confirmados */}
-        <div className="bg-white dark:bg-dark-850/80 border border-emerald-500/20 rounded-2xl p-4 flex flex-col justify-between shadow-xs">
+        <div className="bg-[var(--dx-card)] border border-[var(--dx-line)] rounded-[14px] p-4 flex flex-col justify-between shadow-[var(--dx-shadow-card)]">
           <div className="flex items-center justify-between">
-            <p className="text-slate-500 dark:text-dark-400 text-[10px] font-bold uppercase tracking-wider">Confirmados</p>
-            <div className="w-8 h-8 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+            <p className="text-[var(--dx-muted)] text-xs font-semibold">Confirmados</p>
+            <div className="w-9 h-9 rounded-full bg-[var(--dx-ok-bg)] flex items-center justify-center text-[var(--dx-ok)]">
               <CheckCircle2 size={15} />
             </div>
           </div>
-          <p className="text-emerald-600 dark:text-emerald-400 text-2xl font-extrabold font-mono tabular-nums mt-2">
+          <p className="text-[var(--dx-ok)] text-2xl font-bold tabular-nums tracking-tight mt-2">
             {dadosEditados.filter(d => d.valido && (!d.matchFornecedor || d.matchFornecedor.confianca === 'exato')).length}
           </p>
         </div>
@@ -693,19 +693,19 @@ export default function ContasPreviewSection({
         <button
           onClick={() => setFiltroPreview('revisao')}
           className={cn(
-            "rounded-2xl p-4 text-left transition-all duration-200 cursor-pointer flex flex-col justify-between shadow-xs",
+            "rounded-[14px] p-4 text-left transition-all duration-150 cursor-pointer flex flex-col justify-between shadow-[var(--dx-shadow-card)]",
             filtroPreview === 'revisao' 
-              ? "border border-amber-500/70 ring-2 ring-amber-500/20 bg-amber-50/50 dark:bg-amber-950/30 shadow-md scale-[1.01]" 
-              : "border border-amber-500/25 hover:border-amber-500/60 hover:shadow-md bg-white dark:bg-dark-850/80"
+              ? "border border-[var(--dx-warn)] bg-[var(--dx-warn-bg)]" 
+              : "border border-[var(--dx-line)] hover:border-[var(--dx-warn)] bg-[var(--dx-card)]"
           )}
         >
           <div className="flex items-center justify-between">
-            <p className="text-amber-600 dark:text-amber-400/90 text-[10px] font-bold uppercase tracking-wider">Amarelas (Revisar)</p>
-            <div className="w-8 h-8 rounded-full bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
+            <p className="text-[var(--dx-warn)] text-xs font-semibold">Amarelas (Revisar)</p>
+            <div className="w-9 h-9 rounded-full bg-[var(--dx-warn-bg)] flex items-center justify-center text-[var(--dx-warn)]">
               <AlertTriangle size={15} />
             </div>
           </div>
-          <p className="text-amber-600 dark:text-amber-400 text-2xl font-extrabold font-mono tabular-nums mt-2">
+          <p className="text-[var(--dx-warn)] text-2xl font-bold tabular-nums tracking-tight mt-2">
             {dadosEditados.filter(d => d.valido && d.matchFornecedor && d.matchFornecedor.confianca !== 'exato').length}
           </p>
         </button>
@@ -714,57 +714,57 @@ export default function ContasPreviewSection({
         <button
           onClick={() => setFiltroPreview('erro')}
           className={cn(
-            "rounded-2xl p-4 text-left transition-all duration-200 cursor-pointer flex flex-col justify-between shadow-xs",
+            "rounded-[14px] p-4 text-left transition-all duration-150 cursor-pointer flex flex-col justify-between shadow-[var(--dx-shadow-card)]",
             filtroPreview === 'erro' 
-              ? "border border-rose-500/70 ring-2 ring-rose-500/20 bg-rose-50/50 dark:bg-rose-950/30 shadow-md scale-[1.01]" 
-              : "border border-rose-500/25 hover:border-rose-500/60 hover:shadow-md bg-white dark:bg-dark-850/80"
+              ? "border border-[var(--dx-bad)] bg-[var(--dx-bad-bg)]" 
+              : "border border-[var(--dx-line)] hover:border-[var(--dx-bad)] bg-[var(--dx-card)]"
           )}
         >
           <div className="flex items-center justify-between">
-            <p className="text-rose-600 dark:text-rose-400/90 text-[10px] font-bold uppercase tracking-wider">Vermelhas (Erro)</p>
-            <div className="w-8 h-8 rounded-full bg-rose-500/10 dark:bg-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400">
+            <p className="text-[var(--dx-bad)] text-xs font-semibold">Vermelhas (Erro)</p>
+            <div className="w-9 h-9 rounded-full bg-[var(--dx-bad-bg)] flex items-center justify-center text-[var(--dx-bad)]">
               <AlertOctagon size={15} />
             </div>
           </div>
-          <p className="text-rose-600 dark:text-rose-400 text-2xl font-extrabold font-mono tabular-nums mt-2">
+          <p className="text-[var(--dx-bad)] text-2xl font-bold tabular-nums tracking-tight mt-2">
             {dadosEditados.filter(d => !d.valido).length}
           </p>
         </button>
 
         {/* Valor Selecionado */}
-        <div className="bg-white dark:bg-dark-850/80 border border-brand-500/25 rounded-2xl p-4 flex flex-col justify-between shadow-xs">
+        <div className="bg-[var(--dx-card)] border border-[var(--dx-line)] rounded-[14px] p-4 flex flex-col justify-between shadow-[var(--dx-shadow-card)]">
           <div className="flex items-center justify-between">
-            <p className="text-slate-500 dark:text-dark-400 text-[10px] font-bold uppercase tracking-wider">Valor selecionado</p>
-            <div className="w-8 h-8 rounded-full bg-brand-500/10 dark:bg-brand-500/20 flex items-center justify-center text-brand-600 dark:text-brand-400">
+            <p className="text-[var(--dx-muted)] text-xs font-semibold">Valor selecionado</p>
+            <div className="w-9 h-9 rounded-full bg-[var(--dx-selected)] flex items-center justify-center text-[var(--dx-link)]">
               <DollarSign size={15} />
             </div>
           </div>
-          <p className="text-brand-700 dark:text-brand-300 text-xl font-extrabold font-mono tabular-nums mt-2">{formatCurrency(valorSelecionado)}</p>
+          <p className="text-[var(--dx-link)] text-xl font-bold tabular-nums tracking-tight mt-2">{formatCurrency(valorSelecionado)}</p>
         </div>
       </div>
 
       {/* Barra de Ação de Filtro */}
       {filtroPreview !== 'todos' && (
-        <div className="bg-dark-800 border border-dark-700 px-4 py-2 rounded-lg flex items-center justify-between">
+        <div className="dx-selbar bg-[var(--dx-card)] border border-[var(--dx-line)] px-4 py-2.5 rounded-[14px] flex items-center justify-between shadow-[var(--dx-shadow-card)]">
           <div className="flex items-center gap-2">
             <span className={cn(
               "w-2 h-2 rounded-full animate-pulse",
-              filtroPreview === 'erro' ? "bg-red-500" : "bg-yellow-500"
+              filtroPreview === 'erro' ? "bg-[var(--dx-bad)]" : "bg-[var(--dx-warn)]"
             )} />
-            <p className="text-sm text-dark-300">
-              Filtrando por: <span className="font-bold uppercase">{filtroPreview === 'erro' ? 'Vermelhas' : 'Amarelas'}</span>
+            <p className="text-xs sm:text-[13px] text-[var(--dx-muted)]">
+              Filtrando por: <span className="font-semibold text-[var(--dx-ink)]">{filtroPreview === 'erro' ? 'Vermelhas' : 'Amarelas'}</span>
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button 
               onClick={excluirTudoFiltrado}
-              className="text-xs text-red-400 hover:text-white hover:bg-red-600/20 hover:border-red-500/40 border border-transparent px-2 py-1 rounded-md flex items-center gap-1.5 font-medium transition-all duration-200 cursor-pointer hover:shadow-sm"
+              className="dx-btn is-sm is-danger"
             >
               <Trash2 size={14} /> Excluir tudo do filtro
             </button>
             <button 
               onClick={() => setFiltroPreview('todos')}
-              className="text-xs text-dark-400 hover:text-white hover:bg-dark-700/60 px-2 py-1 rounded-md transition-all duration-150 cursor-pointer"
+              className="dx-btn is-sm"
             >
               Limpar filtro
             </button>
@@ -796,17 +796,17 @@ export default function ContasPreviewSection({
       />
 
       {/* Ações */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-dark-850/80 border border-dark-700/60 rounded-xl p-4">
-        <p className="text-sm text-dark-400">
-          <span className="text-white font-semibold">{selecionados.size}</span> registros selecionados •{' '}
-          <span className="text-green-400 font-semibold">{formatCurrency(valorSelecionado)}</span>
+      <div className="dx-panel flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[var(--dx-card)] border border-[var(--dx-line)] rounded-[14px] p-4 shadow-[var(--dx-shadow-card)]">
+        <p className="text-sm text-[var(--dx-muted)] tabular-nums">
+          <span className="text-[var(--dx-ink)] font-semibold">{selecionados.size}</span> registros selecionados •{' '}
+          <span className="text-[var(--dx-ok)] font-semibold">{formatCurrency(valorSelecionado)}</span>
         </p>
         <div className="flex items-center gap-3 flex-wrap">
           {onBaixarXls && (
             <button
               onClick={handleClickBaixarXls}
               disabled={selecionados.size === 0}
-              className="h-10 px-5 py-2.5 bg-emerald-600/90 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold flex items-center gap-2 border border-emerald-500/30 hover:border-emerald-400/60 shadow-sm hover:shadow-md hover:shadow-emerald-950/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer"
+              className="dx-btn is-ok is-lg"
               title="Gera o arquivo .xls no modelo do ContaAzul sem salvar no banco"
             >
               <FileDown size={16} className="flex-shrink-0" />
@@ -817,7 +817,7 @@ export default function ContasPreviewSection({
           <button
             onClick={handleClickSalvar}
             disabled={salvando || selecionados.size === 0 || !empresaAtiva}
-            className="h-10 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold flex items-center gap-2 border border-blue-400/40 hover:border-blue-300 shadow-md shadow-blue-950/40 hover:shadow-blue-600/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer"
+            className="dx-btn is-primary is-lg"
           >
             {salvando ? <Loader2 size={16} className="animate-spin flex-shrink-0" /> : <Save size={16} className="flex-shrink-0" />}
             <span>Salvar e Continuar</span>
