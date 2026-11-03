@@ -1,4 +1,4 @@
-﻿import test, { mock } from 'node:test'
+import test, { mock } from 'node:test'
 import assert from 'node:assert/strict'
 import { register } from 'node:module'
 import { pathToFileURL } from 'node:url'
@@ -954,4 +954,128 @@ test('Cenário 11 (Item g): Função real refreshToken em api.ts extrai error, e
       return true
     }
   )
+})
+
+test('Cenário 12 (Causa Raiz Real Cognito Conta Azul): invalid_grant SEM error_subtype mas com error_description ("Invalid refresh token") em disputa concorrente aguarda re-checagem e reutiliza novo token sem limpar o banco', async () => {
+  resetTestState()
+  mockEmpresasTable = [
+    {
+      id: 'emp-1',
+      nome: 'Empresa Cognito Real Concorrente',
+      access_token_conta_azul: 'at-expirado-cognito',
+      refresh_token_conta_azul: 'rt-cognito-compartilhado',
+      data_expiracao_token: expiredIso(),
+      conta_azul_connected: true,
+    },
+  ]
+
+  let callCount12 = 0
+  mockFetchHandler = async (_url, _init, rt) => {
+    callCount12++
+    assert.equal(rt, 'rt-cognito-compartilhado')
+    if (callCount12 === 1) {
+      // Instância 1 demora um pouco mais (ex.: 60ms) para receber resposta e gravar no banco
+      await new Promise((r) => setTimeout(r, 60))
+      return jsonResponse({
+        access_token: 'at-cognito-vencedor',
+        refresh_token: 'rt-cognito-vencedor',
+        expires_in: 3600,
+        token_type: 'Bearer',
+      })
+    }
+    // Instância 2 recebe resposta imediata do Cognito SEM error_subtype, apenas com error_description
+    await new Promise((r) => setTimeout(r, 10))
+    return jsonResponse(
+      {
+        error: 'invalid_grant',
+        error_description: 'Invalid refresh token',
+      },
+      400
+    )
+  }
+
+  const [res1, res2] = await Promise.all([
+    getValidToken('emp-1', 'financeiro', true, { bypassInMemoryLock: true }),
+    getValidToken('emp-1', 'financeiro', true, { bypassInMemoryLock: true }),
+  ])
+
+  assert.equal(res1.accessToken, 'at-cognito-vencedor')
+  assert.equal(res2.accessToken, 'at-cognito-vencedor')
+  assert.equal(mockEmpresasTable[0].access_token_conta_azul, 'at-cognito-vencedor')
+  assert.equal(mockEmpresasTable[0].refresh_token_conta_azul, 'rt-cognito-vencedor')
+  assert.equal(mockEmpresasTable[0].conta_azul_connected, true)
+
+  const clearAttempts = mockUpdatesLog.filter((u) => u.payload.access_token_conta_azul === null)
+  assert.equal(clearAttempts.length, 0)
+})
+
+test('Cenário 13 (Limpeza Real quando Refresh Token Expirou sem error_subtype): invalid_grant sem error_subtype e com error_description "Refresh Token has expired" limpa os tokens inválidos em produção e lança TokenError 401 (REFRESH_INVALID)', async () => {
+  resetTestState()
+  mockEmpresasTable = [
+    {
+      id: 'emp-1',
+      nome: 'Empresa Refresh Expirado Cognito',
+      access_token_conta_azul: 'at-morto',
+      refresh_token_conta_azul: 'rt-expirado-cognito',
+      data_expiracao_token: expiredIso(),
+      conta_azul_connected: true,
+    },
+  ]
+
+  mockFetchHandler = async () =>
+    jsonResponse(
+      {
+        error: 'invalid_grant',
+        error_description: 'Refresh Token has expired',
+      },
+      400
+    )
+
+  await assert.rejects(
+    async () => getValidToken('emp-1', 'financeiro', true),
+    (err: any) => {
+      assert.ok(err instanceof TokenError)
+      assert.equal(err.statusCode, 401)
+      assert.equal(err.category, 'REFRESH_INVALID')
+      assert.match(err.message, /expirou|invalid_refresh_token/i)
+      return true
+    }
+  )
+
+  assert.equal(mockUpdatesLog.length, 1)
+  assert.deepEqual(mockUpdatesLog[0].filters, {
+    id: 'emp-1',
+    refresh_token_conta_azul: 'rt-expirado-cognito',
+  })
+  assert.equal(mockEmpresasTable[0].access_token_conta_azul, null)
+  assert.equal(mockEmpresasTable[0].refresh_token_conta_azul, null)
+  assert.equal(mockEmpresasTable[0].conta_azul_connected, false)
+})
+
+test('Cenário 14: access_token expirado e refresh_token nulo nunca retorna o access_token expirado; limpa token órfão em produção e lança TokenError 401 (DISCONNECTED)', async () => {
+  resetTestState()
+  mockEmpresasTable = [
+    {
+      id: 'emp-1',
+      nome: 'Empresa Sem Refresh Token',
+      access_token_conta_azul: 'at-expirado-orfao',
+      refresh_token_conta_azul: null,
+      data_expiracao_token: expiredIso(),
+      conta_azul_connected: true,
+    },
+  ]
+
+  await assert.rejects(
+    async () => getValidToken('emp-1', 'financeiro'),
+    (err: any) => {
+      assert.ok(err instanceof TokenError)
+      assert.equal(err.statusCode, 401)
+      assert.equal(err.category, 'DISCONNECTED')
+      assert.match(err.message, /não possui refresh_token válido/i)
+      return true
+    }
+  )
+
+  assert.equal(mockEmpresasTable[0].access_token_conta_azul, null)
+  assert.equal(mockEmpresasTable[0].conta_azul_connected, false)
 })

@@ -83,6 +83,7 @@ export default function SelectorEmpresa() {
         access_token_conta_azul_vendas: null,
         refresh_token_conta_azul_vendas: null,
         data_expiracao_token_vendas: null,
+        conta_azul_vendas_connected: false,
       } : {
         access_token_conta_azul: null,
         refresh_token_conta_azul: null,
@@ -126,8 +127,8 @@ export default function SelectorEmpresa() {
   // Fonte Única de Verdade para o status de conexão Conta Azul
   const getStatusCA = (emp: any) => {
     if (!emp) return { conectado: false, label: 'Não Conectado' }
-    const hasFin = Boolean(emp.access_token_conta_azul || emp.conta_azul_connected)
-    const hasVen = Boolean(emp.access_token_conta_azul_vendas || emp.conta_azul_vendas_connected)
+    const hasFin = Boolean(emp.access_token_conta_azul && emp.conta_azul_connected !== false)
+    const hasVen = Boolean(emp.access_token_conta_azul_vendas && emp.conta_azul_vendas_connected !== false)
 
     if (isVendasModulo) {
       return {

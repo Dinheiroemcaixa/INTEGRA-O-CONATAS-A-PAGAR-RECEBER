@@ -37,6 +37,7 @@ function ModalEnvioContaAzul({
   onConfirmar,
   onCancelar,
   enviando,
+  recarregar,
 }: {
   empresaAtiva: Empresa | null
   todasEmpresas: Empresa[]
@@ -44,20 +45,56 @@ function ModalEnvioContaAzul({
   onConfirmar: (empresaId: string) => void
   onCancelar: () => void
   enviando: boolean
+  recarregar?: () => Promise<void>
 }) {
   // A empresa selecionada é SEMPRE a empresa ativa do painel por padrão (nunca troca silenciosamente)
   const [empresaSelecionada, setEmpresaSelecionada] = useState<Empresa | null>(empresaAtiva)
   const [abrirSeletor, setAbrirSeletor] = useState(false)
   const [busca, setBusca] = useState('')
+  const [verificandoStatus, setVerificandoStatus] = useState(false)
 
-  // Sincroniza se a empresaAtiva mudar
+  // Sincroniza se a empresaAtiva ou todasEmpresas mudarem
   useEffect(() => {
-    if (empresaAtiva) {
+    if (empresaSelecionada) {
+      const atualizada = todasEmpresas.find(e => e.id === empresaSelecionada.id)
+      if (atualizada) setEmpresaSelecionada(atualizada)
+    } else if (empresaAtiva) {
       setEmpresaSelecionada(empresaAtiva)
     }
-  }, [empresaAtiva])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empresaAtiva, todasEmpresas])
 
-  const conectado = !!empresaSelecionada?.access_token_conta_azul
+  const conectado = Boolean(empresaSelecionada?.access_token_conta_azul && empresaSelecionada?.conta_azul_connected !== false)
+
+  // Verifica status ao abrir o modal ou trocar de empresaSelecionada se aparentar conectada
+  useEffect(() => {
+    if (!empresaSelecionada?.id) return
+    const aparentaConectada = Boolean(empresaSelecionada.access_token_conta_azul && empresaSelecionada.conta_azul_connected !== false)
+    if (!aparentaConectada) return
+
+    let cancelled = false
+    const expStr = empresaSelecionada.data_expiracao_token
+    const expTime = expStr ? new Date(expStr).getTime() : NaN
+    const proximoDeExpirar = !isNaN(expTime) && expTime - Date.now() <= 5 * 60 * 1000
+    if (proximoDeExpirar) {
+      setVerificandoStatus(true)
+    }
+
+    fetch(`/api/conta-azul/status?empresa_id=${empresaSelecionada.id}&modulo=financeiro`)
+      .then(res => (res.ok ? res.json() : null))
+      .then(async data => {
+        if (cancelled || !data) return
+        if (data.status === 'DESCONECTADA' || data.conectado === false || data.renovado === true) {
+          await recarregar?.()
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setVerificandoStatus(false)
+      })
+
+    return () => { cancelled = true }
+  }, [empresaSelecionada?.id, empresaSelecionada?.access_token_conta_azul, empresaSelecionada?.conta_azul_connected, empresaSelecionada?.data_expiracao_token, recarregar])
 
   // Identifica se o usuário escolheu conscientemente uma loja de destino diferente da loja ativa
   const lojaDiferente = !!(
@@ -115,7 +152,12 @@ function ModalEnvioContaAzul({
               <div className="flex-1 min-w-0">
                 <p className="text-[var(--dx-ink)] font-semibold truncate">{empresaSelecionada?.nome || '—'}</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  {conectado ? (
+                  {verificandoStatus ? (
+                    <>
+                      <Loader2 size={12} className="animate-spin text-[var(--dx-muted)]" />
+                      <span className="text-[var(--dx-muted)] text-xs font-semibold">Verificando sessão...</span>
+                    </>
+                  ) : conectado ? (
                     <>
                       <ShieldCheck size={12} className="text-[var(--dx-ok)]" />
                       <span className="text-[var(--dx-ok)] text-xs font-semibold">Conta Azul conectado</span>
@@ -158,7 +200,7 @@ function ModalEnvioContaAzul({
                     </div>
                   ) : (
                     empresasFiltradas.map((emp) => {
-                      const empConectada = !!emp.access_token_conta_azul
+                      const empConectada = Boolean(emp.access_token_conta_azul && emp.conta_azul_connected !== false)
                       const isSelected = empresaSelecionada?.id === emp.id
                       return (
                         <button
@@ -261,7 +303,7 @@ function ModalEnvioContaAzul({
 }
 
 export default function ContasPagarPage() {
-  const { empresaAtiva, empresas, setEmpresaAtiva } = useEmpresa()
+  const { empresaAtiva, empresas, setEmpresaAtiva, recarregar } = useEmpresa()
   const searchParams = useSearchParams()
   const urlEmpresaId = searchParams?.get('empresa_id')
   const [urlEmpresaProcessada, setUrlEmpresaProcessada] = useState(false)
@@ -577,7 +619,7 @@ export default function ContasPagarPage() {
     }
 
     const empresaEnvio = empresas.find(e => e.id === idParaEnvio) || empresaAtiva
-    const temConexaoCA = !!empresaEnvio?.access_token_conta_azul
+    const temConexaoCA = Boolean(empresaEnvio?.access_token_conta_azul && empresaEnvio?.conta_azul_connected !== false)
 
     if (!temConexaoCA) {
       toast.error('Empresa não está conectada ao Conta Azul. Acesse Empresas e conecte primeiro.')
@@ -667,6 +709,13 @@ export default function ContasPagarPage() {
 
         if (!res.ok) {
           const errBody = await res.json().catch(() => ({}))
+          if (res.status === 401 || errBody.reconectar === true || errBody.codigo === 'CONEXAO_EXPIRADA') {
+            await recarregar()
+            const msgAuth = errBody.error || 'Sessão do Conta Azul expirada ou revogada. Reconecte a empresa antes de enviar.'
+            detalhesErrosTotais.push(msgAuth)
+            toast.error(msgAuth)
+            break
+          }
           throw new Error(errBody.error || `Erro HTTP ${res.status} no lote`)
         }
 
@@ -789,6 +838,7 @@ export default function ContasPagarPage() {
         onConfirmar={executarEnvioEmLote}
         onCancelar={() => setShowModalEnvio(false)}
         enviando={enviandoCA}
+        recarregar={recarregar}
       />
     )}
 

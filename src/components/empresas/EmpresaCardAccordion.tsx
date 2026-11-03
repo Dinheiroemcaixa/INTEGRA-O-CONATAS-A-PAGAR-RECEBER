@@ -68,8 +68,8 @@ export function EmpresaCardAccordion({
   const [testandoDatacar, setTestandoDatacar] = useState(false)
 
   const hasDatacar = Boolean(empresa.datacar_token)
-  const hasCaFin = Boolean(empresa.conta_azul_connected || empresa.access_token_conta_azul)
-  const hasCaVendas = Boolean(empresa.conta_azul_vendas_connected || empresa.access_token_conta_azul_vendas)
+  const hasCaFin = Boolean(empresa.access_token_conta_azul && empresa.conta_azul_connected !== false)
+  const hasCaVendas = Boolean(empresa.access_token_conta_azul_vendas && empresa.conta_azul_vendas_connected !== false)
   const hasNfse = Boolean(empresa.emite_nfse || (empresa as any).configuracao_fiscal?.[0]?.emissao_ativa)
 
   const handleCopiarCnpj = (e: React.MouseEvent) => {

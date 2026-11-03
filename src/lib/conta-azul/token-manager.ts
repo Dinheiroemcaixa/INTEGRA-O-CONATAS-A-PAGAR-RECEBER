@@ -27,14 +27,65 @@ interface InFlightRefreshEntry {
 /** Fila/Lock em memória para evitar renovações simultâneas da mesma empresa */
 const refreshPromises = new Map<string, InFlightRefreshEntry>()
 
+/** Categoria semântica do erro de conexão OAuth para diagnóstico e roteamento */
+export type ConnectionErrorCategory =
+  | 'DISCONNECTED'
+  | 'AUTH_REVOKED'
+  | 'REFRESH_INVALID'
+  | 'TRANSIENT_ERROR'
+  | 'PERSISTENCE_ERROR'
+  | 'CONFIG_ERROR'
+
 /** Erro específico de token para tratamento nas rotas */
 export class TokenError extends Error {
   public statusCode: number
-  constructor(message: string, statusCode = 401) {
+  public category: ConnectionErrorCategory
+  constructor(message: string, statusCode = 401, category?: ConnectionErrorCategory) {
     super(message)
     this.name = 'TokenError'
     this.statusCode = statusCode
+    this.category =
+      category ??
+      (statusCode === 401
+        ? 'DISCONNECTED'
+        : statusCode === 502
+          ? 'TRANSIENT_ERROR'
+          : statusCode === 500
+            ? 'PERSISTENCE_ERROR'
+            : 'TRANSIENT_ERROR')
   }
+}
+
+/**
+ * Classifica o subtipo de erro `invalid_grant` retornado pelo Cognito da Conta Azul,
+ * considerando tanto o campo `error_subtype` quanto `error_description` (já que o Cognito
+ * frequentemente omite `error_subtype` e informa o motivo apenas em `error_description`).
+ */
+export function classifyInvalidGrantSubtype(
+  errorSubtype?: string,
+  errorDescription?: string
+): 'access_revoked' | 'invalid_refresh_token' | 'ambiguous' {
+  if (
+    errorSubtype === 'access_revoked' ||
+    (!errorSubtype &&
+      errorDescription &&
+      /revoked\s+by\s+user|access[_\s-]*revoked|authorization\s+revoked|permiss[aã]o\s+revogada/i.test(
+        errorDescription
+      ))
+  ) {
+    return 'access_revoked'
+  }
+  if (
+    errorSubtype === 'invalid_refresh_token' ||
+    (!errorSubtype &&
+      errorDescription &&
+      /invalid[\s_-]*refresh[\s_-]*token|refresh[\s_-]*token[\s_-]*(has[\s_-]*)?(expired|been[\s_-]*revoked|is[\s_-]*invalid|invalid)|expired[\s_-]*refresh[\s_-]*token/i.test(
+        errorDescription
+      ))
+  ) {
+    return 'invalid_refresh_token'
+  }
+  return 'ambiguous'
 }
 
 export interface ValidTokenResult {
@@ -47,6 +98,7 @@ export interface GetValidTokenOptions {
 }
 
 const INVALID_REFRESH_RECHECK_DELAY_MS = 150
+const INVALID_REFRESH_RECHECK_SECOND_DELAY_MS = 250
 const EXPIRATION_SAFETY_MARGIN_MS = 5 * 60 * 1000
 
 function redactTokenSecrets(text: string, secrets: Array<string | undefined | null>): string {
@@ -233,7 +285,8 @@ async function executeGetValidToken(
       console.warn(`[token-manager] Renovação ignorada: CONTA_AZUL_CLIENT_ID ou CLIENT_SECRET ausentes no ambiente. Tokens PRESERVADOS para empresa ${targetEmpresa.nome || targetEmpresa.id}.`)
       throw new TokenError(
         `Configurações da integração Conta Azul ausentes no ambiente. A renovação não pôde ser executada, mas seus tokens foram preservados.`,
-        500
+        500,
+        'CONFIG_ERROR'
       )
     }
 
@@ -280,7 +333,8 @@ async function executeGetValidToken(
 
         throw new TokenError(
           `Não foi possível obter um token válido para a Conta Azul (${modulo}) após atualização concorrente: o token registrado no banco está expirado ou sem validade confirmada.`,
-          401
+          401,
+          'DISCONNECTED'
         )
       }
       return null
@@ -363,7 +417,8 @@ async function executeGetValidToken(
 
         throw new TokenError(
           `Falha ao persistir os novos tokens da Conta Azul (${modulo}) no banco de dados: ${safeErrMsg}`,
-          500
+          500,
+          'PERSISTENCE_ERROR'
         )
       }
 
@@ -384,7 +439,8 @@ async function executeGetValidToken(
 
         throw new TokenError(
           `Sua conexão com a Conta Azul (${modulo}) foi alterada, desconectada ou não possui token válido após atualização concorrente. Acesse Empresas e conecte a Conta Azul.`,
-          401
+          401,
+          'DISCONNECTED'
         )
       }
 
@@ -449,13 +505,14 @@ async function executeGetValidToken(
         )
         throw new TokenError(
           `Falha de autenticação nas credenciais do aplicativo Conta Azul (invalid_client) ao renovar conexão (${modulo}). Os tokens da empresa foram preservados.`,
-          500
+          500,
+          'CONFIG_ERROR'
         )
       }
 
-      // Caso B — invalid_grant (requer releitura obrigatória e diferenciação por error_subtype)
+      // Caso B — invalid_grant (requer releitura obrigatória e diferenciação por error_subtype ou error_description)
       if (errorCode === 'invalid_grant') {
-        // Releitura obrigatória antes de qualquer decisão destrutiva
+        // Releitura obrigatória imediata antes de qualquer decisão destrutiva
         const { data: atual } = await supabaseAdmin
           .from('empresas')
           .select('*')
@@ -467,10 +524,11 @@ async function executeGetValidToken(
           return reusedFirstRead
         }
 
+        const classifiedSubtype = classifyInvalidGrantSubtype(errorSubtype, errorDescription)
         const updateDataClear = buildClearPayload(isVendas)
 
         // Subcaso B1 — access_revoked
-        if (errorSubtype === 'access_revoked') {
+        if (classifiedSubtype === 'access_revoked') {
           if (process.env.NODE_ENV === 'production') {
             const { data: clearedRows } = await supabaseAdmin
               .from('empresas')
@@ -498,25 +556,41 @@ async function executeGetValidToken(
 
           throw new TokenError(
             `Sua conexão com a Conta Azul (${modulo}) foi revogada (access_revoked). Por favor, acesse Empresas e autorize novamente a Conta Azul.`,
-            401
+            401,
+            'AUTH_REVOKED'
           )
         }
 
-        // Subcaso B2 — invalid_refresh_token (refresh_token rotativo: aguarda breve intervalo e relê)
-        if (errorSubtype === 'invalid_refresh_token') {
-          await new Promise((resolve) => setTimeout(resolve, INVALID_REFRESH_RECHECK_DELAY_MS))
+        // Para invalid_refresh_token e ambiguous: polling em 2 etapas (150ms + 250ms) para aguardar
+        // eventual escrita concorrente de outra instância que venceu a corrida de rotação no Cognito.
+        await new Promise((resolve) => setTimeout(resolve, INVALID_REFRESH_RECHECK_DELAY_MS))
 
-          const { data: atualPosDelay } = await supabaseAdmin
-            .from('empresas')
-            .select('*')
-            .eq('id', empresaId)
-            .single()
+        const { data: atualPosDelay1 } = await supabaseAdmin
+          .from('empresas')
+          .select('*')
+          .eq('id', empresaId)
+          .single()
 
-          const reusedSecondRead = await tryReuseOrRetryIfReplaced(atualPosDelay)
-          if (reusedSecondRead) {
-            return reusedSecondRead
-          }
+        const reusedSecondRead = await tryReuseOrRetryIfReplaced(atualPosDelay1)
+        if (reusedSecondRead) {
+          return reusedSecondRead
+        }
 
+        await new Promise((resolve) => setTimeout(resolve, INVALID_REFRESH_RECHECK_SECOND_DELAY_MS))
+
+        const { data: atualPosDelay2 } = await supabaseAdmin
+          .from('empresas')
+          .select('*')
+          .eq('id', empresaId)
+          .single()
+
+        const reusedThirdRead = await tryReuseOrRetryIfReplaced(atualPosDelay2)
+        if (reusedThirdRead) {
+          return reusedThirdRead
+        }
+
+        // Subcaso B2 — invalid_refresh_token (por error_subtype ou error_description do Cognito)
+        if (classifiedSubtype === 'invalid_refresh_token') {
           if (process.env.NODE_ENV === 'production') {
             const { data: clearedRows } = await supabaseAdmin
               .from('empresas')
@@ -544,7 +618,8 @@ async function executeGetValidToken(
 
           throw new TokenError(
             `Sua conexão com a Conta Azul (${modulo}) expirou (invalid_refresh_token). Por favor, acesse Empresas e reconecte a Conta Azul.`,
-            401
+            401,
+            'REFRESH_INVALID'
           )
         }
 
@@ -554,7 +629,8 @@ async function executeGetValidToken(
         )
         throw new TokenError(
           `Não foi possível renovar a conexão com o Conta Azul (${modulo}): resposta OAuth ambígua (invalid_grant sem subtipo reconhecido). Seus tokens foram preservados por segurança.`,
-          502
+          502,
+          'TRANSIENT_ERROR'
         )
       }
 
@@ -569,9 +645,25 @@ async function executeGetValidToken(
 
       throw new TokenError(
         `Não foi possível renovar a conexão com o Conta Azul (${modulo}): ${safeErrorMsg}. Seus dados de conexão foram preservados. Tente novamente mais tarde.`,
-        status
+        status,
+        'TRANSIENT_ERROR'
       )
     }
+  } else if ((tokenExpirado || forceRefresh) && !currentRefreshToken) {
+    if (process.env.NODE_ENV === 'production') {
+      const updateDataClear = buildClearPayload(isVendas)
+      await supabaseAdmin
+        .from('empresas')
+        .update(updateDataClear)
+        .eq('id', targetEmpresa.id)
+        .eq(tokenKey, accessToken)
+        .select('id')
+    }
+    throw new TokenError(
+      'Sua conexão com a Conta Azul expirou e não possui refresh_token válido. Acesse Empresas e reconecte.',
+      401,
+      'DISCONNECTED'
+    )
   }
 
   return { accessToken, empresa: targetEmpresa }

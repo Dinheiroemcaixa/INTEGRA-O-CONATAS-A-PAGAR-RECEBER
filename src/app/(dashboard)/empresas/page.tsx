@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo, useEffect, useCallback, Suspense } from 'react'
+import React, { useState, useMemo, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import { Empresa } from '@/types'
 import { createClient } from '@/lib/supabase/client'
@@ -61,6 +61,7 @@ function EmpresasPageContent() {
   // Estados principais
   const [searchTerm, setSearchTerm] = useState('')
   const [modalNovaAberto, setModalNovaAberto] = useState(false)
+  const healthCheckExecutadoRef = useRef(false)
 
   // ESTADO COORDENADO: Apenas uma empresa e um menu expandido por vez na página inteira
   const [expansaoAtiva, setExpansaoAtiva] = useState<{ empresaId: string; menu: TipoAbaEmpresa } | null>(null)
@@ -98,32 +99,32 @@ function EmpresasPageContent() {
       toast.error(msgs[erro] || `Erro: ${decodeURIComponent(erro)}`)
       window.history.replaceState({}, '', '/empresas')
     }
+  }, [searchParams, recarregar])
 
-    // Health-check silencioso em background
-    if (empresas.length > 0) {
-      const comToken = empresas.filter(e => !!e.access_token_conta_azul)
-      if (comToken.length > 0) {
-        Promise.all(
-          comToken.map(async (emp) => {
-            try {
-              const res = await fetch(`/api/conta-azul/contas-financeiras?empresa_id=${emp.id}`)
-              const data = await res.json()
-              if (!res.ok || data.aviso || data.error) {
-                return true
-              }
-            } catch {
-              return true
-            }
-            return false
-          })
-        ).then((resultados) => {
-          if (resultados.some(Boolean)) {
-            recarregar()
-          }
-        })
-      }
-    }
-  }, [searchParams, empresas, recarregar])
+  // Health-check silencioso centralizado (uma única vez após o carregamento inicial das empresas)
+  useEffect(() => {
+    if (healthCheckExecutadoRef.current || empresas.length === 0) return
+    healthCheckExecutadoRef.current = true
+
+    const comToken = empresas.filter(e => Boolean(e.access_token_conta_azul && e.conta_azul_connected !== false))
+    if (comToken.length === 0) return
+
+    fetch(`/api/conta-azul/status?empresa_ids=${comToken.map(e => e.id).join(',')}&modulo=financeiro`)
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (!data) return
+        const resultados = Array.isArray(data.resultados) ? data.resultados : (Array.isArray(data.empresas) ? data.empresas : [])
+        const houveAlteracao =
+          data.alterado === true ||
+          data.renovado === true ||
+          data.status === 'DESCONECTADA' ||
+          resultados.some((r: any) => r?.renovado || r?.alterado || r?.status === 'DESCONECTADA' || r?.conectado === false)
+        if (houveAlteracao) {
+          recarregar()
+        }
+      })
+      .catch(() => {})
+  }, [empresas, recarregar])
 
   // Filtragem de empresas por busca
   const empresasFiltradas = useMemo(() => {

@@ -478,6 +478,7 @@ export default function GrupoDetalhe() {
                     onPeriodoChange={handlePeriodoChange}
                     onLojaRemovida={carregarGrupo}
                     onSaldoSalvo={handleSaldoSalvo}
+                    isVisivel={loja.id === lojaSelecionadaId}
                   />
                 </div>
               ))

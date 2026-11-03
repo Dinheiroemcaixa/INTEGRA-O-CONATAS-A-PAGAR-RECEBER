@@ -56,8 +56,8 @@ export function AbaIntegracoes({
 
   const isSomenteBanco = (empresa.datacar_cod_emp || '').endsWith('_sb')
   const hasDatacar = !!(empresa.datacar_token && empresa.datacar_cod_emp && empresa.datacar_id_operador)
-  const hasCaFin = !!(empresa.conta_azul_connected || empresa.access_token_conta_azul)
-  const hasCaVendas = !!(empresa.conta_azul_vendas_connected || empresa.access_token_conta_azul_vendas)
+  const hasCaFin = Boolean(empresa.access_token_conta_azul && empresa.conta_azul_connected !== false)
+  const hasCaVendas = Boolean(empresa.access_token_conta_azul_vendas && empresa.conta_azul_vendas_connected !== false)
   const hasNfse = !!(empresa.emite_nfse || empresa.optante_simples)
 
   // Salvar credenciais Datacar

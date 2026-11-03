@@ -338,7 +338,53 @@ export async function refreshToken(
   return res.json()
 }
 
+const METADATA_CACHE_TTL_MS = 45_000
+const METADATA_CACHE_MAX_ENTRIES = 100
+
+interface MetadataCacheEntry<T> {
+  data: T
+  expiresAt: number
+}
+
+const contasFinanceirasCache = new Map<string, MetadataCacheEntry<ContaFinanceira[]>>()
+const categoriasCache = new Map<string, MetadataCacheEntry<Array<{ id: string; nome: string }>>>()
+
+export function clearMetadataCache(): void {
+  contasFinanceirasCache.clear()
+  categoriasCache.clear()
+}
+
+function getMetadataCache<T>(cache: Map<string, MetadataCacheEntry<T>>, key: string): T | null {
+  if (!key) return null
+  const entry = cache.get(key)
+  if (!entry) return null
+  if (Date.now() > entry.expiresAt) {
+    cache.delete(key)
+    return null
+  }
+  return entry.data
+}
+
+function setMetadataCache<T>(cache: Map<string, MetadataCacheEntry<T>>, key: string, data: T): void {
+  if (!key) return
+  if (cache.size >= METADATA_CACHE_MAX_ENTRIES && !cache.has(key)) {
+    const oldestKey = cache.keys().next().value
+    if (oldestKey !== undefined) {
+      cache.delete(oldestKey)
+    }
+  }
+  cache.set(key, {
+    data,
+    expiresAt: Date.now() + METADATA_CACHE_TTL_MS,
+  })
+}
+
 export async function listarContasFinanceiras(accessToken: string): Promise<ContaFinanceira[]> {
+  const cached = getMetadataCache(contasFinanceirasCache, accessToken)
+  if (cached && cached.length > 0) {
+    return cached.map((c) => ({ ...c }))
+  }
+
   const todasContas = new Map<string, ContaFinanceira>()
   const queryParams = 'pagina=1&tamanho_pagina=200&apenas_ativo=true&mostrar_caixinha=true&esconde_conta_digital=false'
   const endpoints = [
@@ -388,10 +434,19 @@ export async function listarContasFinanceiras(accessToken: string): Promise<Cont
       console.warn(`[contas-financeiras] erro em ${endpoint}:`, e) 
     }
   }
-  return Array.from(todasContas.values())
+  const resultadoFinal = Array.from(todasContas.values())
+  if (resultadoFinal.length > 0) {
+    setMetadataCache(contasFinanceirasCache, accessToken, resultadoFinal)
+  }
+  return resultadoFinal
 }
 
 export async function listarCategorias(accessToken: string): Promise<Array<{ id: string; nome: string }>> {
+  const cached = getMetadataCache(categoriasCache, accessToken)
+  if (cached && cached.length > 0) {
+    return cached.map((c) => ({ ...c }))
+  }
+
   const todasCategoriasEncontradas = new Map<string, { id: string; nome: string; tipo?: string }>()
   const endpoints = [
     `${BASE_URL}/categorias?tipo=DESPESA&permite_apenas_filhos=true`,
@@ -447,6 +502,7 @@ export async function listarCategorias(accessToken: string): Promise<Array<{ id:
         
         if (listaRaw.length < 100) break
       }
+      if (todasCategoriasEncontradas.size > 0) break
     } catch (e: any) { 
       if (e.message === 'TOKEN_EXPIRADO') throw e;
       errosDaApi.push(`[${endpoint}] Falha no fetch: ${e.message}`)
@@ -460,6 +516,7 @@ export async function listarCategorias(accessToken: string): Promise<Array<{ id:
     throw new Error(`Nenhuma categoria no Conta Azul. Detalhes da API: ${errosDaApi.join(' | ')}`)
   }
   
+  setMetadataCache(categoriasCache, accessToken, resultadoFinal)
   return resultadoFinal
 }
 

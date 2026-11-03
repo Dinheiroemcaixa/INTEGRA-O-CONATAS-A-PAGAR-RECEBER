@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -35,9 +35,11 @@ interface LojaCardProps {
   nomeGrupo?: string
   /** Avisa a página quando o saldo em caixa é salvo (mantém a lateral em sincronia) */
   onSaldoSalvo?: (lojaId: string, novoSaldo: number) => void
+  /** Indica se a loja está visível no momento */
+  isVisivel?: boolean
 }
 
-export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransferenciaGlobal, onPeriodoChange, onLojaRemovida, nomeGrupo, onSaldoSalvo }: LojaCardProps) {
+export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransferenciaGlobal, onPeriodoChange, onLojaRemovida, nomeGrupo, onSaldoSalvo, isVisivel = true }: LojaCardProps) {
   const supabase = createClient()
   const router = useRouter()
   const { setEmpresaAtiva } = useEmpresa()
@@ -109,24 +111,37 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
   const [categoriasCA, setCategoriasCA] = useState<string[]>([])
   const [mapaCnpjFornecedores, setMapaCnpjFornecedores] = useState<Record<string, string>>({})
+  const metadadosCarregadosIdRef = useRef<string | null>(null)
 
   useEffect(() => {
-    Promise.all([
-      fetch(`/api/conta-azul/contas-financeiras?empresa_id=${empresa.id}`)
-        .then(r => (r.ok ? r.json() : null))
-        .catch(() => null),
-      fetch(`/api/conta-azul/categorias?empresa_id=${empresa.id}`)
-        .then(r => (r.ok ? r.json() : null))
-        .catch(() => null),
-    ])
-      .then(([contasData, catsData]) => {
-        if (contasData?.contas && Array.isArray(contasData.contas)) setContasFinanceiras(contasData.contas)
-        if (catsData?.categorias && Array.isArray(catsData.categorias)) {
+    if (!isVisivel || !empresa.access_token_conta_azul) return
+    if (metadadosCarregadosIdRef.current === empresa.id) return
+    metadadosCarregadosIdRef.current = empresa.id
+
+    let cancelled = false
+    const carregarMetadadosSequencial = async () => {
+      try {
+        const rContas = await fetch(`/api/conta-azul/contas-financeiras?empresa_id=${empresa.id}`)
+        const contasData = rContas.ok ? await rContas.json().catch(() => null) : null
+        if (!cancelled && contasData?.contas && Array.isArray(contasData.contas)) {
+          setContasFinanceiras(contasData.contas)
+        }
+      } catch {}
+
+      if (cancelled) return
+
+      try {
+        const rCats = await fetch(`/api/conta-azul/categorias?empresa_id=${empresa.id}`)
+        const catsData = rCats.ok ? await rCats.json().catch(() => null) : null
+        if (!cancelled && catsData?.categorias && Array.isArray(catsData.categorias)) {
           setCategoriasCA(catsData.categorias.map((c: any) => c.nome))
         }
-      })
-      .catch(() => {})
-  }, [empresa.id])
+      } catch {}
+    }
+
+    carregarMetadadosSequencial()
+    return () => { cancelled = true }
+  }, [empresa.id, empresa.access_token_conta_azul, isVisivel])
 
   const [modalTransferirAberto, setModalTransferirAberto] = useState(false)
   const [itensParaTransferir, setItensParaTransferir] = useState<any[]>([])

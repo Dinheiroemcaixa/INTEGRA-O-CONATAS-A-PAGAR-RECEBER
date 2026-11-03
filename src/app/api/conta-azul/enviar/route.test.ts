@@ -164,11 +164,16 @@ mock.module('@supabase/supabase-js', {
 
 class MockTokenError extends Error {
   public statusCode: number
-  constructor(message: string, statusCode = 401) {
+  public category?: string
+  constructor(message: string, statusCode = 401, category?: string) {
     super(message)
     this.statusCode = statusCode
+    this.category = category
   }
 }
+
+let getValidTokenCalls: Array<{ empresaId: string; modulo?: string; forceRefresh?: boolean }> = []
+let mockGetValidTokenFn: (empresaId: string, modulo?: string, forceRefresh?: boolean) => Promise<any>
 
 const tokenManagerUrl = pathToFileURL(path.resolve(process.cwd(), 'src/lib/conta-azul/token-manager.ts')).href
 const apiUrl = pathToFileURL(path.resolve(process.cwd(), 'src/lib/conta-azul/api.ts')).href
@@ -176,10 +181,10 @@ const apiUrl = pathToFileURL(path.resolve(process.cwd(), 'src/lib/conta-azul/api
 mock.module(tokenManagerUrl, {
   namedExports: {
     TokenError: MockTokenError,
-    getValidToken: async () => ({
-      accessToken: 'token-valido-mock',
-      empresa: { id: 'emp-1', nome: 'Empresa Teste' }
-    })
+    getValidToken: async (empresaId: string, modulo?: string, forceRefresh?: boolean) => {
+      getValidTokenCalls.push({ empresaId, modulo, forceRefresh })
+      return mockGetValidTokenFn(empresaId, modulo, forceRefresh)
+    }
   }
 })
 
@@ -195,6 +200,7 @@ mock.module(apiUrl, {
 const { POST } = await import('@/app/api/conta-azul/enviar/route')
 
 function resetMocks() {
+  ;(process.env as Record<string, string | undefined>).NODE_ENV = 'test'
   mockContasTable = []
   mockDeparaTable = []
   mockUpdatesContas = []
@@ -202,6 +208,12 @@ function resetMocks() {
   mockDeletesContas = []
   mockLogsIntegracao = []
   mockInsertLogError = null
+  getValidTokenCalls = []
+
+  mockGetValidTokenFn = async (_empresaId, _modulo, forceRefresh) => ({
+    accessToken: forceRefresh ? 'token-renovado-mock' : 'token-valido-mock',
+    empresa: { id: 'emp-1', nome: 'Empresa Teste' }
+  })
 
   mockListarCategoriasFn = async () => [
     { id: 'cat-uuid-revenda', nome: 'Materiais para Revenda' },
@@ -670,4 +682,58 @@ test('8. Resposta ambígua (sem UUID ou erro de timeout/rede) NÃO grava "enviad
   assert.equal(mockLogsIntegracao[0].detalhes.reconciliacao_necessaria, true)
   assert.equal(mockLogsIntegracao[1].detalhes.etapa, 'reconciliacao_necessaria')
   assert.equal(mockLogsIntegracao[1].detalhes.reconciliacao_necessaria, true)
+})
+
+test('9. Falha transitória (502/timeout em listarCategorias) NÃO força rotação destrutiva do token nem retorna falso 401 de desconexão, enquanto TOKEN_EXPIRADO (401) aciona getValidToken(..., true) e recupera automaticamente o envio', async () => {
+  // Parte A: Falha transitória persistente em listarCategorias (ex.: 502/timeout)
+  resetMocks()
+  mockListarCategoriasFn = async () => {
+    throw new Error('502 Bad Gateway: upstream timeout')
+  }
+
+  const resTransient = await POST(makeRequest({ empresa_id: 'emp-1' }))
+  const jsonTransient = await resTransient.json()
+
+  assert.equal(resTransient.status, 502)
+  assert.equal(jsonTransient.codigo, 'FALHA_TEMPORARIA_API')
+  assert.equal(jsonTransient.reconectar, false)
+  // Garante que NÃO chamou getValidToken com forceRefresh = true!
+  assert.equal(getValidTokenCalls.length, 1)
+  assert.equal(Boolean(getValidTokenCalls[0].forceRefresh), false)
+
+  // Parte B: TOKEN_EXPIRADO (401) na 1ª chamada de listarCategorias -> aciona getValidToken(emp-1, 'financeiro', true) e conclui o envio com o token renovado
+  resetMocks()
+  let tentativasCategorias = 0
+  mockListarCategoriasFn = async (token) => {
+    tentativasCategorias++
+    if (tentativasCategorias === 1) {
+      assert.equal(token, 'token-valido-mock')
+      throw new Error('TOKEN_EXPIRADO')
+    }
+    assert.equal(token, 'token-renovado-mock')
+    return [{ id: 'cat-uuid-revenda', nome: 'Materiais para Revenda' }]
+  }
+
+  mockContasTable = [
+    {
+      id: 'conta-pos-refresh',
+      empresa_id: 'emp-1',
+      fornecedor: 'FORNECEDOR RECUPERADO LTDA',
+      valor: 150,
+      vencimento: '2026-11-20',
+      descricao: 'NF-RECUPERADA',
+      status: 'pendente'
+    }
+  ]
+
+  const resRecovered = await POST(makeRequest({ empresa_id: 'emp-1' }))
+  const jsonRecovered = await resRecovered.json()
+
+  assert.equal(resRecovered.status, 200)
+  assert.equal(jsonRecovered.enviados, 1)
+  assert.equal(jsonRecovered.erros, 0)
+  assert.equal(getValidTokenCalls.length, 2)
+  assert.equal(Boolean(getValidTokenCalls[0].forceRefresh), false)
+  assert.equal(getValidTokenCalls[1].forceRefresh, true)
+  assert.equal(getValidTokenCalls[1].modulo, 'financeiro')
 })

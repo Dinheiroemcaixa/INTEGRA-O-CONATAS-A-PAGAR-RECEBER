@@ -35,7 +35,7 @@ export default function TabelaContas({
   gerandoXls = false,
   progressoEnvio = null,
 }: Props) {
-  const { empresas, setEmpresaAtiva } = useEmpresa()
+  const { empresas, setEmpresaAtiva, recarregar } = useEmpresa()
   const [contas, setContas] = useState<ContaPagarImportada[]>([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState<string>('pendente')
@@ -51,18 +51,28 @@ export default function TabelaContas({
 
   const supabase = createClient()
 
+  const empresaSelecionada = empresas.find(e => e.id === empresaId)
+  const temTokenCA = Boolean(empresaSelecionada?.access_token_conta_azul && empresaSelecionada?.conta_azul_connected !== false)
+
   // Buscar lista de Contas Financeiras (Bancos) no Conta Azul
   useEffect(() => {
-    if (!empresaId) { setContasFinanceirasCA([]); return }
+    if (!empresaId || !temTokenCA) { setContasFinanceirasCA([]); return }
     fetch(`/api/conta-azul/contas-financeiras?empresa_id=${empresaId}`)
-      .then(r => r.ok ? r.json() : null)
+      .then(async r => {
+        const data = await r.json().catch(() => null)
+        if (data?.reconectar === true || data?.status_conexao === 'DESCONECTADA') {
+          recarregar()
+          return null
+        }
+        return r.ok ? data : null
+      })
       .then(data => {
         if (data?.contas && Array.isArray(data.contas)) {
           setContasFinanceirasCA(data.contas.map((c: any) => ({ id: c.id, descricao: c.descricao })))
         }
       })
       .catch(() => {})
-  }, [empresaId])
+  }, [empresaId, temTokenCA, recarregar])
 
   const carregar = useCallback(async () => {
     if (!empresaId) { setLoading(false); return }

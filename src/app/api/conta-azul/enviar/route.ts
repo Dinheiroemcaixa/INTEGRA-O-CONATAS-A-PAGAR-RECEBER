@@ -36,7 +36,16 @@ export async function POST(req: NextRequest) {
       accessToken = result.accessToken
     } catch (e) {
       if (e instanceof TokenError) {
-        return NextResponse.json({ error: e.message }, { status: e.statusCode })
+        if (e.statusCode === 401) {
+          return NextResponse.json(
+            { error: e.message, codigo: 'CONEXAO_EXPIRADA', reconectar: true },
+            { status: 401 }
+          )
+        }
+        return NextResponse.json(
+          { error: e.message, codigo: 'FALHA_TEMPORARIA_API', reconectar: false },
+          { status: e.statusCode }
+        )
       }
       throw e
     }
@@ -45,23 +54,80 @@ export async function POST(req: NextRequest) {
     let todasCategorias: any[] = []
     let todasContasFinanceiras: any[] = []
     try {
-      [todasCategorias, todasContasFinanceiras] = await Promise.all([
+      ;[todasCategorias, todasContasFinanceiras] = await Promise.all([
         listarCategorias(accessToken),
-        listarContasFinanceiras(accessToken)
+        listarContasFinanceiras(accessToken),
       ])
     } catch (e: any) {
-      console.warn('[ca/enviar] Erro ao carregar metadados na 1ª tentativa, tentando renovar token:', e?.message || e)
-      try {
-        const resultForcado = await getValidToken(empresa_id, 'financeiro', true)
-        accessToken = resultForcado.accessToken;
-        [todasCategorias, todasContasFinanceiras] = await Promise.all([
-          listarCategorias(accessToken),
-          listarContasFinanceiras(accessToken)
-        ])
-      } catch (retryErr: any) {
-        const msgErro = retryErr instanceof Error ? retryErr.message : String(retryErr)
-        console.error('[ca/enviar] ERRO ao carregar metadados após renovação:', msgErro)
-        return NextResponse.json({ error: 'Sua conexão com a Conta Azul precisa ser renovada. Acesse Empresas e reconecte.' }, { status: 401 })
+      const isAuthError =
+        e?.message === 'TOKEN_EXPIRADO' ||
+        /401|unauthorized|token_expirado/i.test(e?.message || '') ||
+        (e instanceof TokenError && e.statusCode === 401)
+
+      if (isAuthError) {
+        console.warn('[ca/enviar] Erro 401 ao carregar metadados na 1ª tentativa, renovando token:', e?.message || e)
+        try {
+          const resultForcado = await getValidToken(empresa_id, 'financeiro', true)
+          accessToken = resultForcado.accessToken
+          ;[todasCategorias, todasContasFinanceiras] = await Promise.all([
+            listarCategorias(accessToken),
+            listarContasFinanceiras(accessToken),
+          ])
+        } catch (retryErr: any) {
+          const msgErro = retryErr instanceof Error ? retryErr.message : String(retryErr)
+          console.error('[ca/enviar] ERRO ao carregar metadados após renovação:', msgErro)
+          if (retryErr instanceof TokenError && retryErr.statusCode === 401) {
+            return NextResponse.json(
+              { error: retryErr.message, codigo: 'CONEXAO_EXPIRADA', reconectar: true },
+              { status: 401 }
+            )
+          }
+          if (retryErr?.message === 'TOKEN_EXPIRADO' || /401|unauthorized|token_expirado/i.test(msgErro)) {
+            return NextResponse.json(
+              {
+                error: 'Sua conexão com a Conta Azul precisa ser renovada. Acesse Empresas e reconecte.',
+                codigo: 'CONEXAO_EXPIRADA',
+                reconectar: true,
+              },
+              { status: 401 }
+            )
+          }
+          const status = retryErr instanceof TokenError ? retryErr.statusCode : 502
+          return NextResponse.json(
+            {
+              error:
+                'Falha temporária de comunicação com a API do Conta Azul ao carregar categorias/contas. Seus tokens permanecem conectados; tente novamente em instantes.',
+              codigo: 'FALHA_TEMPORARIA_API',
+              reconectar: false,
+            },
+            { status }
+          )
+        }
+      } else {
+        console.warn(
+          '[ca/enviar] Falha temporária (não-401) ao carregar metadados na 1ª tentativa. Retentando sem forçar rotação de refresh_token:',
+          e?.message || e
+        )
+        const retryDelayMs = process.env.NODE_ENV === 'test' ? 10 : 1500
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs))
+        try {
+          ;[todasCategorias, todasContasFinanceiras] = await Promise.all([
+            listarCategorias(accessToken),
+            listarContasFinanceiras(accessToken),
+          ])
+        } catch (retryErr: any) {
+          const msgErro = retryErr instanceof Error ? retryErr.message : String(retryErr)
+          console.error('[ca/enviar] ERRO persistente ao carregar metadados na re-tentativa:', msgErro)
+          return NextResponse.json(
+            {
+              error:
+                'Falha temporária de comunicação com a API do Conta Azul ao carregar categorias/contas. Seus tokens permanecem conectados; tente novamente em instantes.',
+              codigo: 'FALHA_TEMPORARIA_API',
+              reconectar: false,
+            },
+            { status: 502 }
+          )
+        }
       }
     }
 
