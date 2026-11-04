@@ -38,7 +38,7 @@ export default function SelectorCategoria({ valorInicial, categorias = [], onSel
     const listaBase = categorias.length > 0 ? categorias : LISTA_CATEGORIAS_FLAT
     const filtrados = listaBase.filter(cat => 
       cat.toLowerCase().includes(termo)
-    ).slice(0, 15)
+    )
     
     setResultados(filtrados)
   }, [busca, categorias])

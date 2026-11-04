@@ -441,26 +441,50 @@ export async function listarContasFinanceiras(accessToken: string): Promise<Cont
   return resultadoFinal
 }
 
-export async function listarCategorias(accessToken: string): Promise<Array<{ id: string; nome: string }>> {
-  const cached = getMetadataCache(categoriasCache, accessToken)
+export async function listarCategorias(
+  accessToken: string,
+  opcoes?: { tipo?: 'DESPESA' | 'RECEITA' | 'TODAS' }
+): Promise<Array<{ id: string; nome: string; tipo?: 'RECEITA' | 'DESPESA' }>> {
+  const tipoFiltro = opcoes?.tipo || 'DESPESA'
+  const cacheKey = `${accessToken}::${tipoFiltro}`
+  const cached = getMetadataCache(categoriasCache, cacheKey)
   if (cached && cached.length > 0) {
     return cached.map((c) => ({ ...c }))
   }
 
-  const todasCategoriasEncontradas = new Map<string, { id: string; nome: string; tipo?: string }>()
-  const endpoints = [
-    `${BASE_URL}/categorias?tipo=DESPESA&permite_apenas_filhos=true`,
-    `${BASE_URL}/categorias?permite_apenas_filhos=true`,
-    `${BASE_URL}/categorias?tipo=DESPESA&permite_apenas_filhos=false`,
-    `${BASE_URL}/categorias?permite_apenas_filhos=false`,
-    `${BASE_URL}/categorias`,
-    `${BASE_URL}/financeiro/categorias`,
-  ]
+  const todasCategoriasEncontradas = new Map<
+    string,
+    { id: string; nome: string; tipo: 'RECEITA' | 'DESPESA'; categoriaPaiId: string | null }
+  >()
+  const idsPaisReferenciados = new Set<string>()
+
+  // Endpoints sem o filtro incorreto permite_apenas_filhos=true (que descartava 65% das categorias folha na API v2)
+  const endpoints =
+    tipoFiltro === 'RECEITA'
+      ? [
+          `${BASE_URL}/categorias?tipo=RECEITA`,
+          `${BASE_URL}/categorias?tipo=RECEITA&permite_apenas_filhos=false`,
+          `${BASE_URL}/categorias?permite_apenas_filhos=false`,
+          `${BASE_URL}/categorias`,
+        ]
+      : tipoFiltro === 'TODAS'
+        ? [
+            `${BASE_URL}/categorias`,
+            `${BASE_URL}/categorias?permite_apenas_filhos=false`,
+            `${BASE_URL}/financeiro/categorias`,
+          ]
+        : [
+            `${BASE_URL}/categorias?tipo=DESPESA`,
+            `${BASE_URL}/categorias?tipo=DESPESA&permite_apenas_filhos=false`,
+            `${BASE_URL}/categorias?permite_apenas_filhos=false`,
+            `${BASE_URL}/categorias`,
+            `${BASE_URL}/financeiro/categorias`,
+          ]
   const errosDaApi: string[] = []
   
   for (const endpoint of endpoints) {
     try {
-      for (let page = 1; page <= 10; page++) {
+      for (let page = 1; page <= 15; page++) {
         const sep = endpoint.includes('?') ? '&' : '?'
         const urlComPagina = `${endpoint}${sep}pagina=${page}&tamanho_pagina=100`
         const res = await fetchCA(urlComPagina, { headers: { 'Authorization': `Bearer ${accessToken}` } })
@@ -482,25 +506,60 @@ export async function listarCategorias(accessToken: string): Promise<Array<{ id:
         
         if (listaRaw.length === 0) break
         
-        const achatarCategorias = (itens: any[]): any[] => {
+        const achatarCategorias = (itens: any[], paiId: string | null = null): any[] => {
           let resultado: any[] = []
           for (const item of itens) {
-            resultado.push({ id: item.id || item.uuid || item.categoryId || item.guid, nome: item.nome || item.name || item.descricao || item.description || 'Categoria', tipo: item.tipo || item.type })
+            const idItem = String(item.id || item.uuid || item.categoryId || item.guid || '').trim()
+            const categoriaPaiItem = String(
+              item.categoria_pai || item.parent_id || item.parentId || paiId || ''
+            ).trim() || null
+            if (categoriaPaiItem) {
+              idsPaisReferenciados.add(categoriaPaiItem)
+            }
             const filhos = item.children || item.sub_categories || item.subcategorias || item.itens || item.items || item.nodes
-            if (filhos && Array.isArray(filhos) && filhos.length > 0) resultado = resultado.concat(achatarCategorias(filhos))
+            const temFilhosAninhados = Boolean(filhos && Array.isArray(filhos) && filhos.length > 0)
+            if (temFilhosAninhados && idItem) {
+              idsPaisReferenciados.add(idItem)
+            }
+            resultado.push({
+              id: idItem,
+              nome: String(item.nome || item.name || item.descricao || item.description || 'Categoria').trim(),
+              tipo: String(item.tipo || item.type || '').trim().toUpperCase(),
+              categoriaPaiId: categoriaPaiItem,
+            })
+            if (temFilhosAninhados) {
+              resultado = resultado.concat(achatarCategorias(filhos, idItem || paiId))
+            }
           }
           return resultado
         }
         
         const achatadas = achatarCategorias(listaRaw)
         for (const cat of achatadas) {
-          if (cat.id && !todasCategoriasEncontradas.has(cat.id)) {
-            const ehReceita = cat.tipo === 'RECEITA' || cat.tipo === 'REVENUE' || cat.tipo === 'INCOME'
-            if (!ehReceita) todasCategoriasEncontradas.set(cat.id, cat)
-          }
+          if (!cat.id || todasCategoriasEncontradas.has(cat.id)) continue
+          const ehReceita = cat.tipo === 'RECEITA' || cat.tipo === 'REVENUE' || cat.tipo === 'INCOME'
+          const ehDespesa = cat.tipo === 'DESPESA' || cat.tipo === 'EXPENSE'
+          const tipoNormalizado: 'RECEITA' | 'DESPESA' = ehReceita
+            ? 'RECEITA'
+            : ehDespesa
+              ? 'DESPESA'
+              : tipoFiltro === 'RECEITA'
+                ? 'RECEITA'
+                : 'DESPESA'
+
+          if (tipoFiltro === 'RECEITA' && tipoNormalizado !== 'RECEITA') continue
+          if (tipoFiltro === 'DESPESA' && tipoNormalizado !== 'DESPESA') continue
+
+          todasCategoriasEncontradas.set(cat.id, {
+            id: cat.id,
+            nome: cat.nome,
+            tipo: tipoNormalizado,
+            categoriaPaiId: cat.categoriaPaiId,
+          })
         }
         
-        if (listaRaw.length < 100) break
+        const totalItensApi = Number(data.itens_totais ?? data.total_itens ?? data.totalElements ?? 0)
+        if (listaRaw.length < 100 || (totalItensApi > 0 && page * 100 >= totalItensApi)) break
       }
       if (todasCategoriasEncontradas.size > 0) break
     } catch (e: any) { 
@@ -509,14 +568,22 @@ export async function listarCategorias(accessToken: string): Promise<Array<{ id:
     }
   }
   
-  const resultadoFinal = Array.from(todasCategoriasEncontradas.values())
-  console.log(`[categorias] Total carregado: ${resultadoFinal.length}`)
+  // Preserva apenas categorias folha (exclui grupos totalizadores/pais caso algum endpoint os retorne)
+  const todasArray = Array.from(todasCategoriasEncontradas.values())
+  const apenasFolhas = todasArray.filter((c) => !idsPaisReferenciados.has(c.id))
+  const baseFinal = apenasFolhas.length > 0 ? apenasFolhas : todasArray
+
+  const resultadoFinal = baseFinal
+    .map(({ id, nome, tipo }) => ({ id, nome, tipo }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+
+  console.log(`[categorias:${tipoFiltro}] Total carregado: ${resultadoFinal.length}`)
   
   if (resultadoFinal.length === 0) {
     throw new Error(`Nenhuma categoria no Conta Azul. Detalhes da API: ${errosDaApi.join(' | ')}`)
   }
   
-  setMetadataCache(categoriasCache, accessToken, resultadoFinal)
+  setMetadataCache(categoriasCache, cacheKey, resultadoFinal)
   return resultadoFinal
 }
 

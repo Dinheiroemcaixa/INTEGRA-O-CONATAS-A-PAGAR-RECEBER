@@ -41,6 +41,7 @@ export default function TabelaContas({
   const [filtro, setFiltro] = useState<string>('pendente')
   const [selecionados, setSelecionados] = useState<string[]>([])
   const [contasFinanceirasCA, setContasFinanceirasCA] = useState<ContaFinanceiraOpcao[]>([])
+  const [categoriasCA, setCategoriasCA] = useState<string[]>([])
   const [editandoContaId, setEditandoContaId] = useState<string | null>(null)
   const [editandoCategoriaId, setEditandoCategoriaId] = useState<string | null>(null)
   const [editandoEmMassaConta, setEditandoEmMassaConta] = useState(false)
@@ -72,6 +73,33 @@ export default function TabelaContas({
         }
       })
       .catch(() => {})
+  }, [empresaId, temTokenCA, recarregar])
+
+  // Buscar lista de Categorias reais no Conta Azul respeitando a empresa selecionada
+  useEffect(() => {
+    if (!empresaId || !temTokenCA) {
+      setCategoriasCA([])
+      return
+    }
+    let cancelled = false
+    fetch(`/api/conta-azul/categorias?empresa_id=${empresaId}`)
+      .then(async r => {
+        const data = await r.json().catch(() => null)
+        if (data?.reconectar === true || data?.status_conexao === 'DESCONECTADA') {
+          recarregar()
+          return null
+        }
+        return r.ok ? data : null
+      })
+      .then(data => {
+        if (!cancelled && data?.categorias && Array.isArray(data.categorias)) {
+          setCategoriasCA(data.categorias.map((c: any) => c.nome).filter(Boolean))
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
   }, [empresaId, temTokenCA, recarregar])
 
   const carregar = useCallback(async () => {
@@ -362,6 +390,7 @@ export default function TabelaContas({
                   {editandoEmMassaCat ? (
                     <SelectorCategoria
                       valorInicial=""
+                      categorias={categoriasCA}
                       onSelect={(cat) => handleAplicarCategoriaEmLote(cat)}
                       onCancel={() => setEditandoEmMassaCat(false)}
                     />
@@ -592,6 +621,7 @@ export default function TabelaContas({
                         {editandoCategoriaId === conta.id ? (
                           <SelectorCategoria
                             valorInicial={conta.categoria || ''}
+                            categorias={categoriasCA}
                             onSelect={(cat) => handleAtualizarCategoriaIndividual(conta.id, cat)}
                             onCancel={() => setEditandoCategoriaId(null)}
                           />
