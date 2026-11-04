@@ -172,8 +172,18 @@ class MockTokenError extends Error {
   }
 }
 
-let getValidTokenCalls: Array<{ empresaId: string; modulo?: string; forceRefresh?: boolean }> = []
-let mockGetValidTokenFn: (empresaId: string, modulo?: string, forceRefresh?: boolean) => Promise<any>
+let getValidTokenCalls: Array<{
+  empresaId: string
+  modulo?: string
+  forceRefresh?: boolean
+  options?: Record<string, any>
+}> = []
+let mockGetValidTokenFn: (
+  empresaId: string,
+  modulo?: string,
+  forceRefresh?: boolean,
+  options?: Record<string, any>
+) => Promise<any>
 
 const tokenManagerUrl = pathToFileURL(path.resolve(process.cwd(), 'src/lib/conta-azul/token-manager.ts')).href
 const apiUrl = pathToFileURL(path.resolve(process.cwd(), 'src/lib/conta-azul/api.ts')).href
@@ -181,9 +191,14 @@ const apiUrl = pathToFileURL(path.resolve(process.cwd(), 'src/lib/conta-azul/api
 mock.module(tokenManagerUrl, {
   namedExports: {
     TokenError: MockTokenError,
-    getValidToken: async (empresaId: string, modulo?: string, forceRefresh?: boolean) => {
-      getValidTokenCalls.push({ empresaId, modulo, forceRefresh })
-      return mockGetValidTokenFn(empresaId, modulo, forceRefresh)
+    getValidToken: async (
+      empresaId: string,
+      modulo?: string,
+      forceRefresh?: boolean,
+      options?: Record<string, any>
+    ) => {
+      getValidTokenCalls.push({ empresaId, modulo, forceRefresh, options })
+      return mockGetValidTokenFn(empresaId, modulo, forceRefresh, options)
     }
   }
 })
@@ -736,4 +751,5 @@ test('9. Falha transitória (502/timeout em listarCategorias) NÃO força rotaç
   assert.equal(Boolean(getValidTokenCalls[0].forceRefresh), false)
   assert.equal(getValidTokenCalls[1].forceRefresh, true)
   assert.equal(getValidTokenCalls[1].modulo, 'financeiro')
+  assert.deepEqual(getValidTokenCalls[1].options, { failedAccessToken: 'token-valido-mock' })
 })

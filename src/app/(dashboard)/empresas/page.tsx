@@ -109,7 +109,8 @@ function EmpresasPageContent() {
     const comToken = empresas.filter(e => Boolean(e.access_token_conta_azul && e.conta_azul_connected !== false))
     if (comToken.length === 0) return
 
-    fetch(`/api/conta-azul/status?empresa_ids=${comToken.map(e => e.id).join(',')}&modulo=financeiro`)
+    const extraParams = empresaAtiva?.id ? `&empresa_ativa_id=${empresaAtiva.id}` : ''
+    fetch(`/api/conta-azul/status?empresa_ids=${comToken.map(e => e.id).join(',')}&modulo=financeiro&renovar=false${extraParams}`)
       .then(res => (res.ok ? res.json() : null))
       .then(data => {
         if (!data) return
@@ -124,7 +125,7 @@ function EmpresasPageContent() {
         }
       })
       .catch(() => {})
-  }, [empresas, recarregar])
+  }, [empresas, empresaAtiva?.id, recarregar])
 
   // Filtragem de empresas por busca
   const empresasFiltradas = useMemo(() => {

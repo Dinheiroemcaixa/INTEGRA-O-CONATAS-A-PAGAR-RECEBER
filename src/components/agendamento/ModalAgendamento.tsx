@@ -57,23 +57,34 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
 
   useEffect(() => {
     if (!open || !empresaAtiva?.id) return
-    fetch(`/api/conta-azul/contas-financeiras?empresa_id=${empresaAtiva.id}`)
-      .then(r => (r.ok ? r.json() : null))
-      .then(data => {
-        if (data?.contas && Array.isArray(data.contas)) {
-          setContasFinanceiras(data.contas)
-        }
-      })
-      .catch(() => {})
+    let cancelled = false
 
-    fetch(`/api/conta-azul/categorias?empresa_id=${empresaAtiva.id}`)
-      .then(r => (r.ok ? r.json() : null))
-      .then(data => {
-        if (data?.categorias && Array.isArray(data.categorias)) {
-          setCategoriasCA(data.categorias.map((c: any) => c.nome))
+    const carregarDadosCA = async () => {
+      try {
+        const rContas = await fetch(`/api/conta-azul/contas-financeiras?empresa_id=${empresaAtiva.id}`)
+        if (!cancelled && rContas.ok) {
+          const dataContas = await rContas.json()
+          if (!cancelled && dataContas?.contas && Array.isArray(dataContas.contas)) {
+            setContasFinanceiras(dataContas.contas)
+          }
         }
-      })
-      .catch(() => {})
+      } catch {}
+
+      if (cancelled) return
+
+      try {
+        const rCats = await fetch(`/api/conta-azul/categorias?empresa_id=${empresaAtiva.id}`)
+        if (!cancelled && rCats.ok) {
+          const dataCats = await rCats.json()
+          if (!cancelled && dataCats?.categorias && Array.isArray(dataCats.categorias)) {
+            setCategoriasCA(dataCats.categorias.map((c: any) => c.nome))
+          }
+        }
+      } catch {}
+    }
+
+    carregarDadosCA()
+    return () => { cancelled = true }
   }, [open, empresaAtiva?.id])
 
   useEffect(() => {

@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
       if (isAuthError) {
         console.warn('[ca/enviar] Erro 401 ao carregar metadados na 1ª tentativa, renovando token:', e?.message || e)
         try {
-          const resultForcado = await getValidToken(empresa_id, 'financeiro', true)
+          const resultForcado = await getValidToken(empresa_id, 'financeiro', true, { failedAccessToken: accessToken })
           accessToken = resultForcado.accessToken
           ;[todasCategorias, todasContasFinanceiras] = await Promise.all([
             listarCategorias(accessToken),

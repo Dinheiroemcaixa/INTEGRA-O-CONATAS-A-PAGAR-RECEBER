@@ -6,60 +6,101 @@ import type { Empresa } from '@/types'
 
 export type StatusConexaoCA = 'CONECTADA' | 'RENOVANDO' | 'ATENCAO' | 'DESCONECTADA'
 
+export type TokenExpirationClassification =
+  | 'ACTIVE_LOCK'
+  | 'EXPIRED_LOCK'
+  | 'VALID_TOKEN'
+  | 'EXPIRING_SOON'
+  | 'EXPIRED_TOKEN'
+  | 'MISSING'
+
+const LOCK_EPOCH_OFFSET_MS = 1_000_000_000_000
+const LOCK_EPOCH_MAX_MS = 978_307_200_000 // 2001-01-01T00:00:00.000Z
+const EXPIRATION_SAFETY_MARGIN_MS = 5 * 60 * 1000
+
+export function classifyTokenExpirationState(
+  rawExp: string | null | undefined,
+  nowMs: number = Date.now()
+): TokenExpirationClassification {
+  if (typeof rawExp !== 'string' || rawExp.trim().length === 0) return 'MISSING'
+  const ms = new Date(rawExp).getTime()
+  if (Number.isNaN(ms)) return 'MISSING'
+  if (ms > 0 && ms < LOCK_EPOCH_MAX_MS) {
+    const leaseUntilMs = ms + LOCK_EPOCH_OFFSET_MS
+    return leaseUntilMs > nowMs ? 'ACTIVE_LOCK' : 'EXPIRED_LOCK'
+  }
+  if (ms <= nowMs) return 'EXPIRED_TOKEN'
+  if (ms <= nowMs + EXPIRATION_SAFETY_MARGIN_MS) return 'EXPIRING_SOON'
+  return 'VALID_TOKEN'
+}
+
 export function getStatusConexaoEmpresa(
   empresa: Empresa | null | undefined,
-  modulo: 'financeiro' | 'vendas' = 'financeiro'
+  modulo: 'financeiro' | 'vendas' = 'financeiro',
+  nowMs: number = Date.now()
 ): { status: StatusConexaoCA; conectado: boolean; label: string } {
   if (!empresa) {
     return { status: 'DESCONECTADA', conectado: false, label: 'Não Conectado' }
   }
 
-  if (modulo === 'financeiro') {
-    const token = empresa.access_token_conta_azul?.trim()
-    const refresh = empresa.refresh_token_conta_azul?.trim()
-    const connected = empresa.conta_azul_connected
-    const expStr = empresa.data_expiracao_token
+  const token =
+    modulo === 'vendas'
+      ? empresa.access_token_conta_azul_vendas?.trim()
+      : empresa.access_token_conta_azul?.trim()
+  const refresh =
+    modulo === 'vendas'
+      ? empresa.refresh_token_conta_azul_vendas?.trim()
+      : empresa.refresh_token_conta_azul?.trim()
+  const connected =
+    modulo === 'vendas'
+      ? empresa.conta_azul_vendas_connected
+      : empresa.conta_azul_connected
+  const expStr =
+    modulo === 'vendas'
+      ? empresa.data_expiracao_token_vendas
+      : empresa.data_expiracao_token
 
-    if (connected === false && !token) {
-      return { status: 'DESCONECTADA', conectado: false, label: 'Não Conectado' }
-    }
-    if (!token || connected === false) {
-      return { status: 'DESCONECTADA', conectado: false, label: 'Não Conectado' }
-    }
-    if (expStr) {
-      const expTime = new Date(expStr).getTime()
-      if (!isNaN(expTime) && expTime <= Date.now() && !refresh) {
-        return { status: 'DESCONECTADA', conectado: false, label: 'Sessão Expirada' }
-      }
-    }
-    return { status: 'CONECTADA', conectado: true, label: 'API Financeiro Conectada' }
-  } else {
-    const token = empresa.access_token_conta_azul_vendas?.trim()
-    const refresh = empresa.refresh_token_conta_azul_vendas?.trim()
-    const connected = empresa.conta_azul_vendas_connected
-    const expStr = empresa.data_expiracao_token_vendas
-
-    if (connected === false && !token) {
-      return { status: 'DESCONECTADA', conectado: false, label: 'Não Conectado' }
-    }
-    if (!token || connected === false) {
-      return { status: 'DESCONECTADA', conectado: false, label: 'Não Conectado' }
-    }
-    if (expStr) {
-      const expTime = new Date(expStr).getTime()
-      if (!isNaN(expTime) && expTime <= Date.now() && !refresh) {
-        return { status: 'DESCONECTADA', conectado: false, label: 'Sessão Expirada' }
-      }
-    }
-    return { status: 'CONECTADA', conectado: true, label: 'API Vendas Conectada' }
+  if (!token || connected === false) {
+    return { status: 'DESCONECTADA', conectado: false, label: 'Não Conectado' }
   }
+
+  const expState = classifyTokenExpirationState(expStr, nowMs)
+
+  if (expState === 'ACTIVE_LOCK') {
+    if (refresh) {
+      return { status: 'RENOVANDO', conectado: true, label: 'Renovando conexão...' }
+    }
+    return { status: 'DESCONECTADA', conectado: false, label: 'Sessão Expirada' }
+  }
+
+  if (expState === 'EXPIRED_LOCK' || expState === 'EXPIRED_TOKEN') {
+    if (!refresh) {
+      return { status: 'DESCONECTADA', conectado: false, label: 'Sessão Expirada' }
+    }
+    return { status: 'ATENCAO', conectado: true, label: 'Renovação Pendente' }
+  }
+
+  if (expState === 'EXPIRING_SOON' || expState === 'VALID_TOKEN') {
+    return {
+      status: 'CONECTADA',
+      conectado: true,
+      label: modulo === 'vendas' ? 'API Vendas Conectada' : 'API Financeiro Conectada',
+    }
+  }
+
+  // expState === 'MISSING'
+  if (refresh) {
+    return { status: 'ATENCAO', conectado: true, label: 'Verificação Pendente' }
+  }
+  return { status: 'DESCONECTADA', conectado: false, label: 'Sessão Expirada' }
 }
 
 export function isEmpresaCaConectada(
   empresa: Empresa | null | undefined,
-  modulo: 'financeiro' | 'vendas' = 'financeiro'
+  modulo: 'financeiro' | 'vendas' = 'financeiro',
+  nowMs: number = Date.now()
 ): boolean {
-  return getStatusConexaoEmpresa(empresa, modulo).conectado
+  return getStatusConexaoEmpresa(empresa, modulo, nowMs).conectado
 }
 
 interface EmpresaContextType {
@@ -80,6 +121,7 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
   const empresaAtivaIdRef = useRef<string | null>(null)
   const lastFocusReloadRef = useRef<number>(0)
   const checkingStatusIdRef = useRef<string | null>(null)
+  const inFlightStatusRef = useRef<boolean>(false)
 
   const carregarEmpresas = useCallback(async () => {
     try {
@@ -151,34 +193,58 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
   // Verificação centralizada de renovação se empresaAtiva estiver expirada ou a menos de 5 min de expirar
   useEffect(() => {
     if (!empresaAtiva?.id) return
-    if (!empresaAtiva.access_token_conta_azul || !empresaAtiva.refresh_token_conta_azul) return
+    if (inFlightStatusRef.current) return
 
-    const expStr = empresaAtiva.data_expiracao_token
-    if (!expStr) return
+    const modulosParaVerificar: Array<{ modulo: 'financeiro' | 'vendas'; expStr: string | null | undefined }> = []
 
-    const expTime = new Date(expStr).getTime()
-    if (isNaN(expTime)) return
+    if (empresaAtiva.access_token_conta_azul && empresaAtiva.refresh_token_conta_azul) {
+      const finState = classifyTokenExpirationState(empresaAtiva.data_expiracao_token)
+      if (finState === 'EXPIRING_SOON' || finState === 'EXPIRED_TOKEN' || finState === 'EXPIRED_LOCK') {
+        modulosParaVerificar.push({ modulo: 'financeiro', expStr: empresaAtiva.data_expiracao_token })
+      }
+    }
 
-    const cincoMinMs = 5 * 60 * 1000
-    if (expTime - Date.now() > cincoMinMs) return
+    if (empresaAtiva.access_token_conta_azul_vendas && empresaAtiva.refresh_token_conta_azul_vendas) {
+      const venState = classifyTokenExpirationState(empresaAtiva.data_expiracao_token_vendas)
+      if (venState === 'EXPIRING_SOON' || venState === 'EXPIRED_TOKEN' || venState === 'EXPIRED_LOCK') {
+        modulosParaVerificar.push({ modulo: 'vendas', expStr: empresaAtiva.data_expiracao_token_vendas })
+      }
+    }
 
-    const checkKey = `${empresaAtiva.id}:${expStr}`
+    if (modulosParaVerificar.length === 0) return
+
+    const checkKey = `${empresaAtiva.id}:${modulosParaVerificar.map((m) => `${m.modulo}:${m.expStr || ''}`).join('|')}`
     if (checkingStatusIdRef.current === checkKey) return
     checkingStatusIdRef.current = checkKey
+    inFlightStatusRef.current = true
 
-    fetch(`/api/conta-azul/status?empresa_id=${empresaAtiva.id}&modulo=financeiro`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data && (data.renovado || data.status === 'DESCONECTADA' || data.conectado === false)) {
-          carregarEmpresas()
+    ;(async () => {
+      try {
+        let precisaRecarregar = false
+        for (const item of modulosParaVerificar) {
+          const res = await fetch(`/api/conta-azul/status?empresa_id=${empresaAtiva.id}&modulo=${item.modulo}`)
+          const data = res.ok ? await res.json() : null
+          if (data && (data.renovado || data.status === 'DESCONECTADA' || data.conectado === false)) {
+            precisaRecarregar = true
+          }
         }
-      })
-      .catch(() => {})
+        if (precisaRecarregar) {
+          await carregarEmpresas()
+        }
+      } catch {
+        // Falha silenciosa de rede
+      } finally {
+        inFlightStatusRef.current = false
+      }
+    })()
   }, [
     empresaAtiva?.id,
     empresaAtiva?.access_token_conta_azul,
     empresaAtiva?.refresh_token_conta_azul,
     empresaAtiva?.data_expiracao_token,
+    empresaAtiva?.access_token_conta_azul_vendas,
+    empresaAtiva?.refresh_token_conta_azul_vendas,
+    empresaAtiva?.data_expiracao_token_vendas,
     carregarEmpresas,
   ])
 

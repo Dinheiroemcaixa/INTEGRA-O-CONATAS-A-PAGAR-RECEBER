@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { useEmpresa } from '@/contexts/EmpresaContext'
+import { useEmpresa, classifyTokenExpirationState } from '@/contexts/EmpresaContext'
 import { createClient } from '@/lib/supabase/client'
 import DropZone from '@/components/upload/DropZone'
 import ContasPreviewSection from '@/components/upload/ContasPreviewSection'
@@ -72,13 +72,22 @@ function ModalEnvioContaAzul({
     const aparentaConectada = Boolean(empresaSelecionada.access_token_conta_azul && empresaSelecionada.conta_azul_connected !== false)
     if (!aparentaConectada) return
 
-    let cancelled = false
-    const expStr = empresaSelecionada.data_expiracao_token
-    const expTime = expStr ? new Date(expStr).getTime() : NaN
-    const proximoDeExpirar = !isNaN(expTime) && expTime - Date.now() <= 5 * 60 * 1000
-    if (proximoDeExpirar) {
-      setVerificandoStatus(true)
+    const expState = classifyTokenExpirationState(empresaSelecionada.data_expiracao_token)
+
+    // Nunca dispara chamada para /api/conta-azul/status enquanto o token for válido com folga ou enquanto houver lock distribuído ativo
+    if (expState === 'VALID_TOKEN' || expState === 'ACTIVE_LOCK') {
+      setVerificandoStatus(false)
+      return
     }
+
+    // Se for a mesma empresaAtiva, o EmpresaContext já realiza a renovação centralizada quando necessário
+    if (empresaSelecionada.id === empresaAtiva?.id) {
+      setVerificandoStatus(false)
+      return
+    }
+
+    let cancelled = false
+    setVerificandoStatus(true)
 
     fetch(`/api/conta-azul/status?empresa_id=${empresaSelecionada.id}&modulo=financeiro`)
       .then(res => (res.ok ? res.json() : null))
@@ -94,7 +103,7 @@ function ModalEnvioContaAzul({
       })
 
     return () => { cancelled = true }
-  }, [empresaSelecionada?.id, empresaSelecionada?.access_token_conta_azul, empresaSelecionada?.conta_azul_connected, empresaSelecionada?.data_expiracao_token, recarregar])
+  }, [empresaSelecionada?.id, empresaSelecionada?.access_token_conta_azul, empresaSelecionada?.conta_azul_connected, empresaSelecionada?.data_expiracao_token, empresaAtiva?.id, recarregar])
 
   // Identifica se o usuário escolheu conscientemente uma loja de destino diferente da loja ativa
   const lojaDiferente = !!(

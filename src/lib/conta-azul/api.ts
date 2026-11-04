@@ -12,6 +12,7 @@ const AUTH_URL = 'https://auth.contaazul.com/oauth2/token'
 const AUTHORIZE_URL = 'https://auth.contaazul.com/login'
 
 const DEFAULT_TIMEOUT_MS = 15000; // 15 segundos defensivos para Serverless Functions da Vercel
+export const OAUTH_REFRESH_TIMEOUT_MS = 12000;
 
 /**
  * Helper resiliente para lidar com a API do Conta Azul:
@@ -21,8 +22,12 @@ const DEFAULT_TIMEOUT_MS = 15000; // 15 segundos defensivos para Serverless Func
  * 4. NÃO retenta erros determinísticos de cliente:
  *    - 400 (Bad Request), 401 (Unauthorized), 403 (Forbidden), 404 (Not Found), 409 (Conflict), 422 (Unprocessable Entity).
  */
-async function fetchCA(url: string | URL | Request, options?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<Response> {
-  const maxTentativas = 2; // 1 tentativa inicial + 1 retry rápido para proteger o ciclo da função serverless
+async function fetchCA(
+  url: string | URL | Request,
+  options?: RequestInit,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+  maxTentativas = 2
+): Promise<Response> {
   const delaisPorTentativa = [1500];
   let res: Response | null = null;
 
@@ -282,14 +287,56 @@ export async function refreshToken(
   clientSecret: string
 ): Promise<TokenResponse> {
   const credenciais = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
-  const res = await fetchCA(AUTH_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': `Basic ${credenciais}` },
-    body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshTokenStr }),
-  })
+  const secretsToRedact = [refreshTokenStr, clientId, clientSecret, credenciais]
+
+  let res: Response
+  try {
+    res = await fetchCA(
+      AUTH_URL,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Basic ${credenciais}`,
+        },
+        body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshTokenStr }),
+      },
+      OAUTH_REFRESH_TIMEOUT_MS,
+      1
+    )
+  } catch (err: any) {
+    const rawMsg = err instanceof Error ? err.message : String(err)
+    const safeMsg = redactSecrets(rawMsg, secretsToRedact) || 'Falha de comunicação de rede/timeout'
+    const subtype =
+      err?.name === 'AbortError' || err?.code === 'ETIMEDOUT' ? 'timeout' : 'network_error'
+    throw new OAuthError(
+      `Falha ou timeout na comunicação OAuth ao renovar token (${subtype}): ${safeMsg}. Nenhum reenvio automático foi executado por segurança.`,
+      502,
+      'ambiguous_refresh_network_failure',
+      safeMsg,
+      subtype
+    )
+  }
+
   if (!res.ok) {
-    const err = await res.text()
-    const secretsToRedact = [refreshTokenStr, clientId, clientSecret, credenciais]
+    const err = await res.text().catch(() => '')
+    if (
+      res.status === 502 ||
+      res.status === 503 ||
+      res.status === 504 ||
+      res.status === 429 ||
+      res.status >= 500
+    ) {
+      const safeBody = redactSecrets(err, secretsToRedact) || `HTTP ${res.status}`
+      throw new OAuthError(
+        `Falha transitória de gateway/servidor ao renovar token (HTTP ${res.status}): ${safeBody}. Nenhum reenvio automático foi executado por segurança.`,
+        res.status,
+        'ambiguous_refresh_gateway_failure',
+        safeBody,
+        String(res.status)
+      )
+    }
+
     let errorCode: string | undefined
     let errorSubtype: string | undefined
     let errorDescription: string | undefined
@@ -389,11 +436,7 @@ export async function listarContasFinanceiras(accessToken: string): Promise<Cont
   const queryParams = 'pagina=1&tamanho_pagina=200&apenas_ativo=true&mostrar_caixinha=true&esconde_conta_digital=false'
   const endpoints = [
     `${BASE_URL}/conta-financeira?${queryParams}`,
-    `https://api-v2.contaazul.com/v1/conta-financeira?${queryParams}`,
-    `${BASE_URL}/conta-financeira?pagina=1&tamanho_pagina=100`,
-    `https://api.contaazul.com/v1/conta-financeira?${queryParams}`,
-    `${BASE_URL}/contas-financeiras?pagina=1&tamanho_pagina=100`,
-    `${BASE_URL}/bank-accounts`,
+    `${BASE_URL}/conta-financeira?pagina=1&tamanho_pagina=200`,
   ]
   for (const endpoint of endpoints) {
     try {
@@ -409,6 +452,7 @@ export async function listarContasFinanceiras(accessToken: string): Promise<Cont
         continue
       }
       const data = await res.json()
+      const isValidPayload = Array.isArray(data) || Array.isArray(data?.itens) || Array.isArray(data?.items)
       const listaRaw = Array.isArray(data) ? data : (data.itens || data.items || data.content || data.data || [])
       for (const item of listaRaw) {
         const id = item.id || item.uuid || item.bankAccountId || item.guid
@@ -428,7 +472,7 @@ export async function listarContasFinanceiras(accessToken: string): Promise<Cont
           })
         }
       }
-      if (todasContas.size > 0) break
+      if (isValidPayload || todasContas.size > 0) break
     } catch (e: any) { 
       if (e.message === 'TOKEN_EXPIRADO') throw e;
       console.warn(`[contas-financeiras] erro em ${endpoint}:`, e) 
@@ -486,7 +530,7 @@ export async function listarCategorias(
     try {
       for (let page = 1; page <= 15; page++) {
         const sep = endpoint.includes('?') ? '&' : '?'
-        const urlComPagina = `${endpoint}${sep}pagina=${page}&tamanho_pagina=100`
+        const urlComPagina = `${endpoint}${sep}pagina=${page}&tamanho_pagina=200`
         const res = await fetchCA(urlComPagina, { headers: { 'Authorization': `Bearer ${accessToken}` } })
         
         if (!res.ok) {
@@ -559,7 +603,7 @@ export async function listarCategorias(
         }
         
         const totalItensApi = Number(data.itens_totais ?? data.total_itens ?? data.totalElements ?? 0)
-        if (listaRaw.length < 100 || (totalItensApi > 0 && page * 100 >= totalItensApi)) break
+        if (listaRaw.length < 200 || (totalItensApi > 0 && page * 200 >= totalItensApi)) break
       }
       if (todasCategoriasEncontradas.size > 0) break
     } catch (e: any) { 

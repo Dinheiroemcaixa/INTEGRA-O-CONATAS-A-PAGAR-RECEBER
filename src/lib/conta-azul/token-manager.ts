@@ -10,6 +10,7 @@
  *  5. Proteger contra concorrência (Race Conditions) com fila/lock em memória e re-checagem no banco
  */
 
+import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import { refreshToken, OAuthError } from './api'
 
@@ -77,10 +78,13 @@ export function classifyInvalidGrantSubtype(
   }
   if (
     errorSubtype === 'invalid_refresh_token' ||
+    (!errorSubtype && (!errorDescription || !errorDescription.trim())) ||
     (!errorSubtype &&
-      errorDescription &&
-      /invalid[\s_-]*refresh[\s_-]*token|refresh[\s_-]*token[\s_-]*(has[\s_-]*)?(expired|been[\s_-]*revoked|is[\s_-]*invalid|invalid)|expired[\s_-]*refresh[\s_-]*token/i.test(
-        errorDescription
+      Boolean(
+        errorDescription &&
+          /invalid[\s_-]*refresh[\s_-]*token|refresh[\s_-]*token[\s_-]*(has[\s_-]*)?(expired|been[\s_-]*revoked|is[\s_-]*invalid|invalid|not[\s_-]*valid)|expired[\s_-]*refresh[\s_-]*token|^invalid[\s_-]*grant$|invalid[\s_-]*grant[\s_:.-]|token[\s_-]*(has[\s_-]*been[\s_-]*revoked|is[\s_-]*not[\s_-]*valid|expired|invalid)|authorization[\s_-]*grant[\s_-]*(is[\s_-]*)?(invalid|expired)/i.test(
+            errorDescription
+          )
       ))
   ) {
     return 'invalid_refresh_token'
@@ -95,11 +99,288 @@ export interface ValidTokenResult {
 
 export interface GetValidTokenOptions {
   bypassInMemoryLock?: boolean
+  failedAccessToken?: string
+  lockTtlMs?: number
+  disableLockHeartbeat?: boolean
+  heartbeatIntervalMs?: number
+  invalidGrantPollDelaysMs?: number[]
 }
 
-const INVALID_REFRESH_RECHECK_DELAY_MS = 150
-const INVALID_REFRESH_RECHECK_SECOND_DELAY_MS = 250
+const DEFAULT_INVALID_GRANT_POLL_DELAYS_MS = [150, 250, 350, 450, 600]
 const EXPIRATION_SAFETY_MARGIN_MS = 5 * 60 * 1000
+
+const LOCK_EPOCH_OFFSET_MS = 1_000_000_000_000
+const LOCK_EPOCH_MAX_MS = 978_307_200_000 // 2001-01-01T00:00:00.000Z
+const DEFAULT_DISTRIBUTED_LOCK_TTL_MS = 25_000
+
+const INSTANCE_LOCK_BUCKET_SEED = crypto.randomInt(0, 90)
+let lockAcquisitionSeq = 0
+
+/**
+ * Codifica um lease de bloqueio distribuído na coluna TIMESTAMPTZ de expiração
+ * sem necessidade de novas colunas na tabela `empresas`.
+ */
+export function encodeDistributedRefreshLock(leaseUntilMs: number): string {
+  return new Date(leaseUntilMs - LOCK_EPOCH_OFFSET_MS).toISOString()
+}
+
+/**
+ * Gera um lease distribuído exclusivo combinando particionamento determinístico de buckets +
+ * entropia criptográfica por instância e por chamada codificada nos microssegundos (.sssUUUZ),
+ * garantindo zero inflação em milissegundos sobre baseLeaseUntilMs.
+ */
+export function createUniqueDistributedRefreshLock(baseLeaseUntilMs: number): string {
+  lockAcquisitionSeq = (lockAcquisitionSeq + 1) % 90
+  const bucket = (INSTANCE_LOCK_BUCKET_SEED + lockAcquisitionSeq) % 90
+  const microDigits = String(bucket * 10 + crypto.randomInt(1, 10)).padStart(3, '0')
+  const rawEncodedMs = baseLeaseUntilMs - LOCK_EPOCH_OFFSET_MS
+  const boundedEncodedMs = Math.max(1, Math.min(LOCK_EPOCH_MAX_MS - 1, rawEncodedMs))
+  const isoMs = new Date(boundedEncodedMs).toISOString() // YYYY-MM-DDTHH:mm:ss.sssZ
+  return isoMs.slice(0, -1) + microDigits + 'Z' // YYYY-MM-DDTHH:mm:ss.sssUUUZ
+}
+
+/**
+ * Decodifica o timestamp (ms) de expiração do lease distribuído caso o valor
+ * armazene um lock codificado (`ms > 0 && ms < LOCK_EPOCH_MAX_MS`), ou `null` caso contrário.
+ */
+export function decodeDistributedRefreshLock(rawExp: string | null | undefined): number | null {
+  if (typeof rawExp !== 'string' || rawExp.trim().length === 0) return null
+  const ms = new Date(rawExp).getTime()
+  if (Number.isNaN(ms) || ms <= 0 || ms >= LOCK_EPOCH_MAX_MS) return null
+  return ms + LOCK_EPOCH_OFFSET_MS
+}
+
+export function isDistributedRefreshLockActive(
+  rawExp: string | null | undefined,
+  nowMs: number = Date.now()
+): boolean {
+  const until = decodeDistributedRefreshLock(rawExp)
+  return until !== null && until > nowMs
+}
+
+export function isDistributedRefreshLockExpired(
+  rawExp: string | null | undefined,
+  nowMs: number = Date.now()
+): boolean {
+  const until = decodeDistributedRefreshLock(rawExp)
+  return until !== null && until <= nowMs
+}
+
+function extractIsoMicroFraction(rawExp: string | null | undefined): string | null {
+  if (typeof rawExp !== 'string') return null
+  const m = rawExp.match(/\.(\d{3,6})(?:Z|[+-]\d{2}:\d{2})$/i)
+  return m ? m[1].padEnd(6, '0') : null
+}
+
+export function isSameDistributedLockLease(
+  rawExpA: string | null | undefined,
+  rawExpB: string | null | undefined
+): boolean {
+  if (rawExpA === rawExpB) return true
+  const decA = decodeDistributedRefreshLock(rawExpA)
+  const decB = decodeDistributedRefreshLock(rawExpB)
+  if (decA === null || decA !== decB) return false
+  return extractIsoMicroFraction(rawExpA) === extractIsoMicroFraction(rawExpB)
+}
+
+export function sanitizeRestorableExpiration(rawExp: string | null | undefined): string | null {
+  if (rawExp === null || rawExp === undefined) return null
+  if (decodeDistributedRefreshLock(rawExp) !== null) {
+    return new Date(0).toISOString()
+  }
+  return rawExp
+}
+
+export function sanitizePublicExpirationIso(rawExp: string | null | undefined): string | null {
+  if (!rawExp || typeof rawExp !== 'string' || rawExp.trim().length === 0) return null
+  if (decodeDistributedRefreshLock(rawExp) !== null) return null
+  return rawExp
+}
+
+export interface EmpresaConnectionStatus {
+  empresa_id: string
+  modulo: 'financeiro' | 'vendas'
+  status: 'CONECTADA' | 'ATENCAO' | 'DESCONECTADA'
+  conectado: boolean
+  operacional: boolean
+  renovado?: boolean
+  expira_em?: string | null
+  motivo?: string
+  categoria_erro?: ConnectionErrorCategory
+}
+
+export async function evaluateEmpresaStatus(
+  id: string,
+  modulo: 'financeiro' | 'vendas',
+  empresaRow?: Record<string, any> | null,
+  allowRefresh: boolean = true
+): Promise<EmpresaConnectionStatus> {
+  const isVendas = modulo === 'vendas'
+  const tokenKey = isVendas ? 'access_token_conta_azul_vendas' : 'access_token_conta_azul'
+  const refreshKey = isVendas ? 'refresh_token_conta_azul_vendas' : 'refresh_token_conta_azul'
+  const expiracaoKey = isVendas ? 'data_expiracao_token_vendas' : 'data_expiracao_token'
+
+  let row = empresaRow
+  if (!row) {
+    const { data, error } = await supabaseAdmin
+      .from('empresas')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (error || !data) {
+      return {
+        empresa_id: id,
+        modulo,
+        status: 'DESCONECTADA',
+        conectado: false,
+        operacional: false,
+        motivo: 'Empresa não encontrada',
+        categoria_erro: 'DISCONNECTED',
+      }
+    }
+    row = data
+  }
+
+  const targetRow = row!
+  const isConnectedFlag = targetRow[isVendas ? 'conta_azul_vendas_connected' : 'conta_azul_connected']
+  const hasAccessToken = typeof targetRow[tokenKey] === 'string' && targetRow[tokenKey].trim().length > 0
+  const hasRefreshToken = typeof targetRow[refreshKey] === 'string' && targetRow[refreshKey].trim().length > 0
+
+  if (isConnectedFlag === false || (!hasAccessToken && !hasRefreshToken)) {
+    return {
+      empresa_id: id,
+      modulo,
+      status: 'DESCONECTADA',
+      conectado: false,
+      operacional: false,
+      motivo: 'Empresa desconectada ou sem credenciais OAuth salvas.',
+      categoria_erro: 'DISCONNECTED',
+    }
+  }
+
+  if (!allowRefresh) {
+    if (isDistributedRefreshLockActive(targetRow[expiracaoKey])) {
+      return {
+        empresa_id: id,
+        modulo,
+        status: 'ATENCAO',
+        conectado: true,
+        operacional: true,
+        renovado: false,
+        expira_em: null,
+        motivo: 'Renovação automática de token em andamento.',
+      }
+    }
+
+    if (isDistributedRefreshLockExpired(targetRow[expiracaoKey])) {
+      if (hasRefreshToken) {
+        return {
+          empresa_id: id,
+          modulo,
+          status: 'ATENCAO',
+          conectado: true,
+          operacional: false,
+          renovado: false,
+          expira_em: null,
+          motivo: 'Bloqueio de renovação anterior expirou; aguardando renovação automática.',
+        }
+      }
+      return {
+        empresa_id: id,
+        modulo,
+        status: 'DESCONECTADA',
+        conectado: false,
+        operacional: false,
+        expira_em: null,
+        motivo: 'Sessão expirada sem refresh_token.',
+        categoria_erro: 'DISCONNECTED',
+      }
+    }
+
+    if (isAccessTokenValid(targetRow, tokenKey, expiracaoKey)) {
+      return {
+        empresa_id: id,
+        modulo,
+        status: 'CONECTADA',
+        conectado: true,
+        operacional: true,
+        renovado: false,
+        expira_em: sanitizePublicExpirationIso(targetRow[expiracaoKey]),
+      }
+    }
+
+    if (hasRefreshToken) {
+      return {
+        empresa_id: id,
+        modulo,
+        status: 'ATENCAO',
+        conectado: true,
+        operacional: true,
+        renovado: false,
+        expira_em: sanitizePublicExpirationIso(targetRow[expiracaoKey]),
+        motivo: 'Token próximo de expirar ou aguardando renovação automática.',
+      }
+    }
+
+    return {
+      empresa_id: id,
+      modulo,
+      status: 'DESCONECTADA',
+      conectado: false,
+      operacional: false,
+      expira_em: null,
+      motivo: 'Sessão expirada sem refresh_token.',
+      categoria_erro: 'DISCONNECTED',
+    }
+  }
+
+  try {
+    const result = await getValidToken(id, modulo)
+    return {
+      empresa_id: id,
+      modulo,
+      status: 'CONECTADA',
+      conectado: true,
+      operacional: true,
+      renovado: Boolean(hasAccessToken && result.accessToken !== targetRow[tokenKey]),
+      expira_em: sanitizePublicExpirationIso(result.empresa?.[expiracaoKey] ?? targetRow[expiracaoKey]),
+    }
+  } catch (err: any) {
+    if (err instanceof TokenError) {
+      if (err.statusCode === 401) {
+        return {
+          empresa_id: id,
+          modulo,
+          status: 'DESCONECTADA',
+          conectado: false,
+          operacional: false,
+          motivo: err.message,
+          categoria_erro: err.category,
+        }
+      }
+      return {
+        empresa_id: id,
+        modulo,
+        status: 'ATENCAO',
+        conectado: true,
+        operacional: false,
+        motivo: err.message,
+        categoria_erro: err.category,
+      }
+    }
+
+    return {
+      empresa_id: id,
+      modulo,
+      status: 'ATENCAO',
+      conectado: true,
+      operacional: false,
+      motivo: err?.message || 'Erro inesperado ao verificar status da conexão.',
+      categoria_erro: 'TRANSIENT_ERROR',
+    }
+  }
+}
 
 function redactTokenSecrets(text: string, secrets: Array<string | undefined | null>): string {
   let sanitized = text
@@ -178,10 +459,14 @@ export async function getValidToken(
       }
 
       // Caso exista uma operação com forceRefresh=false em andamento e chegue um forceRefresh=true:
-      // aguarda a operação atual terminar; se ela já tiver executado um refresh real, reutiliza o resultado.
+      // aguarda a operação atual terminar; se ela já tiver executado um refresh real ou retornado
+      // um accessToken diferente do failedAccessToken, reutiliza o resultado.
       try {
         const res = await existing.promise
-        if (existing.didRefresh) {
+        if (
+          existing.didRefresh ||
+          (options?.failedAccessToken && res.accessToken !== options.failedAccessToken)
+        ) {
           return res
         }
       } catch {
@@ -202,9 +487,16 @@ export async function getValidToken(
     didRefresh: false,
   }
 
-  entry.promise = executeGetValidToken(empresaId, modulo, forceRefresh, 0, () => {
-    entry.didRefresh = true
-  })
+  entry.promise = executeGetValidToken(
+    empresaId,
+    modulo,
+    forceRefresh,
+    0,
+    () => {
+      entry.didRefresh = true
+    },
+    options
+  )
 
   if (!bypassLock) {
     refreshPromises.set(lockKey, entry)
@@ -224,7 +516,8 @@ async function executeGetValidToken(
   modulo: 'financeiro' | 'vendas',
   forceRefresh: boolean,
   retryCount: number = 0,
-  onRefreshTriggered?: () => void
+  onRefreshTriggered?: () => void,
+  options?: GetValidTokenOptions
 ): Promise<ValidTokenResult> {
   // 1. Buscar empresa
   const { data: empresa, error: errEmp } = await supabaseAdmin
@@ -253,9 +546,23 @@ async function executeGetValidToken(
     )
   }
 
+  // Se foi passado failedAccessToken e o banco já possui um access_token diferente e válido,
+  // reutiliza imediatamente sem consumir o refresh_token!
+  if (
+    options?.failedAccessToken &&
+    targetEmpresa[tokenKey] &&
+    targetEmpresa[tokenKey] !== options.failedAccessToken &&
+    isAccessTokenValid(targetEmpresa, tokenKey, expiracaoKey)
+  ) {
+    console.log(
+      `[token-manager] Token (${modulo}) no banco já difere do failedAccessToken e está válido para empresa ${targetEmpresa.nome || empresaId}. Reutilizando sem refresh.`
+    )
+    return { accessToken: targetEmpresa[tokenKey], empresa: targetEmpresa }
+  }
+
   // 2. Verificar expiração (margem de 5 minutos)
   let accessToken = rawToken
-  const tokenExpirado = !isAccessTokenValid(targetEmpresa, tokenKey, expiracaoKey)
+  let tokenExpirado = !isAccessTokenValid(targetEmpresa, tokenKey, expiracaoKey)
 
   // 3. Se expirado (e não forçado), faz uma re-checagem no banco para ver se outro processo acabou de renovar
   if (tokenExpirado && !forceRefresh) {
@@ -275,7 +582,7 @@ async function executeGetValidToken(
   }
 
   // 4. Renovar se necessário ou se solicitado (forceRefresh)
-  const currentRefreshToken = targetEmpresa[refreshKey]
+  let currentRefreshToken = targetEmpresa[refreshKey]
   if ((tokenExpirado || forceRefresh) && currentRefreshToken) {
     const clientId = process.env.CONTA_AZUL_CLIENT_ID
     const clientSecret = process.env.CONTA_AZUL_CLIENT_SECRET
@@ -289,6 +596,12 @@ async function executeGetValidToken(
         'CONFIG_ERROR'
       )
     }
+
+    const lockTtlMs =
+      typeof options?.lockTtlMs === 'number' && options.lockTtlMs > 0
+        ? options.lockTtlMs
+        : DEFAULT_DISTRIBUTED_LOCK_TTL_MS
+    const pollIntervalMs = process.env.NODE_ENV === 'test' ? 50 : 150
 
     /**
      * Avalia se outra instância concorrente já substituiu o refresh_token no banco.
@@ -327,7 +640,8 @@ async function executeGetValidToken(
             modulo,
             forceRefresh,
             retryCount + 1,
-            onRefreshTriggered
+            onRefreshTriggered,
+            options
           )
         }
 
@@ -340,13 +654,300 @@ async function executeGetValidToken(
       return null
     }
 
+    /**
+     * Aguarda outra instância que detém o bloqueio distribuído concluir a renovação
+     * (incluindo extensões de lease via heartbeat).
+     */
+    const waitForDistributedLockHolder = async (
+      initialRow: Record<string, any> | null | undefined
+    ): Promise<{ resolved?: ValidTokenResult; latestRow?: Record<string, any> | null }> => {
+      let atual = initialRow
+      const maxWaitMs = Math.max(lockTtlMs * 3, 35_000)
+      const deadline = Date.now() + maxWaitMs
+
+      while (Date.now() < deadline) {
+        if (atual) {
+          if (
+            options?.failedAccessToken &&
+            atual[tokenKey] &&
+            atual[tokenKey] !== options.failedAccessToken &&
+            isAccessTokenValid(atual, tokenKey, expiracaoKey)
+          ) {
+            return { resolved: { accessToken: atual[tokenKey], empresa: atual } }
+          }
+
+          if (isAccessTokenValid(atual, tokenKey, expiracaoKey)) {
+            if (
+              !forceRefresh ||
+              options?.failedAccessToken ||
+              atual[refreshKey] !== currentRefreshToken ||
+              atual[tokenKey] !== rawToken
+            ) {
+              return { resolved: { accessToken: atual[tokenKey], empresa: atual } }
+            }
+          }
+
+          if (atual[refreshKey] && atual[refreshKey] !== currentRefreshToken) {
+            const reused = await tryReuseOrRetryIfReplaced(atual)
+            if (reused) return { resolved: reused }
+          }
+
+          if (!isDistributedRefreshLockActive(atual[expiracaoKey])) {
+            return { latestRow: atual }
+          }
+        }
+
+        await new Promise((r) => setTimeout(r, pollIntervalMs))
+        const { data: polled } = await supabaseAdmin
+          .from('empresas')
+          .select('*')
+          .eq('id', empresaId)
+          .single()
+        atual = polled
+      }
+
+      return { latestRow: atual }
+    }
+
+    // Loop determinístico de aquisição/espera/takeover do bloqueio distribuído
+    let restorableRawExp: string | null = sanitizeRestorableExpiration(targetEmpresa[expiracaoKey])
+    let leaseIso = ''
+    let lockAcquired = false
+    let degradedLockMode = false
+    const maxAcquireDeadline = Date.now() + Math.max(lockTtlMs * 4, 45_000)
+
+    while (!lockAcquired && !degradedLockMode && Date.now() < maxAcquireDeadline) {
+      if (isDistributedRefreshLockActive(targetEmpresa[expiracaoKey])) {
+        const waitRes = await waitForDistributedLockHolder(targetEmpresa)
+        if (waitRes.resolved) {
+          return waitRes.resolved
+        }
+        if (waitRes.latestRow) {
+          if (
+            options?.failedAccessToken &&
+            waitRes.latestRow[tokenKey] &&
+            waitRes.latestRow[tokenKey] !== options.failedAccessToken &&
+            isAccessTokenValid(waitRes.latestRow, tokenKey, expiracaoKey)
+          ) {
+            return { accessToken: waitRes.latestRow[tokenKey], empresa: waitRes.latestRow }
+          }
+
+          const reusedAfterWait = await tryReuseOrRetryIfReplaced(waitRes.latestRow)
+          if (reusedAfterWait) {
+            return reusedAfterWait
+          }
+
+          targetEmpresa = waitRes.latestRow
+          currentRefreshToken = targetEmpresa[refreshKey]
+          if (!currentRefreshToken) {
+            throw new TokenError(
+              'Sua conexão com a Conta Azul expirou e não possui refresh_token válido. Acesse Empresas e reconecte.',
+              401,
+              'DISCONNECTED'
+            )
+          }
+
+          if (isDistributedRefreshLockActive(targetEmpresa[expiracaoKey])) {
+            continue
+          }
+        }
+      }
+
+      const expectedRawExp: string | null = targetEmpresa[expiracaoKey] ?? null
+      restorableRawExp = sanitizeRestorableExpiration(expectedRawExp)
+      leaseIso = createUniqueDistributedRefreshLock(Date.now() + lockTtlMs)
+
+      let lockQuery: any = supabaseAdmin
+        .from('empresas')
+        .update({ [expiracaoKey]: leaseIso })
+        .eq('id', targetEmpresa.id)
+        .eq(refreshKey, currentRefreshToken)
+
+      if (expectedRawExp !== null) {
+        lockQuery = lockQuery.eq(expiracaoKey, expectedRawExp)
+      } else {
+        lockQuery =
+          typeof lockQuery.is === 'function'
+            ? lockQuery.is(expiracaoKey, null)
+            : lockQuery.eq(expiracaoKey, null)
+      }
+
+      const { data: lockRows, error: lockErr } = await lockQuery.select('id')
+
+      if (lockErr) {
+        // Modo degradado seguro: não aborta por falha transitória no lock; o CAS final e seu retry tratarão a escrita
+        degradedLockMode = true
+        break
+      }
+
+      if (Array.isArray(lockRows) && lockRows.length > 0) {
+        lockAcquired = true
+        break
+      }
+
+      // 0 linhas atualizadas ao tentar adquirir o lock: relê o banco imediatamente
+      const { data: relida } = await supabaseAdmin
+        .from('empresas')
+        .select('*')
+        .eq('id', empresaId)
+        .single()
+
+      if (!relida) {
+        throw new TokenError('Empresa não encontrada', 404)
+      }
+
+      if (
+        options?.failedAccessToken &&
+        relida[tokenKey] &&
+        relida[tokenKey] !== options.failedAccessToken &&
+        isAccessTokenValid(relida, tokenKey, expiracaoKey)
+      ) {
+        return { accessToken: relida[tokenKey], empresa: relida }
+      }
+
+      const reused = await tryReuseOrRetryIfReplaced(relida)
+      if (reused) {
+        return reused
+      }
+
+      if (
+        relida[expiracaoKey] === expectedRawExp &&
+        relida[refreshKey] === currentRefreshToken
+      ) {
+        // Nenhuma outra instância alterou a linha (ex.: simulação forceZeroUpdatedRows = true em teste)
+        degradedLockMode = true
+        break
+      }
+
+      targetEmpresa = relida
+      currentRefreshToken = relida[refreshKey]
+      if (!currentRefreshToken) {
+        throw new TokenError(
+          'Sua conexão com a Conta Azul expirou e não possui refresh_token válido. Acesse Empresas e reconecte.',
+          401,
+          'DISCONNECTED'
+        )
+      }
+    }
+
+    if (!lockAcquired && !degradedLockMode) {
+      throw new TokenError(
+        'Outra renovação OAuth ainda está em andamento para esta empresa. Tente novamente em instantes.',
+        503,
+        'TRANSIENT_ERROR'
+      )
+    }
+
+    const releaseDistributedLockIfHeld = async () => {
+      if (!lockAcquired) return
+      lockAcquired = false
+      try {
+        await supabaseAdmin
+          .from('empresas')
+          .update({ [expiracaoKey]: restorableRawExp })
+          .eq('id', targetEmpresa.id)
+          .eq(refreshKey, currentRefreshToken)
+          .eq(expiracaoKey, leaseIso)
+          .select('id')
+      } catch {
+        // Ignora erro ao liberar lock; o TTL expirará automaticamente
+      }
+    }
+
+    // Releitura obrigatória após adquirir o bloqueio (Requisito 2.3) antes de chamar refreshToken()
+    if (lockAcquired) {
+      const { data: posLock } = await supabaseAdmin
+        .from('empresas')
+        .select('*')
+        .eq('id', empresaId)
+        .single()
+
+      if (posLock) {
+        if (posLock[refreshKey] !== currentRefreshToken) {
+          await releaseDistributedLockIfHeld()
+          if (isAccessTokenValid(posLock, tokenKey, expiracaoKey)) {
+            return { accessToken: posLock[tokenKey], empresa: posLock }
+          }
+          const reusedPosLock = await tryReuseOrRetryIfReplaced(posLock)
+          if (reusedPosLock) {
+            return reusedPosLock
+          }
+        }
+
+        if (
+          options?.failedAccessToken &&
+          posLock[tokenKey] &&
+          posLock[tokenKey] !== options.failedAccessToken &&
+          isAccessTokenValid(posLock, tokenKey, expiracaoKey)
+        ) {
+          await releaseDistributedLockIfHeld()
+          return { accessToken: posLock[tokenKey], empresa: posLock }
+        }
+      }
+    }
+
     try {
       onRefreshTriggered?.()
-      const novosTokens = await refreshToken(
-        currentRefreshToken,
-        clientId,
-        clientSecret
-      )
+
+      let hbTimer: ReturnType<typeof setInterval> | null = null
+      let inFlightHeartbeat: Promise<void> | null = null
+
+      if (lockAcquired && !options?.disableLockHeartbeat) {
+        const hbInterval =
+          options?.heartbeatIntervalMs ??
+          Math.max(100, Math.min(5_000, Math.floor(lockTtlMs * 0.4)))
+
+        hbTimer = setInterval(() => {
+          if (!lockAcquired || inFlightHeartbeat) return
+          inFlightHeartbeat = (async () => {
+            try {
+              if (!lockAcquired) return
+              const nextLeaseIso = createUniqueDistributedRefreshLock(Date.now() + lockTtlMs)
+              const hbRes = await supabaseAdmin
+                .from('empresas')
+                .update({ [expiracaoKey]: nextLeaseIso })
+                .eq('id', targetEmpresa.id)
+                .eq(refreshKey, currentRefreshToken)
+                .eq(expiracaoKey, leaseIso)
+                .select('id')
+
+              if (!hbRes.error && Array.isArray(hbRes.data)) {
+                if (hbRes.data.length > 0) {
+                  leaseIso = nextLeaseIso
+                } else {
+                  lockAcquired = false
+                  if (hbTimer) {
+                    clearInterval(hbTimer)
+                    hbTimer = null
+                  }
+                }
+              }
+            } catch {
+              // Ignora falha transitória de heartbeat
+            } finally {
+              inFlightHeartbeat = null
+            }
+          })()
+        }, hbInterval)
+      }
+
+      let novosTokens: Awaited<ReturnType<typeof refreshToken>>
+      try {
+        novosTokens = await refreshToken(
+          currentRefreshToken,
+          clientId,
+          clientSecret
+        )
+      } finally {
+        if (hbTimer) {
+          clearInterval(hbTimer)
+          hbTimer = null
+        }
+        if (inFlightHeartbeat) {
+          await inFlightHeartbeat
+        }
+      }
+
       accessToken = novosTokens.access_token
 
       const updateData: Record<string, any> = {
@@ -361,7 +962,7 @@ async function executeGetValidToken(
         updateData.conta_azul_connected = true
       }
 
-      // Salvamento condicional (Compare-and-Swap pelo refresh_token anterior)
+      // Salvamento condicional (Compare-and-Swap pelo refresh_token anterior; já substitui expiracaoKey liberando o lock)
       let { data: updatedRows, error: errUpdate } = await supabaseAdmin
         .from('empresas')
         .update(updateData)
@@ -415,6 +1016,8 @@ async function executeGetValidToken(
           return reusedAfterWriteError
         }
 
+        await releaseDistributedLockIfHeld()
+
         throw new TokenError(
           `Falha ao persistir os novos tokens da Conta Azul (${modulo}) no banco de dados: ${safeErrMsg}`,
           500,
@@ -437,6 +1040,29 @@ async function executeGetValidToken(
           return reusedAfterZeroRows
         }
 
+        // Proteção contra limpeza concorrente por perdedor: se outra instância limpou refresh_token para null,
+        // mas esta instância recebeu novosTokens válidos do Cognito, recupera a conexão atomicamente!
+        if (atual && !atual[refreshKey]) {
+          let recoverQuery: any = supabaseAdmin
+            .from('empresas')
+            .update(updateData)
+            .eq('id', targetEmpresa.id)
+          recoverQuery =
+            typeof recoverQuery.is === 'function'
+              ? recoverQuery.is(refreshKey, null)
+              : recoverQuery.eq(refreshKey, null)
+          const { data: recoveredRows, error: recoverErr } = await recoverQuery.select('id')
+          if (!recoverErr && Array.isArray(recoveredRows) && recoveredRows.length > 0) {
+            lockAcquired = false
+            console.log(
+              `[token-manager] Conexão (${modulo}) recuperada com sucesso após limpeza concorrente para empresa ${targetEmpresa.nome || targetEmpresa.id}`
+            )
+            return { accessToken, empresa: { ...atual, ...updateData } }
+          }
+        }
+
+        await releaseDistributedLockIfHeld()
+
         throw new TokenError(
           `Sua conexão com a Conta Azul (${modulo}) foi alterada, desconectada ou não possui token válido após atualização concorrente. Acesse Empresas e conecte a Conta Azul.`,
           401,
@@ -444,10 +1070,12 @@ async function executeGetValidToken(
         )
       }
 
+      lockAcquired = false
       console.log(`[token-manager] Token (${modulo}) renovado com sucesso para empresa ${targetEmpresa.nome || targetEmpresa.id}`)
       targetEmpresa = { ...targetEmpresa, ...updateData }
     } catch (errRefresh: any) {
       if (errRefresh instanceof TokenError) {
+        await releaseDistributedLockIfHeld()
         throw errRefresh
       }
 
@@ -500,6 +1128,7 @@ async function executeGetValidToken(
 
       // Caso A — invalid_client (falha nas credenciais do aplicativo)
       if (errorCode === 'invalid_client' || errorSubtype === 'invalid_client') {
+        await releaseDistributedLockIfHeld()
         console.warn(
           `[token-manager] Falha de credenciais do aplicativo (invalid_client) ao renovar token (${modulo}) para ${targetEmpresa.nome || targetEmpresa.id}. Tokens da empresa PRESERVADOS.`
         )
@@ -521,7 +1150,25 @@ async function executeGetValidToken(
 
         const reusedFirstRead = await tryReuseOrRetryIfReplaced(atual)
         if (reusedFirstRead) {
+          await releaseDistributedLockIfHeld()
           return reusedFirstRead
+        }
+
+        if (
+          atual &&
+          !isSameDistributedLockLease(atual[expiracaoKey], leaseIso) &&
+          isDistributedRefreshLockActive(atual[expiracaoKey])
+        ) {
+          const waitRes = await waitForDistributedLockHolder(atual)
+          if (waitRes.resolved) {
+            return waitRes.resolved
+          }
+          if (waitRes.latestRow) {
+            const reusedAfterLockWait = await tryReuseOrRetryIfReplaced(waitRes.latestRow)
+            if (reusedAfterLockWait) {
+              return reusedAfterLockWait
+            }
+          }
         }
 
         const classifiedSubtype = classifyInvalidGrantSubtype(errorSubtype, errorDescription)
@@ -530,27 +1177,57 @@ async function executeGetValidToken(
         // Subcaso B1 — access_revoked
         if (classifiedSubtype === 'access_revoked') {
           if (process.env.NODE_ENV === 'production') {
-            const { data: clearedRows } = await supabaseAdmin
-              .from('empresas')
-              .update(updateDataClear)
-              .eq('id', targetEmpresa.id)
-              .eq(refreshKey, currentRefreshToken)
-              .select('id')
+            const holderChanged =
+              atual &&
+              isDistributedRefreshLockActive(atual[expiracaoKey]) &&
+              !isSameDistributedLockLease(atual[expiracaoKey], leaseIso)
 
-            if (Array.isArray(clearedRows) && clearedRows.length === 0) {
-              const { data: posClear } = await supabaseAdmin
+            if (!holderChanged) {
+              let clearQuery: any = supabaseAdmin
                 .from('empresas')
-                .select('*')
-                .eq('id', empresaId)
-                .single()
-              const reusedAfterClear = await tryReuseOrRetryIfReplaced(posClear)
-              if (reusedAfterClear) {
-                return reusedAfterClear
+                .update(updateDataClear)
+                .eq('id', targetEmpresa.id)
+                .eq(refreshKey, currentRefreshToken)
+              if (lockAcquired) {
+                clearQuery = clearQuery.eq(expiracaoKey, leaseIso)
               }
+              const { data: clearedRows } = await clearQuery.select('id')
+              lockAcquired = false
+
+              if (Array.isArray(clearedRows) && clearedRows.length === 0) {
+                const { data: posClear } = await supabaseAdmin
+                  .from('empresas')
+                  .select('*')
+                  .eq('id', empresaId)
+                  .single()
+                const reusedAfterClear = await tryReuseOrRetryIfReplaced(posClear)
+                if (reusedAfterClear) {
+                  return reusedAfterClear
+                }
+                if (posClear && isAccessTokenValid(posClear, tokenKey, expiracaoKey)) {
+                  return { accessToken: posClear[tokenKey], empresa: posClear }
+                }
+              }
+            } else {
+              lockAcquired = false
             }
           } else {
+            const wasHoldingLock = lockAcquired
+            lockAcquired = false
+            let devUpdateQuery: any = supabaseAdmin
+              .from('empresas')
+              .update({
+                [isVendas ? 'conta_azul_vendas_connected' : 'conta_azul_connected']: false,
+                [expiracaoKey]: restorableRawExp,
+              })
+              .eq('id', targetEmpresa.id)
+              .eq(refreshKey, currentRefreshToken)
+            if (wasHoldingLock) {
+              devUpdateQuery = devUpdateQuery.eq(expiracaoKey, leaseIso)
+            }
+            await devUpdateQuery.select('id')
             console.warn(
-              `[token-manager] [DEV GUARD-RAIL] 'access_revoked' detectado em ambiente local. Limpeza automática suprimida no Supabase para empresa ${targetEmpresa.nome || targetEmpresa.id}.`
+              `[token-manager] [DEV GUARD-RAIL] 'access_revoked' detectado em ambiente local. Tokens brutos preservados e status desconectado para empresa ${targetEmpresa.nome || targetEmpresa.id}.`
             )
           }
 
@@ -561,58 +1238,101 @@ async function executeGetValidToken(
           )
         }
 
-        // Para invalid_refresh_token e ambiguous: polling em 2 etapas (150ms + 250ms) para aguardar
+        // Para invalid_refresh_token e ambiguous: polling iterativo (default 1.800ms em 5 etapas) para aguardar
         // eventual escrita concorrente de outra instância que venceu a corrida de rotação no Cognito.
-        await new Promise((resolve) => setTimeout(resolve, INVALID_REFRESH_RECHECK_DELAY_MS))
+        const pollDelays = options?.invalidGrantPollDelaysMs ?? DEFAULT_INVALID_GRANT_POLL_DELAYS_MS
+        let ultimaLeitura: Record<string, any> | null | undefined = atual
 
-        const { data: atualPosDelay1 } = await supabaseAdmin
-          .from('empresas')
-          .select('*')
-          .eq('id', empresaId)
-          .single()
+        for (const delayMs of pollDelays) {
+          await new Promise((resolve) => setTimeout(resolve, delayMs))
 
-        const reusedSecondRead = await tryReuseOrRetryIfReplaced(atualPosDelay1)
-        if (reusedSecondRead) {
-          return reusedSecondRead
-        }
+          const { data: leitura } = await supabaseAdmin
+            .from('empresas')
+            .select('*')
+            .eq('id', empresaId)
+            .single()
 
-        await new Promise((resolve) => setTimeout(resolve, INVALID_REFRESH_RECHECK_SECOND_DELAY_MS))
+          ultimaLeitura = leitura
 
-        const { data: atualPosDelay2 } = await supabaseAdmin
-          .from('empresas')
-          .select('*')
-          .eq('id', empresaId)
-          .single()
+          const reusedPoll = await tryReuseOrRetryIfReplaced(leitura)
+          if (reusedPoll) {
+            await releaseDistributedLockIfHeld()
+            return reusedPoll
+          }
 
-        const reusedThirdRead = await tryReuseOrRetryIfReplaced(atualPosDelay2)
-        if (reusedThirdRead) {
-          return reusedThirdRead
-        }
-
-        // Subcaso B2 — invalid_refresh_token (por error_subtype ou error_description do Cognito)
-        if (classifiedSubtype === 'invalid_refresh_token') {
-          if (process.env.NODE_ENV === 'production') {
-            const { data: clearedRows } = await supabaseAdmin
-              .from('empresas')
-              .update(updateDataClear)
-              .eq('id', targetEmpresa.id)
-              .eq(refreshKey, currentRefreshToken)
-              .select('id')
-
-            if (Array.isArray(clearedRows) && clearedRows.length === 0) {
-              const { data: posClear } = await supabaseAdmin
-                .from('empresas')
-                .select('*')
-                .eq('id', empresaId)
-                .single()
-              const reusedAfterClear = await tryReuseOrRetryIfReplaced(posClear)
-              if (reusedAfterClear) {
-                return reusedAfterClear
+          if (
+            leitura &&
+            !isSameDistributedLockLease(leitura[expiracaoKey], leaseIso) &&
+            isDistributedRefreshLockActive(leitura[expiracaoKey])
+          ) {
+            const waitRes = await waitForDistributedLockHolder(leitura)
+            if (waitRes.resolved) {
+              return waitRes.resolved
+            }
+            if (waitRes.latestRow) {
+              ultimaLeitura = waitRes.latestRow
+              const reusedAfterWait = await tryReuseOrRetryIfReplaced(waitRes.latestRow)
+              if (reusedAfterWait) {
+                return reusedAfterWait
               }
             }
+          }
+        }
+
+        // Subcaso B2 — invalid_refresh_token (por error_subtype, error_description ou resposta vazia do Cognito)
+        if (classifiedSubtype === 'invalid_refresh_token') {
+          if (process.env.NODE_ENV === 'production') {
+            const holderChanged =
+              ultimaLeitura &&
+              isDistributedRefreshLockActive(ultimaLeitura[expiracaoKey]) &&
+              !isSameDistributedLockLease(ultimaLeitura[expiracaoKey], leaseIso)
+
+            if (!holderChanged) {
+              let clearQuery: any = supabaseAdmin
+                .from('empresas')
+                .update(updateDataClear)
+                .eq('id', targetEmpresa.id)
+                .eq(refreshKey, currentRefreshToken)
+              if (lockAcquired) {
+                clearQuery = clearQuery.eq(expiracaoKey, leaseIso)
+              }
+              const { data: clearedRows } = await clearQuery.select('id')
+              lockAcquired = false
+
+              if (Array.isArray(clearedRows) && clearedRows.length === 0) {
+                const { data: posClear } = await supabaseAdmin
+                  .from('empresas')
+                  .select('*')
+                  .eq('id', empresaId)
+                  .single()
+                const reusedAfterClear = await tryReuseOrRetryIfReplaced(posClear)
+                if (reusedAfterClear) {
+                  return reusedAfterClear
+                }
+                if (posClear && isAccessTokenValid(posClear, tokenKey, expiracaoKey)) {
+                  return { accessToken: posClear[tokenKey], empresa: posClear }
+                }
+              }
+            } else {
+              lockAcquired = false
+            }
           } else {
+            const wasHoldingLock = lockAcquired
+            lockAcquired = false
+            let devUpdateQuery: any = supabaseAdmin
+              .from('empresas')
+              .update({
+                [isVendas ? 'conta_azul_vendas_connected' : 'conta_azul_connected']: false,
+                [expiracaoKey]: restorableRawExp,
+              })
+              .eq('id', targetEmpresa.id)
+              .eq(refreshKey, currentRefreshToken)
+            if (wasHoldingLock) {
+              devUpdateQuery = devUpdateQuery.eq(expiracaoKey, leaseIso)
+            }
+            await devUpdateQuery.select('id')
             console.warn(
-              `[token-manager] [DEV GUARD-RAIL] 'invalid_refresh_token' detectado em ambiente local. Limpeza automática suprimida no Supabase para empresa ${targetEmpresa.nome || targetEmpresa.id}.`
+              `[token-manager] [DEV GUARD-RAIL] 'invalid_refresh_token' detectado em ambiente local. Tokens brutos preservados e status desconectado para empresa ${targetEmpresa.nome || targetEmpresa.id}.`
             )
           }
 
@@ -623,7 +1343,8 @@ async function executeGetValidToken(
           )
         }
 
-        // Subcaso B3 — invalid_grant sem error_subtype ou com subtipo desconhecido/ambíguo
+        // Subcaso B3 — invalid_grant com subtipo desconhecido ou descrição ambígua
+        await releaseDistributedLockIfHeld()
         console.warn(
           `[token-manager] 'invalid_grant' recebido sem error_subtype reconhecido (${errorSubtype || 'ausente'}) para empresa ${targetEmpresa.nome || targetEmpresa.id} (${modulo}). Tokens PRESERVADOS por segurança.`
         )
@@ -636,6 +1357,7 @@ async function executeGetValidToken(
 
       // Caso C — Falhas de rede, timeouts, HTTP 429/500/502/503/504 ou respostas inesperadas:
       // Preserva integralmente os tokens no banco.
+      await releaseDistributedLockIfHeld()
       const status = errRefresh instanceof OAuthError ? (errRefresh.statusCode || 502) : 502
 
       console.warn(

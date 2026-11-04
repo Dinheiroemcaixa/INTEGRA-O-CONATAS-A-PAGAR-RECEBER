@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ categorias, connected: true, status_conexao: 'CONECTADA', reconectar: false })
     } catch (firstErr: any) {
       if (firstErr?.message === 'TOKEN_EXPIRADO' || /401|unauthorized|token_expirado/i.test(firstErr?.message || '')) {
-        const refreshed = await getValidToken(empresa_id, 'financeiro', true)
+        const refreshed = await getValidToken(empresa_id, 'financeiro', true, { failedAccessToken: result.accessToken })
         const categorias = await listarCategorias(refreshed.accessToken)
         return NextResponse.json({ categorias, connected: true, status_conexao: 'CONECTADA', reconectar: false })
       }

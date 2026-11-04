@@ -55,51 +55,45 @@ export default function TabelaContas({
   const empresaSelecionada = empresas.find(e => e.id === empresaId)
   const temTokenCA = Boolean(empresaSelecionada?.access_token_conta_azul && empresaSelecionada?.conta_azul_connected !== false)
 
-  // Buscar lista de Contas Financeiras (Bancos) no Conta Azul
+  // Buscar lista de Contas Financeiras (Bancos) e Categorias reais no Conta Azul sequencialmente
   useEffect(() => {
-    if (!empresaId || !temTokenCA) { setContasFinanceirasCA([]); return }
-    fetch(`/api/conta-azul/contas-financeiras?empresa_id=${empresaId}`)
-      .then(async r => {
-        const data = await r.json().catch(() => null)
-        if (data?.reconectar === true || data?.status_conexao === 'DESCONECTADA') {
-          recarregar()
-          return null
-        }
-        return r.ok ? data : null
-      })
-      .then(data => {
-        if (data?.contas && Array.isArray(data.contas)) {
-          setContasFinanceirasCA(data.contas.map((c: any) => ({ id: c.id, descricao: c.descricao })))
-        }
-      })
-      .catch(() => {})
-  }, [empresaId, temTokenCA, recarregar])
-
-  // Buscar lista de Categorias reais no Conta Azul respeitando a empresa selecionada
-  useEffect(() => {
+    setContasFinanceirasCA([])
+    setCategoriasCA([])
     if (!empresaId || !temTokenCA) {
-      setCategoriasCA([])
       return
     }
+
     let cancelled = false
-    fetch(`/api/conta-azul/categorias?empresa_id=${empresaId}`)
-      .then(async r => {
-        const data = await r.json().catch(() => null)
-        if (data?.reconectar === true || data?.status_conexao === 'DESCONECTADA') {
+    const carregarMetadadosCA = async () => {
+      try {
+        const rContas = await fetch(`/api/conta-azul/contas-financeiras?empresa_id=${empresaId}`)
+        const dataContas = await rContas.json().catch(() => null)
+        if (dataContas?.reconectar === true || dataContas?.status_conexao === 'DESCONECTADA') {
           recarregar()
-          return null
+          return
         }
-        return r.ok ? data : null
-      })
-      .then(data => {
-        if (!cancelled && data?.categorias && Array.isArray(data.categorias)) {
-          setCategoriasCA(data.categorias.map((c: any) => c.nome).filter(Boolean))
+        if (!cancelled && rContas.ok && dataContas?.contas && Array.isArray(dataContas.contas)) {
+          setContasFinanceirasCA(dataContas.contas.map((c: any) => ({ id: c.id, descricao: c.descricao })))
         }
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
+      } catch {}
+
+      if (cancelled) return
+
+      try {
+        const rCats = await fetch(`/api/conta-azul/categorias?empresa_id=${empresaId}`)
+        const dataCats = await rCats.json().catch(() => null)
+        if (dataCats?.reconectar === true || dataCats?.status_conexao === 'DESCONECTADA') {
+          recarregar()
+          return
+        }
+        if (!cancelled && rCats.ok && dataCats?.categorias && Array.isArray(dataCats.categorias)) {
+          setCategoriasCA(dataCats.categorias.map((c: any) => c.nome).filter(Boolean))
+        }
+      } catch {}
     }
+
+    carregarMetadadosCA()
+    return () => { cancelled = true }
   }, [empresaId, temTokenCA, recarregar])
 
   const carregar = useCallback(async () => {
