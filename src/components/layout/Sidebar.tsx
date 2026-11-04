@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
   ArrowDownCircle,
+  ArrowUpCircle,
   Building2, Settings, ChevronRight, User, LogOut,
   ShoppingBag, Receipt, Link2, Layers,
   ShieldCheck, X, KeyRound, Lock,
@@ -53,6 +54,7 @@ const navSections: NavSection[] = [
       { label: 'Início', href: '/dashboard', icon: Home, cardKey: 'dashboard' },
       { label: 'Gestão Pagamentos', href: '/gestao-pagamentos', icon: Layers, cardKey: 'gestao_pagamentos' },
       { label: 'Contas a Pagar', href: '/contas-pagar', icon: ArrowDownCircle, cardKey: 'contas_pagar' },
+      { label: 'Contas a Receber', href: '/contas-receber', icon: ArrowUpCircle, cardKey: 'contas_receber' },
       { label: 'Auditoria Inteligente de Conciliações', href: '/auditoria-conciliacoes-ca', icon: ShieldCheck, badge: 'FASE 2', badgeColor: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30', cardKey: 'conciliacao' },
     ]
   },
