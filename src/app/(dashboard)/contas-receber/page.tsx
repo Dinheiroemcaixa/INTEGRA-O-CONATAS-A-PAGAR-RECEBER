@@ -17,7 +17,7 @@ import PainelFrentesReceber, {
 } from '@/components/contas-receber/PainelFrentesReceber'
 
 export default function ContasReceberPage() {
-  const { empresaAtiva } = useEmpresa()
+  const { empresaAtiva, loading: carregandoEmpresa } = useEmpresa()
   const [abaAtiva, setAbaAtiva] = useState<AbaReceber>('cartoes')
 
   return (
@@ -33,7 +33,9 @@ export default function ContasReceberPage() {
               <h1 className="dx-title">Contas a Receber</h1>
               <span className="dx-tag">
                 <Sparkles size={11} />
-                <span>Etapa 1B · Fundação Visual</span>
+                <span>
+                  Etapa 1F-B · Transmissão Controlada (Trava de Segurança Ativa)
+                </span>
               </span>
             </div>
             <p className="dx-subtitle">
@@ -90,12 +92,12 @@ export default function ContasReceberPage() {
       </div>
 
       {/* AVISO QUANDO NENHUMA EMPRESA ESTÁ SELECIONADA */}
-      {!empresaAtiva && (
+      {!carregandoEmpresa && !empresaAtiva && (
         <div className="dx-alert">
           <AlertCircle size={18} className="flex-shrink-0" />
           <span>
             Selecione uma loja/empresa no seletor superior para vincular o
-            contexto visual do módulo Contas a Receber.
+            contexto do módulo Contas a Receber.
           </span>
         </div>
       )}
@@ -104,8 +106,9 @@ export default function ContasReceberPage() {
       <PainelFrentesReceber
         abaAtiva={abaAtiva}
         onChangeAba={setAbaAtiva}
-        empresaId={empresaAtiva?.id || 'emp-demo'}
-        empresaNome={empresaAtiva?.nome || 'Loja Demonstração (Em Memória)'}
+        empresaId={empresaAtiva?.id || ''}
+        empresaNome={empresaAtiva?.nome || ''}
+        carregandoEmpresa={carregandoEmpresa}
       />
     </div>
   )

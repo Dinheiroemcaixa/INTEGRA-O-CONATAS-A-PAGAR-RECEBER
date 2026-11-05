@@ -373,6 +373,11 @@ export interface ResultadoConferenciaBancariaStone {
     | 'SEM_REGISTROS_PAGOS'
     | 'APROVADA_EXATA'
     | 'DIVERGENTE_BLOQUEADA'
+  status_conferencia:
+    | 'AGUARDANDO_VALOR_BANCO'
+    | 'SEM_REGISTROS_PAGOS'
+    | 'CONFERIDO_EXATO'
+    | 'DIVERGENTE_BLOQUEADA'
   mensagem: string
 }
 
@@ -478,11 +483,26 @@ export interface AvaliacaoPeriodoContaAzulStoneDTO {
   triagem_deposito_liquido?: ResultadoTriagemItemLoteCA | null
 }
 
+export type CodigoErroAutorizacaoReceber =
+  | 'NAO_AUTENTICADO'
+  | 'PERFIL_NAO_APROVADO'
+  | 'SEM_PERMISSAO_CONTAS_RECEBER'
+  | 'EMPRESA_OBRIGATORIA'
+  | 'EMPRESA_NAO_ENCONTRADA'
+  | 'EMPRESA_NAO_AUTORIZADA'
+  | 'ERRO_INTERNO_AUTH'
+
 export interface RespostaContextoContaAzulReceberDTO {
   connected: boolean
-  status_conexao: 'CONECTADA' | 'DESCONECTADA' | 'ATENCAO'
+  status_conexao:
+    | 'CONECTADA'
+    | 'DESCONECTADA'
+    | 'ATENCAO'
+    | 'NAO_AUTENTICADO'
+    | 'ACESSO_NEGADO'
   reconectar: boolean
   empresa_id: string
+  codigo_erro?: CodigoErroAutorizacaoReceber | null
   aviso?: string | null
   contas_financeiras: ContaFinanceiraReceberDTO[]
   categorias_receita: CategoriaFinanceiraReceberDTO[]
@@ -491,5 +511,243 @@ export interface RespostaContextoContaAzulReceberDTO {
   sugestao_categoria_despesa_mdr: CategoriaFinanceiraReceberDTO | null
   avaliacao_periodo?: AvaliacaoPeriodoContaAzulStoneDTO | null
 }
+
+// ============================================================================
+// ETAPA 1F-A — PREPARAÇÃO E VALIDAÇÃO DE LANÇAMENTOS (SEM TRANSMISSÃO / SEM POST)
+// ============================================================================
+
+export type StatusConferenciaExataReceber =
+  | 'CONFERIDO_EXATO'
+  | 'AGUARDANDO_VALOR_BANCO'
+  | 'SEM_REGISTROS_PAGOS'
+  | 'DIVERGENTE_BLOQUEADA'
+
+export type CodigoBloqueioPreparacao1FA =
+  | 'CONFERENCIA_NAO_EXATA'
+  | 'EMPRESA_OU_LOJA_INVALIDA'
+  | 'CONTA_FINANCEIRA_NAO_SELECIONADA'
+  | 'CATEGORIA_RECEITA_VENDAS_INVALIDA'
+  | 'CATEGORIA_DESPESA_MDR_INVALIDA'
+  | 'DATA_OPERACAO_INVALIDA'
+  | 'VALOR_BRUTO_INVALIDO'
+  | 'VALOR_MDR_INVALIDO'
+  | 'EQUACAO_MATEMATICA_DIVERGENTE'
+  | 'IDEMPOTENCIA_JA_EXECUTADA_OU_AMBIGUA'
+  | 'LANCAMENTO_JA_EXISTENTE_CONTA_AZUL'
+  | 'CANDIDATOS_AMBIGUOS_CONTA_AZUL'
+
+export interface MotivoBloqueioPreparacao1FA {
+  codigo: CodigoBloqueioPreparacao1FA
+  campo:
+    | 'conferencia_bancaria'
+    | 'empresa_loja'
+    | 'conta_financeira'
+    | 'categoria_receita'
+    | 'categoria_despesa_mdr'
+    | 'datas'
+    | 'valores'
+    | 'idempotencia'
+    | 'conta_azul_existentes'
+  titulo: string
+  detalhe: string
+}
+
+/**
+ * Estrutura do payload preparado para evento financeiro (Receita ou Despesa) na API Conta Azul v2,
+ * gerado exclusivamente em memória para inspeção e validação na Etapa 1F-A.
+ */
+export interface PayloadEventoFinanceiroContaAzul1FADTO {
+  data_competencia: string // YYYY-MM-DD
+  valor: number // Reais (2 casas decimais)
+  descricao: string
+  observacao: string
+  conta_financeira: string // UUID da conta financeira selecionada
+  rateio: Array<{
+    id_categoria: string // UUID da categoria selecionada
+    valor: number
+  }>
+  condicao_pagamento: {
+    parcelas: Array<{
+      descricao: string
+      data_vencimento: string // YYYY-MM-DD
+      conta_financeira: string
+      nota?: string
+      detalhe_valor: {
+        valor_bruto: number
+        valor_liquido: number
+        multa: number
+        juros: number
+        desconto: number
+        taxa: number
+      }
+    }>
+  }
+}
+
+export interface ItemPreviaLancamento1FADTO {
+  papel: 'RECEITA_BRUTA' | 'DESPESA_MDR'
+  tipo_evento: 'RECEITA' | 'DESPESA'
+  endpoint_previsto_futuro:
+    | '/v1/financeiro/eventos-financeiros/contas-a-receber'
+    | '/v1/financeiro/eventos-financeiros/contas-a-pagar'
+  chave_idempotencia: string
+  dispensado_por_valor_zero: boolean
+  bloqueado: boolean
+  motivos_bloqueio: string[]
+  categoria_esperada: 'Receitas de Vendas' | 'Tarifas de Cartão de Créditos'
+  categoria_selecionada_id: string
+  categoria_selecionada_nome: string
+  categoria_compativel: boolean
+  conta_financeira_id: string
+  conta_financeira_nome: string
+  data_competencia_iso: string
+  data_vencimento_iso: string
+  valor_centavos: number
+  valor_micro: number
+  valor_reais: number
+  descricao: string
+  observacao: string
+  status_triagem_conta_azul: ClassificacaoTriagemLancamentoCA | 'NAO_CONSULTADO'
+  lancamentos_existentes_identificados: LancamentoExistenteContaAzulDTO[]
+  payload_simulado_conta_azul: PayloadEventoFinanceiroContaAzul1FADTO | null
+}
+
+export interface ResultadoPreparacaoValidacao1FADTO {
+  etapa: '1F-A'
+  modo_execucao: 'SIMULACAO_VALIDACAO_SEM_TRANSMISSAO'
+  transmissao_executada: false
+  pronto_para_etapa_1fb: boolean
+  status_conferencia_exigido: 'CONFERIDO_EXATO'
+  status_conferencia_atual: StatusConferenciaExataReceber
+  conferencia_exata_aprovada: boolean
+  empresa_id: string
+  empresa_nome: string
+  filtros_operacionais: {
+    data_vencimento_original_br: string
+    data_vencimento_original_iso: string
+    bandeira: string
+    produto: string
+    quantidade_parcelas_pagas: number
+  }
+  conta_financeira: {
+    id: string
+    descricao: string
+    valida: boolean
+  }
+  validacao_matematica: {
+    valor_bruto_centavos: number
+    desconto_mdr_centavos: number
+    desconto_antecipacao_centavos: number
+    valor_liquido_esperado_centavos: number
+    valor_extrato_bancario_centavos: number | null
+    diferenca_centavos: number
+    equacao_valida: boolean
+  }
+  validacao_idempotencia: {
+    chave_lote: string
+    chave_receita_bruta: string
+    chave_despesa_mdr: string
+    possui_conflito_idempotencia: boolean
+    detalhe: string
+  }
+  bloqueios: MotivoBloqueioPreparacao1FA[]
+  avisos: string[]
+  lancamento_receita_bruta: ItemPreviaLancamento1FADTO
+  lancamento_despesa_mdr: ItemPreviaLancamento1FADTO
+}
+
+// ============================================================================
+// ETAPA 1F-B — TRANSMISSÃO CONTROLADA DE RECEITA BRUTA E DESPESA MDR (CONTA AZUL)
+// ============================================================================
+
+export type StatusItemTransmissao1FB =
+  | 'TRANSMITIDO_COM_SUCESSO'
+  | 'JA_TRANSMITIDO_ANTERIORMENTE'
+  | 'DISPENSADO_VALOR_ZERO'
+  | 'FALHA_TRANSMISSAO'
+  | 'RECONCILIACAO_NECESSARIA'
+  | 'BLOQUEADO_PRE_VOO'
+  | 'BLOQUEADO_TRAVA_ETAPA'
+
+export interface ResultadoItemTransmissao1FBDTO {
+  papel: 'RECEITA_BRUTA' | 'DESPESA_MDR'
+  tipo_evento: 'RECEITA' | 'DESPESA'
+  chave_idempotencia: string
+  status: StatusItemTransmissao1FB
+  transmitido_nesta_execucao: boolean
+  reaproveitado_idempotencia: boolean
+  reconciliacao_necessaria: boolean
+  valor_centavos: number
+  categoria_id: string
+  categoria_nome: string
+  conta_financeira_id: string
+  conta_financeira_nome: string
+  data_vencimento_iso: string
+  contato_id?: string | null
+  contato_nome?: string | null
+  conta_azul_evento_id: string | null
+  conta_azul_parcela_id: string | null
+  mensagem: string
+  erro_detalhe?: string | null
+}
+
+export type SituacaoExecucao1FB =
+  | 'SUCESSO_COMPLETO'
+  | 'FALHA_PARCIAL_RETOMAVEL'
+  | 'RECONCILIACAO_NECESSARIA_BLOQUEADO'
+  | 'FALHA_COMPLETA'
+  | 'JA_CONCLUIDO_IDEMPOTENTE'
+  | 'BLOQUEADO_CONCORRENCIA_LOTE_EM_ANDAMENTO'
+  | 'BLOQUEADO_TRAVA_SEGURANCA_ETAPA'
+  | 'BLOQUEADO_VALIDACAO_PRE_VOO'
+
+export interface ConfirmacaoExplicitaUsuario1FBDTO {
+  confirmado_pelo_usuario: boolean
+  confirmado_em_iso?: string
+  loja_id: string
+  loja_nome: string
+  conta_financeira_id: string
+  conta_financeira_nome: string
+  categoria_receita_id: string
+  categoria_receita_nome: string
+  categoria_despesa_mdr_id: string
+  categoria_despesa_mdr_nome: string
+  valor_receita_bruta_centavos: number
+  valor_despesa_mdr_centavos: number
+  valor_liquido_centavos: number
+  data_lancamentos_iso: string
+  status_conferencia_bancaria: string
+}
+
+export interface RequisicaoTransmissao1FBDTO {
+  empresa_id: string
+  empresa_nome: string
+  filtros: FiltrosOperacionaisStone
+  totais: TotaisFiltradosStone
+  conferencia: ResultadoConferenciaBancariaStone
+  conta_financeira_selecionada: ContaFinanceiraReceberDTO | null
+  categoria_receita_selecionada: CategoriaFinanceiraReceberDTO | null
+  categoria_despesa_mdr_selecionada: CategoriaFinanceiraReceberDTO | null
+  confirmacao_explicita: ConfirmacaoExplicitaUsuario1FBDTO
+  identificadores_deterministicos?: string[]
+}
+
+export interface RespostaTransmissao1FBDTO {
+  etapa: '1F-B'
+  situacao: SituacaoExecucao1FB
+  transmissao_real_habilitada: boolean
+  sucesso: boolean
+  bloqueado: boolean
+  reconciliacao_necessaria: boolean
+  empresa_id: string
+  empresa_nome: string
+  chave_lote: string
+  mensagem: string
+  receita_bruta: ResultadoItemTransmissao1FBDTO | null
+  despesa_mdr: ResultadoItemTransmissao1FBDTO | null
+  bloqueios_pre_voo?: MotivoBloqueioPreparacao1FA[]
+}
+
+
 
 

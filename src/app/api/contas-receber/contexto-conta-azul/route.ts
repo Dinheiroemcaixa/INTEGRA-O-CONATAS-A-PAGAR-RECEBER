@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getValidToken, TokenError } from '@/lib/conta-azul/token-manager'
+import { validarAutorizacaoContasReceber } from '@/lib/contas-receber/auth-receber'
 import {
   consultarAvaliacaoPeriodoStoneSatelite,
   listarCategoriasReceitaEDespesaSatelite,
   listarContasFinanceirasSatelite,
 } from '@/lib/contas-receber/conta-azul-receber-satelite'
+import { sanitizarMensagemErroSegura } from '@/lib/contas-receber/transmissor-conta-azul-1fb'
 import type { RespostaContextoContaAzulReceberDTO } from '@/types/contas-receber'
 
 export const runtime = 'nodejs'
@@ -30,12 +32,13 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const empresaId = searchParams.get('empresa_id')?.trim() || ''
 
-  if (!empresaId) {
+  if (!empresaId || empresaId === 'emp-demo') {
     const vazia: RespostaContextoContaAzulReceberDTO = {
       connected: false,
       status_conexao: 'DESCONECTADA',
       reconectar: false,
       empresa_id: '',
+      codigo_erro: 'EMPRESA_OBRIGATORIA',
       aviso: 'Selecione uma empresa para consultar os dados reais do Conta Azul.',
       contas_financeiras: [],
       categorias_receita: [],
@@ -46,6 +49,37 @@ export async function GET(req: NextRequest) {
     }
     return NextResponse.json(vazia)
   }
+
+  // Validação obrigatória de sessão, aprovação, permissão `contas_receber` e acesso autorizado à empresa no servidor
+  const authResult = await validarAutorizacaoContasReceber({
+    req,
+    empresaId,
+  })
+
+  if (!authResult.autorizado || !authResult.empresaAutorizada) {
+    // Diferencia falhas de autenticação/autorização (401/403) de desconexão real da Conta Azul
+    const statusConexaoAuth =
+      authResult.statusHttp === 401 ? 'NAO_AUTENTICADO' : 'ACESSO_NEGADO'
+    const negada: RespostaContextoContaAzulReceberDTO = {
+      connected: false,
+      status_conexao: statusConexaoAuth,
+      reconectar: false,
+      empresa_id: empresaId,
+      codigo_erro: authResult.codigoErro || null,
+      aviso:
+        authResult.mensagemErro ||
+        'Acesso negado para consultar o contexto Conta Azul desta empresa.',
+      contas_financeiras: [],
+      categorias_receita: [],
+      categorias_despesa: [],
+      sugestao_categoria_receita_vendas: null,
+      sugestao_categoria_despesa_mdr: null,
+      avaliacao_periodo: null,
+    }
+    return NextResponse.json(negada, { status: authResult.statusHttp })
+  }
+
+  const empresaIdAutorizado = authResult.empresaAutorizada.id
 
   const dataDeIso = validarDataIso(searchParams.get('data_de'))
   const dataAteIso = validarDataIso(searchParams.get('data_ate'))
@@ -80,7 +114,7 @@ export async function GET(req: NextRequest) {
       connected: true,
       status_conexao: 'CONECTADA',
       reconectar: false,
-      empresa_id: empresaId,
+      empresa_id: empresaIdAutorizado,
       aviso: null,
       contas_financeiras: contasFinanceiras,
       categorias_receita: categoriasResult.categorias_receita,
@@ -96,7 +130,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const tokenRes = await getValidToken(empresaId, 'financeiro')
+    const tokenRes = await getValidToken(empresaIdAutorizado, 'financeiro')
     try {
       const resposta = await executarLeituraSatelite(tokenRes.accessToken)
       return NextResponse.json(resposta)
@@ -106,7 +140,7 @@ export async function GET(req: NextRequest) {
         msg === 'TOKEN_EXPIRADO' ||
         /401|unauthorized|token_expirado/i.test(msg)
       ) {
-        const refreshed = await getValidToken(empresaId, 'financeiro', true, { failedAccessToken: tokenRes.accessToken })
+        const refreshed = await getValidToken(empresaIdAutorizado, 'financeiro', true, { failedAccessToken: tokenRes.accessToken })
         const respostaRetry = await executarLeituraSatelite(
           refreshed.accessToken
         )
@@ -115,9 +149,9 @@ export async function GET(req: NextRequest) {
       throw firstErr
     }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err)
+    const msg = sanitizarMensagemErroSegura(err)
     console.warn(
-      `[contas-receber/contexto-conta-azul] Falha na consulta GET para empresa ${empresaId}:`,
+      `[contas-receber/contexto-conta-azul] Falha na consulta GET para empresa ${empresaIdAutorizado}:`,
       msg
     )
 
@@ -126,8 +160,8 @@ export async function GET(req: NextRequest) {
         connected: false,
         status_conexao: 'DESCONECTADA',
         reconectar: true,
-        empresa_id: empresaId,
-        aviso: err.message,
+        empresa_id: empresaIdAutorizado,
+        aviso: sanitizarMensagemErroSegura(err.message),
         contas_financeiras: [],
         categorias_receita: [],
         categorias_despesa: [],
@@ -142,7 +176,7 @@ export async function GET(req: NextRequest) {
       connected: true,
       status_conexao: 'ATENCAO',
       reconectar: false,
-      empresa_id: empresaId,
+      empresa_id: empresaIdAutorizado,
       aviso:
         msg ||
         'Falha temporária ao consultar dados somente-leitura do Conta Azul.',

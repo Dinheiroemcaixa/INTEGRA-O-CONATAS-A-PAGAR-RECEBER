@@ -581,6 +581,7 @@ export function conferirValorLiquidoComExtratoBancario(
       conferencia_aprovada: false,
       bloqueada_para_conferencia: true,
       status_codigo: 'SEM_REGISTROS_PAGOS',
+      status_conferencia: 'SEM_REGISTROS_PAGOS',
       mensagem:
         'Nenhuma venda paga encontrada para os filtros selecionados. Selecione Data de Vencimento Original, Bandeira e Produto com parcelas pagas.',
     }
@@ -596,6 +597,7 @@ export function conferirValorLiquidoComExtratoBancario(
       conferencia_aprovada: false,
       bloqueada_para_conferencia: true,
       status_codigo: 'AGUARDANDO_VALOR_BANCO',
+      status_conferencia: 'AGUARDANDO_VALOR_BANCO',
       mensagem:
         'Informe o valor líquido depositado no extrato bancário para realizar a conferência.',
     }
@@ -613,6 +615,7 @@ export function conferirValorLiquidoComExtratoBancario(
       conferencia_aprovada: false,
       bloqueada_para_conferencia: true,
       status_codigo: 'AGUARDANDO_VALOR_BANCO',
+      status_conferencia: 'AGUARDANDO_VALOR_BANCO',
       mensagem: 'Formato de valor bancário inválido. Digite o valor em reais (ex: 1.339,61).',
     }
   }
@@ -628,8 +631,9 @@ export function conferirValorLiquidoComExtratoBancario(
       conferencia_aprovada: true,
       bloqueada_para_conferencia: false,
       status_codigo: 'APROVADA_EXATA',
+      status_conferencia: 'CONFERIDO_EXATO',
       mensagem:
-        'Conferência Aprovada: O valor líquido da Stone corresponde exatamente ao lançamento do extrato bancário.',
+        'Conferência Aprovada (CONFERIDO_EXATO): O valor líquido da Stone corresponde exatamente ao lançamento do extrato bancário.',
     }
   }
 
@@ -651,6 +655,7 @@ export function conferirValorLiquidoComExtratoBancario(
     conferencia_aprovada: false,
     bloqueada_para_conferencia: true,
     status_codigo: 'DIVERGENTE_BLOQUEADA',
+    status_conferencia: 'DIVERGENTE_BLOQUEADA',
     mensagem: `Divergência detectada de ${diffAbsReais} (${sentido}). A operação está bloqueada e não pode ser marcada como conferida.`,
   }
 }

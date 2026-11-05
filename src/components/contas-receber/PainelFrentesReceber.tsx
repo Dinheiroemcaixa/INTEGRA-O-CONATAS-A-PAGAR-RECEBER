@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react'
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import {
   CreditCard,
   QrCode,
@@ -30,6 +31,7 @@ import type {
   BandeiraCartao,
   CategoriaFinanceiraReceberDTO,
   ClassificacaoTriagemLancamentoCA,
+  CodigoErroAutorizacaoReceber,
   ContaFinanceiraReceberDTO,
   LinhaExtratoStone,
   ModalidadeCartao,
@@ -37,7 +39,9 @@ import type {
   NaturezaMovimentacaoReceber,
   OperadoraCartao,
   ParcelaBuscaContaAzulDTO,
+  RequisicaoTransmissao1FBDTO,
   RespostaContextoContaAzulReceberDTO,
+  RespostaTransmissao1FBDTO,
   ResultadoTriagemItemLoteCA,
 } from '@/types/contas-receber'
 import {
@@ -60,6 +64,7 @@ import {
   gerarPreviaLancamentosMemoriaStone,
   interpretarCsvStone,
 } from '@/lib/contas-receber/stone-csv-parser'
+import { prepararEValidarLancamentosEtapa1FA } from '@/lib/contas-receber/preparador-validacao-1fa'
 
 export type AbaReceber = 'cartoes' | 'pix' | 'outras' | 'conferencia'
 
@@ -68,6 +73,7 @@ interface PainelFrentesReceberProps {
   onChangeAba: (aba: AbaReceber) => void
   empresaId: string
   empresaNome: string
+  carregandoEmpresa?: boolean
 }
 
 const OPERADORAS_INFO: Array<{
@@ -202,7 +208,28 @@ export default function PainelFrentesReceber({
   onChangeAba,
   empresaId,
   empresaNome,
+  carregandoEmpresa = false,
 }: PainelFrentesReceberProps) {
+  const supabase = useMemo(() => createClient(), [])
+  const requisicaoContextoSeqRef = useRef<number>(0)
+
+  const obterHeadersAutenticados = useCallback(async (): Promise<
+    Record<string, string>
+  > => {
+    const headers: Record<string, string> = {}
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+    } catch {
+      // Segue sem header extra caso getSession falhe
+    }
+    return headers
+  }, [supabase])
+
   const [operadoraSelecionada, setOperadoraSelecionada] =
     useState<OperadoraCartao>('STONE')
   const [arquivoTentativaNome, setArquivoTentativaNome] = useState<
@@ -267,6 +294,11 @@ export default function PainelFrentesReceber({
   const [consultandoPeriodoCA, setConsultandoPeriodoCA] =
     useState<boolean>(false)
   const [conectadoContaAzul, setConectadoContaAzul] = useState<boolean>(false)
+  const [statusConexaoCA, setStatusConexaoCA] = useState<
+    RespostaContextoContaAzulReceberDTO['status_conexao'] | 'AGUARDANDO_EMPRESA'
+  >('AGUARDANDO_EMPRESA')
+  const [codigoErroContextoCA, setCodigoErroContextoCA] =
+    useState<CodigoErroAutorizacaoReceber | null>(null)
   const [mensagemStatusCA, setMensagemStatusCA] = useState<string | null>(null)
   const [erroContextoCA, setErroContextoCA] = useState<string | null>(null)
 
@@ -366,6 +398,76 @@ export default function PainelFrentesReceber({
     stoneConferenciaBancaria,
   ])
 
+  const contaFinanceiraAtivaObj = useMemo(
+    () =>
+      contasFinanceirasCA.find(
+        (cf) => cf.id === contaFinanceiraSelecionadaId
+      ) || null,
+    [contasFinanceirasCA, contaFinanceiraSelecionadaId]
+  )
+
+  const categoriaReceitaAtivaObj = useMemo(
+    () =>
+      categoriasReceitaCA.find(
+        (c) => c.id === categoriaReceitaSelecionadaId
+      ) || null,
+    [categoriasReceitaCA, categoriaReceitaSelecionadaId]
+  )
+
+  const categoriaDespesaMdrAtivaObj = useMemo(
+    () =>
+      categoriasDespesaCA.find(
+        (c) => c.id === categoriaDespesaMdrSelecionadaId
+      ) || null,
+    [categoriasDespesaCA, categoriaDespesaMdrSelecionadaId]
+  )
+
+  const [exibirPayloadsSimulados1FA, setExibirPayloadsSimulados1FA] =
+    useState<boolean>(false)
+
+  // Estados da Etapa 1F-B: Confirmação Explícita e Transmissão Controlada
+  const [exibirConfirmacao1FB, setExibirConfirmacao1FB] =
+    useState<boolean>(false)
+  const [checkboxConfirmacao1FB, setCheckboxConfirmacao1FB] =
+    useState<boolean>(false)
+  const [transmitindo1FB, setTransmitindo1FB] = useState<boolean>(false)
+  const [resultadoTransmissao1FB, setResultadoTransmissao1FB] =
+    useState<RespostaTransmissao1FBDTO | null>(null)
+  const [erroTransmissao1FB, setErroTransmissao1FB] = useState<string | null>(
+    null
+  )
+
+  // Etapa 1F-A: Preparação e Validação Completa dos Lançamentos (Sem Transmissão)
+  const preparacaoValidacao1FA = useMemo(() => {
+    return prepararEValidarLancamentosEtapa1FA({
+      empresaId,
+      empresaNome,
+      filtros: {
+        data_vencimento_original: filtroDataVencOriginal,
+        bandeira: filtroBandeira,
+        produto: filtroProduto,
+      },
+      totais: stoneTotaisFiltrados,
+      conferencia: stoneConferenciaBancaria,
+      contaFinanceiraSelecionada: contaFinanceiraAtivaObj,
+      categoriaReceitaSelecionada: categoriaReceitaAtivaObj,
+      categoriaDespesaMdrSelecionada: categoriaDespesaMdrAtivaObj,
+      avaliacaoPeriodoCA,
+    })
+  }, [
+    empresaId,
+    empresaNome,
+    filtroDataVencOriginal,
+    filtroBandeira,
+    filtroProduto,
+    stoneTotaisFiltrados,
+    stoneConferenciaBancaria,
+    contaFinanceiraAtivaObj,
+    categoriaReceitaAtivaObj,
+    categoriaDespesaMdrAtivaObj,
+    avaliacaoPeriodoCA,
+  ])
+
   const handleImportarArquivoStone = async (file: File) => {
     setArquivoTentativaNome(file.name)
     if (operadoraSelecionada !== 'STONE') return
@@ -443,10 +545,14 @@ export default function PainelFrentesReceber({
   // Carrega contas financeiras e categorias reais da empresa ativa no Conta Azul (100% GET)
   const carregarContextoContaAzulEmpresa = useCallback(
     async (idEmpresaAlvo: string) => {
+      const idLimpo = (idEmpresaAlvo || '').trim()
+      const seqAtual = ++requisicaoContextoSeqRef.current
+
       // Limpa imediatamente qualquer estado da loja anterior para impedir reutilização entre lojas
       setConectadoContaAzul(false)
       setMensagemStatusCA(null)
       setErroContextoCA(null)
+      setCodigoErroContextoCA(null)
       setContasFinanceirasCA([])
       setContaFinanceiraSelecionadaId('')
       setCategoriasReceitaCA([])
@@ -457,22 +563,33 @@ export default function PainelFrentesReceber({
       setSugestaoCatDespesaMdrCA(null)
       setAvaliacaoPeriodoCA(null)
 
-      if (!idEmpresaAlvo) {
+      if (!idLimpo || idLimpo === 'emp-demo') {
+        setStatusConexaoCA('AGUARDANDO_EMPRESA')
+        setCarregandoContextoCA(false)
         setMensagemStatusCA(
-          'Selecione uma empresa no topo da página para consultar contas financeiras e categorias reais no Conta Azul.'
+          'Selecione uma empresa real no topo da página para consultar contas financeiras e categorias reais no Conta Azul.'
         )
         return
       }
 
       setCarregandoContextoCA(true)
       try {
-        const params = new URLSearchParams({ empresa_id: idEmpresaAlvo })
+        const headers = await obterHeadersAutenticados()
+        const params = new URLSearchParams({ empresa_id: idLimpo })
         const resp = await fetch(
           `/api/contas-receber/contexto-conta-azul?${params.toString()}`,
-          { method: 'GET', cache: 'no-store' }
+          { method: 'GET', headers, cache: 'no-store' }
         )
         const json =
           (await resp.json()) as RespostaContextoContaAzulReceberDTO
+
+        // Descarta resposta obsoleta caso o usuário tenha trocado de empresa durante o carregamento
+        if (seqAtual !== requisicaoContextoSeqRef.current) {
+          return
+        }
+
+        setStatusConexaoCA(json.status_conexao || 'ATENCAO')
+        setCodigoErroContextoCA(json.codigo_erro || null)
 
         if (!resp.ok || !json.connected || json.status_conexao !== 'CONECTADA') {
           setConectadoContaAzul(Boolean(json.connected))
@@ -521,27 +638,137 @@ export default function PainelFrentesReceber({
           setCategoriaDespesaMdrSelecionadaId(json.categorias_despesa[0].id)
         }
       } catch (err) {
+        if (seqAtual !== requisicaoContextoSeqRef.current) {
+          return
+        }
+        setStatusConexaoCA('ATENCAO')
         setErroContextoCA(
           err instanceof Error
             ? err.message
             : 'Falha de comunicação ao consultar o Conta Azul em modo leitura.'
         )
       } finally {
-        setCarregandoContextoCA(false)
+        if (seqAtual === requisicaoContextoSeqRef.current) {
+          setCarregandoContextoCA(false)
+        }
       }
     },
-    []
+    [obterHeadersAutenticados]
   )
 
-  // Sempre que a empresa selecionada mudar, limpa e recarrega o contexto exclusivo da empresa ativa
+  // Sempre que a empresa selecionada mudar (e o carregamento inicial de empresa tiver concluído), recarrega o contexto exclusivo da loja ativa
   useEffect(() => {
+    if (carregandoEmpresa) return
     carregarContextoContaAzulEmpresa(empresaId)
-  }, [empresaId, carregarContextoContaAzulEmpresa])
+  }, [empresaId, carregandoEmpresa, carregarContextoContaAzulEmpresa])
 
-  // Quando o filtro da Stone mudar, limpa a avaliação do período anterior para exigir consulta atualizada do período
+  // Quando o filtro da Stone ou seleção mudar, limpa a avaliação do período anterior e a confirmação da Etapa 1F-B
   useEffect(() => {
     setAvaliacaoPeriodoCA(null)
+    setExibirConfirmacao1FB(false)
+    setCheckboxConfirmacao1FB(false)
+    setResultadoTransmissao1FB(null)
+    setErroTransmissao1FB(null)
   }, [filtroDataVencOriginal, filtroBandeira, filtroProduto, empresaId])
+
+  useEffect(() => {
+    setExibirConfirmacao1FB(false)
+    setCheckboxConfirmacao1FB(false)
+  }, [
+    contaFinanceiraSelecionadaId,
+    categoriaReceitaSelecionadaId,
+    categoriaDespesaMdrSelecionadaId,
+    valorExtratoBancarioStr,
+  ])
+
+  const handleExecutarTransmissaoControlada1FB = async () => {
+    if (!preparacaoValidacao1FA.pronto_para_etapa_1fb) {
+      setErroTransmissao1FB(
+        'A preparação e validação da Etapa 1F-A possui pendências impeditivas. Resolva os bloqueios antes de transmitir.'
+      )
+      return
+    }
+    if (!checkboxConfirmacao1FB) {
+      setErroTransmissao1FB(
+        'Marque a caixa de confirmação explícita para autorizar a execução da Etapa 1F-B.'
+      )
+      return
+    }
+
+    setTransmitindo1FB(true)
+    setErroTransmissao1FB(null)
+
+    try {
+      const identificadoresSet = new Set<string>()
+      for (const l of stoneLinhasFiltradas) {
+        if (l.stonecode && l.stonecode.length >= 4) {
+          identificadoresSet.add(l.stonecode)
+        }
+        if (l.stone_id && l.stone_id.length >= 4) {
+          identificadoresSet.add(l.stone_id)
+        }
+        if (identificadoresSet.size >= 15) break
+      }
+
+      const payloadReq: RequisicaoTransmissao1FBDTO = {
+        empresa_id: empresaId,
+        empresa_nome: empresaNome,
+        filtros: {
+          data_vencimento_original: filtroDataVencOriginal,
+          bandeira: filtroBandeira,
+          produto: filtroProduto,
+        },
+        totais: stoneTotaisFiltrados,
+        conferencia: stoneConferenciaBancaria,
+        conta_financeira_selecionada: contaFinanceiraAtivaObj,
+        categoria_receita_selecionada: categoriaReceitaAtivaObj,
+        categoria_despesa_mdr_selecionada: categoriaDespesaMdrAtivaObj,
+        identificadores_deterministicos: Array.from(identificadoresSet),
+        confirmacao_explicita: {
+          confirmado_pelo_usuario: true,
+          confirmado_em_iso: new Date().toISOString(),
+          loja_id: empresaId,
+          loja_nome: empresaNome,
+          conta_financeira_id: contaFinanceiraAtivaObj?.id || '',
+          conta_financeira_nome: contaFinanceiraAtivaObj?.descricao || '',
+          categoria_receita_id: categoriaReceitaAtivaObj?.id || '',
+          categoria_receita_nome: categoriaReceitaAtivaObj?.nome || '',
+          categoria_despesa_mdr_id: categoriaDespesaMdrAtivaObj?.id || '',
+          categoria_despesa_mdr_nome: categoriaDespesaMdrAtivaObj?.nome || '',
+          valor_receita_bruta_centavos:
+            stoneTotaisFiltrados.valor_bruto_centavos,
+          valor_despesa_mdr_centavos:
+            stoneTotaisFiltrados.desconto_mdr_ajustado_centavos,
+          valor_liquido_centavos: stoneTotaisFiltrados.valor_liquido_centavos,
+          data_lancamentos_iso:
+            preparacaoValidacao1FA.filtros_operacionais
+              .data_vencimento_original_iso,
+          status_conferencia_bancaria: stoneConferenciaBancaria.status_codigo,
+        },
+      }
+
+      const authHeaders = await obterHeadersAutenticados()
+      const resp = await fetch('/api/contas-receber/transmitir-1fb', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+        body: JSON.stringify(payloadReq),
+      })
+
+      const json = (await resp.json()) as RespostaTransmissao1FBDTO
+      setResultadoTransmissao1FB(json)
+    } catch (err) {
+      setErroTransmissao1FB(
+        err instanceof Error
+          ? err.message
+          : 'Erro de comunicação ao chamar o endpoint da Etapa 1F-B.'
+      )
+    } finally {
+      setTransmitindo1FB(false)
+    }
+  }
 
   // Consulta lançamentos existentes (Receitas e Despesas) no período filtrado no Conta Azul (100% GET)
   const handleConsultarLancamentosPeriodoContaAzul = async () => {
@@ -587,11 +814,15 @@ export default function PainelFrentesReceber({
         identificadores: Array.from(identificadoresSet).join(','),
       })
 
+      const headers = await obterHeadersAutenticados()
       const resp = await fetch(
         `/api/contas-receber/contexto-conta-azul?${params.toString()}`,
-        { method: 'GET', cache: 'no-store' }
+        { method: 'GET', headers, cache: 'no-store' }
       )
       const json = (await resp.json()) as RespostaContextoContaAzulReceberDTO
+
+      setStatusConexaoCA(json.status_conexao || 'ATENCAO')
+      setCodigoErroContextoCA(json.codigo_erro || null)
 
       if (!resp.ok || !json.connected || json.status_conexao !== 'CONECTADA') {
         setErroContextoCA(
@@ -1123,22 +1354,40 @@ export default function PainelFrentesReceber({
                 <div className="flex items-center gap-2 flex-wrap">
                   <span
                     className={`dx-status ${
-                      carregandoContextoCA
+                      carregandoEmpresa || carregandoContextoCA
                         ? 'is-warn'
-                        : conectadoContaAzul
+                        : conectadoContaAzul && statusConexaoCA === 'CONECTADA'
                           ? 'is-ok'
-                          : 'is-bad'
+                          : statusConexaoCA === 'ATENCAO' ||
+                              statusConexaoCA === 'AGUARDANDO_EMPRESA'
+                            ? 'is-warn'
+                            : 'is-bad'
                     }`}
                   >
-                    {carregandoContextoCA
-                      ? 'Consultando Conta Azul (GET)...'
-                      : conectadoContaAzul
-                        ? 'Conectado ao Conta Azul (Escopo Financeiro)'
-                        : 'Aguardando Conexão Conta Azul'}
+                    {carregandoEmpresa
+                      ? 'Carregando empresa ativa...'
+                      : carregandoContextoCA
+                        ? 'Consultando Conta Azul (GET)...'
+                        : conectadoContaAzul && statusConexaoCA === 'CONECTADA'
+                          ? 'Conectado ao Conta Azul (Escopo Financeiro)'
+                          : statusConexaoCA === 'NAO_AUTENTICADO'
+                            ? 'Sessão Expirada ou Ausente (401)'
+                            : statusConexaoCA === 'ACESSO_NEGADO'
+                              ? codigoErroContextoCA === 'EMPRESA_NAO_AUTORIZADA' ||
+                                codigoErroContextoCA === 'EMPRESA_NAO_ENCONTRADA'
+                                ? 'Empresa Não Autorizada para o Usuário (403)'
+                                : 'Usuário sem Autorização para o Módulo (403)'
+                              : statusConexaoCA === 'ATENCAO'
+                                ? 'Erro Temporário de Comunicação com Conta Azul'
+                                : statusConexaoCA === 'AGUARDANDO_EMPRESA'
+                                  ? 'Selecione uma Empresa Ativa'
+                                  : 'Conta Azul Desconectada para esta Loja'}
                   </span>
                   <button
                     type="button"
-                    disabled={!empresaId || carregandoContextoCA}
+                    disabled={
+                      carregandoEmpresa || !empresaId || carregandoContextoCA
+                    }
                     onClick={() => carregarContextoContaAzulEmpresa(empresaId)}
                     className="dx-btn is-sm"
                   >
@@ -1156,7 +1405,18 @@ export default function PainelFrentesReceber({
                   <div className="dx-alert">
                     <AlertTriangle size={18} className="flex-shrink-0" />
                     <div>
-                      <b>Atenção na consulta ao Conta Azul</b>
+                      <b>
+                        {statusConexaoCA === 'NAO_AUTENTICADO'
+                          ? 'Sessão expirada ou ausente no servidor (HTTP 401)'
+                          : statusConexaoCA === 'ACESSO_NEGADO'
+                            ? codigoErroContextoCA === 'EMPRESA_NAO_AUTORIZADA' ||
+                              codigoErroContextoCA === 'EMPRESA_NAO_ENCONTRADA'
+                              ? 'Acesso bloqueado: empresa não vinculada ao seu usuário (HTTP 403)'
+                              : 'Acesso bloqueado: usuário sem autorização para Contas a Receber (HTTP 403)'
+                            : statusConexaoCA === 'DESCONECTADA'
+                              ? 'Conta Azul desconectada para a loja selecionada'
+                              : 'Erro temporário de comunicação ao consultar o Conta Azul'}
+                      </b>
                       <p className="text-xs mt-0.5">{erroContextoCA}</p>
                     </div>
                   </div>
@@ -1649,7 +1909,7 @@ export default function PainelFrentesReceber({
                       }`}
                     >
                       {stoneConferenciaBancaria.conferencia_aprovada
-                        ? 'Conferência Aprovada'
+                        ? 'CONFERIDO_EXATO · Conferência Aprovada'
                         : stoneConferenciaBancaria.status_codigo ===
                             'DIVERGENTE_BLOQUEADA'
                           ? 'Divergente · Bloqueado'
@@ -2306,6 +2566,842 @@ export default function PainelFrentesReceber({
                         })}
                       </div>
                     </>
+                  )}
+                </div>
+              </div>
+
+              {/* ====================================================================
+                  PASSO 5 (ETAPA 1F-A): PREPARAÇÃO E VALIDAÇÃO DE PRÉ-VOO PARA CONTA AZUL
+                  (RECEITA BRUTA E DESPESA MDR — ESTRITAMENTE SEM TRANSMISSÃO)
+                 ==================================================================== */}
+              <div className="dx-panel">
+                <div className="dx-panel-head">
+                  <div>
+                    <h3 className="dx-panel-title flex items-center gap-2">
+                      <ShieldCheck size={16} />
+                      <span>
+                        Passo 5 (Etapa 1F-A) — Preparação e Validação dos
+                        Lançamentos (Receita Bruta e Despesa MDR · Sem Transmissão)
+                      </span>
+                    </h3>
+                    <p className="dx-panel-sub">
+                      Validação completa de pré-voo para a loja{' '}
+                      <b>{empresaNome || 'ativa'}</b> exigindo{' '}
+                      <code>CONFERIDO_EXATO</code>, categorias{' '}
+                      <b>Receitas de Vendas</b> e{' '}
+                      <b>Tarifas de Cartão de Créditos</b>, conta financeira,
+                      idempotência e verificação de duplicidades na Conta Azul.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span
+                      className={`dx-status ${
+                        preparacaoValidacao1FA.pronto_para_etapa_1fb
+                          ? 'is-ok'
+                          : 'is-bad'
+                      }`}
+                    >
+                      {preparacaoValidacao1FA.pronto_para_etapa_1fb
+                        ? '1F-A Aprovada · Pronto para Etapa 1F-B'
+                        : `Bloqueado (${preparacaoValidacao1FA.bloqueios.length} pendência(s))`}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExibirPayloadsSimulados1FA((prev) => !prev)
+                      }
+                      className="dx-btn is-sm"
+                    >
+                      <FileSpreadsheet size={13} />
+                      <span>
+                        {exibirPayloadsSimulados1FA
+                          ? 'Ocultar Payloads JSON'
+                          : 'Inspecionar Payloads JSON (Sem Envio)'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="dx-panel-section space-y-4">
+                  {/* Banner de Garantia de Não-Transmissão da Etapa 1F-A */}
+                  <div className="p-3 rounded-[12px] border border-[var(--dx-line)] bg-[var(--dx-soft)] flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 text-xs text-[var(--dx-ink)]">
+                      <Lock size={15} className="text-[var(--dx-accent)] flex-shrink-0" />
+                      <span>
+                        <b>Trava de Segurança Etapa 1F-A Ativa:</b> Nenhuma chamada{' '}
+                        <code>POST</code>, <code>PUT</code>, <code>PATCH</code> ou{' '}
+                        <code>DELETE</code> é executada. Os lançamentos abaixo são
+                        validados e exibidos exclusivamente como prévia.
+                      </span>
+                    </div>
+                    <span className="dx-pill is-accent">
+                      Transmissão Executada: NÃO (0 escritas)
+                    </span>
+                  </div>
+
+                  {/* Checklist de Regras de Validação da Etapa 1F-A */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                    <div className="p-3 rounded-[10px] border border-[var(--dx-line)] bg-[var(--dx-surface)] flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-[11px] font-bold text-[var(--dx-ink)]">
+                          1. Conferência Bancária
+                        </div>
+                        <div className="text-[10px] text-[var(--dx-muted)]">
+                          Exige: <code>CONFERIDO_EXATO</code>
+                        </div>
+                      </div>
+                      <span
+                        className={`dx-status ${
+                          preparacaoValidacao1FA.conferencia_exata_aprovada
+                            ? 'is-ok'
+                            : 'is-bad'
+                        }`}
+                      >
+                        {preparacaoValidacao1FA.status_conferencia_atual}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-[10px] border border-[var(--dx-line)] bg-[var(--dx-surface)] flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-[11px] font-bold text-[var(--dx-ink)]">
+                          2. Loja & Conta Financeira
+                        </div>
+                        <div className="text-[10px] text-[var(--dx-muted)] truncate max-w-[180px]">
+                          {preparacaoValidacao1FA.conta_financeira.descricao ||
+                            'Não selecionada'}
+                        </div>
+                      </div>
+                      <span
+                        className={`dx-status ${
+                          preparacaoValidacao1FA.conta_financeira.valida &&
+                          preparacaoValidacao1FA.empresa_id !== 'emp-demo'
+                            ? 'is-ok'
+                            : 'is-bad'
+                        }`}
+                      >
+                        {preparacaoValidacao1FA.conta_financeira.valida &&
+                        preparacaoValidacao1FA.empresa_id !== 'emp-demo'
+                          ? 'Válida'
+                          : 'Pendente'}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-[10px] border border-[var(--dx-line)] bg-[var(--dx-surface)] flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-[11px] font-bold text-[var(--dx-ink)]">
+                          3. Categoria Receita Bruta
+                        </div>
+                        <div className="text-[10px] text-[var(--dx-muted)] truncate max-w-[180px]">
+                          {preparacaoValidacao1FA.lancamento_receita_bruta
+                            .categoria_selecionada_nome || 'Não selecionada'}
+                        </div>
+                      </div>
+                      <span
+                        className={`dx-status ${
+                          preparacaoValidacao1FA.lancamento_receita_bruta
+                            .categoria_compativel
+                            ? 'is-ok'
+                            : 'is-bad'
+                        }`}
+                      >
+                        {preparacaoValidacao1FA.lancamento_receita_bruta
+                          .categoria_compativel
+                          ? 'Receitas de Vendas OK'
+                          : 'Inválida'}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-[10px] border border-[var(--dx-line)] bg-[var(--dx-surface)] flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-[11px] font-bold text-[var(--dx-ink)]">
+                          4. Categoria Despesa MDR
+                        </div>
+                        <div className="text-[10px] text-[var(--dx-muted)] truncate max-w-[180px]">
+                          {preparacaoValidacao1FA.lancamento_despesa_mdr
+                            .categoria_selecionada_nome || 'Não selecionada'}
+                        </div>
+                      </div>
+                      <span
+                        className={`dx-status ${
+                          preparacaoValidacao1FA.lancamento_despesa_mdr
+                            .categoria_compativel ||
+                          preparacaoValidacao1FA.lancamento_despesa_mdr
+                            .dispensado_por_valor_zero
+                            ? 'is-ok'
+                            : 'is-bad'
+                        }`}
+                      >
+                        {preparacaoValidacao1FA.lancamento_despesa_mdr
+                          .dispensado_por_valor_zero
+                          ? 'MDR R$ 0,00 (Isento)'
+                          : preparacaoValidacao1FA.lancamento_despesa_mdr
+                                .categoria_compativel
+                            ? 'Tarifas Cartão OK'
+                            : 'Inválida'}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-[10px] border border-[var(--dx-line)] bg-[var(--dx-surface)] flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-[11px] font-bold text-[var(--dx-ink)]">
+                          5. Data & Equação Contábil
+                        </div>
+                        <div className="text-[10px] text-[var(--dx-muted)]">
+                          Venc. Orig.:{' '}
+                          {preparacaoValidacao1FA.filtros_operacionais
+                            .data_vencimento_original_br || 'Não filtrada'}
+                        </div>
+                      </div>
+                      <span
+                        className={`dx-status ${
+                          preparacaoValidacao1FA.validacao_matematica
+                            .equacao_valida &&
+                          Boolean(
+                            preparacaoValidacao1FA.filtros_operacionais
+                              .data_vencimento_original_iso
+                          )
+                            ? 'is-ok'
+                            : 'is-bad'
+                        }`}
+                      >
+                        {preparacaoValidacao1FA.validacao_matematica
+                          .equacao_valida &&
+                        preparacaoValidacao1FA.filtros_operacionais
+                          .data_vencimento_original_iso
+                          ? 'Equação e Data OK'
+                          : 'Incompleto'}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-[10px] border border-[var(--dx-line)] bg-[var(--dx-surface)] flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-[11px] font-bold text-[var(--dx-ink)]">
+                          6. Idempotência & Anti-Duplicidade
+                        </div>
+                        <div className="text-[10px] text-[var(--dx-muted)] truncate max-w-[180px]">
+                          {preparacaoValidacao1FA.validacao_idempotencia.detalhe}
+                        </div>
+                      </div>
+                      <span
+                        className={`dx-status ${
+                          !preparacaoValidacao1FA.validacao_idempotencia
+                            .possui_conflito_idempotencia &&
+                          !preparacaoValidacao1FA.bloqueios.some(
+                            (b) => b.campo === 'conta_azul_existentes'
+                          )
+                            ? 'is-ok'
+                            : 'is-bad'
+                        }`}
+                      >
+                        {!preparacaoValidacao1FA.validacao_idempotencia
+                          .possui_conflito_idempotencia &&
+                        !preparacaoValidacao1FA.bloqueios.some(
+                          (b) => b.campo === 'conta_azul_existentes'
+                        )
+                          ? 'Livre de Duplicidade'
+                          : 'Conflito Detectado'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Lista de Bloqueios quando houver dados inconsistentes ou incompletos */}
+                  {preparacaoValidacao1FA.bloqueios.length > 0 && (
+                    <div className="p-4 rounded-[12px] border border-[var(--dx-bad)] bg-[var(--dx-bad-bg)] space-y-2">
+                      <div className="flex items-center gap-2 text-xs font-bold text-[var(--dx-bad)]">
+                        <XCircle size={16} className="flex-shrink-0" />
+                        <span>
+                          Criação Bloqueada na Etapa 1F-A —{' '}
+                          {preparacaoValidacao1FA.bloqueios.length} motivo(s)
+                          impeditivo(s) identificado(s):
+                        </span>
+                      </div>
+                      <ul className="space-y-1.5 text-xs text-[var(--dx-ink)]">
+                        {preparacaoValidacao1FA.bloqueios.map((b, idx) => (
+                          <li
+                            key={`${b.codigo}-${idx}`}
+                            className="p-2 rounded-[8px] bg-[var(--dx-surface)] border border-[var(--dx-line)] flex items-start justify-between gap-3"
+                          >
+                            <div>
+                              <b className="text-[var(--dx-bad)]">{b.titulo}:</b>{' '}
+                              <span>{b.detalhe}</span>
+                            </div>
+                            <span className="dx-pill is-bad flex-shrink-0 font-mono text-[10px]">
+                              {b.codigo}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Avisos não-bloqueantes (ex: ajuste de 1 centavo MDR ou recomendação de consulta GET) */}
+                  {preparacaoValidacao1FA.avisos.length > 0 && (
+                    <div className="dx-alert">
+                      <Info size={17} className="flex-shrink-0" />
+                      <div className="space-y-1 text-xs">
+                        {preparacaoValidacao1FA.avisos.map((aviso, i) => (
+                          <p key={i}>{aviso}</p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Prévia Clara dos 2 Lançamentos que Seriam Criados na Conta Azul */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {(
+                      [
+                        preparacaoValidacao1FA.lancamento_receita_bruta,
+                        preparacaoValidacao1FA.lancamento_despesa_mdr,
+                      ] as const
+                    ).map((itemPrevia) => {
+                      const ehReceita = itemPrevia.papel === 'RECEITA_BRUTA'
+                      return (
+                        <div
+                          key={itemPrevia.papel}
+                          className={`p-4 rounded-[12px] border space-y-3 ${
+                            itemPrevia.dispensado_por_valor_zero
+                              ? 'border-[var(--dx-line)] bg-[var(--dx-soft)] opacity-80'
+                              : itemPrevia.bloqueado
+                                ? 'border-[var(--dx-bad)] bg-[var(--dx-soft)]'
+                                : ehReceita
+                                  ? 'border-[var(--dx-ok)] bg-[var(--dx-surface)]'
+                                  : 'border-[var(--dx-warn)] bg-[var(--dx-surface)]'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <span
+                                className={`text-xs font-extrabold ${
+                                  ehReceita
+                                    ? 'text-[var(--dx-ok)]'
+                                    : 'text-[var(--dx-warn)]'
+                                }`}
+                              >
+                                {ehReceita
+                                  ? '1. PRÉVIA DE CRIAÇÃO — RECEITA BRUTA (CONTAS A RECEBER)'
+                                  : '2. PRÉVIA DE CRIAÇÃO — DESPESA MDR (CONTAS A PAGAR)'}
+                              </span>
+                              <div className="text-[11px] text-[var(--dx-muted)] font-mono mt-0.5">
+                                Endpoint futuro: {itemPrevia.endpoint_previsto_futuro}
+                              </div>
+                            </div>
+                            <span
+                              className={`dx-status ${
+                                itemPrevia.dispensado_por_valor_zero
+                                  ? 'is-accent'
+                                  : itemPrevia.bloqueado
+                                    ? 'is-bad'
+                                    : 'is-ok'
+                              }`}
+                            >
+                              {itemPrevia.dispensado_por_valor_zero
+                                ? 'Dispensado (R$ 0,00)'
+                                : itemPrevia.bloqueado
+                                  ? 'Bloqueado'
+                                  : 'Validado (Sem Envio)'}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-[var(--dx-line-soft)]">
+                            <div>
+                              <span className="text-[var(--dx-muted)] block text-[10px]">
+                                Valor a Lançar:
+                              </span>
+                              <b className="text-base font-extrabold text-[var(--dx-ink)]">
+                                {formatarCentavosBRL(itemPrevia.valor_centavos)}
+                              </b>
+                              <span className="block text-[10px] text-[var(--dx-muted)] font-mono">
+                                6 casas: {formatarMicroBRL(itemPrevia.valor_micro, 6)}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[var(--dx-muted)] block text-[10px]">
+                                Data Competência / Vencimento:
+                              </span>
+                              <b className="text-sm font-bold text-[var(--dx-ink)]">
+                                {itemPrevia.data_vencimento_iso
+                                  ? formatarDataBR(itemPrevia.data_vencimento_iso)
+                                  : 'Não definida'}
+                              </b>
+                              <span className="block text-[10px] text-[var(--dx-muted)] font-mono">
+                                ISO: {itemPrevia.data_vencimento_iso || '—'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[var(--dx-muted)] block text-[10px]">
+                                Categoria Exigida ({itemPrevia.categoria_esperada}):
+                              </span>
+                              <b className="text-xs font-bold text-[var(--dx-ink)]">
+                                {itemPrevia.categoria_selecionada_nome ||
+                                  'Não selecionada'}
+                              </b>
+                            </div>
+                            <div>
+                              <span className="text-[var(--dx-muted)] block text-[10px]">
+                                Conta Financeira da Loja Ativa:
+                              </span>
+                              <b className="text-xs font-bold text-[var(--dx-ink)]">
+                                {itemPrevia.conta_financeira_nome ||
+                                  'Não selecionada'}
+                              </b>
+                            </div>
+                          </div>
+
+                          <div className="text-xs space-y-1 pt-2 border-t border-[var(--dx-line-soft)]">
+                            <div>
+                              <span className="text-[var(--dx-muted)] text-[10px]">
+                                Descrição do Lançamento:
+                              </span>
+                              <div className="font-semibold text-[var(--dx-ink)]">
+                                {itemPrevia.descricao}
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-[var(--dx-muted)] text-[10px]">
+                                Chave de Idempotência:
+                              </span>
+                              <div className="font-mono text-[10px] text-[var(--dx-muted)] break-all">
+                                {itemPrevia.chave_idempotencia}
+                              </div>
+                            </div>
+                          </div>
+
+                          {exibirPayloadsSimulados1FA && (
+                            <div className="pt-2 border-t border-[var(--dx-line-soft)]">
+                              <div className="text-[10px] font-bold text-[var(--dx-muted)] mb-1">
+                                Payload JSON Preparado em Memória (Sem Transmissão):
+                              </div>
+                              <pre className="p-2.5 rounded-[8px] bg-[var(--dx-soft)] border border-[var(--dx-line)] text-[10px] font-mono overflow-x-auto max-h-48 text-[var(--dx-ink)]">
+                                {itemPrevia.payload_simulado_conta_azul
+                                  ? JSON.stringify(
+                                      itemPrevia.payload_simulado_conta_azul,
+                                      null,
+                                      2
+                                    )
+                                  : '// Payload bloqueado até que Data, Conta Financeira e Categoria estejam válidas.'}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* ====================================================================
+                  PASSO 6 (ETAPA 1F-B): CONFIRMAÇÃO EXPLÍCITA E TRANSMISSÃO CONTROLADA PARA A CONTA AZUL
+                 ==================================================================== */}
+              <div className="dx-panel">
+                <div className="dx-panel-head">
+                  <div>
+                    <h3 className="dx-panel-title flex items-center gap-2">
+                      <ShieldCheck size={16} />
+                      <span>
+                        Passo 6 (Etapa 1F-B) — Confirmação Explícita e
+                        Transmissão Controlada para a Conta Azul
+                      </span>
+                    </h3>
+                    <p className="dx-panel-sub">
+                      Transmissão isolada de <b>Receita Bruta</b> (
+                      <i>Receitas de Vendas</i>) e <b>Despesa MDR</b> (
+                      <i>Tarifas de Cartão de Créditos</i>) com idempotência
+                      persistente, tratamento de falhas parciais e trava de
+                      segurança da etapa ativa.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span
+                      className={`dx-status ${
+                        resultadoTransmissao1FB?.situacao ===
+                          'SUCESSO_COMPLETO' ||
+                        resultadoTransmissao1FB?.situacao ===
+                          'JA_CONCLUIDO_IDEMPOTENTE'
+                          ? 'is-ok'
+                          : resultadoTransmissao1FB?.situacao ===
+                              'BLOQUEADO_TRAVA_SEGURANCA_ETAPA'
+                            ? 'is-accent'
+                            : resultadoTransmissao1FB
+                              ? 'is-bad'
+                              : preparacaoValidacao1FA.pronto_para_etapa_1fb
+                                ? 'is-ok'
+                                : 'is-warn'
+                      }`}
+                    >
+                      {resultadoTransmissao1FB
+                        ? `Resultado 1F-B: ${resultadoTransmissao1FB.situacao}`
+                        : preparacaoValidacao1FA.pronto_para_etapa_1fb
+                          ? 'Habilitado para Confirmação Explícita'
+                          : 'Aguardando Aprovação da Etapa 1F-A'}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={!preparacaoValidacao1FA.pronto_para_etapa_1fb}
+                      onClick={() => {
+                        setExibirConfirmacao1FB((prev) => !prev)
+                        setErroTransmissao1FB(null)
+                      }}
+                      className={`dx-btn ${
+                        preparacaoValidacao1FA.pronto_para_etapa_1fb
+                          ? 'is-primary'
+                          : 'opacity-50 cursor-not-allowed'
+                      }`}
+                    >
+                      <ShieldCheck size={14} />
+                      <span>
+                        {exibirConfirmacao1FB
+                          ? 'Ocultar Quadro de Confirmação Explícita'
+                          : 'Revisar e Confirmar Transmissão (Etapa 1F-B)'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="dx-panel-section space-y-4">
+                  {/* Aviso de Trava de Segurança de Desenvolvimento/Testes da Etapa 1F-B */}
+                  <div className="p-3 rounded-[12px] border border-[var(--dx-line)] bg-[var(--dx-soft)] flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 text-xs text-[var(--dx-ink)]">
+                      <Lock
+                        size={15}
+                        className="text-[var(--dx-accent)] flex-shrink-0"
+                      />
+                      <span>
+                        <b>Trava de Segurança da Etapa 1F-B Ativa:</b> A
+                        capacidade de transmissão, idempotência e proteção contra
+                        falhas parciais está implementada, mas qualquer envio
+                        financeiro real permanece bloqueado por padrão (
+                        <code>
+                          CONTA_AZUL_RECEBER_1FB_TRANSMISSAO_HABILITADA !==
+                          &apos;true&apos;
+                        </code>
+                        ) até sua avaliação e autorização expressa.
+                      </span>
+                    </div>
+                    <span className="dx-pill is-accent">
+                      Envio Real Bloqueado por Padrão
+                    </span>
+                  </div>
+
+                  {!preparacaoValidacao1FA.pronto_para_etapa_1fb && (
+                    <div className="p-3.5 rounded-[12px] border border-[var(--dx-line)] bg-[var(--dx-surface)] flex items-center gap-2.5 text-xs text-[var(--dx-muted)]">
+                      <Info size={16} className="flex-shrink-0" />
+                      <span>
+                        A confirmação explícita de transmissão só é liberada
+                        quando todos os critérios da Etapa 1F-A estiverem
+                        aprovados (incluindo conferência bancária{' '}
+                        <code>CONFERIDO_EXATO</code>, loja ativa, conta
+                        financeira, categorias obrigatórias e data de vencimento
+                        original).
+                      </span>
+                    </div>
+                  )}
+
+                  {/* QUADRO DE CONFIRMAÇÃO EXPLÍCITA (7 ITENS OBRIGATÓRIOS) */}
+                  {exibirConfirmacao1FB &&
+                    preparacaoValidacao1FA.pronto_para_etapa_1fb && (
+                      <div className="p-4 rounded-[14px] border-2 border-[var(--dx-accent)] bg-[var(--dx-surface)] space-y-4">
+                        <div className="flex items-center justify-between gap-2 flex-wrap border-b border-[var(--dx-line-soft)] pb-3">
+                          <div>
+                            <h4 className="text-sm font-extrabold text-[var(--dx-ink)]">
+                              Confirmação Explícita Antes de Transmitir (Etapa
+                              1F-B)
+                            </h4>
+                            <p className="text-xs text-[var(--dx-muted)]">
+                              Revise atentamente os 7 itens obrigatórios abaixo.
+                              Nenhuma transmissão é permitida sem a sua
+                              confirmação explícita.
+                            </p>
+                          </div>
+                          <span className="dx-pill is-ok">
+                            Conferência: CONFERIDO_EXATO
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                          <div className="p-3 rounded-[10px] border border-[var(--dx-line)] bg-[var(--dx-soft)]">
+                            <span className="text-[10px] font-bold uppercase text-[var(--dx-muted)] block">
+                              1. Loja Selecionada
+                            </span>
+                            <b className="text-sm font-extrabold text-[var(--dx-ink)] block mt-0.5">
+                              {empresaNome}
+                            </b>
+                            <span className="text-[10px] font-mono text-[var(--dx-muted)]">
+                              ID: {empresaId}
+                            </span>
+                          </div>
+
+                          <div className="p-3 rounded-[10px] border border-[var(--dx-line)] bg-[var(--dx-soft)]">
+                            <span className="text-[10px] font-bold uppercase text-[var(--dx-muted)] block">
+                              2. Conta Financeira
+                            </span>
+                            <b className="text-sm font-extrabold text-[var(--dx-ink)] block mt-0.5">
+                              {contaFinanceiraAtivaObj?.descricao || '—'}
+                            </b>
+                            <span className="text-[10px] font-mono text-[var(--dx-muted)]">
+                              Tipo: {contaFinanceiraAtivaObj?.tipo || '—'}
+                            </span>
+                          </div>
+
+                          <div className="p-3 rounded-[10px] border border-[var(--dx-line)] bg-[var(--dx-soft)]">
+                            <span className="text-[10px] font-bold uppercase text-[var(--dx-muted)] block">
+                              3. Data dos Lançamentos
+                            </span>
+                            <b className="text-sm font-extrabold text-[var(--dx-ink)] block mt-0.5">
+                              {
+                                preparacaoValidacao1FA.filtros_operacionais
+                                  .data_vencimento_original_br
+                              }
+                            </b>
+                            <span className="text-[10px] font-mono text-[var(--dx-muted)]">
+                              ISO:{' '}
+                              {
+                                preparacaoValidacao1FA.filtros_operacionais
+                                  .data_vencimento_original_iso
+                              }
+                            </span>
+                          </div>
+
+                          <div className="p-3 rounded-[10px] border border-[var(--dx-ok)] bg-[var(--dx-ok-bg)]">
+                            <span className="text-[10px] font-bold uppercase text-[var(--dx-ok)] block">
+                              4. Conferência Bancária
+                            </span>
+                            <b className="text-sm font-extrabold text-[var(--dx-ok)] block mt-0.5">
+                              {stoneConferenciaBancaria.status_codigo}
+                            </b>
+                            <span className="text-[10px] text-[var(--dx-ink)]">
+                              Líquido:{' '}
+                              {formatarCentavosBRL(
+                                stoneTotaisFiltrados.valor_liquido_centavos
+                              )}{' '}
+                              (Dif. R$ 0,00)
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 text-xs">
+                          <div className="p-3.5 rounded-[10px] border border-[var(--dx-ok)] bg-[var(--dx-soft)] flex items-center justify-between gap-3">
+                            <div>
+                              <span className="text-[10px] font-bold uppercase text-[var(--dx-ok)] block">
+                                5. Lançamento 1 — Valor da Receita Bruta
+                              </span>
+                              <b className="text-base font-extrabold text-[var(--dx-ink)] block mt-0.5">
+                                {formatarCentavosBRL(
+                                  stoneTotaisFiltrados.valor_bruto_centavos
+                                )}
+                              </b>
+                              <span className="text-[11px] text-[var(--dx-muted)]">
+                                Categoria:{' '}
+                                <b className="text-[var(--dx-ink)]">
+                                  {categoriaReceitaAtivaObj?.nome || '—'}
+                                </b>
+                              </span>
+                            </div>
+                            <span className="dx-pill is-ok">RECEITA BRUTA</span>
+                          </div>
+
+                          <div className="p-3.5 rounded-[10px] border border-[var(--dx-warn)] bg-[var(--dx-soft)] flex items-center justify-between gap-3">
+                            <div>
+                              <span className="text-[10px] font-bold uppercase text-[var(--dx-warn)] block">
+                                6 & 7. Lançamento 2 — Valor da Despesa MDR e
+                                Categoria
+                              </span>
+                              <b className="text-base font-extrabold text-[var(--dx-ink)] block mt-0.5">
+                                {formatarCentavosBRL(
+                                  stoneTotaisFiltrados.desconto_mdr_ajustado_centavos
+                                )}
+                              </b>
+                              <span className="text-[11px] text-[var(--dx-muted)]">
+                                Categoria:{' '}
+                                <b className="text-[var(--dx-ink)]">
+                                  {categoriaDespesaMdrAtivaObj?.nome || '—'}
+                                </b>
+                              </span>
+                            </div>
+                            <span className="dx-pill is-warn">DESPESA MDR</span>
+                          </div>
+                        </div>
+
+                        <label className="p-3 rounded-[10px] border border-[var(--dx-line)] bg-[var(--dx-soft)] flex items-start gap-2.5 cursor-pointer text-xs text-[var(--dx-ink)]">
+                          <input
+                            type="checkbox"
+                            checked={checkboxConfirmacao1FB}
+                            onChange={(e) =>
+                              setCheckboxConfirmacao1FB(e.target.checked)
+                            }
+                            className="mt-0.5"
+                          />
+                          <span>
+                            <b>Confirmo explicitamente</b> que revisei a Loja (
+                            <b>{empresaNome}</b>), a Conta Financeira (
+                            <b>{contaFinanceiraAtivaObj?.descricao}</b>), as
+                            Categorias (<b>{categoriaReceitaAtivaObj?.nome}</b>{' '}
+                            e <b>{categoriaDespesaMdrAtivaObj?.nome}</b>), o
+                            Valor da Receita Bruta (
+                            <b>
+                              {formatarCentavosBRL(
+                                stoneTotaisFiltrados.valor_bruto_centavos
+                              )}
+                            </b>
+                            ), o Valor da Despesa MDR (
+                            <b>
+                              {formatarCentavosBRL(
+                                stoneTotaisFiltrados.desconto_mdr_ajustado_centavos
+                              )}
+                            </b>
+                            ), a Data dos Lançamentos (
+                            <b>
+                              {
+                                preparacaoValidacao1FA.filtros_operacionais
+                                  .data_vencimento_original_br
+                              }
+                            </b>
+                            ) e o resultado da conferência bancária (
+                            <code>CONFERIDO_EXATO</code>).
+                          </span>
+                        </label>
+
+                        {erroTransmissao1FB && (
+                          <div className="p-3 rounded-[10px] border border-[var(--dx-bad)] bg-[var(--dx-bad-bg)] text-xs text-[var(--dx-bad)] flex items-center gap-2">
+                            <XCircle size={15} className="flex-shrink-0" />
+                            <b>{erroTransmissao1FB}</b>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-end gap-2.5 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setExibirConfirmacao1FB(false)
+                              setCheckboxConfirmacao1FB(false)
+                            }}
+                            className="dx-btn"
+                          >
+                            Cancelar Revisão
+                          </button>
+                          <button
+                            type="button"
+                            disabled={
+                              !checkboxConfirmacao1FB || transmitindo1FB
+                            }
+                            onClick={handleExecutarTransmissaoControlada1FB}
+                            className={`dx-btn is-primary ${
+                              !checkboxConfirmacao1FB || transmitindo1FB
+                                ? 'opacity-50 cursor-not-allowed'
+                                : ''
+                            }`}
+                          >
+                            <ArrowRight size={14} />
+                            <span>
+                              {transmitindo1FB
+                                ? 'Processando Fluxo Controlado (Etapa 1F-B)...'
+                                : 'Confirmar e Executar Transmissão Controlada (Etapa 1F-B)'}
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                  {/* EXIBIÇÃO DO RESULTADO DA EXECUÇÃO DA ETAPA 1F-B */}
+                  {resultadoTransmissao1FB && (
+                    <div
+                      className={`p-4 rounded-[12px] border space-y-3 ${
+                        resultadoTransmissao1FB.situacao ===
+                          'SUCESSO_COMPLETO' ||
+                        resultadoTransmissao1FB.situacao ===
+                          'JA_CONCLUIDO_IDEMPOTENTE'
+                          ? 'border-[var(--dx-ok)] bg-[var(--dx-ok-bg)]'
+                          : resultadoTransmissao1FB.situacao ===
+                              'BLOQUEADO_TRAVA_SEGURANCA_ETAPA'
+                            ? 'border-[var(--dx-accent)] bg-[var(--dx-soft)]'
+                            : 'border-[var(--dx-bad)] bg-[var(--dx-bad-bg)]'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3 flex-wrap">
+                        <div className="space-y-1">
+                          <div className="text-xs font-extrabold text-[var(--dx-ink)] flex items-center gap-2">
+                            <ShieldCheck size={16} />
+                            <span>
+                              Resultado da Execução da Etapa 1F-B:{' '}
+                              <code>{resultadoTransmissao1FB.situacao}</code>
+                            </span>
+                          </div>
+                          <p className="text-xs text-[var(--dx-ink)]">
+                            {resultadoTransmissao1FB.mensagem}
+                          </p>
+                        </div>
+                        <span
+                          className={`dx-pill ${
+                            resultadoTransmissao1FB.transmissao_real_habilitada
+                              ? 'is-ok'
+                              : 'is-accent'
+                          }`}
+                        >
+                          {resultadoTransmissao1FB.transmissao_real_habilitada
+                            ? 'Envio Real Habilitado'
+                            : 'Trava de Segurança Ativa (0 Escritas na Conta Azul)'}
+                        </span>
+                      </div>
+
+                      {(resultadoTransmissao1FB.receita_bruta ||
+                        resultadoTransmissao1FB.despesa_mdr) && (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pt-2">
+                          {[
+                            resultadoTransmissao1FB.receita_bruta,
+                            resultadoTransmissao1FB.despesa_mdr,
+                          ].map((itemRes) => {
+                            if (!itemRes) return null
+                            return (
+                              <div
+                                key={itemRes.papel}
+                                className="p-3 rounded-[10px] border border-[var(--dx-line)] bg-[var(--dx-surface)] text-xs space-y-1.5"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <b className="text-[var(--dx-ink)]">
+                                    {itemRes.papel === 'RECEITA_BRUTA'
+                                      ? '1. Receita Bruta (Receitas de Vendas)'
+                                      : '2. Despesa MDR (Tarifas de Cartão de Créditos)'}
+                                  </b>
+                                  <span
+                                    className={`dx-status ${
+                                      itemRes.status ===
+                                        'TRANSMITIDO_COM_SUCESSO' ||
+                                      itemRes.status ===
+                                        'JA_TRANSMITIDO_ANTERIORMENTE'
+                                        ? 'is-ok'
+                                        : itemRes.status ===
+                                            'BLOQUEADO_TRAVA_ETAPA' ||
+                                          itemRes.status ===
+                                            'DISPENSADO_VALOR_ZERO'
+                                          ? 'is-accent'
+                                          : 'is-bad'
+                                    }`}
+                                  >
+                                    {itemRes.status}
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-[var(--dx-ink)]">
+                                  {itemRes.mensagem}
+                                </div>
+                                <div className="flex items-center justify-between text-[10px] text-[var(--dx-muted)] font-mono pt-1 border-t border-[var(--dx-line-soft)]">
+                                  <span>
+                                    Valor:{' '}
+                                    {formatarCentavosBRL(
+                                      itemRes.valor_centavos
+                                    )}
+                                  </span>
+                                  <span>
+                                    UUID Parcela/Evento:{' '}
+                                    {itemRes.conta_azul_parcela_id ||
+                                      itemRes.conta_azul_evento_id ||
+                                      'Não gerado (Trava/Pendente)'}
+                                  </span>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
