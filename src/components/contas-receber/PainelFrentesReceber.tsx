@@ -46,6 +46,8 @@ import type {
   RespostaTransmissao1FBDTO,
   ResultadoConciliacaoGrupoStone,
   ResultadoTriagemItemLoteCA,
+  SituacaoExecucao1FB,
+  StatusItemTransmissao1FB,
 } from '@/types/contas-receber'
 import {
   consolidarDiaPorNatureza,
@@ -58,7 +60,10 @@ import {
   REGISTRY_ADQUIRENTES_CARTAO,
   avaliarCorrespondenciaReceitaExistente,
 } from '@/lib/contas-receber/contratos-frentes'
-import { gerarChaveDedupMovimentacaoReceber } from '@/lib/contas-receber/import-dedup-receber'
+import {
+  type RegistroOperacaoReceberExistente,
+  gerarChaveDedupMovimentacaoReceber,
+} from '@/lib/contas-receber/import-dedup-receber'
 import {
   agruparLinhasStonePorDataBandeiraModalidade,
   atualizarValorConferenciaPorGrupo,
@@ -73,7 +78,12 @@ import {
   interpretarCsvStone,
   montarRotuloGrupoStoneContaAzul,
 } from '@/lib/contas-receber/stone-csv-parser'
-import { prepararEValidarLancamentosEtapa1FA } from '@/lib/contas-receber/preparador-validacao-1fa'
+import {
+  gerarChavesIdempotenciaLoteStone1FA,
+  prepararEValidarLancamentosEtapa1FA,
+} from '@/lib/contas-receber/preparador-validacao-1fa'
+
+type RegistroIdempotenciaLote1FA = RegistroOperacaoReceberExistente
 
 export type AbaReceber = 'cartoes' | 'pix' | 'outras' | 'conferencia'
 
@@ -542,17 +552,32 @@ export default function PainelFrentesReceber({
   const [exibirPayloadsSimulados1FA, setExibirPayloadsSimulados1FA] =
     useState<boolean>(false)
 
-  // Estados da Etapa 1F-B: Confirmação Explícita e Transmissão Controlada
+  // Estados da Etapa 1F-B: Confirmação Explícita, Idempotência e Transmissão Controlada por Grupo
   const [exibirConfirmacao1FB, setExibirConfirmacao1FB] =
     useState<boolean>(false)
   const [checkboxConfirmacao1FB, setCheckboxConfirmacao1FB] =
     useState<boolean>(false)
-  const [transmitindo1FB, setTransmitindo1FB] = useState<boolean>(false)
-  const [resultadoTransmissao1FB, setResultadoTransmissao1FB] =
-    useState<RespostaTransmissao1FBDTO | null>(null)
-  const [erroTransmissao1FB, setErroTransmissao1FB] = useState<string | null>(
-    null
-  )
+  const [resultadosTransmissao1FBPorGrupo, setResultadosTransmissao1FBPorGrupo] =
+    useState<Record<string, RespostaTransmissao1FBDTO>>({})
+  const [errosTransmissao1FBPorGrupo, setErrosTransmissao1FBPorGrupo] =
+    useState<Record<string, string | null>>({})
+  const [gruposEmTransmissao1FB, setGruposEmTransmissao1FB] = useState<
+    Record<string, boolean>
+  >({})
+  const [registrosIdempotencia1FB, setRegistrosIdempotencia1FB] = useState<
+    Record<string, RegistroIdempotenciaLote1FA>
+  >({})
+  const locksTransmissao1FBRef = useRef<Set<string>>(new Set())
+
+  const limparMapasTransmissao1FB = useCallback(() => {
+    setResultadosTransmissao1FBPorGrupo({})
+    setErrosTransmissao1FBPorGrupo({})
+    setGruposEmTransmissao1FB({})
+    setRegistrosIdempotencia1FB({})
+    locksTransmissao1FBRef.current.clear()
+    setExibirConfirmacao1FB(false)
+    setCheckboxConfirmacao1FB(false)
+  }, [])
 
   // Etapa 1F-A: Preparação e Validação Completa dos Lançamentos (Sem Transmissão)
   const preparacaoValidacao1FA = useMemo(() => {
@@ -570,6 +595,7 @@ export default function PainelFrentesReceber({
       categoriaReceitaSelecionada: categoriaReceitaAtivaObj,
       categoriaDespesaMdrSelecionada: categoriaDespesaMdrAtivaObj,
       avaliacaoPeriodoCA,
+      operacoesExistentesIdempotencia: Object.values(registrosIdempotencia1FB),
     })
   }, [
     empresaId,
@@ -583,7 +609,86 @@ export default function PainelFrentesReceber({
     categoriaReceitaAtivaObj,
     categoriaDespesaMdrAtivaObj,
     avaliacaoPeriodoCA,
+    registrosIdempotencia1FB,
   ])
+
+  const previaValidacao1FA = preparacaoValidacao1FA
+
+  const chaveGrupoStoneEfetiva = useMemo<string>(() => {
+    return (
+      chaveGrupoAtivoStone ||
+      previaValidacao1FA?.validacao_idempotencia?.chave_lote ||
+      `${filtroDataVencOriginal}|${filtroBandeira}|${filtroProduto}`
+    )
+  }, [
+    chaveGrupoAtivoStone,
+    previaValidacao1FA?.validacao_idempotencia?.chave_lote,
+    filtroDataVencOriginal,
+    filtroBandeira,
+    filtroProduto,
+  ])
+
+  const resultadoTransmissao1FB = useMemo<RespostaTransmissao1FBDTO | null>(() => {
+    if (!chaveGrupoStoneEfetiva) return null
+    return resultadosTransmissao1FBPorGrupo[chaveGrupoStoneEfetiva] || null
+  }, [resultadosTransmissao1FBPorGrupo, chaveGrupoStoneEfetiva])
+
+  const erroTransmissao1FB = useMemo<string | null>(() => {
+    if (!chaveGrupoStoneEfetiva) return null
+    return errosTransmissao1FBPorGrupo[chaveGrupoStoneEfetiva] || null
+  }, [errosTransmissao1FBPorGrupo, chaveGrupoStoneEfetiva])
+
+  const transmitindo1FB = useMemo<boolean>(() => {
+    if (!chaveGrupoStoneEfetiva) return false
+    return Boolean(gruposEmTransmissao1FB[chaveGrupoStoneEfetiva])
+  }, [gruposEmTransmissao1FB, chaveGrupoStoneEfetiva])
+
+  const setResultadoTransmissao1FB = useCallback(
+    (
+      res: RespostaTransmissao1FBDTO | null,
+      chaveGrupoAlvo: string = chaveGrupoStoneEfetiva
+    ) => {
+      if (!chaveGrupoAlvo) return
+      setResultadosTransmissao1FBPorGrupo((prev) => {
+        if (!res) {
+          if (!(chaveGrupoAlvo in prev)) return prev
+          const next = { ...prev }
+          delete next[chaveGrupoAlvo]
+          return next
+        }
+        return { ...prev, [chaveGrupoAlvo]: res }
+      })
+    },
+    [chaveGrupoStoneEfetiva]
+  )
+
+  const setErroTransmissao1FB = useCallback(
+    (
+      erro: string | null,
+      chaveGrupoAlvo: string = chaveGrupoStoneEfetiva
+    ) => {
+      if (!chaveGrupoAlvo) return
+      setErrosTransmissao1FBPorGrupo((prev) => ({
+        ...prev,
+        [chaveGrupoAlvo]: erro,
+      }))
+    },
+    [chaveGrupoStoneEfetiva]
+  )
+
+  const setTransmitindo1FB = useCallback(
+    (
+      emAndamento: boolean,
+      chaveGrupoAlvo: string = chaveGrupoStoneEfetiva
+    ) => {
+      if (!chaveGrupoAlvo) return
+      setGruposEmTransmissao1FB((prev) => ({
+        ...prev,
+        [chaveGrupoAlvo]: emAndamento,
+      }))
+    },
+    [chaveGrupoStoneEfetiva]
+  )
 
   const handleSelecionarGrupoConciliacaoStone = useCallback(
     (grupo: GrupoConciliacaoStone) => {
@@ -604,6 +709,7 @@ export default function PainelFrentesReceber({
       setStoneNomeArquivo(file.name)
       setValoresManuaisPorGrupo({})
       setGruposMarcadosConferidos({})
+      limparMapasTransmissao1FB()
 
       if (!res.sucesso) {
         setStoneErroParse(res.mensagem)
@@ -785,17 +891,22 @@ export default function PainelFrentesReceber({
     carregarContextoContaAzulEmpresa(empresaId)
   }, [empresaId, carregandoEmpresa, carregarContextoContaAzulEmpresa])
 
+  // Quando a Empresa mudar, limpa todos os mapas de transmissão e idempotência da Etapa 1F-B
+  useEffect(() => {
+    limparMapasTransmissao1FB()
+  }, [empresaId, limparMapasTransmissao1FB])
+
   // Quando a Data de Vencimento Original ou a Empresa mudar, limpa a avaliação do período consultado no Conta Azul.
   // A navegação entre Bandeira e Produto dentro da mesma data preserva a avaliação GET já carregada e os valores conferidos por grupo!
   useEffect(() => {
     setAvaliacaoPeriodoCA(null)
   }, [filtroDataVencOriginal, empresaId])
 
+  // Ao trocar filtroBandeira, filtroProduto ou parâmetros do formulário, fecha apenas o modal/box de confirmação,
+  // preservando integralmente os resultados de transmissão 1F-B já registrados para cada grupo!
   useEffect(() => {
     setExibirConfirmacao1FB(false)
     setCheckboxConfirmacao1FB(false)
-    setResultadoTransmissao1FB(null)
-    setErroTransmissao1FB(null)
   }, [
     filtroDataVencOriginal,
     filtroBandeira,
@@ -807,22 +918,279 @@ export default function PainelFrentesReceber({
     valorExtratoBancarioStr,
   ])
 
+  const chaveIdempotenciaLoteAtivo1FA =
+    preparacaoValidacao1FA.validacao_idempotencia.chave_lote
+  const chaveIdempotenciaReceitaAtiva1FA =
+    preparacaoValidacao1FA.lancamento_receita_bruta.chave_idempotencia
+  const chaveIdempotenciaDespesaMdrAtiva1FA =
+    preparacaoValidacao1FA.lancamento_despesa_mdr.chave_idempotencia
+
+  // Sincronização Automática de Idempotência via GET /api/contas-receber/transmitir-1fb sempre que um grupo individual válido estiver selecionado
+  useEffect(() => {
+    const idEmp = (empresaId || '').trim()
+    if (
+      !idEmp ||
+      idEmp === 'emp-demo' ||
+      !chaveGrupoAtivoStone ||
+      !chaveIdempotenciaLoteAtivo1FA
+    ) {
+      return
+    }
+
+    const chavesConsulta = [
+      chaveIdempotenciaLoteAtivo1FA,
+      chaveIdempotenciaReceitaAtiva1FA,
+      chaveIdempotenciaDespesaMdrAtiva1FA,
+    ].filter((c) => Boolean(c && c.trim().length > 0))
+
+    if (chavesConsulta.length === 0) return
+
+    let cancelado = false
+
+    const sincronizarIdempotenciaGrupoAtivo = async () => {
+      try {
+        const headers = await obterHeadersAutenticados()
+        const params = new URLSearchParams({
+          empresa_id: idEmp,
+          chaves: chavesConsulta.join(','),
+        })
+        const resp = await fetch(
+          `/api/contas-receber/transmitir-1fb?${params.toString()}`,
+          { method: 'GET', headers, cache: 'no-store' }
+        )
+        if (!resp.ok || cancelado) return
+        const dados = (await resp.json()) as {
+          registros_idempotencia?: RegistroIdempotenciaLote1FA[]
+        }
+        if (cancelado || !Array.isArray(dados.registros_idempotencia)) return
+        if (dados.registros_idempotencia.length > 0) {
+          setRegistrosIdempotencia1FB((prev) => {
+            const next = { ...prev }
+            for (const reg of dados.registros_idempotencia!) {
+              if (reg && reg.chave_idempotencia) {
+                next[reg.chave_idempotencia] = reg
+              }
+            }
+            return next
+          })
+        }
+      } catch {
+        // Silencia falha de rede de consulta prévia sem bloquear a navegação
+      }
+    }
+
+    sincronizarIdempotenciaGrupoAtivo()
+
+    return () => {
+      cancelado = true
+    }
+  }, [
+    empresaId,
+    chaveGrupoAtivoStone,
+    chaveIdempotenciaLoteAtivo1FA,
+    chaveIdempotenciaReceitaAtiva1FA,
+    chaveIdempotenciaDespesaMdrAtiva1FA,
+    obterHeadersAutenticados,
+  ])
+
+  const obterResumoIdempotenciaECaixaGrupo1FB = useCallback(
+    (
+      chaveGrupo: string,
+      chavesIdemp?: {
+        chaveLote: string
+        chaveReceitaBruta: string
+        chaveDespesaMdr: string
+      }
+    ) => {
+      const resultadoMem = resultadosTransmissao1FBPorGrupo[chaveGrupo] || null
+      const erroMem = errosTransmissao1FBPorGrupo[chaveGrupo] || null
+      const emTransmissao = Boolean(
+        gruposEmTransmissao1FB[chaveGrupo] ||
+          locksTransmissao1FBRef.current.has(chaveGrupo)
+      )
+
+      const regLote = chavesIdemp?.chaveLote
+        ? registrosIdempotencia1FB[chavesIdemp.chaveLote] || null
+        : null
+      const regReceita = chavesIdemp?.chaveReceitaBruta
+        ? registrosIdempotencia1FB[chavesIdemp.chaveReceitaBruta] || null
+        : null
+      const regDespesa = chavesIdemp?.chaveDespesaMdr
+        ? registrosIdempotencia1FB[chavesIdemp.chaveDespesaMdr] || null
+        : null
+
+      return {
+        resultadoMem,
+        erroMem,
+        emTransmissao,
+        regLote,
+        regReceita,
+        regDespesa,
+      }
+    },
+    [
+      resultadosTransmissao1FBPorGrupo,
+      errosTransmissao1FBPorGrupo,
+      gruposEmTransmissao1FB,
+      registrosIdempotencia1FB,
+    ]
+  )
+
+  const avaliacaoEstadoTransmissaoGrupoAtivo1FB = useMemo(() => {
+    const situacaoMem = resultadoTransmissao1FB?.situacao || null
+    const regLote =
+      registrosIdempotencia1FB[chaveIdempotenciaLoteAtivo1FA] || null
+    const regReceita =
+      registrosIdempotencia1FB[chaveIdempotenciaReceitaAtiva1FA] || null
+    const regDespesa =
+      registrosIdempotencia1FB[chaveIdempotenciaDespesaMdrAtiva1FA] || null
+    const mdrExigido =
+      stoneTotaisFiltrados.desconto_mdr_ajustado_centavos > 0
+
+    const receitaConfirmadaIdemp = Boolean(
+      regReceita &&
+        (regReceita.status === 'RECEITA_CRIADA_SEM_BAIXA' ||
+          regReceita.status === 'BAIXADO_COMPLETO' ||
+          regReceita.status === 'CONCILIADO_EXISTENTE')
+    )
+    const despesaConfirmadaIdemp = mdrExigido
+      ? Boolean(
+          regDespesa &&
+            (regDespesa.status === 'RECEITA_CRIADA_SEM_BAIXA' ||
+              regDespesa.status === 'BAIXADO_COMPLETO' ||
+              regDespesa.status === 'CONCILIADO_EXISTENTE')
+        )
+      : true
+
+    const possuiIncertezaIdemp = Boolean(
+      regLote?.status === 'RECONCILIACAO_NECESSARIA' ||
+        regReceita?.status === 'RECONCILIACAO_NECESSARIA' ||
+        regDespesa?.status === 'RECONCILIACAO_NECESSARIA'
+    )
+
+    const jaConcluidoTotal =
+      situacaoMem === 'SUCESSO_COMPLETO' ||
+      situacaoMem === 'JA_CONCLUIDO_IDEMPOTENTE' ||
+      (!situacaoMem && receitaConfirmadaIdemp && despesaConfirmadaIdemp)
+
+    const bloqueadoIncerto =
+      situacaoMem === 'RECONCILIACAO_NECESSARIA_BLOQUEADO' ||
+      Boolean(resultadoTransmissao1FB?.reconciliacao_necessaria) ||
+      possuiIncertezaIdemp
+
+    const falhaParcialRetomavel =
+      situacaoMem === 'FALHA_PARCIAL_RETOMAVEL' ||
+      (!jaConcluidoTotal &&
+        !bloqueadoIncerto &&
+        (receitaConfirmadaIdemp !== despesaConfirmadaIdemp) &&
+        (receitaConfirmadaIdemp ||
+          (mdrExigido && Boolean(regDespesa && regDespesa.status !== 'PENDENTE'))))
+
+    const bloqueadoConcorrencia =
+      situacaoMem === 'BLOQUEADO_CONCORRENCIA_LOTE_EM_ANDAMENTO'
+
+    // Se a 1F-A bloqueou UNICAMENTE por IDEMPOTENCIA_JA_EXECUTADA_OU_AMBIGUA mas estamos em FALHA_PARCIAL_RETOMAVEL (ou retomada do item faltante), permite abrir e reenviar com segurança!
+    const bloqueiosNaoIdempotencia = preparacaoValidacao1FA.bloqueios.filter(
+      (b) => b.codigo !== 'IDEMPOTENCIA_JA_EXECUTADA_OU_AMBIGUA'
+    )
+    const prontoNa1FAOuRetomavel =
+      preparacaoValidacao1FA.pronto_para_etapa_1fb ||
+      (falhaParcialRetomavel && bloqueiosNaoIdempotencia.length === 0)
+
+    const podeIniciarConfirmacaoOuReenvio =
+      !transmitindo1FB &&
+      !jaConcluidoTotal &&
+      !bloqueadoIncerto &&
+      prontoNa1FAOuRetomavel
+
+    let motivoBloqueioBotao1FB: string | null = null
+    if (transmitindo1FB) {
+      motivoBloqueioBotao1FB =
+        'Transmissão em andamento para este grupo. Aguarde a conclusão.'
+    } else if (jaConcluidoTotal) {
+      motivoBloqueioBotao1FB =
+        'Grupo já transmitido e concluído (idempotência ativa). Reenvio bloqueado para impedir duplicidade.'
+    } else if (bloqueadoIncerto) {
+      motivoBloqueioBotao1FB =
+        'Resultado incerto detectado (RECONCILIACAO_NECESSARIA_BLOQUEADO). Reenvio automático bloqueado até auditoria na Conta Azul.'
+    } else if (!prontoNa1FAOuRetomavel) {
+      motivoBloqueioBotao1FB =
+        'Aguardando aprovação de todos os critérios da Etapa 1F-A para liberar confirmação.'
+    }
+
+    return {
+      jaConcluidoTotal,
+      bloqueadoIncerto,
+      falhaParcialRetomavel,
+      bloqueadoConcorrencia,
+      prontoNa1FAOuRetomavel,
+      podeIniciarConfirmacaoOuReenvio,
+      motivoBloqueioBotao1FB,
+      regReceita,
+      regDespesa,
+      receitaConfirmadaIdemp,
+      despesaConfirmadaIdemp,
+    }
+  }, [
+    resultadoTransmissao1FB,
+    registrosIdempotencia1FB,
+    chaveIdempotenciaLoteAtivo1FA,
+    chaveIdempotenciaReceitaAtiva1FA,
+    chaveIdempotenciaDespesaMdrAtiva1FA,
+    stoneTotaisFiltrados.desconto_mdr_ajustado_centavos,
+    preparacaoValidacao1FA.bloqueios,
+    preparacaoValidacao1FA.pronto_para_etapa_1fb,
+    transmitindo1FB,
+  ])
+
   const handleExecutarTransmissaoControlada1FB = async () => {
-    if (!preparacaoValidacao1FA.pronto_para_etapa_1fb) {
+    const chaveGrupoEnvio = chaveGrupoStoneEfetiva
+    if (!chaveGrupoEnvio) return
+
+    // Bloqueio síncrono instantâneo contra cliques repetidos ou execuções concorrentes do mesmo grupo
+    if (
+      locksTransmissao1FBRef.current.has(chaveGrupoEnvio) ||
+      gruposEmTransmissao1FB[chaveGrupoEnvio]
+    ) {
+      return
+    }
+
+    if (avaliacaoEstadoTransmissaoGrupoAtivo1FB.jaConcluidoTotal) {
       setErroTransmissao1FB(
-        'A preparação e validação da Etapa 1F-A possui pendências impeditivas. Resolva os bloqueios antes de transmitir.'
+        'Este grupo já foi transmitido e concluído anteriormente (idempotência ativa). O reenvio está bloqueado para evitar duplicidade.',
+        chaveGrupoEnvio
+      )
+      return
+    }
+
+    if (avaliacaoEstadoTransmissaoGrupoAtivo1FB.bloqueadoIncerto) {
+      setErroTransmissao1FB(
+        'Este grupo está em estado de Resultado Incerto (RECONCILIACAO_NECESSARIA_BLOQUEADO). Verifique a Conta Azul antes de qualquer nova ação.',
+        chaveGrupoEnvio
+      )
+      return
+    }
+
+    if (!avaliacaoEstadoTransmissaoGrupoAtivo1FB.prontoNa1FAOuRetomavel) {
+      setErroTransmissao1FB(
+        'A preparação e validação da Etapa 1F-A possui pendências impeditivas. Resolva os bloqueios antes de transmitir.',
+        chaveGrupoEnvio
       )
       return
     }
     if (!checkboxConfirmacao1FB) {
       setErroTransmissao1FB(
-        'Marque a caixa de confirmação explícita para autorizar a execução da Etapa 1F-B.'
+        'Marque a caixa de confirmação explícita para autorizar a execução da Etapa 1F-B.',
+        chaveGrupoEnvio
       )
       return
     }
 
-    setTransmitindo1FB(true)
-    setErroTransmissao1FB(null)
+    locksTransmissao1FBRef.current.add(chaveGrupoEnvio)
+    setTransmitindo1FB(true, chaveGrupoEnvio)
+    setErroTransmissao1FB(null, chaveGrupoEnvio)
+
+    const conferenciaBancaria = stoneConferenciaBancaria
 
     try {
       const identificadoresSet = new Set<string>()
@@ -836,7 +1204,7 @@ export default function PainelFrentesReceber({
         if (identificadoresSet.size >= 15) break
       }
 
-      const payloadReq: RequisicaoTransmissao1FBDTO = {
+      const corpo: RequisicaoTransmissao1FBDTO = {
         empresa_id: empresaId,
         empresa_nome: empresaNome,
         filtros: {
@@ -845,7 +1213,26 @@ export default function PainelFrentesReceber({
           produto: filtroProduto,
         },
         totais: stoneTotaisFiltrados,
-        conferencia: stoneConferenciaBancaria,
+        conferencia: {
+          ...conferenciaBancaria,
+          valor_liquido_stone_centavos:
+            conferenciaBancaria.valor_liquido_stone_centavos,
+          valor_liquido_stone_micro:
+            conferenciaBancaria.valor_liquido_stone_micro,
+          valor_extrato_bancario_centavos:
+            conferenciaBancaria.valor_extrato_bancario_centavos,
+          diferenca_centavos: conferenciaBancaria.diferenca_centavos,
+          conferencia_aprovada: conferenciaBancaria.conferencia_aprovada,
+          ...(conferenciaBancaria.origem_conferencia
+            ? { origem_conferencia: conferenciaBancaria.origem_conferencia }
+            : {}),
+          ...(conferenciaBancaria.lancamento_conta_azul_correspondente
+            ? {
+                lancamento_conta_azul_correspondente:
+                  conferenciaBancaria.lancamento_conta_azul_correspondente,
+              }
+            : {}),
+        },
         conta_financeira_selecionada: contaFinanceiraAtivaObj,
         categoria_receita_selecionada: categoriaReceitaAtivaObj,
         categoria_despesa_mdr_selecionada: categoriaDespesaMdrAtivaObj,
@@ -870,7 +1257,7 @@ export default function PainelFrentesReceber({
             preparacaoValidacao1FA.filtros_operacionais
               .data_vencimento_original_iso,
           status_conferencia_bancaria:
-            stoneConferenciaBancaria.status_conferencia,
+            conferenciaBancaria.status_conferencia,
         },
       }
 
@@ -881,19 +1268,76 @@ export default function PainelFrentesReceber({
           'Content-Type': 'application/json',
           ...authHeaders,
         },
-        body: JSON.stringify(payloadReq),
+        body: JSON.stringify(corpo),
       })
 
-      const json = (await resp.json()) as RespostaTransmissao1FBDTO
-      setResultadoTransmissao1FB(json)
+      const dados = (await resp.json()) as RespostaTransmissao1FBDTO & {
+        registros_idempotencia?: RegistroIdempotenciaLote1FA[]
+      }
+      setResultadoTransmissao1FB(dados, chaveGrupoEnvio)
+
+      // Atualiza o mapa de idempotência local com registros_idempotencia (se retornados) e com os itens processados
+      setRegistrosIdempotencia1FB((prev) => {
+        const next = { ...prev }
+        if (Array.isArray(dados.registros_idempotencia)) {
+          for (const reg of dados.registros_idempotencia) {
+            if (reg && reg.chave_idempotencia) {
+              next[reg.chave_idempotencia] = reg
+            }
+          }
+        }
+        const converterItemParaRegistro = (
+          item: RespostaTransmissao1FBDTO['receita_bruta']
+        ): RegistroIdempotenciaLote1FA | null => {
+          if (!item || !item.chave_idempotencia) return null
+          if (
+            item.status === 'TRANSMITIDO_COM_SUCESSO' ||
+            item.status === 'JA_TRANSMITIDO_ANTERIORMENTE'
+          ) {
+            return {
+              chave_idempotencia: item.chave_idempotencia,
+              status: 'RECEITA_CRIADA_SEM_BAIXA',
+              conta_azul_evento_id: item.conta_azul_evento_id,
+              conta_azul_parcela_id: item.conta_azul_parcela_id,
+            }
+          }
+          if (item.status === 'RECONCILIACAO_NECESSARIA') {
+            return {
+              chave_idempotencia: item.chave_idempotencia,
+              status: 'RECONCILIACAO_NECESSARIA',
+              conta_azul_evento_id: item.conta_azul_evento_id,
+              conta_azul_parcela_id: item.conta_azul_parcela_id,
+              erro_mensagem: item.erro_detalhe || item.mensagem,
+            }
+          }
+          if (item.status === 'FALHA_TRANSMISSAO') {
+            return {
+              chave_idempotencia: item.chave_idempotencia,
+              status: 'ERRO',
+              erro_mensagem: item.erro_detalhe || item.mensagem,
+            }
+          }
+          return null
+        }
+
+        const regRec = converterItemParaRegistro(dados.receita_bruta)
+        if (regRec) next[regRec.chave_idempotencia] = regRec
+
+        const regDesp = converterItemParaRegistro(dados.despesa_mdr)
+        if (regDesp) next[regDesp.chave_idempotencia] = regDesp
+
+        return next
+      })
     } catch (err) {
       setErroTransmissao1FB(
         err instanceof Error
           ? err.message
-          : 'Erro de comunicação ao chamar o endpoint da Etapa 1F-B.'
+          : 'Erro de comunicação ao chamar o endpoint da Etapa 1F-B.',
+        chaveGrupoEnvio
       )
     } finally {
-      setTransmitindo1FB(false)
+      locksTransmissao1FBRef.current.delete(chaveGrupoEnvio)
+      setTransmitindo1FB(false, chaveGrupoEnvio)
     }
   }
 
@@ -1039,6 +1483,148 @@ export default function PainelFrentesReceber({
         }
     }
   }
+
+  const obterBadgeEstado1FBGrupoStone = useCallback(
+    (
+      grp: GrupoConciliacaoStone,
+      conc: ResultadoConciliacaoGrupoStone | undefined
+    ): { badgeClass: string; label: string; extraClass?: string } | null => {
+      const chavesGrp = gerarChavesIdempotenciaLoteStone1FA({
+        empresaId: (empresaId || '').trim(),
+        dataVencimentoOriginalIso:
+          grp.data_vencimento_original_iso || 'SEM_DATA',
+        bandeira: grp.bandeira_original || 'TODAS',
+        produto: grp.produto_original || 'TODOS',
+        contaFinanceiraId: contaFinanceiraSelecionadaId || 'SEM_CONTA',
+        valorBrutoCentavos: grp.totais.valor_bruto_centavos,
+        valorMdrCentavos: grp.totais.desconto_mdr_ajustado_centavos,
+        valorLiquidoCentavos: grp.totais.valor_liquido_centavos,
+      })
+
+      const {
+        resultadoMem,
+        erroMem,
+        emTransmissao,
+        regLote,
+        regReceita,
+        regDespesa,
+      } = obterResumoIdempotenciaECaixaGrupo1FB(grp.chave_grupo, chavesGrp)
+
+      if (emTransmissao) {
+        return {
+          badgeClass: 'is-accent',
+          label: '1F-B: Transmitindo...',
+          extraClass: 'animate-pulse',
+        }
+      }
+
+      const situacao = resultadoMem?.situacao || null
+
+      if (
+        situacao === 'SUCESSO_COMPLETO' ||
+        situacao === 'JA_CONCLUIDO_IDEMPOTENTE'
+      ) {
+        return {
+          badgeClass: 'is-ok',
+          label: '1F-B: Transmitido',
+        }
+      }
+
+      if (situacao === 'FALHA_PARCIAL_RETOMAVEL') {
+        return {
+          badgeClass: 'is-warn',
+          label: '1F-B: Falha Parcial (Retomável)',
+        }
+      }
+
+      if (
+        situacao === 'RECONCILIACAO_NECESSARIA_BLOQUEADO' ||
+        resultadoMem?.reconciliacao_necessaria
+      ) {
+        return {
+          badgeClass: 'is-bad',
+          label: '1F-B: Resultado Incerto (Auditoria)',
+        }
+      }
+
+      if (situacao === 'BLOQUEADO_TRAVA_SEGURANCA_ETAPA') {
+        return {
+          badgeClass: 'is-accent',
+          label: '1F-B: Retido (Trava Segurança)',
+        }
+      }
+
+      if (situacao || erroMem) {
+        return {
+          badgeClass: 'is-bad',
+          label: '1F-B: Erro / Bloqueado',
+        }
+      }
+
+      // Avaliação via registros persistidos de idempotência quando não há resposta em memória
+      const mdrExigido = grp.totais.desconto_mdr_ajustado_centavos > 0
+      const recConfirmada = Boolean(
+        regReceita &&
+          (regReceita.status === 'RECEITA_CRIADA_SEM_BAIXA' ||
+            regReceita.status === 'BAIXADO_COMPLETO' ||
+            regReceita.status === 'CONCILIADO_EXISTENTE')
+      )
+      const despConfirmada = mdrExigido
+        ? Boolean(
+            regDespesa &&
+              (regDespesa.status === 'RECEITA_CRIADA_SEM_BAIXA' ||
+                regDespesa.status === 'BAIXADO_COMPLETO' ||
+                regDespesa.status === 'CONCILIADO_EXISTENTE')
+          )
+        : true
+
+      if (
+        regLote?.status === 'RECONCILIACAO_NECESSARIA' ||
+        regReceita?.status === 'RECONCILIACAO_NECESSARIA' ||
+        regDespesa?.status === 'RECONCILIACAO_NECESSARIA'
+      ) {
+        return {
+          badgeClass: 'is-bad',
+          label: '1F-B: Resultado Incerto (Auditoria)',
+        }
+      }
+
+      if (recConfirmada && despConfirmada) {
+        return {
+          badgeClass: 'is-ok',
+          label: '1F-B: Transmitido',
+        }
+      }
+
+      if (recConfirmada !== despConfirmada && (recConfirmada || Boolean(regDespesa))) {
+        return {
+          badgeClass: 'is-warn',
+          label: '1F-B: Falha Parcial (Retomável)',
+        }
+      }
+
+      if (regLote?.status === 'ERRO' || regReceita?.status === 'ERRO' || regDespesa?.status === 'ERRO') {
+        return {
+          badgeClass: 'is-bad',
+          label: '1F-B: Erro / Bloqueado',
+        }
+      }
+
+      if (conc?.estado_grupo === 'CONFERIDO_EXATO') {
+        return {
+          badgeClass: '',
+          label: '1F-B: Pendente',
+        }
+      }
+
+      return null
+    },
+    [
+      empresaId,
+      contaFinanceiraSelecionadaId,
+      obterResumoIdempotenciaECaixaGrupo1FB,
+    ]
+  )
 
   const resumoConsolidado = useMemo(() => {
     return consolidarDiaPorNatureza(
@@ -1899,6 +2485,10 @@ export default function PainelFrentesReceber({
                           const estilo = obterEstiloEstadoGrupoStone(
                             conc?.estado_grupo
                           )
+                          const badge1FB = obterBadgeEstado1FBGrupoStone(
+                            grp,
+                            conc
+                          )
                           const isAtivo = grp.chave_grupo === chaveGrupoAtivoStone
                           const lancCA = conc?.lancamento_conta_azul_correspondente
 
@@ -1915,13 +2505,24 @@ export default function PainelFrentesReceber({
                                   : 'border-[var(--dx-line)] bg-[var(--dx-surface)] hover:border-[var(--dx-accent)]/60'
                               }`}
                             >
-                              <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
                                 <span className="text-xs font-extrabold font-mono text-[var(--dx-ink)]">
                                   {grp.rotulo_conta_azul_esperado}
                                 </span>
-                                <span className={`dx-pill ${estilo.badgeClass}`}>
-                                  {estilo.label}
-                                </span>
+                                <div className="flex items-center gap-1 flex-wrap justify-end">
+                                  <span className={`dx-pill ${estilo.badgeClass}`}>
+                                    {estilo.label}
+                                  </span>
+                                  {badge1FB && (
+                                    <span
+                                      className={`dx-pill ${badge1FB.badgeClass} ${
+                                        badge1FB.extraClass || ''
+                                      }`}
+                                    >
+                                      {badge1FB.label}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
 
                               <div className="text-[11px] text-[var(--dx-muted)] mt-1 flex items-center justify-between gap-2">
@@ -3360,63 +3961,108 @@ export default function PainelFrentesReceber({
               <div className="dx-panel">
                 <div className="dx-panel-head">
                   <div>
-                    <h3 className="dx-panel-title flex items-center gap-2">
+                    <h3 className="dx-panel-title flex items-center gap-2 flex-wrap">
                       <ShieldCheck size={16} />
                       <span>
                         Passo 6 (Etapa 1F-B) — Confirmação Explícita e
                         Transmissão Controlada para a Conta Azul
                       </span>
+                      <span className="dx-pill is-accent font-mono">
+                        {grupoAtivoStone
+                          ? `${grupoAtivoStone.rotulo_conta_azul_esperado} — Venc. Original ${grupoAtivoStone.data_vencimento_original_br}`
+                          : filtroBandeira &&
+                              filtroProduto &&
+                              filtroDataVencOriginal
+                            ? `${montarRotuloGrupoStoneContaAzul(
+                                filtroBandeira,
+                                filtroProduto
+                              )} — Venc. Original ${filtroDataVencOriginal}`
+                            : 'Selecione um Grupo Individual (Data + Bandeira + CD/DB)'}
+                      </span>
                     </h3>
                     <p className="dx-panel-sub">
-                      Transmissão isolada de <b>Receita Bruta</b> (
+                      Transmissão isolada por grupo de <b>Receita Bruta</b> (
                       <i>Receitas de Vendas</i>) e <b>Despesa MDR</b> (
                       <i>Tarifas de Cartão de Créditos</i>) com idempotência
-                      persistente, tratamento de falhas parciais e trava de
+                      persistente, retomada segura de falhas parciais e trava de
                       segurança da etapa ativa.
                     </p>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span
                       className={`dx-status ${
-                        resultadoTransmissao1FB?.situacao ===
-                          'SUCESSO_COMPLETO' ||
-                        resultadoTransmissao1FB?.situacao ===
-                          'JA_CONCLUIDO_IDEMPOTENTE'
-                          ? 'is-ok'
-                          : resultadoTransmissao1FB?.situacao ===
-                              'BLOQUEADO_TRAVA_SEGURANCA_ETAPA'
-                            ? 'is-accent'
-                            : resultadoTransmissao1FB
+                        transmitindo1FB
+                          ? 'is-accent animate-pulse'
+                          : avaliacaoEstadoTransmissaoGrupoAtivo1FB.jaConcluidoTotal
+                            ? 'is-ok'
+                            : avaliacaoEstadoTransmissaoGrupoAtivo1FB.bloqueadoIncerto
                               ? 'is-bad'
-                              : preparacaoValidacao1FA.pronto_para_etapa_1fb
-                                ? 'is-ok'
-                                : 'is-warn'
+                              : avaliacaoEstadoTransmissaoGrupoAtivo1FB.falhaParcialRetomavel
+                                ? 'is-warn'
+                                : resultadoTransmissao1FB?.situacao ===
+                                    'BLOQUEADO_TRAVA_SEGURANCA_ETAPA'
+                                  ? 'is-accent'
+                                  : resultadoTransmissao1FB || erroTransmissao1FB
+                                    ? 'is-bad'
+                                    : avaliacaoEstadoTransmissaoGrupoAtivo1FB.prontoNa1FAOuRetomavel
+                                      ? 'is-ok'
+                                      : 'is-warn'
                       }`}
                     >
-                      {resultadoTransmissao1FB
-                        ? `Resultado 1F-B: ${resultadoTransmissao1FB.situacao}`
-                        : preparacaoValidacao1FA.pronto_para_etapa_1fb
-                          ? 'Habilitado para Confirmação Explícita'
-                          : 'Aguardando Aprovação da Etapa 1F-A'}
+                      {transmitindo1FB
+                        ? '1F-B: Transmitindo...'
+                        : avaliacaoEstadoTransmissaoGrupoAtivo1FB.jaConcluidoTotal
+                          ? `1F-B: Transmitido (${
+                              resultadoTransmissao1FB?.situacao ||
+                              'JA_CONCLUIDO_IDEMPOTENTE'
+                            })`
+                          : avaliacaoEstadoTransmissaoGrupoAtivo1FB.bloqueadoIncerto
+                            ? '1F-B: Resultado Incerto (Auditoria Obrigatória)'
+                            : avaliacaoEstadoTransmissaoGrupoAtivo1FB.falhaParcialRetomavel
+                              ? '1F-B: Falha Parcial (Retomável — Apenas Item Faltante)'
+                              : resultadoTransmissao1FB
+                                ? `Resultado 1F-B: ${resultadoTransmissao1FB.situacao}`
+                                : avaliacaoEstadoTransmissaoGrupoAtivo1FB.prontoNa1FAOuRetomavel
+                                  ? '1F-B: Pendente · Habilitado para Confirmação'
+                                  : 'Aguardando Aprovação da Etapa 1F-A'}
                     </span>
                     <button
                       type="button"
-                      disabled={!preparacaoValidacao1FA.pronto_para_etapa_1fb}
+                      disabled={
+                        !avaliacaoEstadoTransmissaoGrupoAtivo1FB.podeIniciarConfirmacaoOuReenvio
+                      }
                       onClick={() => {
+                        if (
+                          !avaliacaoEstadoTransmissaoGrupoAtivo1FB.podeIniciarConfirmacaoOuReenvio
+                        ) {
+                          return
+                        }
                         setExibirConfirmacao1FB((prev) => !prev)
                         setErroTransmissao1FB(null)
                       }}
+                      title={
+                        avaliacaoEstadoTransmissaoGrupoAtivo1FB.motivoBloqueioBotao1FB ||
+                        'Abrir quadro de confirmação explícita para transmissão 1F-B'
+                      }
                       className={`dx-btn ${
-                        preparacaoValidacao1FA.pronto_para_etapa_1fb
+                        avaliacaoEstadoTransmissaoGrupoAtivo1FB.podeIniciarConfirmacaoOuReenvio
                           ? 'is-primary'
                           : 'opacity-50 cursor-not-allowed'
                       }`}
                     >
                       <ShieldCheck size={14} />
                       <span>
-                        {exibirConfirmacao1FB
-                          ? 'Ocultar Quadro de Confirmação Explícita'
-                          : 'Revisar e Confirmar Transmissão (Etapa 1F-B)'}
+                        {transmitindo1FB
+                          ? 'Transmitindo Grupo...'
+                          : avaliacaoEstadoTransmissaoGrupoAtivo1FB.jaConcluidoTotal
+                            ? 'Grupo Já Transmitido (Idempotente)'
+                            : avaliacaoEstadoTransmissaoGrupoAtivo1FB.bloqueadoIncerto
+                              ? 'Bloqueado p/ Auditoria (Resultado Incerto)'
+                              : exibirConfirmacao1FB
+                                ? 'Ocultar Quadro de Confirmação Explícita'
+                                : avaliacaoEstadoTransmissaoGrupoAtivo1FB.falhaParcialRetomavel
+                                  ? 'Retomar Item Faltante (Etapa 1F-B)'
+                                  : 'Revisar e Confirmar Transmissão (Etapa 1F-B)'}
                       </span>
                     </button>
                   </div>
@@ -3447,23 +4093,264 @@ export default function PainelFrentesReceber({
                     </span>
                   </div>
 
-                  {!preparacaoValidacao1FA.pronto_para_etapa_1fb && (
-                    <div className="p-3.5 rounded-[12px] border border-[var(--dx-line)] bg-[var(--dx-surface)] flex items-center gap-2.5 text-xs text-[var(--dx-muted)]">
-                      <Info size={16} className="flex-shrink-0" />
-                      <span>
-                        A confirmação explícita de transmissão só é liberada
-                        quando todos os critérios da Etapa 1F-A estiverem
-                        aprovados (incluindo conferência bancária{' '}
-                        <code>CONFERIDO_EXATO</code>, loja ativa, conta
-                        financeira, categorias obrigatórias e data de vencimento
-                        original).
+                  {/* RESUMO CLARO DO GRUPO ATIVO E DO ESTADO INDIVIDUAL DA RECEITA BRUTA E DA DESPESA MDR */}
+                  <div className="p-3.5 rounded-[12px] border border-[var(--dx-line)] bg-[var(--dx-surface)] space-y-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap border-b border-[var(--dx-line-soft)] pb-2.5">
+                      <div className="text-xs">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--dx-muted)] block">
+                          Grupo Ativo na Etapa 1F-B (Data + Bandeira + Modalidade CD/DB)
+                        </span>
+                        <b className="text-sm font-extrabold font-mono text-[var(--dx-ink)]">
+                          {grupoAtivoStone
+                            ? `${grupoAtivoStone.rotulo_conta_azul_esperado} — Venc. Original ${grupoAtivoStone.data_vencimento_original_br}`
+                            : filtroBandeira &&
+                                filtroProduto &&
+                                filtroDataVencOriginal
+                              ? `${montarRotuloGrupoStoneContaAzul(
+                                  filtroBandeira,
+                                  filtroProduto
+                                )} — Venc. Original ${filtroDataVencOriginal}`
+                              : 'Nenhum grupo individual selecionado'}
+                        </b>
+                      </div>
+                      <span className="text-[11px] font-mono text-[var(--dx-muted)]">
+                        Chave Grupo: <b>{chaveGrupoStoneEfetiva || '—'}</b>
                       </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                      {/* Resumo Individual: 1. Receita Bruta */}
+                      {(() => {
+                        const itemMem = resultadoTransmissao1FB?.receita_bruta
+                        const regIdemp =
+                          avaliacaoEstadoTransmissaoGrupoAtivo1FB.regReceita
+                        const statusLabel = transmitindo1FB
+                          ? 'TRANSMITINDO...'
+                          : itemMem
+                            ? itemMem.status
+                            : regIdemp
+                              ? regIdemp.status === 'RECEITA_CRIADA_SEM_BAIXA' ||
+                                regIdemp.status === 'BAIXADO_COMPLETO' ||
+                                regIdemp.status === 'CONCILIADO_EXISTENTE'
+                                ? 'JA_TRANSMITIDO_ANTERIORMENTE'
+                                : regIdemp.status
+                              : preparacaoValidacao1FA.lancamento_receita_bruta
+                                    .bloqueado
+                                ? 'BLOQUEADO_PRE_VALIDACAO'
+                                : 'PENDENTE'
+
+                        const badgeCls =
+                          statusLabel === 'TRANSMITIDO_COM_SUCESSO' ||
+                          statusLabel === 'JA_TRANSMITIDO_ANTERIORMENTE'
+                            ? 'is-ok'
+                            : statusLabel === 'BLOQUEADO_TRAVA_ETAPA' ||
+                                statusLabel === 'TRANSMITINDO...'
+                              ? 'is-accent'
+                              : statusLabel === 'PENDENTE'
+                                ? 'is-warn'
+                                : 'is-bad'
+
+                        const uuidRef =
+                          itemMem?.conta_azul_parcela_id ||
+                          itemMem?.conta_azul_evento_id ||
+                          regIdemp?.conta_azul_parcela_id ||
+                          regIdemp?.conta_azul_evento_id ||
+                          null
+
+                        return (
+                          <div className="p-3 rounded-[10px] border border-[var(--dx-line)] bg-[var(--dx-soft)] space-y-1.5">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <span className="font-extrabold text-[var(--dx-ok)]">
+                                1. Receita Bruta (Receitas de Vendas)
+                              </span>
+                              <span className={`dx-status ${badgeCls}`}>
+                                {statusLabel}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <b className="text-sm font-extrabold text-[var(--dx-ink)]">
+                                {formatarCentavosBRL(
+                                  stoneTotaisFiltrados.valor_bruto_centavos
+                                )}
+                              </b>
+                              <span className="text-[11px] text-[var(--dx-muted)] truncate">
+                                Cat.:{' '}
+                                <b>{categoriaReceitaAtivaObj?.nome || '—'}</b>
+                              </span>
+                            </div>
+                            <div className="text-[10px] font-mono text-[var(--dx-muted)] flex items-center justify-between gap-2 pt-1 border-t border-[var(--dx-line-soft)]">
+                              <span className="truncate">
+                                Chave: {chaveIdempotenciaReceitaAtiva1FA || '—'}
+                              </span>
+                              {uuidRef && (
+                                <span className="text-[var(--dx-ok)] flex-shrink-0">
+                                  CA ID: {uuidRef}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })()}
+
+                      {/* Resumo Individual: 2. Despesa MDR */}
+                      {(() => {
+                        const itemMem = resultadoTransmissao1FB?.despesa_mdr
+                        const regIdemp =
+                          avaliacaoEstadoTransmissaoGrupoAtivo1FB.regDespesa
+                        const mdrZero =
+                          stoneTotaisFiltrados.desconto_mdr_ajustado_centavos <=
+                          0
+                        const statusLabel = mdrZero
+                          ? 'DISPENSADO_VALOR_ZERO'
+                          : transmitindo1FB
+                            ? 'TRANSMITINDO...'
+                            : itemMem
+                              ? itemMem.status
+                              : regIdemp
+                                ? regIdemp.status ===
+                                    'RECEITA_CRIADA_SEM_BAIXA' ||
+                                  regIdemp.status === 'BAIXADO_COMPLETO' ||
+                                  regIdemp.status === 'CONCILIADO_EXISTENTE'
+                                  ? 'JA_TRANSMITIDO_ANTERIORMENTE'
+                                  : regIdemp.status
+                                : preparacaoValidacao1FA.lancamento_despesa_mdr
+                                      .bloqueado
+                                  ? 'BLOQUEADO_PRE_VALIDACAO'
+                                  : 'PENDENTE'
+
+                        const badgeCls =
+                          statusLabel === 'TRANSMITIDO_COM_SUCESSO' ||
+                          statusLabel === 'JA_TRANSMITIDO_ANTERIORMENTE'
+                            ? 'is-ok'
+                            : statusLabel === 'BLOQUEADO_TRAVA_ETAPA' ||
+                                statusLabel === 'DISPENSADO_VALOR_ZERO' ||
+                                statusLabel === 'TRANSMITINDO...'
+                              ? 'is-accent'
+                              : statusLabel === 'PENDENTE'
+                                ? 'is-warn'
+                                : 'is-bad'
+
+                        const uuidRef =
+                          itemMem?.conta_azul_parcela_id ||
+                          itemMem?.conta_azul_evento_id ||
+                          regIdemp?.conta_azul_parcela_id ||
+                          regIdemp?.conta_azul_evento_id ||
+                          null
+
+                        return (
+                          <div className="p-3 rounded-[10px] border border-[var(--dx-line)] bg-[var(--dx-soft)] space-y-1.5">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <span className="font-extrabold text-[var(--dx-warn)]">
+                                2. Despesa MDR (Tarifas de Cartão de Créditos)
+                              </span>
+                              <span className={`dx-status ${badgeCls}`}>
+                                {statusLabel}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <b className="text-sm font-extrabold text-[var(--dx-ink)]">
+                                {formatarCentavosBRL(
+                                  stoneTotaisFiltrados.desconto_mdr_ajustado_centavos
+                                )}
+                              </b>
+                              <span className="text-[11px] text-[var(--dx-muted)] truncate">
+                                Cat.:{' '}
+                                <b>
+                                  {categoriaDespesaMdrAtivaObj?.nome || '—'}
+                                </b>
+                              </span>
+                            </div>
+                            <div className="text-[10px] font-mono text-[var(--dx-muted)] flex items-center justify-between gap-2 pt-1 border-t border-[var(--dx-line-soft)]">
+                              <span className="truncate">
+                                Chave:{' '}
+                                {chaveIdempotenciaDespesaMdrAtiva1FA || '—'}
+                              </span>
+                              {uuidRef && (
+                                <span className="text-[var(--dx-ok)] flex-shrink-0">
+                                  CA ID: {uuidRef}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Avisos explícitos de bloqueio contra reenvio quando já concluído ou em resultado incerto */}
+                  {avaliacaoEstadoTransmissaoGrupoAtivo1FB.jaConcluidoTotal && (
+                    <div className="p-3.5 rounded-[12px] border border-[var(--dx-ok)] bg-[var(--dx-ok-bg)] flex items-center gap-2.5 text-xs text-[var(--dx-ok)]">
+                      <CheckCircle2 size={16} className="flex-shrink-0" />
+                      <span>
+                        <b>Grupo Já Concluído (Idempotência Ativa):</b> Tanto a
+                        Receita Bruta quanto a Despesa MDR deste grupo já foram
+                        processadas e confirmadas. O botão de transmissão está
+                        bloqueado para impedir qualquer reenvio duplicado.
+                      </span>
+                    </div>
+                  )}
+
+                  {avaliacaoEstadoTransmissaoGrupoAtivo1FB.bloqueadoIncerto && (
+                    <div className="p-3.5 rounded-[12px] border border-[var(--dx-bad)] bg-[var(--dx-bad-bg)] flex items-center gap-2.5 text-xs text-[var(--dx-bad)]">
+                      <AlertTriangle size={16} className="flex-shrink-0" />
+                      <span>
+                        <b>
+                          Bloqueio de Segurança por Resultado Incerto (
+                          <code>RECONCILIACAO_NECESSARIA_BLOQUEADO</code>):
+                        </b>{' '}
+                        Houve uma resposta inconclusiva ou falha de persistência
+                        pós-chamada externa neste grupo. O reenvio automático
+                        está bloqueado para evitar duplicidade; audite na Conta
+                        Azul antes de prosseguir.
+                      </span>
+                    </div>
+                  )}
+
+                  {avaliacaoEstadoTransmissaoGrupoAtivo1FB.falhaParcialRetomavel && (
+                    <div className="p-3.5 rounded-[12px] border border-[var(--dx-warn)] bg-[var(--dx-soft)] flex items-center gap-2.5 text-xs text-[var(--dx-ink)]">
+                      <AlertTriangle
+                        size={16}
+                        className="text-[var(--dx-warn)] flex-shrink-0"
+                      />
+                      <span>
+                        <b>
+                          Falha Parcial Retomável Detectada (
+                          <code>FALHA_PARCIAL_RETOMAVEL</code>):
+                        </b>{' '}
+                        Um dos itens deste grupo já está confirmado por
+                        idempotência e será reaproveitado sem reenvio; ao
+                        confirmar e retransmitir, o sistema enviará{' '}
+                        <b>exclusivamente o item faltante</b>.
+                      </span>
+                    </div>
+                  )}
+
+                  {!avaliacaoEstadoTransmissaoGrupoAtivo1FB.prontoNa1FAOuRetomavel &&
+                    !avaliacaoEstadoTransmissaoGrupoAtivo1FB.jaConcluidoTotal &&
+                    !avaliacaoEstadoTransmissaoGrupoAtivo1FB.bloqueadoIncerto && (
+                      <div className="p-3.5 rounded-[12px] border border-[var(--dx-line)] bg-[var(--dx-surface)] flex items-center gap-2.5 text-xs text-[var(--dx-muted)]">
+                        <Info size={16} className="flex-shrink-0" />
+                        <span>
+                          A confirmação explícita de transmissão só é liberada
+                          quando todos os critérios da Etapa 1F-A estiverem
+                          aprovados (incluindo conferência bancária{' '}
+                          <code>CONFERIDO_EXATO</code>, loja ativa, conta
+                          financeira, categorias obrigatórias e data de
+                          vencimento original).
+                        </span>
+                      </div>
+                    )}
+
+                  {erroTransmissao1FB && !exibirConfirmacao1FB && (
+                    <div className="p-3 rounded-[10px] border border-[var(--dx-bad)] bg-[var(--dx-bad-bg)] text-xs text-[var(--dx-bad)] flex items-center gap-2">
+                      <XCircle size={15} className="flex-shrink-0" />
+                      <b>{erroTransmissao1FB}</b>
                     </div>
                   )}
 
                   {/* QUADRO DE CONFIRMAÇÃO EXPLÍCITA (7 ITENS OBRIGATÓRIOS) */}
                   {exibirConfirmacao1FB &&
-                    preparacaoValidacao1FA.pronto_para_etapa_1fb && (
+                    avaliacaoEstadoTransmissaoGrupoAtivo1FB.podeIniciarConfirmacaoOuReenvio && (
                       <div className="p-4 rounded-[14px] border-2 border-[var(--dx-accent)] bg-[var(--dx-surface)] space-y-4">
                         <div className="flex items-center justify-between gap-2 flex-wrap border-b border-[var(--dx-line-soft)] pb-3">
                           <div>
@@ -3646,11 +4533,15 @@ export default function PainelFrentesReceber({
                           <button
                             type="button"
                             disabled={
-                              !checkboxConfirmacao1FB || transmitindo1FB
+                              !checkboxConfirmacao1FB ||
+                              transmitindo1FB ||
+                              !avaliacaoEstadoTransmissaoGrupoAtivo1FB.podeIniciarConfirmacaoOuReenvio
                             }
                             onClick={handleExecutarTransmissaoControlada1FB}
                             className={`dx-btn is-primary ${
-                              !checkboxConfirmacao1FB || transmitindo1FB
+                              !checkboxConfirmacao1FB ||
+                              transmitindo1FB ||
+                              !avaliacaoEstadoTransmissaoGrupoAtivo1FB.podeIniciarConfirmacaoOuReenvio
                                 ? 'opacity-50 cursor-not-allowed'
                                 : ''
                             }`}
@@ -3659,7 +4550,9 @@ export default function PainelFrentesReceber({
                             <span>
                               {transmitindo1FB
                                 ? 'Processando Fluxo Controlado (Etapa 1F-B)...'
-                                : 'Confirmar e Executar Transmissão Controlada (Etapa 1F-B)'}
+                                : avaliacaoEstadoTransmissaoGrupoAtivo1FB.falhaParcialRetomavel
+                                  ? 'Confirmar e Retomar Item Faltante (Etapa 1F-B)'
+                                  : 'Confirmar e Executar Transmissão Controlada (Etapa 1F-B)'}
                             </span>
                           </button>
                         </div>
@@ -3678,7 +4571,10 @@ export default function PainelFrentesReceber({
                           : resultadoTransmissao1FB.situacao ===
                               'BLOQUEADO_TRAVA_SEGURANCA_ETAPA'
                             ? 'border-[var(--dx-accent)] bg-[var(--dx-soft)]'
-                            : 'border-[var(--dx-bad)] bg-[var(--dx-bad-bg)]'
+                            : resultadoTransmissao1FB.situacao ===
+                                'FALHA_PARCIAL_RETOMAVEL'
+                              ? 'border-[var(--dx-warn)] bg-[var(--dx-soft)]'
+                              : 'border-[var(--dx-bad)] bg-[var(--dx-bad-bg)]'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3 flex-wrap">

@@ -44,8 +44,14 @@ register(
   pathToFileURL('./')
 )
 
-const { conferirValorLiquidoComExtratoBancario } = await import(
-  '@/lib/contas-receber/stone-csv-parser'
+const {
+  agruparLinhasStonePorDataBandeiraModalidade,
+  conciliarGrupoStoneComContaAzul,
+  conferirValorLiquidoComExtratoBancario,
+  interpretarCsvStone,
+} = await import('@/lib/contas-receber/stone-csv-parser')
+const { prepararEValidarLancamentosEtapa1FA } = await import(
+  '@/lib/contas-receber/preparador-validacao-1fa'
 )
 const { validarAutorizacaoContasReceber } = await import(
   '@/lib/contas-receber/auth-receber'
@@ -116,6 +122,8 @@ const AVALIACAO_CA_VAZIA: AvaliacaoPeriodoContaAzulStoneDTO = {
   periodo_consultado: { data_de: '2026-04-01', data_ate: '2026-04-01' },
   total_receitas_no_periodo: 0,
   total_despesas_no_periodo: 0,
+  receitas_no_periodo: [],
+  despesas_no_periodo: [],
   triagem_receita_bruta: {
     classificacao: 'NAO_LOCALIZADO_NO_PERIODO',
     autoriza_vinculo_automatico: false,
@@ -707,6 +715,7 @@ test('7. Reprocessamento Parcial Realista: Receita Bruta já criada pelo própri
             candidatos: [
               {
                 id: uuidParcelaReceita,
+                tipo_lancamento: 'RECEITA' as const,
                 descricao: 'Receita Bruta Stone criada na 1ª tentativa',
                 data_vencimento: '2026-04-01',
                 status: 'EM_ABERTO',
@@ -971,7 +980,11 @@ test('11. Contexto Conta Azul: rejeita emp-demo (400), valida Bearer token e per
         contas_receber: true,
       },
     }),
-    verificarAcessoEmpresaUsuario: async ({ empresaId: empId }) => {
+    verificarAcessoEmpresaUsuario: async ({
+      empresaId: empId,
+    }: {
+      empresaId: string
+    }) => {
       if (empId === LOJA_A_ID) {
         return {
           acessoPermitido: true,
@@ -1033,4 +1046,622 @@ test('11. Contexto Conta Azul: rejeita emp-demo (400), valida Bearer token e per
   assert.equal(authLojaC.statusHttp, 403)
   assert.equal(authLojaC.codigoErro, 'EMPRESA_NAO_AUTORIZADA')
 })
+
+const CABECALHO_CSV_STONE_1FB = [
+  'DOCUMENTO',
+  'STONECODE',
+  'CATEGORIA',
+  'DATA DA VENDA',
+  'DATA DE VENCIMENTO',
+  'DATA DE VENCIMENTO ORIGINAL',
+  'BANDEIRA',
+  'PRODUTO',
+  'STONE ID',
+  'QTD DE PARCELAS',
+  'Nº DA PARCELA',
+  'VALOR BRUTO',
+  'VALOR LÍQUIDO',
+  'DESCONTO DE MDR',
+  'DESCONTO DE ANTECIPAÇÃO',
+  'DESCONTO UNIFICADO',
+  'ÚLTIMO STATUS',
+  'DATA DO ÚLTIMO STATUS',
+  'ENTRADAS BRUTAS',
+  'SAÍDAS BRUTAS',
+].join(';')
+
+function montarLinhaCsvStone1FB(params: {
+  stoneId: string
+  dataVencimentoOriginal: string
+  bandeira: string
+  produto: string
+  valorBruto: string
+  valorLiquido: string
+  descontoMdr: string
+}): string {
+  return [
+    '12345678000199',
+    '99887766',
+    'Venda',
+    '03/11/2026',
+    params.dataVencimentoOriginal,
+    params.dataVencimentoOriginal,
+    params.bandeira,
+    params.produto,
+    params.stoneId,
+    '1',
+    '1',
+    params.valorBruto,
+    params.valorLiquido,
+    params.descontoMdr,
+    '0,000000',
+    params.descontoMdr,
+    'Pago',
+    params.dataVencimentoOriginal,
+    params.valorBruto,
+    params.descontoMdr,
+  ].join(';')
+}
+
+// ============================================================================
+// 12. ISOLAMENTO DE IDEMPOTÊNCIA E TRANSMISSÃO POR GRUPO (STONE VISA CD, STONE MAST CD, STONE VISA DB)
+// ============================================================================
+test('12. Grupos por Data + Bandeira + Modalidade (CD/DB): chaves exclusivas por grupo, transmissão isolada (1 Receita Bruta + 1 Despesa MDR) e reenvio idempotente sem afetar grupos vizinhos', async () => {
+  const csv = [
+    CABECALHO_CSV_STONE_1FB,
+    montarLinhaCsvStone1FB({
+      stoneId: 'ST-GRP-1',
+      dataVencimentoOriginal: '04/11/2026',
+      bandeira: 'Visa',
+      produto: 'Crédito',
+      valorBruto: '500,000000',
+      valorLiquido: '490,000000',
+      descontoMdr: '-10,000000',
+    }),
+    montarLinhaCsvStone1FB({
+      stoneId: 'ST-GRP-2',
+      dataVencimentoOriginal: '04/11/2026',
+      bandeira: 'MasterCard',
+      produto: 'Crédito',
+      valorBruto: '500,000000',
+      valorLiquido: '490,000000',
+      descontoMdr: '-10,000000',
+    }),
+    montarLinhaCsvStone1FB({
+      stoneId: 'ST-GRP-3',
+      dataVencimentoOriginal: '04/11/2026',
+      bandeira: 'Visa',
+      produto: 'Débito',
+      valorBruto: '500,000000',
+      valorLiquido: '490,000000',
+      descontoMdr: '-10,000000',
+    }),
+  ].join('\n')
+
+  const { linhas } = interpretarCsvStone(csv)
+  const grupos = agruparLinhasStonePorDataBandeiraModalidade(linhas)
+  assert.equal(grupos.length, 3)
+
+  const grupoVisaCd = grupos.find(
+    (g) => g.rotulo_conta_azul_esperado === 'STONE VISA CD'
+  )!
+  const grupoMastCd = grupos.find(
+    (g) => g.rotulo_conta_azul_esperado === 'STONE MAST CD'
+  )!
+  const grupoVisaDb = grupos.find(
+    (g) => g.rotulo_conta_azul_esperado === 'STONE VISA DB'
+  )!
+
+  const montarReqGrupo = (grupo: typeof grupoVisaCd): RequisicaoTransmissao1FBDTO => {
+    const conf = conferirValorLiquidoComExtratoBancario(grupo.totais, '490,00')
+    return {
+      empresa_id: LOJA_A_ID,
+      empresa_nome: LOJA_A_NOME,
+      filtros: {
+        data_vencimento_original: grupo.data_vencimento_original_br,
+        bandeira: grupo.bandeira_canonica,
+        produto: grupo.modalidade_sigla === 'CD' ? 'Crédito' : 'Débito',
+      },
+      totais: grupo.totais,
+      conferencia: conf,
+      conta_financeira_selecionada: CONTA_FINANCEIRA_LOJA_A,
+      categoria_receita_selecionada: CATEGORIA_RECEITA_VENDAS,
+      categoria_despesa_mdr_selecionada: CATEGORIA_DESPESA_MDR,
+      identificadores_deterministicos: grupo.linhas.map((l) => l.stone_id),
+      confirmacao_explicita: {
+        confirmado_pelo_usuario: true,
+        confirmado_em_iso: '2026-11-06T12:00:00.000Z',
+        loja_id: LOJA_A_ID,
+        loja_nome: LOJA_A_NOME,
+        conta_financeira_id: CONTA_FINANCEIRA_LOJA_A.id,
+        conta_financeira_nome: CONTA_FINANCEIRA_LOJA_A.descricao,
+        categoria_receita_id: CATEGORIA_RECEITA_VENDAS.id,
+        categoria_receita_nome: CATEGORIA_RECEITA_VENDAS.nome,
+        categoria_despesa_mdr_id: CATEGORIA_DESPESA_MDR.id,
+        categoria_despesa_mdr_nome: CATEGORIA_DESPESA_MDR.nome,
+        valor_receita_bruta_centavos: grupo.totais.valor_bruto_centavos,
+        valor_despesa_mdr_centavos: grupo.totais.desconto_mdr_ajustado_centavos,
+        valor_liquido_centavos: grupo.totais.valor_liquido_centavos,
+        data_lancamentos_iso: grupo.data_vencimento_original_iso,
+        status_conferencia_bancaria: 'CONFERIDO_EXATO',
+      },
+    }
+  }
+
+  const reqVisaCd = montarReqGrupo(grupoVisaCd)
+  const reqMastCd = montarReqGrupo(grupoMastCd)
+  const reqVisaDb = montarReqGrupo(grupoVisaDb)
+
+  const previaVisaCd = prepararEValidarLancamentosEtapa1FA({
+    empresaId: LOJA_A_ID,
+    empresaNome: LOJA_A_NOME,
+    filtros: reqVisaCd.filtros,
+    totais: reqVisaCd.totais,
+    conferencia: reqVisaCd.conferencia,
+    contaFinanceiraSelecionada: CONTA_FINANCEIRA_LOJA_A,
+    categoriaReceitaSelecionada: CATEGORIA_RECEITA_VENDAS,
+    categoriaDespesaMdrSelecionada: CATEGORIA_DESPESA_MDR,
+  })
+  const previaMastCd = prepararEValidarLancamentosEtapa1FA({
+    empresaId: LOJA_A_ID,
+    empresaNome: LOJA_A_NOME,
+    filtros: reqMastCd.filtros,
+    totais: reqMastCd.totais,
+    conferencia: reqMastCd.conferencia,
+    contaFinanceiraSelecionada: CONTA_FINANCEIRA_LOJA_A,
+    categoriaReceitaSelecionada: CATEGORIA_RECEITA_VENDAS,
+    categoriaDespesaMdrSelecionada: CATEGORIA_DESPESA_MDR,
+  })
+  const previaVisaDb = prepararEValidarLancamentosEtapa1FA({
+    empresaId: LOJA_A_ID,
+    empresaNome: LOJA_A_NOME,
+    filtros: reqVisaDb.filtros,
+    totais: reqVisaDb.totais,
+    conferencia: reqVisaDb.conferencia,
+    contaFinanceiraSelecionada: CONTA_FINANCEIRA_LOJA_A,
+    categoriaReceitaSelecionada: CATEGORIA_RECEITA_VENDAS,
+    categoriaDespesaMdrSelecionada: CATEGORIA_DESPESA_MDR,
+  })
+
+  // a) Chaves exclusivas por grupo (mesma data 2026-11-04 e mesmos valores Bruto=50000, MDR=1000, Líquido=49000)
+  assert.notEqual(
+    previaVisaCd.validacao_idempotencia.chave_lote,
+    previaMastCd.validacao_idempotencia.chave_lote
+  )
+  assert.notEqual(
+    previaVisaCd.validacao_idempotencia.chave_lote,
+    previaVisaDb.validacao_idempotencia.chave_lote
+  )
+  assert.notEqual(
+    previaVisaCd.validacao_idempotencia.chave_receita_bruta,
+    previaMastCd.validacao_idempotencia.chave_receita_bruta
+  )
+  assert.notEqual(
+    previaVisaCd.validacao_idempotencia.chave_despesa_mdr,
+    previaVisaDb.validacao_idempotencia.chave_despesa_mdr
+  )
+  assert.equal(
+    previaVisaCd.lancamento_receita_bruta.descricao.includes('[STONE VISA CD]'),
+    true
+  )
+  assert.equal(
+    previaVisaCd.lancamento_despesa_mdr.descricao.includes('[STONE VISA CD]'),
+    true
+  )
+
+  const { supabaseAdmin } = criarSupabaseAdminMock()
+  const repo = criarRepositorioIdempotenciaSupabase1FB(supabaseAdmin)
+
+  const payloadsReceitaEnviados: any[] = []
+  const payloadsDespesaEnviados: any[] = []
+  let seqUuid = 10
+
+  const criarDepsGrupo = () => ({
+    repositorioIdempotencia: repo,
+    transmissaoRealHabilitadaOverride: true,
+    empresaAutorizadaServidor: { id: LOJA_A_ID, nome: LOJA_A_NOME },
+    obterTokenValido: async () => ({ accessToken: 'token-loja-a' }),
+    listarContasFinanceirasCA: async () => [CONTA_FINANCEIRA_LOJA_A],
+    listarCategoriasCA: async () => ({
+      categorias_receita: [CATEGORIA_RECEITA_VENDAS],
+      categorias_despesa: [CATEGORIA_DESPESA_MDR],
+    }),
+    consultarAvaliacaoPeriodoCA: async () => ({
+      ...AVALIACAO_CA_VAZIA,
+      periodo_consultado: { data_de: '2026-11-04', data_ate: '2026-11-04' },
+    }),
+    resolverClienteReceitaStone: async () => 'cli-stone-001',
+    resolverFornecedorDespesaStone: async () => 'forn-stone-001',
+    transmitirReceitaBrutaCA: async (_token: string, payload: any) => {
+      payloadsReceitaEnviados.push(payload)
+      const id = `00000000-0000-4000-8000-0000000000${seqUuid++}`
+      return { id, condicao_pagamento: { parcelas: [{ id }] } }
+    },
+    transmitirDespesaMdrCA: async (_token: string, payload: any) => {
+      payloadsDespesaEnviados.push(payload)
+      const id = `00000000-0000-4000-8000-0000000000${seqUuid++}`
+      return { id, condicao_pagamento: { parcelas: [{ id }] } }
+    },
+  })
+
+  // b) Transmitir STONE VISA CD cria exatamente 1 Receita Bruta e 1 Despesa MDR
+  const resVisaCd1 = await executarTransmissaoControladaEtapa1FB(
+    reqVisaCd,
+    criarDepsGrupo()
+  )
+  assert.equal(resVisaCd1.situacao, 'SUCESSO_COMPLETO')
+  assert.equal(resVisaCd1.sucesso, true)
+  assert.equal(payloadsReceitaEnviados.length, 1)
+  assert.equal(payloadsDespesaEnviados.length, 1)
+  assert.equal(
+    resVisaCd1.receita_bruta?.categoria_nome,
+    'Receitas de Vendas'
+  )
+  assert.equal(
+    resVisaCd1.despesa_mdr?.categoria_nome,
+    'Tarifas de Cartão de Créditos'
+  )
+  assert.equal(
+    payloadsReceitaEnviados[0].rateio[0].id_categoria,
+    CATEGORIA_RECEITA_VENDAS.id
+  )
+  assert.equal(
+    payloadsDespesaEnviados[0].rateio[0].id_categoria,
+    CATEGORIA_DESPESA_MDR.id
+  )
+
+  // c) Clique repetido em STONE VISA CD retorna JA_CONCLUIDO_IDEMPOTENTE com 0 novos POSTs
+  const resVisaCd2 = await executarTransmissaoControladaEtapa1FB(
+    reqVisaCd,
+    criarDepsGrupo()
+  )
+  assert.equal(resVisaCd2.situacao, 'JA_CONCLUIDO_IDEMPOTENTE')
+  assert.equal(resVisaCd2.sucesso, true)
+  assert.equal(payloadsReceitaEnviados.length, 1)
+  assert.equal(payloadsDespesaEnviados.length, 1)
+
+  // Enquanto isso, STONE MAST CD segue livre e transmite normalmente (totalizando 2 Receitas e 2 Despesas)
+  const resMastCd = await executarTransmissaoControladaEtapa1FB(
+    reqMastCd,
+    criarDepsGrupo()
+  )
+  assert.equal(resMastCd.situacao, 'SUCESSO_COMPLETO')
+  assert.equal(resMastCd.sucesso, true)
+  assert.equal(payloadsReceitaEnviados.length, 2)
+  assert.equal(payloadsDespesaEnviados.length, 2)
+})
+
+// ============================================================================
+// 13. RESPOSTA SEM CONFIRMAÇÃO CONFIÁVEL (HTTP 200 SEM UUID VÁLIDO) -> BLOQUEIO E AUDITORIA
+// ============================================================================
+test('13. Resposta sem confirmação confiável da Conta Azul (HTTP 200 sem UUID válido): classifica como RECONCILIACAO_NECESSARIA_BLOQUEADO e bloqueia reenvio automático', async () => {
+  const { supabaseAdmin, rows } = criarSupabaseAdminMock()
+  const repo = criarRepositorioIdempotenciaSupabase1FB(supabaseAdmin)
+  let chamadasPostReceita = 0
+  let chamadasPostDespesa = 0
+
+  const depsSemUuid = {
+    repositorioIdempotencia: repo,
+    transmissaoRealHabilitadaOverride: true,
+    empresaAutorizadaServidor: { id: LOJA_A_ID, nome: LOJA_A_NOME },
+    obterTokenValido: async () => ({ accessToken: 'token-loja-a' }),
+    listarContasFinanceirasCA: async () => [CONTA_FINANCEIRA_LOJA_A],
+    listarCategoriasCA: async () => ({
+      categorias_receita: [CATEGORIA_RECEITA_VENDAS],
+      categorias_despesa: [CATEGORIA_DESPESA_MDR],
+    }),
+    consultarAvaliacaoPeriodoCA: async () => AVALIACAO_CA_VAZIA,
+    resolverClienteReceitaStone: async () => 'cli-stone-001',
+    resolverFornecedorDespesaStone: async () => 'forn-stone-001',
+    transmitirReceitaBrutaCA: async () => {
+      chamadasPostReceita += 1
+      // Retorna HTTP 200 sem UUID válido (ex: objeto vazio ou id não-UUID)
+      return { id: 'ok-sem-uuid' }
+    },
+    transmitirDespesaMdrCA: async () => {
+      chamadasPostDespesa += 1
+      return { id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee' }
+    },
+  }
+
+  const res1 = await executarTransmissaoControladaEtapa1FB(
+    criarRequisicaoValida1FB(),
+    depsSemUuid
+  )
+
+  assert.equal(res1.situacao, 'RECONCILIACAO_NECESSARIA_BLOQUEADO')
+  assert.equal(res1.reconciliacao_necessaria, true)
+  assert.equal(res1.bloqueado, true)
+  assert.equal(res1.sucesso, false)
+  assert.equal(res1.receita_bruta?.status, 'RECONCILIACAO_NECESSARIA')
+  assert.equal(chamadasPostReceita, 1)
+  assert.equal(chamadasPostDespesa, 0) // Interrompeu antes de tentar Despesa MDR
+
+  // Verifica que o banco de idempotência gravou RECONCILIACAO_NECESSARIA (equivalente a INCERTO_REQUER_AUDITORIA)
+  const logItem = rows.find(
+    (r) =>
+      r.acao === 'contas_receber_1fb_lancamento' &&
+      r.detalhes?.papel === 'RECEITA_BRUTA'
+  )
+  assert.ok(logItem)
+  assert.equal(
+    logItem.detalhes?.status_operacao,
+    'RECONCILIACAO_NECESSARIA'
+  )
+  assert.equal(logItem.detalhes?.reconciliacao_necessaria, true)
+
+  // Nova tentativa automática deve ser bloqueada imediatamente sem disparar novo POST
+  const res2 = await executarTransmissaoControladaEtapa1FB(
+    criarRequisicaoValida1FB(),
+    depsSemUuid
+  )
+  assert.equal(res2.situacao, 'RECONCILIACAO_NECESSARIA_BLOQUEADO')
+  assert.equal(chamadasPostReceita, 1)
+  assert.equal(chamadasPostDespesa, 0)
+})
+
+// ============================================================================
+// 14. RETOMADA SEGURA APÓS FALHA PARCIAL EM GRUPO STONE ELO DB COM LÍQUIDO CONCILIADO VIA GET
+// ============================================================================
+test('14. Retomada segura em grupo STONE ELO DB com lançamento líquido conciliado via GET na Conta Azul: 1ª tentativa transmite Receita e falha MDR; 2ª tentativa pula Receita e conclui MDR sem falso bloqueio de duplicidade', async () => {
+  const csv = [
+    CABECALHO_CSV_STONE_1FB,
+    montarLinhaCsvStone1FB({
+      stoneId: 'ST-ELO-DB-01',
+      dataVencimentoOriginal: '04/11/2026',
+      bandeira: 'Elo',
+      produto: 'Débito',
+      valorBruto: '800,000000',
+      valorLiquido: '788,000000',
+      descontoMdr: '-12,000000',
+    }),
+  ].join('\n')
+
+  const { linhas } = interpretarCsvStone(csv)
+  const [grupoEloDb] = agruparLinhasStonePorDataBandeiraModalidade(linhas)
+  assert.equal(grupoEloDb.rotulo_conta_azul_esperado, 'STONE ELO DB')
+
+  const lancamentoLiquidoEloDbCA = {
+    id: 'ca-liq-elo-db-788',
+    tipo_lancamento: 'RECEITA' as const,
+    data_vencimento: '2026-11-04',
+    valor_total_centavos: 78_800,
+    valor_pago_centavos: 78_800,
+    valor_aberto_centavos: 0,
+    status: 'QUITADO',
+    descricao: 'STONE ELO DB',
+  }
+
+  const avaliacaoComLiquidoEloDb: AvaliacaoPeriodoContaAzulStoneDTO = {
+    periodo_consultado: { data_de: '2026-11-04', data_ate: '2026-11-04' },
+    total_receitas_no_periodo: 1,
+    total_despesas_no_periodo: 0,
+    receitas_no_periodo: [lancamentoLiquidoEloDbCA],
+    despesas_no_periodo: [],
+    triagem_receita_bruta: {
+      classificacao: 'NAO_LOCALIZADO_NO_PERIODO',
+      autoriza_vinculo_automatico: false,
+      ja_quitado: false,
+      candidatos: [],
+      mensagem: 'Receita Bruta ainda não criada.',
+    },
+    triagem_despesa_mdr: {
+      classificacao: 'NAO_LOCALIZADO_NO_PERIODO',
+      autoriza_vinculo_automatico: false,
+      ja_quitado: false,
+      candidatos: [],
+      mensagem: 'Despesa MDR ainda não criada.',
+    },
+    triagem_deposito_liquido: {
+      classificacao: 'JA_QUITADO_BLOQUEADO',
+      autoriza_vinculo_automatico: false,
+      ja_quitado: true,
+      candidatos: [lancamentoLiquidoEloDbCA],
+      mensagem: 'Depósito líquido STONE ELO DB localizado no período.',
+    },
+  }
+
+  const concEloDb = conciliarGrupoStoneComContaAzul({
+    grupo: grupoEloDb,
+    avaliacaoPeriodoCA: avaliacaoComLiquidoEloDb,
+  })
+  assert.equal(concEloDb.estado_grupo, 'CONFERIDO_EXATO')
+  assert.equal(concEloDb.origem_conferencia, 'AUTOMATICA_GET_CONTA_AZUL')
+
+  const reqEloDb: RequisicaoTransmissao1FBDTO = {
+    empresa_id: LOJA_A_ID,
+    empresa_nome: LOJA_A_NOME,
+    filtros: {
+      data_vencimento_original: '04/11/2026',
+      bandeira: 'Elo',
+      produto: 'Débito',
+    },
+    totais: grupoEloDb.totais,
+    conferencia: concEloDb,
+    conta_financeira_selecionada: CONTA_FINANCEIRA_LOJA_A,
+    categoria_receita_selecionada: CATEGORIA_RECEITA_VENDAS,
+    categoria_despesa_mdr_selecionada: CATEGORIA_DESPESA_MDR,
+    identificadores_deterministicos: grupoEloDb.linhas.map((l) => l.stone_id),
+    confirmacao_explicita: {
+      confirmado_pelo_usuario: true,
+      confirmado_em_iso: '2026-11-06T12:30:00.000Z',
+      loja_id: LOJA_A_ID,
+      loja_nome: LOJA_A_NOME,
+      conta_financeira_id: CONTA_FINANCEIRA_LOJA_A.id,
+      conta_financeira_nome: CONTA_FINANCEIRA_LOJA_A.descricao,
+      categoria_receita_id: CATEGORIA_RECEITA_VENDAS.id,
+      categoria_receita_nome: CATEGORIA_RECEITA_VENDAS.nome,
+      categoria_despesa_mdr_id: CATEGORIA_DESPESA_MDR.id,
+      categoria_despesa_mdr_nome: CATEGORIA_DESPESA_MDR.nome,
+      valor_receita_bruta_centavos: 80_000,
+      valor_despesa_mdr_centavos: 1_200,
+      valor_liquido_centavos: 78_800,
+      data_lancamentos_iso: '2026-11-04',
+      status_conferencia_bancaria: 'CONFERIDO_EXATO',
+    },
+  }
+
+  const { supabaseAdmin } = criarSupabaseAdminMock()
+  const repo = criarRepositorioIdempotenciaSupabase1FB(supabaseAdmin)
+
+  let chamadasPostReceita = 0
+  let chamadasPostDespesa = 0
+  let falharDespesaNaPrimeira = true
+  const uuidRecElo = '12345678-1234-4234-8234-1234567890ab'
+  const uuidDespElo = '87654321-4321-4321-8321-ba0987654321'
+
+  const depsEloDb = {
+    repositorioIdempotencia: repo,
+    transmissaoRealHabilitadaOverride: true,
+    empresaAutorizadaServidor: { id: LOJA_A_ID, nome: LOJA_A_NOME },
+    obterTokenValido: async () => ({ accessToken: 'token-loja-a' }),
+    listarContasFinanceirasCA: async () => [CONTA_FINANCEIRA_LOJA_A],
+    listarCategoriasCA: async () => ({
+      categorias_receita: [CATEGORIA_RECEITA_VENDAS],
+      categorias_despesa: [CATEGORIA_DESPESA_MDR],
+    }),
+    consultarAvaliacaoPeriodoCA: async (): Promise<AvaliacaoPeriodoContaAzulStoneDTO> => {
+      if (chamadasPostReceita >= 1) {
+        return {
+          ...avaliacaoComLiquidoEloDb,
+          total_receitas_no_periodo: 2,
+          triagem_receita_bruta: {
+            classificacao: 'CORRESPONDENCIA_DETERMINISTICA',
+            autoriza_vinculo_automatico: true,
+            ja_quitado: false,
+            candidatos: [
+              {
+                id: uuidRecElo,
+                tipo_lancamento: 'RECEITA' as const,
+                data_vencimento: '2026-11-04',
+                valor_total_centavos: 80_000,
+                valor_pago_centavos: 0,
+                valor_aberto_centavos: 80_000,
+                status: 'EM_ABERTO',
+                descricao:
+                  'Recebimento Cartão Stone Elo Débito [STONE ELO DB]',
+              },
+            ],
+            mensagem: 'Receita Bruta localizada.',
+          },
+        }
+      }
+      return avaliacaoComLiquidoEloDb
+    },
+    resolverClienteReceitaStone: async () => 'cli-stone-001',
+    resolverFornecedorDespesaStone: async () => 'forn-stone-001',
+    transmitirReceitaBrutaCA: async () => {
+      chamadasPostReceita += 1
+      return {
+        id: uuidRecElo,
+        condicao_pagamento: { parcelas: [{ id: uuidRecElo }] },
+      }
+    },
+    transmitirDespesaMdrCA: async () => {
+      chamadasPostDespesa += 1
+      if (falharDespesaNaPrimeira) {
+        throw new Error('Erro temporário HTTP 422 ao criar Despesa MDR ELO DB')
+      }
+      return {
+        id: uuidDespElo,
+        condicao_pagamento: { parcelas: [{ id: uuidDespElo }] },
+      }
+    },
+  }
+
+  // 1ª tentativa: líquido conciliado STONE ELO DB não bloqueia como duplicidade; Receita transmite e MDR falha
+  const tentativa1 = await executarTransmissaoControladaEtapa1FB(
+    reqEloDb,
+    depsEloDb
+  )
+  assert.equal(tentativa1.situacao, 'FALHA_PARCIAL_RETOMAVEL')
+  assert.equal(
+    tentativa1.receita_bruta?.status,
+    'TRANSMITIDO_COM_SUCESSO'
+  )
+  assert.equal(tentativa1.despesa_mdr?.status, 'FALHA_TRANSMISSAO')
+  assert.equal(chamadasPostReceita, 1)
+  assert.equal(chamadasPostDespesa, 1)
+
+  // 2ª tentativa: Receita Bruta é pulada como JA_TRANSMITIDO_ANTERIORMENTE e apenas a Despesa MDR é enviada
+  falharDespesaNaPrimeira = false
+  const tentativa2 = await executarTransmissaoControladaEtapa1FB(
+    reqEloDb,
+    depsEloDb
+  )
+  assert.equal(tentativa2.situacao, 'SUCESSO_COMPLETO')
+  assert.equal(tentativa2.sucesso, true)
+  assert.equal(
+    tentativa2.receita_bruta?.status,
+    'JA_TRANSMITIDO_ANTERIORMENTE'
+  )
+  assert.equal(tentativa2.despesa_mdr?.status, 'TRANSMITIDO_COM_SUCESSO')
+  assert.equal(chamadasPostReceita, 1)
+  assert.equal(chamadasPostDespesa, 2)
+})
+
+// ============================================================================
+// 15. BLOQUEIO NO PRÉ-VOO DA 1F-B SEM GRUPO INDIVIDUAL OU COM VOUCHER/PIX
+// ============================================================================
+test('15. Pré-voo 1F-B: bloqueia quando Bandeira/Modalidade não estão selecionadas individualmente (GRUPO_BANDEIRA_MODALIDADE_OBRIGATORIO) ou quando o produto é incompatível com CD/DB (Voucher/PIX)', async () => {
+  const { supabaseAdmin } = criarSupabaseAdminMock()
+  const repo = criarRepositorioIdempotenciaSupabase1FB(supabaseAdmin)
+  let chamadasPost = 0
+
+  const depsBase = {
+    repositorioIdempotencia: repo,
+    transmissaoRealHabilitadaOverride: true,
+    empresaAutorizadaServidor: { id: LOJA_A_ID, nome: LOJA_A_NOME },
+    obterTokenValido: async () => ({ accessToken: 'token-loja-a' }),
+    transmitirReceitaBrutaCA: async () => {
+      chamadasPost += 1
+      return { id: '11111111-2222-4333-8444-555555555555' }
+    },
+  }
+
+  // 15A. Filtro "TODAS" / "TODOS" -> GRUPO_BANDEIRA_MODALIDADE_OBRIGATORIO
+  const reqSemGrupo = criarRequisicaoValida1FB()
+  reqSemGrupo.filtros = {
+    data_vencimento_original: '01/04/2026',
+    bandeira: 'TODAS',
+    produto: 'TODOS',
+  }
+
+  const resSemGrupo = await executarTransmissaoControladaEtapa1FB(
+    reqSemGrupo,
+    depsBase
+  )
+  assert.equal(resSemGrupo.situacao, 'BLOQUEADO_VALIDACAO_PRE_VOO')
+  assert.equal(resSemGrupo.bloqueado, true)
+  assert.equal(chamadasPost, 0)
+  assert.equal(
+    resSemGrupo.bloqueios_pre_voo?.some(
+      (b) => b.codigo === 'GRUPO_BANDEIRA_MODALIDADE_OBRIGATORIO'
+    ),
+    true
+  )
+
+  // 15B. Produto Voucher / PIX -> PRODUTO_INCOMPATIVEL_CONCILIACAO_CD_DB
+  const reqVoucher = criarRequisicaoValida1FB()
+  reqVoucher.filtros = {
+    data_vencimento_original: '01/04/2026',
+    bandeira: 'Alelo',
+    produto: 'Voucher Alimentação',
+  }
+
+  const resVoucher = await executarTransmissaoControladaEtapa1FB(
+    reqVoucher,
+    depsBase
+  )
+  assert.equal(resVoucher.situacao, 'BLOQUEADO_VALIDACAO_PRE_VOO')
+  assert.equal(resVoucher.bloqueado, true)
+  assert.equal(chamadasPost, 0)
+  assert.equal(
+    resVoucher.bloqueios_pre_voo?.some(
+      (b) => b.codigo === 'PRODUTO_INCOMPATIVEL_CONCILIACAO_CD_DB'
+    ),
+    true
+  )
+})
+
 

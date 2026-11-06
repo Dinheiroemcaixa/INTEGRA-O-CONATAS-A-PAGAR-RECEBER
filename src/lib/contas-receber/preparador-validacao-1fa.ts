@@ -36,6 +36,7 @@ import {
 import {
   classificarBandeiraStoneCanonica,
   classificarProdutoModalidadeStone,
+  extrairAssinaturaStoneLancamentoContaAzul,
   formatarMicroBRL,
   montarRotuloGrupoStoneContaAzul,
   parseDataBrParaIso,
@@ -481,23 +482,66 @@ export function prepararEValidarLancamentosEtapa1FA(
       )
     }
 
-    // Se a conferência foi aprovada via conciliação automática GET do próprio lançamento líquido do grupo
-    // (ex: "STONE VISA CD" único e sem ambiguidade), e o candidato de triagemLiquidoCA é exatamente esse único lançamento,
-    // registramos como aviso de vínculo conciliado; em qualquer outro caso (múltiplos candidatos ou origem não automática),
-    // mantém o bloqueio estrito contra duplicidade.
-    const liquidoEhProprioLancamentoConciliadoDoGrupo =
+    // Se a conferência foi aprovada e o único candidato de triagemLiquidoCA corresponde ao próprio
+    // lançamento líquido do grupo (ex: "STONE VISA CD" único e sem ambiguidade, via conciliação automática GET
+    // ou candidato único com assinatura Stone compatível com a Bandeira + Modalidade CD/DB do grupo),
+    // registramos como aviso de vínculo conciliado; em qualquer outro caso (múltiplos candidatos, descrição genérica
+    // ou lançamento de outro grupo), mantém o bloqueio estrito contra duplicidade.
+    const candidatosLiquido = triagemLiquidoCA?.candidatos || []
+    const unicoCandidatoLiquido =
+      candidatosLiquido.length === 1 ? candidatosLiquido[0] : null
+
+    const classifBandGrupo = bandeiraSelecionadaValida
+      ? classificarBandeiraStoneCanonica(bandeiraRaw)
+      : null
+    const classifProdGrupo =
+      bandeiraSelecionadaValida && produtoSelecionadoValido
+        ? classificarProdutoModalidadeStone(produtoRaw, bandeiraRaw)
+        : null
+
+    const assinaturaUnicoCandidatoLiquido = unicoCandidatoLiquido
+      ? extrairAssinaturaStoneLancamentoContaAzul(unicoCandidatoLiquido)
+      : null
+
+    const candidatoUnicoPossuiAssinaturaDoGrupo = Boolean(
+      unicoCandidatoLiquido &&
+        assinaturaUnicoCandidatoLiquido &&
+        assinaturaUnicoCandidatoLiquido.ehLancamentoStone &&
+        !assinaturaUnicoCandidatoLiquido.ehReceitaBrutaGeradaDcx &&
+        !assinaturaUnicoCandidatoLiquido.ehDespesaMdrGeradaDcx &&
+        classifBandGrupo &&
+        classifProdGrupo &&
+        classifProdGrupo.compativelConciliacaoPadraoCdDb &&
+        assinaturaUnicoCandidatoLiquido.bandeiraSiglaContaAzul ===
+          classifBandGrupo.siglaContaAzul &&
+        assinaturaUnicoCandidatoLiquido.modalidadeSigla ===
+          classifProdGrupo.modalidadeSigla
+    )
+
+    const conferenciaAutomaticaValidaParaUnicoCandidato =
       conferencia.origem_conferencia === 'AUTOMATICA_GET_CONTA_AZUL' &&
-      Boolean(conferencia.lancamento_conta_azul_correspondente?.id) &&
+      candidatosLiquido.length <= 1 &&
+      (Boolean(conferencia.lancamento_conta_azul_correspondente?.id) ||
+        Boolean(unicoCandidatoLiquido?.id)) &&
+      (!unicoCandidatoLiquido?.id ||
+        !conferencia.lancamento_conta_azul_correspondente?.id ||
+        unicoCandidatoLiquido.id ===
+          conferencia.lancamento_conta_azul_correspondente.id)
+
+    const liquidoEhProprioLancamentoConciliadoDoGrupo =
+      conferencia.conferencia_aprovada === true &&
       triagemLiquidoCA?.classificacao !==
         'MULTIPLOS_CANDIDATOS_CONFERENCIA_HUMANA' &&
-      (triagemLiquidoCA?.candidatos?.length || 0) <= 1 &&
-      (!triagemLiquidoCA?.candidatos?.[0]?.id ||
-        triagemLiquidoCA.candidatos[0].id ===
-          conferencia.lancamento_conta_azul_correspondente?.id)
+      (conferenciaAutomaticaValidaParaUnicoCandidato ||
+        candidatoUnicoPossuiAssinaturaDoGrupo)
 
     if (liquidoEhProprioLancamentoConciliadoDoGrupo) {
+      const descricaoConciliada =
+        conferencia.lancamento_conta_azul_correspondente?.descricao ||
+        unicoCandidatoLiquido?.descricao ||
+        'STONE'
       avisos.push(
-        `Grupo conciliado com o lançamento líquido "${conferencia.lancamento_conta_azul_correspondente?.descricao}" (${formatarCentavosBRL(liquidoCentavos)}) localizado na Conta Azul.`
+        `Grupo conciliado com o lançamento líquido "${descricaoConciliada}" (${formatarCentavosBRL(liquidoCentavos)}) localizado na Conta Azul.`
       )
     } else {
       avaliarTriagemParaBloqueio(
@@ -516,7 +560,7 @@ export function prepararEValidarLancamentosEtapa1FA(
     bandeiraSelecionadaValida && produtoSelecionadoValido
       ? montarRotuloGrupoStoneContaAzul(bandeiraLabel, produtoLabel)
       : 'STONE'
-  const sufixoPadrao = `Stone ${bandeiraLabel} ${produtoLabel} — Venc. Orig. ${dataLabel} (${totais.quantidade_parcelas_pagas} parc.)`
+  const sufixoPadrao = `Stone ${bandeiraLabel} ${produtoLabel} [${rotuloGrupoContaAzul}] — Venc. Orig. ${dataLabel} (${totais.quantidade_parcelas_pagas} parc.)`
 
   const descricaoReceita = `Recebimento Cartão ${sufixoPadrao}`
   const observacaoReceita = [
