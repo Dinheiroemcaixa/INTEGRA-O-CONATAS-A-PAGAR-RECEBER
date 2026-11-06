@@ -33,6 +33,8 @@ import type {
   ClassificacaoTriagemLancamentoCA,
   CodigoErroAutorizacaoReceber,
   ContaFinanceiraReceberDTO,
+  EstadoConferenciaGrupoStone,
+  GrupoConciliacaoStone,
   LinhaExtratoStone,
   ModalidadeCartao,
   MovimentacaoReceberCanonica,
@@ -42,6 +44,7 @@ import type {
   RequisicaoTransmissao1FBDTO,
   RespostaContextoContaAzulReceberDTO,
   RespostaTransmissao1FBDTO,
+  ResultadoConciliacaoGrupoStone,
   ResultadoTriagemItemLoteCA,
 } from '@/types/contas-receber'
 import {
@@ -57,12 +60,18 @@ import {
 } from '@/lib/contas-receber/contratos-frentes'
 import { gerarChaveDedupMovimentacaoReceber } from '@/lib/contas-receber/import-dedup-receber'
 import {
+  agruparLinhasStonePorDataBandeiraModalidade,
+  atualizarValorConferenciaPorGrupo,
+  calcularJanelaConsultaContaAzulStone,
   calcularTotaisFiltradosStone,
+  conciliarListaGruposStone,
   conferirValorLiquidoComExtratoBancario,
   filtrarLinhasStone,
   formatarMicroBRL,
+  gerarChaveGrupoStone,
   gerarPreviaLancamentosMemoriaStone,
   interpretarCsvStone,
+  montarRotuloGrupoStoneContaAzul,
 } from '@/lib/contas-receber/stone-csv-parser'
 import { prepararEValidarLancamentosEtapa1FA } from '@/lib/contas-receber/preparador-validacao-1fa'
 
@@ -279,11 +288,13 @@ export default function PainelFrentesReceber({
   const [filtroBandeira, setFiltroBandeira] = useState<string>('')
   const [filtroProduto, setFiltroProduto] = useState<string>('')
 
-  // Conferência com extrato bancário em memória
-  const [valorExtratoBancarioStr, setValorExtratoBancarioStr] =
-    useState<string>('')
-  const [operacaoMarcadaConferida, setOperacaoMarcadaConferida] =
-    useState<boolean>(false)
+  // Conferência individual por grupo (Data + Bandeira + Modalidade CD/DB) preservada ao navegar entre grupos
+  const [valoresManuaisPorGrupo, setValoresManuaisPorGrupo] = useState<
+    Record<string, string>
+  >({})
+  const [gruposMarcadosConferidos, setGruposMarcadosConferidos] = useState<
+    Record<string, boolean>
+  >({})
   const [campoCopiado, setCampoCopiado] = useState<string | null>(null)
 
   // ==========================================================================
@@ -338,6 +349,82 @@ export default function PainelFrentesReceber({
     })
   }, [stoneLinhas, filtroDataVencOriginal, filtroBandeira, filtroProduto])
 
+  // Todos os grupos independentes de conciliação (Data + Bandeira + Modalidade CD/DB + Produto)
+  const todosGruposConciliacaoStone = useMemo<GrupoConciliacaoStone[]>(() => {
+    return agruparLinhasStonePorDataBandeiraModalidade(stoneLinhas, {
+      apenasComParcelasPagas: true,
+    })
+  }, [stoneLinhas])
+
+  // Grupos disponíveis para a Data de Vencimento Original selecionada (ou todos se nenhuma data filtrada)
+  const gruposVisiveisNaDataStone = useMemo<GrupoConciliacaoStone[]>(() => {
+    if (!filtroDataVencOriginal) return todosGruposConciliacaoStone
+    return todosGruposConciliacaoStone.filter(
+      (g) => g.data_vencimento_original_br === filtroDataVencOriginal
+    )
+  }, [todosGruposConciliacaoStone, filtroDataVencOriginal])
+
+  // Mapa completo de conciliação individual por grupo (preservado ao trocar de filtro)
+  const mapaConciliacoesPorGrupoStone = useMemo<
+    Record<string, ResultadoConciliacaoGrupoStone>
+  >(() => {
+    return conciliarListaGruposStone({
+      grupos: todosGruposConciliacaoStone,
+      avaliacaoPeriodoCA,
+      valoresManuaisPorGrupo,
+    })
+  }, [todosGruposConciliacaoStone, avaliacaoPeriodoCA, valoresManuaisPorGrupo])
+
+  // Chave e grupo atualmente selecionado pelos 3 filtros operacionais (Data + Bandeira + Produto)
+  const chaveGrupoAtivoStone = useMemo<string>(() => {
+    if (!filtroDataVencOriginal || !filtroBandeira || !filtroProduto) return ''
+    return gerarChaveGrupoStone({
+      dataVencimentoOriginal: filtroDataVencOriginal,
+      bandeira: filtroBandeira,
+      produto: filtroProduto,
+    })
+  }, [filtroDataVencOriginal, filtroBandeira, filtroProduto])
+
+  const grupoAtivoStone = useMemo<GrupoConciliacaoStone | null>(() => {
+    if (!chaveGrupoAtivoStone) return null
+    return (
+      todosGruposConciliacaoStone.find(
+        (g) => g.chave_grupo === chaveGrupoAtivoStone
+      ) || null
+    )
+  }, [todosGruposConciliacaoStone, chaveGrupoAtivoStone])
+
+  const valorExtratoBancarioStr = useMemo<string>(() => {
+    if (!chaveGrupoAtivoStone) return ''
+    return valoresManuaisPorGrupo[chaveGrupoAtivoStone] || ''
+  }, [valoresManuaisPorGrupo, chaveGrupoAtivoStone])
+
+  const setValorExtratoBancarioStr = useCallback(
+    (novoValor: string) => {
+      if (!chaveGrupoAtivoStone) return
+      setValoresManuaisPorGrupo((prev) =>
+        atualizarValorConferenciaPorGrupo(prev, chaveGrupoAtivoStone, novoValor)
+      )
+    },
+    [chaveGrupoAtivoStone]
+  )
+
+  const operacaoMarcadaConferida = useMemo<boolean>(() => {
+    if (!chaveGrupoAtivoStone) return false
+    return Boolean(gruposMarcadosConferidos[chaveGrupoAtivoStone])
+  }, [gruposMarcadosConferidos, chaveGrupoAtivoStone])
+
+  const setOperacaoMarcadaConferida = useCallback(
+    (marcado: boolean) => {
+      if (!chaveGrupoAtivoStone) return
+      setGruposMarcadosConferidos((prev) => ({
+        ...prev,
+        [chaveGrupoAtivoStone]: marcado,
+      }))
+    },
+    [chaveGrupoAtivoStone]
+  )
+
   // Opções de Bandeira e Produto disponíveis para a Data de Vencimento Original selecionada (facilita o filtro em cascata)
   const bandeirasDisponiveisNaData = useMemo(() => {
     if (!filtroDataVencOriginal) return stoneBandeirasUnicas
@@ -368,16 +455,46 @@ export default function PainelFrentesReceber({
 
   // Totais calculados para o filtro atual da Stone
   const stoneTotaisFiltrados = useMemo(() => {
+    if (grupoAtivoStone) {
+      return grupoAtivoStone.totais
+    }
     return calcularTotaisFiltradosStone(stoneLinhasFiltradas)
-  }, [stoneLinhasFiltradas])
+  }, [grupoAtivoStone, stoneLinhasFiltradas])
 
-  // Resultado da conferência bancária (VALOR LÍQUIDO DA STONE x VALOR DO EXTRATO BANCÁRIO)
+  // Resultado da conferência bancária individual por grupo (Data + Bandeira + Modalidade CD/DB)
   const stoneConferenciaBancaria = useMemo(() => {
+    if (chaveGrupoAtivoStone && mapaConciliacoesPorGrupoStone[chaveGrupoAtivoStone]) {
+      return mapaConciliacoesPorGrupoStone[chaveGrupoAtivoStone]
+    }
+    if (!filtroDataVencOriginal || !filtroBandeira || !filtroProduto) {
+      return {
+        valor_liquido_stone_centavos: stoneTotaisFiltrados.valor_liquido_centavos,
+        valor_liquido_stone_micro: stoneTotaisFiltrados.valor_liquido_micro,
+        valor_extrato_bancario_centavos: null,
+        diferenca_centavos: 0,
+        conferencia_aprovada: false,
+        bloqueada_para_conferencia: true,
+        status_codigo: 'AGUARDANDO_VALOR_BANCO' as const,
+        status_conferencia: 'AGUARDANDO_CONFERENCIA' as const,
+        estado_grupo: 'AGUARDANDO_CONFERENCIA' as const,
+        origem_conferencia: 'NAO_CONFERIDO' as const,
+        mensagem:
+          'Selecione Data de Vencimento Original + Bandeira + Produto (Modalidade CD/DB) para conciliar o grupo individualmente.',
+      }
+    }
     return conferirValorLiquidoComExtratoBancario(
       stoneTotaisFiltrados,
       valorExtratoBancarioStr
     )
-  }, [stoneTotaisFiltrados, valorExtratoBancarioStr])
+  }, [
+    chaveGrupoAtivoStone,
+    mapaConciliacoesPorGrupoStone,
+    filtroDataVencOriginal,
+    filtroBandeira,
+    filtroProduto,
+    stoneTotaisFiltrados,
+    valorExtratoBancarioStr,
+  ])
 
   // Prévia dos lançamentos preparados em memória (Receitas de Vendas e Tarifas de Cartão de Créditos)
   const stonePreviaLancamentos = useMemo(() => {
@@ -468,6 +585,15 @@ export default function PainelFrentesReceber({
     avaliacaoPeriodoCA,
   ])
 
+  const handleSelecionarGrupoConciliacaoStone = useCallback(
+    (grupo: GrupoConciliacaoStone) => {
+      setFiltroDataVencOriginal(grupo.data_vencimento_original_br)
+      setFiltroBandeira(grupo.bandeira_original)
+      setFiltroProduto(grupo.produto_original)
+    },
+    []
+  )
+
   const handleImportarArquivoStone = async (file: File) => {
     setArquivoTentativaNome(file.name)
     if (operadoraSelecionada !== 'STONE') return
@@ -476,7 +602,8 @@ export default function PainelFrentesReceber({
       const texto = await file.text()
       const res = interpretarCsvStone(texto)
       setStoneNomeArquivo(file.name)
-      setOperacaoMarcadaConferida(false)
+      setValoresManuaisPorGrupo({})
+      setGruposMarcadosConferidos({})
 
       if (!res.sucesso) {
         setStoneErroParse(res.mensagem)
@@ -492,12 +619,22 @@ export default function PainelFrentesReceber({
       setStoneBandeirasUnicas(res.bandeiras_unicas)
       setStoneProdutosUnicos(res.produtos_unicos)
 
-      // Seleciona por padrão a primeira data disponível ou mantém vazio para visão geral
-      const primeiraData = res.datas_vencimento_original_unicas[0] || ''
-      setFiltroDataVencOriginal(primeiraData)
-      setFiltroBandeira('')
-      setFiltroProduto('')
-      setValorExtratoBancarioStr('')
+      // Seleciona por padrão o primeiro grupo individual (Data + Bandeira + Produto CD/DB)
+      const gruposIniciais = agruparLinhasStonePorDataBandeiraModalidade(
+        res.linhas,
+        { apenasComParcelasPagas: true }
+      )
+      const primeiroGrupo = gruposIniciais[0] || null
+      if (primeiroGrupo) {
+        setFiltroDataVencOriginal(primeiroGrupo.data_vencimento_original_br)
+        setFiltroBandeira(primeiroGrupo.bandeira_original)
+        setFiltroProduto(primeiroGrupo.produto_original)
+      } else {
+        const primeiraData = res.datas_vencimento_original_unicas[0] || ''
+        setFiltroDataVencOriginal(primeiraData)
+        setFiltroBandeira('')
+        setFiltroProduto('')
+      }
     } catch (err) {
       setStoneErroParse(
         err instanceof Error
@@ -516,31 +653,17 @@ export default function PainelFrentesReceber({
     setTimeout(() => setCampoCopiado(null), 1800)
   }
 
-  // Converte data BR DD/MM/AAAA para ISO YYYY-MM-DD
-  const converterDataBrParaIso = (dataBr: string): string | null => {
-    const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((dataBr || '').trim())
-    if (!m) return null
-    return `${m[3]}-${m[2]}-${m[1]}`
-  }
-
-  // Determina o intervalo ISO (data_de / data_ate) do filtro atual da Stone
+  // Determina o intervalo ISO (data_de / data_ate) cobrindo as 3 datas do CSV (Vencimento Original, Vencimento e Último Status)
   const periodoIsoFiltroStone = useMemo(() => {
-    const dataEspecificaIso = converterDataBrParaIso(filtroDataVencOriginal)
-    if (dataEspecificaIso) {
-      return { data_de: dataEspecificaIso, data_ate: dataEspecificaIso }
-    }
-    const datasIso = stoneLinhasFiltradas
-      .map((l) => l.data_vencimento_original_iso)
-      .filter((d): d is string => Boolean(d && /^\d{4}-\d{2}-\d{2}$/.test(d)))
-      .sort()
-    if (datasIso.length > 0) {
-      return {
-        data_de: datasIso[0],
-        data_ate: datasIso[datasIso.length - 1],
-      }
+    const janela = calcularJanelaConsultaContaAzulStone(
+      stoneLinhas,
+      filtroDataVencOriginal
+    )
+    if (janela) {
+      return { data_de: janela.minIso, data_ate: janela.maxIso }
     }
     return null
-  }, [filtroDataVencOriginal, stoneLinhasFiltradas])
+  }, [stoneLinhas, filtroDataVencOriginal])
 
   // Carrega contas financeiras e categorias reais da empresa ativa no Conta Azul (100% GET)
   const carregarContextoContaAzulEmpresa = useCallback(
@@ -662,19 +785,22 @@ export default function PainelFrentesReceber({
     carregarContextoContaAzulEmpresa(empresaId)
   }, [empresaId, carregandoEmpresa, carregarContextoContaAzulEmpresa])
 
-  // Quando o filtro da Stone ou seleção mudar, limpa a avaliação do período anterior e a confirmação da Etapa 1F-B
+  // Quando a Data de Vencimento Original ou a Empresa mudar, limpa a avaliação do período consultado no Conta Azul.
+  // A navegação entre Bandeira e Produto dentro da mesma data preserva a avaliação GET já carregada e os valores conferidos por grupo!
   useEffect(() => {
     setAvaliacaoPeriodoCA(null)
-    setExibirConfirmacao1FB(false)
-    setCheckboxConfirmacao1FB(false)
-    setResultadoTransmissao1FB(null)
-    setErroTransmissao1FB(null)
-  }, [filtroDataVencOriginal, filtroBandeira, filtroProduto, empresaId])
+  }, [filtroDataVencOriginal, empresaId])
 
   useEffect(() => {
     setExibirConfirmacao1FB(false)
     setCheckboxConfirmacao1FB(false)
+    setResultadoTransmissao1FB(null)
+    setErroTransmissao1FB(null)
   }, [
+    filtroDataVencOriginal,
+    filtroBandeira,
+    filtroProduto,
+    empresaId,
     contaFinanceiraSelecionadaId,
     categoriaReceitaSelecionadaId,
     categoriaDespesaMdrSelecionadaId,
@@ -743,7 +869,8 @@ export default function PainelFrentesReceber({
           data_lancamentos_iso:
             preparacaoValidacao1FA.filtros_operacionais
               .data_vencimento_original_iso,
-          status_conferencia_bancaria: stoneConferenciaBancaria.status_codigo,
+          status_conferencia_bancaria:
+            stoneConferenciaBancaria.status_conferencia,
         },
       }
 
@@ -876,6 +1003,39 @@ export default function PainelFrentesReceber({
         return {
           badgeClass: 'is-accent',
           label: 'Não Localizado no Período Consultado',
+        }
+    }
+  }
+
+  const obterEstiloEstadoGrupoStone = (
+    estado: EstadoConferenciaGrupoStone | undefined
+  ): { badgeClass: string; label: string } => {
+    switch (estado) {
+      case 'CONFERIDO_EXATO':
+        return {
+          badgeClass: 'is-ok',
+          label: 'CONFERIDO_EXATO',
+        }
+      case 'DIVERGENTE_BLOQUEADA':
+        return {
+          badgeClass: 'is-bad',
+          label: 'DIVERGENTE_BLOQUEADA',
+        }
+      case 'DUPLICIDADE_AMBIGUA_CA':
+        return {
+          badgeClass: 'is-bad',
+          label: 'DUPLICIDADE_AMBIGUA_CA',
+        }
+      case 'AUSENTE_CONTA_AZUL':
+        return {
+          badgeClass: 'is-warn',
+          label: 'AUSENTE_CONTA_AZUL',
+        }
+      case 'AGUARDANDO_CONFERENCIA':
+      default:
+        return {
+          badgeClass: 'is-warn',
+          label: 'AGUARDANDO_CONFERENCIA',
         }
     }
   }
@@ -1715,6 +1875,136 @@ export default function PainelFrentesReceber({
                     </div>
                   </div>
 
+                  {/* PAINEL DE GRUPOS INDIVIDUAIS POR DATA + BANDEIRA + MODALIDADE (CD/DB) */}
+                  {gruposVisiveisNaDataStone.length > 0 && (
+                    <div className="p-3.5 rounded-[12px] border border-[var(--dx-line)] bg-[var(--dx-soft)] space-y-2.5">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <div className="text-xs font-extrabold uppercase tracking-wider text-[var(--dx-ink)]">
+                            Grupos Individuais por Data + Bandeira + Modalidade (CD/DB)
+                          </div>
+                          <div className="text-[11px] text-[var(--dx-muted)]">
+                            Clique em um grupo para conciliá-lo individualmente. Os valores já conferidos são preservados ao navegar entre grupos.
+                          </div>
+                        </div>
+                        <span className="dx-pill is-accent">
+                          {gruposVisiveisNaDataStone.length} grupo(s) em{' '}
+                          {filtroDataVencOriginal || 'todas as datas'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5">
+                        {gruposVisiveisNaDataStone.map((grp) => {
+                          const conc = mapaConciliacoesPorGrupoStone[grp.chave_grupo]
+                          const estilo = obterEstiloEstadoGrupoStone(
+                            conc?.estado_grupo
+                          )
+                          const isAtivo = grp.chave_grupo === chaveGrupoAtivoStone
+                          const lancCA = conc?.lancamento_conta_azul_correspondente
+
+                          return (
+                            <button
+                              key={grp.chave_grupo}
+                              type="button"
+                              onClick={() =>
+                                handleSelecionarGrupoConciliacaoStone(grp)
+                              }
+                              className={`text-left p-3 rounded-[12px] border transition-all cursor-pointer ${
+                                isAtivo
+                                  ? 'border-[var(--dx-accent)] bg-[var(--dx-surface)] ring-2 ring-[var(--dx-accent)]/25'
+                                  : 'border-[var(--dx-line)] bg-[var(--dx-surface)] hover:border-[var(--dx-accent)]/60'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-extrabold font-mono text-[var(--dx-ink)]">
+                                  {grp.rotulo_conta_azul_esperado}
+                                </span>
+                                <span className={`dx-pill ${estilo.badgeClass}`}>
+                                  {estilo.label}
+                                </span>
+                              </div>
+
+                              <div className="text-[11px] text-[var(--dx-muted)] mt-1 flex items-center justify-between gap-2">
+                                <span>
+                                  {grp.data_vencimento_original_br} ·{' '}
+                                  {grp.bandeira_original} · {grp.produto_original}
+                                </span>
+                                <span>
+                                  {grp.totais.quantidade_parcelas_pagas} parc.
+                                </span>
+                              </div>
+
+                              {grp.possui_liquidacao_em_data_distinta && (
+                                <div className="text-[10px] text-[var(--dx-warn)] mt-1">
+                                  Venc.: {grp.datas_vencimento_br.join(', ')} | Status:{' '}
+                                  {grp.datas_ultimo_status_br.join(', ')}
+                                </div>
+                              )}
+
+                              <div className="mt-2 pt-2 border-t border-[var(--dx-line)] grid grid-cols-3 gap-1.5 text-[11px]">
+                                <div>
+                                  <div className="text-[10px] text-[var(--dx-muted)]">
+                                    Líquido Stone
+                                  </div>
+                                  <div className="font-bold text-[var(--dx-ok)]">
+                                    {formatarCentavosBRL(
+                                      grp.totais.valor_liquido_centavos
+                                    )}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-[10px] text-[var(--dx-muted)]">
+                                    Conta Azul / Banco
+                                  </div>
+                                  <div className="font-bold text-[var(--dx-ink)]">
+                                    {conc?.valor_extrato_bancario_centavos !==
+                                      null &&
+                                    conc?.valor_extrato_bancario_centavos !==
+                                      undefined
+                                      ? formatarCentavosBRL(
+                                          conc.valor_extrato_bancario_centavos
+                                        )
+                                      : '—'}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-[10px] text-[var(--dx-muted)]">
+                                    Diferença
+                                  </div>
+                                  <div
+                                    className={`font-bold ${
+                                      conc?.conferencia_aprovada
+                                        ? 'text-[var(--dx-ok)]'
+                                        : conc?.estado_grupo ===
+                                            'DIVERGENTE_BLOQUEADA'
+                                          ? 'text-[var(--dx-bad)]'
+                                          : 'text-[var(--dx-muted)]'
+                                    }`}
+                                  >
+                                    {conc?.valor_extrato_bancario_centavos !==
+                                      null &&
+                                    conc?.valor_extrato_bancario_centavos !==
+                                      undefined
+                                      ? formatarCentavosBRL(
+                                          conc.diferenca_centavos
+                                        )
+                                      : '—'}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {lancCA && (
+                                <div className="mt-1.5 text-[10px] text-[var(--dx-muted)] truncate">
+                                  CA: <b>{lancCA.descricao}</b> ({lancCA.data_vencimento})
+                                </div>
+                              )}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* PASSO 2: TOTAIS CALCULADOS PARA O FILTRO SELECIONADO (8 INDICADORES OBRIGATÓRIOS) */}
                   <div className="pt-2">
                     <div className="flex items-center justify-between flex-wrap gap-2 mb-2.5">
@@ -1885,91 +2175,166 @@ export default function PainelFrentesReceber({
 
               {/* PASSO 3 E PASSO 4: CONFERÊNCIA COM O BANCO E PREPARAÇÃO DOS LANÇAMENTOS (EM MEMÓRIA) */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* COLUNA ESQUERDA: CONFERÊNCIA COM O BANCO */}
+                {/* COLUNA ESQUERDA: CONFERÊNCIA POR GRUPO COM O CONTA AZUL / EXTRATO BANCÁRIO */}
                 <div className="dx-panel">
                   <div className="dx-panel-head">
                     <div>
                       <h3 className="dx-panel-title flex items-center gap-2">
                         <Landmark size={16} />
-                        <span>Passo 2 — Conferência com o Extrato Bancário</span>
+                        <span>
+                          Passo 2 — Conciliação do Grupo (
+                          {grupoAtivoStone
+                            ? grupoAtivoStone.rotulo_conta_azul_esperado
+                            : filtroBandeira && filtroProduto
+                              ? montarRotuloGrupoStoneContaAzul(
+                                  filtroBandeira,
+                                  filtroProduto
+                                )
+                              : 'Selecione Data + Bandeira + Modalidade'}
+                          )
+                        </span>
                       </h3>
                       <p className="dx-panel-sub">
-                        Compare o <b>Valor Líquido da Stone</b> com o{' '}
-                        <b>Valor depositado no banco</b> no Conta Azul.
+                        Conciliação individual por{' '}
+                        <b>Data + Bandeira + Modalidade (CD/DB)</b> contra o
+                        lançamento correspondente no Conta Azul.
                       </p>
                     </div>
                     <span
                       className={`dx-status ${
                         stoneConferenciaBancaria.conferencia_aprovada
                           ? 'is-ok'
-                          : stoneConferenciaBancaria.status_codigo ===
-                              'DIVERGENTE_BLOQUEADA'
+                          : stoneConferenciaBancaria.status_conferencia ===
+                                'DIVERGENTE_BLOQUEADA' ||
+                              stoneConferenciaBancaria.status_conferencia ===
+                                'DUPLICIDADE_AMBIGUA_CA'
                             ? 'is-bad'
                             : 'is-warn'
                       }`}
                     >
                       {stoneConferenciaBancaria.conferencia_aprovada
-                        ? 'CONFERIDO_EXATO · Conferência Aprovada'
-                        : stoneConferenciaBancaria.status_codigo ===
+                        ? 'CONFERIDO_EXATO · Grupo Aprovado'
+                        : stoneConferenciaBancaria.status_conferencia ===
                             'DIVERGENTE_BLOQUEADA'
-                          ? 'Divergente · Bloqueado'
-                          : 'Aguardando Conferência'}
+                          ? 'DIVERGENTE_BLOQUEADA'
+                          : stoneConferenciaBancaria.status_conferencia ===
+                              'DUPLICIDADE_AMBIGUA_CA'
+                            ? 'DUPLICIDADE_AMBIGUA_CA'
+                            : stoneConferenciaBancaria.status_conferencia ===
+                                'AUSENTE_CONTA_AZUL'
+                              ? 'AUSENTE_CONTA_AZUL'
+                              : 'AGUARDANDO_CONFERENCIA'}
                     </span>
                   </div>
 
                   <div className="dx-panel-section space-y-4">
+                    {stoneConferenciaBancaria.lancamento_conta_azul_correspondente && (
+                      <div className="p-3 rounded-[12px] border border-[var(--dx-line)] bg-[var(--dx-soft)] text-xs space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-[var(--dx-ink)]">
+                            Lançamento Conta Azul Localizado (GET):
+                          </span>
+                          <span className="font-mono text-[11px] text-[var(--dx-accent)]">
+                            {
+                              stoneConferenciaBancaria
+                                .lancamento_conta_azul_correspondente.descricao
+                            }
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 text-[11px] text-[var(--dx-muted)]">
+                          <span>
+                            Vencimento CA:{' '}
+                            <b>
+                              {
+                                stoneConferenciaBancaria
+                                  .lancamento_conta_azul_correspondente
+                                  .data_vencimento
+                              }
+                            </b>
+                            {stoneConferenciaBancaria.campo_data_correspondencia
+                              ? ` (${stoneConferenciaBancaria.campo_data_correspondencia})`
+                              : ''}
+                          </span>
+                          <span>
+                            Valor CA:{' '}
+                            <b>
+                              {formatarCentavosBRL(
+                                stoneConferenciaBancaria
+                                  .lancamento_conta_azul_correspondente
+                                  .valor_total_centavos
+                              )}
+                            </b>
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-1">
                         <label className="dx-label">
-                          Valor do Lançamento no Extrato Bancário (R$)
+                          Valor Conferido do Grupo no Conta Azul / Banco (R$)
+                          {grupoAtivoStone
+                            ? ` — ${grupoAtivoStone.rotulo_conta_azul_esperado}`
+                            : ''}
                         </label>
-                        {stoneTotaisFiltrados.valor_liquido_centavos > 0 && (
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const valFormatado = (
-                                  stoneTotaisFiltrados.valor_liquido_centavos /
-                                  100
-                                )
-                                  .toFixed(2)
-                                  .replace('.', ',')
-                                setValorExtratoBancarioStr(valFormatado)
-                                setOperacaoMarcadaConferida(false)
-                              }}
-                              className="text-[11px] font-semibold text-[var(--dx-link)] underline cursor-pointer"
-                            >
-                              Preencher Líquido Esperado
-                            </button>
-                            <span className="text-[var(--dx-muted)]">·</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const valDivergente = (
-                                  (stoneTotaisFiltrados.valor_liquido_centavos +
-                                    1) /
-                                  100
-                                )
-                                  .toFixed(2)
-                                  .replace('.', ',')
-                                setValorExtratoBancarioStr(valDivergente)
-                                setOperacaoMarcadaConferida(false)
-                              }}
-                              className="text-[11px] font-semibold text-[var(--dx-bad)] underline cursor-pointer"
-                            >
-                              Simular Divergência (+R$ 0,01)
-                            </button>
-                          </div>
-                        )}
+                        {grupoAtivoStone &&
+                          stoneTotaisFiltrados.valor_liquido_centavos > 0 && (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const valFormatado = (
+                                    stoneTotaisFiltrados.valor_liquido_centavos /
+                                    100
+                                  )
+                                    .toFixed(2)
+                                    .replace('.', ',')
+                                  setValorExtratoBancarioStr(valFormatado)
+                                  setOperacaoMarcadaConferida(false)
+                                }}
+                                className="text-[11px] font-semibold text-[var(--dx-link)] underline cursor-pointer"
+                              >
+                                Preencher Líquido do Grupo
+                              </button>
+                              <span className="text-[var(--dx-muted)]">·</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const valDivergente = (
+                                    (stoneTotaisFiltrados.valor_liquido_centavos +
+                                      1) /
+                                    100
+                                  )
+                                    .toFixed(2)
+                                    .replace('.', ',')
+                                  setValorExtratoBancarioStr(valDivergente)
+                                  setOperacaoMarcadaConferida(false)
+                                }}
+                                className="text-[11px] font-semibold text-[var(--dx-bad)] underline cursor-pointer"
+                              >
+                                Simular Divergência (+R$ 0,01)
+                              </button>
+                            </div>
+                          )}
                       </div>
                       <input
                         type="text"
+                        disabled={!grupoAtivoStone}
                         value={valorExtratoBancarioStr}
                         onChange={(e) => {
                           setValorExtratoBancarioStr(e.target.value)
                           setOperacaoMarcadaConferida(false)
                         }}
-                        placeholder="Digite o valor líquido depositado no banco (ex: 1.339,61)"
+                        placeholder={
+                          grupoAtivoStone
+                            ? `Valor líquido de ${grupoAtivoStone.rotulo_conta_azul_esperado} (ex: ${(
+                                stoneTotaisFiltrados.valor_liquido_centavos /
+                                100
+                              )
+                                .toFixed(2)
+                                .replace('.', ',')})`
+                            : 'Selecione Data + Bandeira + Produto para conferir o grupo'
+                        }
                         className="dx-control"
                       />
                     </div>

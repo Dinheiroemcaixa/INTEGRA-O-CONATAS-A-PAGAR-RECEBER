@@ -361,6 +361,54 @@ export interface TotaisFiltradosStone {
   total_ajustes_nao_operacionais_centavos: number
 }
 
+export type ModalidadeSiglaStone = 'CD' | 'DB' | 'NAO_APLICAVEL'
+
+export type SubtipoProdutoStone =
+  | 'CREDITO_A_VISTA'
+  | 'CREDITO_PARCELADO'
+  | 'CREDITO_GENERICO'
+  | 'DEBITO'
+  | 'DEBITO_PRE_PAGO'
+  | 'VOUCHER'
+  | 'PIX'
+  | 'OUTRO'
+
+export type EstadoConferenciaGrupoStone =
+  | 'CONFERIDO_EXATO'
+  | 'DIVERGENTE_BLOQUEADA'
+  | 'AUSENTE_CONTA_AZUL'
+  | 'DUPLICIDADE_AMBIGUA_CA'
+  | 'AGUARDANDO_CONFERENCIA'
+
+export type OrigemConferenciaGrupoStone =
+  | 'AUTOMATICA_GET_CONTA_AZUL'
+  | 'MANUAL_POR_GRUPO'
+  | 'NAO_CONFERIDO'
+
+export interface GrupoConciliacaoStone {
+  chave_grupo: string
+  chave_data_bandeira_modalidade: string
+  rotulo_conta_azul_esperado: string // ex: 'STONE VISA CD', 'STONE MAST CD', 'STONE VISA DB'
+  data_vencimento_original_br: string // DD/MM/YYYY
+  data_vencimento_original_iso: string // YYYY-MM-DD
+  datas_venda_iso: string[]
+  datas_vencimento_br: string[]
+  datas_vencimento_iso: string[]
+  datas_ultimo_status_br: string[]
+  datas_ultimo_status_iso: string[]
+  possui_liquidacao_em_data_distinta: boolean
+  bandeira_original: string
+  bandeira_canonica: BandeiraCartao
+  bandeira_sigla_conta_azul: string // 'VISA' | 'MAST' | 'ELO' | 'AMEX' | 'HIPER' | 'CABAL' | etc.
+  modalidade_sigla: ModalidadeSiglaStone
+  subtipo_produto: SubtipoProdutoStone
+  produto_original: string
+  compativel_conciliacao_padrao_cd_db: boolean
+  possui_multiplos_produtos_na_mesma_modalidade: boolean
+  linhas: LinhaExtratoStone[]
+  totais: TotaisFiltradosStone
+}
+
 export interface ResultadoConferenciaBancariaStone {
   valor_liquido_stone_centavos: number
   valor_liquido_stone_micro: number
@@ -373,12 +421,44 @@ export interface ResultadoConferenciaBancariaStone {
     | 'SEM_REGISTROS_PAGOS'
     | 'APROVADA_EXATA'
     | 'DIVERGENTE_BLOQUEADA'
+    | 'AUSENTE_CONTA_AZUL'
+    | 'DUPLICIDADE_AMBIGUA_CA'
   status_conferencia:
     | 'AGUARDANDO_VALOR_BANCO'
     | 'SEM_REGISTROS_PAGOS'
     | 'CONFERIDO_EXATO'
     | 'DIVERGENTE_BLOQUEADA'
+    | 'AUSENTE_CONTA_AZUL'
+    | 'DUPLICIDADE_AMBIGUA_CA'
+    | 'AGUARDANDO_CONFERENCIA'
   mensagem: string
+  chave_grupo?: string
+  rotulo_grupo?: string
+  estado_grupo?: EstadoConferenciaGrupoStone
+  origem_conferencia?: OrigemConferenciaGrupoStone
+  lancamento_conta_azul_correspondente?: LancamentoExistenteContaAzulDTO | null
+  candidatos_conta_azul?: LancamentoExistenteContaAzulDTO[]
+  data_correspondencia_iso?: string | null
+  campo_data_correspondencia?:
+    | 'DATA_VENCIMENTO_ORIGINAL'
+    | 'DATA_VENCIMENTO'
+    | 'DATA_ULTIMO_STATUS'
+    | null
+}
+
+export interface ResultadoConciliacaoGrupoStone extends ResultadoConferenciaBancariaStone {
+  chave_grupo: string
+  rotulo_grupo: string
+  estado_grupo: EstadoConferenciaGrupoStone
+  origem_conferencia: OrigemConferenciaGrupoStone
+  lancamento_conta_azul_correspondente: LancamentoExistenteContaAzulDTO | null
+  candidatos_conta_azul: LancamentoExistenteContaAzulDTO[]
+  data_correspondencia_iso: string | null
+  campo_data_correspondencia:
+    | 'DATA_VENCIMENTO_ORIGINAL'
+    | 'DATA_VENCIMENTO'
+    | 'DATA_ULTIMO_STATUS'
+    | null
 }
 
 export interface PreviaLancamentosMemoriaStone {
@@ -521,6 +601,9 @@ export type StatusConferenciaExataReceber =
   | 'AGUARDANDO_VALOR_BANCO'
   | 'SEM_REGISTROS_PAGOS'
   | 'DIVERGENTE_BLOQUEADA'
+  | 'AUSENTE_CONTA_AZUL'
+  | 'DUPLICIDADE_AMBIGUA_CA'
+  | 'AGUARDANDO_CONFERENCIA'
 
 export type CodigoBloqueioPreparacao1FA =
   | 'CONFERENCIA_NAO_EXATA'
@@ -529,6 +612,8 @@ export type CodigoBloqueioPreparacao1FA =
   | 'CATEGORIA_RECEITA_VENDAS_INVALIDA'
   | 'CATEGORIA_DESPESA_MDR_INVALIDA'
   | 'DATA_OPERACAO_INVALIDA'
+  | 'GRUPO_BANDEIRA_MODALIDADE_OBRIGATORIO'
+  | 'PRODUTO_INCOMPATIVEL_CONCILIACAO_CD_DB'
   | 'VALOR_BRUTO_INVALIDO'
   | 'VALOR_MDR_INVALIDO'
   | 'EQUACAO_MATEMATICA_DIVERGENTE'

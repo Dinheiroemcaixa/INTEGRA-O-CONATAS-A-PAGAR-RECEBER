@@ -33,7 +33,13 @@ import {
   classificarIdempotenciaOperacoesReceber,
   normalizarTextoChaveReceber,
 } from './import-dedup-receber'
-import { formatarMicroBRL, parseDataBrParaIso } from './stone-csv-parser'
+import {
+  classificarBandeiraStoneCanonica,
+  classificarProdutoModalidadeStone,
+  formatarMicroBRL,
+  montarRotuloGrupoStoneContaAzul,
+  parseDataBrParaIso,
+} from './stone-csv-parser'
 import { centavosParaReais, formatarCentavosBRL } from './validador-financeiro'
 
 /**
@@ -217,6 +223,48 @@ export function prepararEValidarLancamentosEtapa1FA(
       detalhe:
         'Selecione uma Data de Vencimento Original específica (DD/MM/AAAA) no Passo 1 para definir a competência e o vencimento exatos dos lançamentos.',
     })
+  }
+
+  // 3B. Exigir seleção de grupo individual (Bandeira + Produto/Modalidade CD ou DB) — proibido conciliar somatório geral do período
+  const bandeiraRaw = String(filtros.bandeira || '').trim()
+  const produtoRaw = String(filtros.produto || '').trim()
+  const bandeiraSelecionadaValida =
+    bandeiraRaw.length > 0 &&
+    bandeiraRaw.toUpperCase() !== 'TODAS' &&
+    bandeiraRaw.toUpperCase() !== 'TODAS AS BANDEIRAS'
+  const produtoSelecionadoValido =
+    produtoRaw.length > 0 &&
+    produtoRaw.toUpperCase() !== 'TODOS' &&
+    produtoRaw.toUpperCase() !== 'TODOS OS PRODUTOS'
+
+  if (!bandeiraSelecionadaValida || !produtoSelecionadoValido) {
+    bloqueios.push({
+      codigo: 'GRUPO_BANDEIRA_MODALIDADE_OBRIGATORIO',
+      campo: 'conferencia_bancaria',
+      titulo:
+        'Conciliação individual por Bandeira e Modalidade (CD/DB) obrigatória',
+      detalhe:
+        'Selecione individualmente a Bandeira (ex: Visa, MasterCard, Elo) e o Produto/Modalidade (Crédito CD ou Débito DB). A conciliação e a preparação não podem ser executadas sobre o somatório geral do período.',
+    })
+  } else {
+    const classifProd = classificarProdutoModalidadeStone(
+      produtoRaw,
+      bandeiraRaw
+    )
+    const classifBand = classificarBandeiraStoneCanonica(bandeiraRaw)
+    if (
+      !classifProd.compativelConciliacaoPadraoCdDb ||
+      classifBand.bandeiraCanonica === 'OUTRAS' &&
+        classifProd.subtipoProduto === 'VOUCHER'
+    ) {
+      bloqueios.push({
+        codigo: 'PRODUTO_INCOMPATIVEL_CONCILIACAO_CD_DB',
+        campo: 'conferencia_bancaria',
+        titulo:
+          'Produto não compatível com a conciliação padrão de Crédito (CD) / Débito (DB)',
+        detalhe: `O produto "${produtoRaw}" (${bandeiraRaw}) foi classificado como "${classifProd.descricaoModalidade}" e não pode ser processado como lançamento padrão CD/DB sem regra específica.`,
+      })
+    }
   }
 
   // 4. Validar Conta Financeira selecionada para a loja ativa
@@ -432,24 +480,49 @@ export function prepararEValidarLancamentosEtapa1FA(
         triagemDespesaMdrCA?.mensagem
       )
     }
-    avaliarTriagemParaBloqueio(
-      'Depósito Líquido (Receita pelo Líquido)',
-      triagemLiquidoCA?.classificacao,
-      triagemLiquidoCA?.mensagem
-    )
+
+    // Se a conferência foi aprovada via conciliação automática GET do próprio lançamento líquido do grupo
+    // (ex: "STONE VISA CD" único e sem ambiguidade), e o candidato de triagemLiquidoCA é exatamente esse único lançamento,
+    // registramos como aviso de vínculo conciliado; em qualquer outro caso (múltiplos candidatos ou origem não automática),
+    // mantém o bloqueio estrito contra duplicidade.
+    const liquidoEhProprioLancamentoConciliadoDoGrupo =
+      conferencia.origem_conferencia === 'AUTOMATICA_GET_CONTA_AZUL' &&
+      Boolean(conferencia.lancamento_conta_azul_correspondente?.id) &&
+      triagemLiquidoCA?.classificacao !==
+        'MULTIPLOS_CANDIDATOS_CONFERENCIA_HUMANA' &&
+      (triagemLiquidoCA?.candidatos?.length || 0) <= 1 &&
+      (!triagemLiquidoCA?.candidatos?.[0]?.id ||
+        triagemLiquidoCA.candidatos[0].id ===
+          conferencia.lancamento_conta_azul_correspondente?.id)
+
+    if (liquidoEhProprioLancamentoConciliadoDoGrupo) {
+      avisos.push(
+        `Grupo conciliado com o lançamento líquido "${conferencia.lancamento_conta_azul_correspondente?.descricao}" (${formatarCentavosBRL(liquidoCentavos)}) localizado na Conta Azul.`
+      )
+    } else {
+      avaliarTriagemParaBloqueio(
+        'Depósito Líquido (Receita pelo Líquido)',
+        triagemLiquidoCA?.classificacao,
+        triagemLiquidoCA?.mensagem
+      )
+    }
   }
 
   // 9. Construção das Prévias e Payloads Simulados (100% em memória, zero transmissão)
   const bandeiraLabel = filtros.bandeira || 'Todas as Bandeiras'
   const produtoLabel = filtros.produto || 'Todos os Produtos'
   const dataLabel = dataBr || 'Data não selecionada'
+  const rotuloGrupoContaAzul =
+    bandeiraSelecionadaValida && produtoSelecionadoValido
+      ? montarRotuloGrupoStoneContaAzul(bandeiraLabel, produtoLabel)
+      : 'STONE'
   const sufixoPadrao = `Stone ${bandeiraLabel} ${produtoLabel} — Venc. Orig. ${dataLabel} (${totais.quantidade_parcelas_pagas} parc.)`
 
   const descricaoReceita = `Recebimento Cartão ${sufixoPadrao}`
   const observacaoReceita = [
     `[DCX LINK · Etapa 1F-A · Prévia Validada]`,
     `Loja: ${empresaNomeLimpo || 'Não selecionada'}`,
-    `Operadora: STONE | Bandeira: ${bandeiraLabel} | Produto: ${produtoLabel}`,
+    `Grupo Conta Azul: ${rotuloGrupoContaAzul} | Operadora: STONE | Bandeira: ${bandeiraLabel} | Produto: ${produtoLabel}`,
     `Data Vencimento Original: ${dataLabel} | Parcelas Pagas: ${totais.quantidade_parcelas_pagas}`,
     `Valor Bruto: ${formatarCentavosBRL(brutoCentavos)} | MDR: ${formatarCentavosBRL(mdrCentavos)} | Líquido Banco: ${formatarCentavosBRL(liquidoCentavos)}`,
     `Chave Idempotência: ${chaveReceitaBruta}`,
@@ -459,7 +532,7 @@ export function prepararEValidarLancamentosEtapa1FA(
   const observacaoDespesaMdr = [
     `[DCX LINK · Etapa 1F-A · Prévia Validada]`,
     `Loja: ${empresaNomeLimpo || 'Não selecionada'}`,
-    `Operadora: STONE | Bandeira: ${bandeiraLabel} | Produto: ${produtoLabel}`,
+    `Grupo Conta Azul: ${rotuloGrupoContaAzul} | Operadora: STONE | Bandeira: ${bandeiraLabel} | Produto: ${produtoLabel}`,
     `Data Vencimento Original: ${dataLabel} | Parcelas Pagas: ${totais.quantidade_parcelas_pagas}`,
     `Desconto MDR (2 casas): ${formatarCentavosBRL(mdrCentavos)} | MDR Exato (6 casas): ${formatarMicroBRL(totais.desconto_mdr_micro, 6)}`,
     `Chave Idempotência: ${chaveDespesaMdr}`,
