@@ -200,34 +200,38 @@ export default function GrupoDetalhe() {
             }
           }
 
+          const filtroDataOr = `and(data_pagamento.gte.${exportInicio},data_pagamento.lte.${exportFim}),and(data_pagamento.is.null,data_vencimento.gte.${exportInicio},data_vencimento.lte.${exportFim})`
+
           const [{ data: ddas }, { data: agendamentos }] = await Promise.all([
             supabase
               .from('pagamentos_dda')
               .select('*')
-              .eq('empresa_id', loja.id),
+              .eq('empresa_id', loja.id)
+              .or(filtroDataOr)
+              .limit(10000),
             supabase
               .from('agendamentos')
               .select('id, empresa_id, fornecedor, valor, data_vencimento, data_pagamento, competencia, descricao, cpf_cnpj, categoria, conta_pagamento, tipo, chave_pix, codigo_barras, status, transferencia_id, created_at, updated_at')
-              .eq('empresa_id', loja.id),
+              .eq('empresa_id', loja.id)
+              .or(filtroDataOr)
+              .limit(10000),
           ])
 
-          // Filtra pela DATA DO PAGAMENTO no período (mesma regra da listagem diária).
+          // Filtra EXCLUSIVAMENTE pela DATA DO PAGAMENTO no período.
           // A data de vencimento continua preservada no relatório, mas não define o dia do lançamento.
-          // Registro legado sem data de pagamento mantém o comportamento anterior (fallback pelo vencimento).
+          // Registro legado/transferência sem data de pagamento mantém fallback pelo vencimento.
           const ddasFiltrados = (ddas || []).filter((d: any) => {
-            const dtPgto = d.data_pagamento
-            const dtVenc = d.data_vencimento
-            if (!dtPgto && !dtVenc) return false
-            if (dtPgto) return dtPgto >= exportInicio && dtPgto <= exportFim
-            return dtVenc >= exportInicio && dtVenc <= exportFim
+            if (d.data_pagamento) {
+              return d.data_pagamento >= exportInicio && d.data_pagamento <= exportFim
+            }
+            return Boolean(d.data_vencimento && d.data_vencimento >= exportInicio && d.data_vencimento <= exportFim)
           })
 
           const agendFiltrados = (agendamentos || []).filter((a: any) => {
-            const dtPgto = a.data_pagamento
-            const dtVenc = a.data_vencimento
-            if (!dtPgto && !dtVenc) return false
-            if (dtPgto) return dtPgto >= exportInicio && dtPgto <= exportFim
-            return dtVenc >= exportInicio && dtVenc <= exportFim
+            if (a.data_pagamento) {
+              return a.data_pagamento >= exportInicio && a.data_pagamento <= exportFim
+            }
+            return Boolean(a.data_vencimento && a.data_vencimento >= exportInicio && a.data_vencimento <= exportFim)
           })
 
           const pagamentos: PagamentoRelatorio[] = [
@@ -240,8 +244,8 @@ export default function GrupoDetalhe() {
               nosso_numero: d.nosso_numero,
               identificador_titulo: d.identificador_titulo,
               descricao: d.descricao,
-              data_pagamento: d.data_pagamento || d.data_vencimento,
-              data_vencimento: d.data_vencimento || d.data_pagamento,
+              data_pagamento: d.data_pagamento || d.data_vencimento || '',
+              data_vencimento: d.data_vencimento || '',
               valor: Number(d.valor || 0),
               status: d.status,
             })),
@@ -263,8 +267,8 @@ export default function GrupoDetalhe() {
                 nosso_numero: a.nosso_numero,
                 identificador_titulo: a.identificador_titulo,
                 descricao: a.descricao,
-                data_pagamento: a.data_pagamento || a.data_vencimento,
-                data_vencimento: a.data_vencimento || a.data_pagamento,
+                data_pagamento: a.data_pagamento || a.data_vencimento || '',
+                data_vencimento: a.data_vencimento || '',
                 valor: Number(a.valor || 0),
                 status: a.status,
               }

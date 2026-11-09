@@ -407,46 +407,52 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   async function carregarPagamentos() {
     setCarregando(true)
 
+    const filtroDataOr = `and(data_pagamento.gte.${dataInicio},data_pagamento.lte.${dataFim}),and(data_pagamento.is.null,data_vencimento.gte.${dataInicio},data_vencimento.lte.${dataFim})`
+
     // Busca DDA e agendamentos leves (sem o Base64 pesado) em paralelo com Promise.all
     const [{ data: ddas }, { data: agendamentos }, { data: anexosIds }] = await Promise.all([
       supabase
         .from('pagamentos_dda')
         .select('*')
         .eq('empresa_id', empresa.id)
-        .order('created_at', { ascending: false }),
+        .or(filtroDataOr)
+        .order('created_at', { ascending: false })
+        .limit(10000),
       supabase
         .from('agendamentos')
         .select(COLUNAS_AGENDAMENTOS_LEVES)
         .eq('empresa_id', empresa.id)
-        .order('created_at', { ascending: false }),
+        .or(filtroDataOr)
+        .order('created_at', { ascending: false })
+        .limit(10000),
       supabase
         .from('agendamentos')
         .select('id')
         .eq('empresa_id', empresa.id)
-        .not('anexo_url', 'is', null),
+        .not('anexo_url', 'is', null)
+        .or(filtroDataOr)
+        .limit(10000),
     ])
 
     // Mapeia quais IDs possuem anexo sem precisar baixar 25MB de Base64
     const setIdsComAnexo = new Set(((anexosIds as any[]) || []).map(x => x.id))
 
-    // Filtra no frontend pela DATA DO PAGAMENTO dentro do periodo selecionado.
+    // Filtra no frontend EXCLUSIVAMENTE pela DATA DO PAGAMENTO dentro do periodo selecionado.
     // A data de vencimento continua gravada e visivel, mas nao define em qual dia o lancamento aparece.
-    // Registro legado sem data_pagamento mantem o comportamento anterior (fallback pelo vencimento).
+    // Registro legado/transferencia sem data_pagamento mantem fallback pelo vencimento.
     const ddasFiltrados = (ddas || []).filter(d => {
       const dtPgto = d.data_pagamento
       const dtVenc = d.data_vencimento
-      if (!dtPgto && !dtVenc) return true
       if (dtPgto) return dtPgto >= dataInicio && dtPgto <= dataFim
-      return dtVenc >= dataInicio && dtVenc <= dataFim
+      return Boolean(dtVenc && dtVenc >= dataInicio && dtVenc <= dataFim)
     })
 
     const listaAgendamentos = (agendamentos as any[] || [])
     const agendFiltrados = listaAgendamentos.filter(a => {
       const dtPgto = a.data_pagamento
       const dtVenc = a.data_vencimento
-      if (!dtPgto && !dtVenc) return true
       if (dtPgto) return dtPgto >= dataInicio && dtPgto <= dataFim
-      return dtVenc >= dataInicio && dtVenc <= dataFim
+      return Boolean(dtVenc && dtVenc >= dataInicio && dtVenc <= dataFim)
     })
 
     const unificados = [
