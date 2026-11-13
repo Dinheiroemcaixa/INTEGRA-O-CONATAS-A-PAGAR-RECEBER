@@ -18,9 +18,56 @@ interface ModalAgendamentoProps {
   dataPadrao?: string
 }
 
+export function obterDataHojeBrasilia(ref: Date = new Date()): string {
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(ref)
+    const year = parts.find(p => p.type === 'year')?.value
+    const month = parts.find(p => p.type === 'month')?.value
+    const day = parts.find(p => p.type === 'day')?.value
+    if (year && month && day) {
+      return `${year}-${month}-${day}`
+    }
+  } catch {
+    // fallback local seguro
+  }
+  return `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, '0')}-${String(ref.getDate()).padStart(2, '0')}`
+}
+
+export function resolverDatasAposExtracaoAnexo(params: {
+  dados: { data_vencimento?: string; data_documento?: string; data_pagamento?: string }
+  dataBase: string
+  dataVencimentoAtual: string
+  dataPagamentoAtual: string
+  dataCompetenciaAtual: string
+}) {
+  const { dados, dataBase, dataVencimentoAtual, dataPagamentoAtual, dataCompetenciaAtual } = params
+  return {
+    dataVencimento: dados.data_vencimento || dataVencimentoAtual || dataBase,
+    dataPagamento: dataPagamentoAtual || dataBase,
+    dataCompetencia: dados.data_documento || dataCompetenciaAtual || dataBase,
+  }
+}
+
+export function montarDatasParaSalvarAgendamento(params: {
+  dataVencimento: string
+  dataPagamento: string
+  dataCompetencia: string
+  dataBase: string
+}) {
+  return {
+    data_vencimento: params.dataVencimento,
+    data_pagamento: params.dataPagamento || params.dataBase,
+    competencia: params.dataCompetencia || params.dataBase,
+  }
+}
+
 export default function ModalAgendamento({ open, onClose, empresaAtiva, onSuccess, dataPadrao }: ModalAgendamentoProps) {
-  const agora = new Date()
-  const hoje = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`
+  const hoje = obterDataHojeBrasilia()
   const dataBase = dataPadrao && dataPadrao !== '2000-01-01' ? dataPadrao : hoje
   const [fornecedor, setFornecedor] = useState('')
   const [descricao, setDescricao] = useState('')
@@ -198,11 +245,16 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
 
       const dados = json.dados
       if (dados.fornecedor) setFornecedor(dados.fornecedor)
-      if (dados.data_vencimento) setDataVencimento(dados.data_vencimento)
-      if (dados.data_pagamento) setDataPagamento(dados.data_pagamento)
-      else setDataPagamento(dados.data_vencimento || dataBase)
-      if (dados.data_documento) setDataCompetencia(dados.data_documento)
-      else setDataCompetencia(dados.data_vencimento || dataBase)
+      const datasResolvidas = resolverDatasAposExtracaoAnexo({
+        dados,
+        dataBase,
+        dataVencimentoAtual: dataVencimento,
+        dataPagamentoAtual: dataPagamento,
+        dataCompetenciaAtual: dataCompetencia,
+      })
+      setDataVencimento(datasResolvidas.dataVencimento)
+      setDataPagamento(datasResolvidas.dataPagamento)
+      setDataCompetencia(datasResolvidas.dataCompetencia)
       if (dados.valor) setValor(Number(dados.valor) || 0)
       // Não forçar categorias genéricas (ex: Impostos, Boleto, Diversos)
       // O carregarCategoriaAprendida cuidará de puxar a categoria real do CA caso já aprendida
@@ -273,13 +325,18 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
       const obsUpper = observacao.trim().toUpperCase()
       const descricaoFinal = obsUpper ? `${descUpper} - OBS: ${obsUpper}` : descUpper
 
+      const datasParaSalvar = montarDatasParaSalvarAgendamento({
+        dataVencimento,
+        dataPagamento,
+        dataCompetencia,
+        dataBase,
+      })
+
       const { error } = await supabase.from('agendamentos').insert({
         empresa_id: empresaAtiva.id,
         fornecedor: fornecedor || null,
         descricao: descricaoFinal,
-        data_vencimento: dataVencimento,
-        data_pagamento: dataPagamento || dataVencimento || dataBase,
-        competencia: dataCompetencia || dataVencimento || dataBase,
+        ...datasParaSalvar,
         valor,
         categoria: categoria || null,
         conta_pagamento: contaPagamento,

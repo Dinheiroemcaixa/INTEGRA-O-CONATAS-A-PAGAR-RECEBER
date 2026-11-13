@@ -20,10 +20,15 @@ export interface DadosDocumentoExtraido {
 export function extrairDadosDeTextoNativo(texto: string): DadosDocumentoExtraido {
   const res: DadosDocumentoExtraido = {}
   const textoUpper = texto.toUpperCase()
-  const hoje = new Date().toISOString().split('T')[0]
-
-  res.data_pagamento = hoje
-  res.data_documento = hoje
+  const regexEmissao = /(?:Data do Documento|Data de Emiss[aã]o|Data de Gera[cç][aã]o|Gerado em)\s*[\:\-]?\s*\n?\s*(\d{2}\/\d{2}\/\d{4})/i
+  const matchDataDoc = texto.match(regexEmissao)
+  if (matchDataDoc) {
+    res.data_documento = parseDate(matchDataDoc[1]) || matchDataDoc[1].split('/').reverse().join('-')
+  }
+  const textoSemDataDoc = texto.replace(
+    /(?:Data do Documento|Data de Emiss[aã]o|Data de Gera[cç][aã]o|Gerado em)\s*[\:\-]?\s*\n?\s*\d{2}\/\d{2}\/\d{4}/gi,
+    ''
+  )
 
   // ─── 1. GUIA DO FGTS DIGITAL (GFD) / GRRF / FGTS RESCISÓRIO ───────────────────
   if (textoUpper.includes('FGTS DIGITAL') || textoUpper.includes('GFD - GUIA') || textoUpper.includes('FUNDO DE GARANTIA DO TEMPO DE SERVICO') || textoUpper.includes('GRRF')) {
@@ -77,9 +82,10 @@ export function extrairDadosDeTextoNativo(texto: string): DadosDocumentoExtraido
     }
 
     // c) Vencimento: "Pagar este documento até 26/08/2026"
-    const matchVenc = texto.match(/Pagar este documento até\s*\n?\s*(\d{2}\/\d{2}\/\d{4})/i) ||
-                      texto.match(/Vencimento\s*[\:\-]?\s*(\d{2}\/\d{2}\/\d{4})/i) ||
-                      texto.match(/(\d{2}\/\d{2}\/\d{4})/)
+    const matchVenc = texto.match(/Pagar este documento até\s*[\:\-]?\s*\n?\s*(\d{2}\/\d{2}\/\d{4})/i) ||
+                      texto.match(/Data de Vencimento\s*[\:\-]?\s*\n?\s*(\d{2}\/\d{2}\/\d{4})/i) ||
+                      texto.match(/Vencimento\s*[\:\-]?\s*\n?\s*(\d{2}\/\d{2}\/\d{4})/i) ||
+                      textoSemDataDoc.match(/(\d{2}\/\d{2}\/\d{4})/)
     if (matchVenc) {
       res.data_vencimento = parseDate(matchVenc[1]) || matchVenc[1].split('/').reverse().join('-')
     }
@@ -150,9 +156,10 @@ export function extrairDadosDeTextoNativo(texto: string): DadosDocumentoExtraido
     res.tipo = 'Boleto'
   }
 
-  const matchVenc = texto.match(/Vencimento\s*[\:\-]?\s*(\d{2}\/\d{2}\/\d{4})/i) ||
-                    texto.match(/Data de Vencimento\s*[\:\-]?\s*(\d{2}\/\d{2}\/\d{4})/i) ||
-                    texto.match(/(\d{2}\/\d{2}\/\d{4})/)
+  const matchVenc = texto.match(/Data de Vencimento\s*[\:\-]?\s*\n?\s*(\d{2}\/\d{2}\/\d{4})/i) ||
+                    texto.match(/Vencimento\s*[\:\-]?\s*\n?\s*(\d{2}\/\d{2}\/\d{4})/i) ||
+                    texto.match(/Pagar até\s*[\:\-]?\s*\n?\s*(\d{2}\/\d{2}\/\d{4})/i) ||
+                    textoSemDataDoc.match(/(\d{2}\/\d{2}\/\d{4})/)
   if (matchVenc) {
     res.data_vencimento = parseDate(matchVenc[1]) || matchVenc[1].split('/').reverse().join('-')
   }

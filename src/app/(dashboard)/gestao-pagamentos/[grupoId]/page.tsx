@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -9,6 +9,8 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import LojaCard from '@/components/gestao-pagamentos/LojaCard'
+import GrupoConsolidadoCard, { obterCorAvatarLoja } from '@/components/gestao-pagamentos/GrupoConsolidadoCard'
+import { obterDataHojeBrasilia } from '@/components/agendamento/ModalAgendamento'
 import { Empresa, Grupo } from '@/types'
 import type { LojaRelatorio, PagamentoRelatorio } from '@/lib/exporters/relatorio-grupo-xlsx'
 import '@/styles/gp-layout.css'
@@ -44,17 +46,65 @@ export default function GrupoDetalhe() {
   const [exportando, setExportando] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
 
-  // Apresentação: loja selecionada na lateral e lista de grupos (somente leitura)
+  // Apresentação: modo de visualização (individual vs consolidado), loja selecionada na lateral e lista de grupos
+  const [modoVisualizacao, setModoVisualizacao] = useState<'todas' | 'individual'>('individual')
   const [lojaSelecionadaId, setLojaSelecionadaId] = useState<string | null>(null)
   const [gruposLateral, setGruposLateral] = useState<GrupoLateral[]>([])
   const [buscaLateral, setBuscaLateral] = useState('')
+  const [pagamentosPorLoja, setPagamentosPorLoja] = useState<Record<string, any[]>>({})
+  const [periodoSincronizado, setPeriodoSincronizado] = useState<{
+    inicio: string
+    fim: string
+    periodoAtivo: string
+    versao: number
+  }>(() => {
+    const hoje = obterDataHojeBrasilia()
+    return { inicio: hoje, fim: hoje, periodoAtivo: 'hoje', versao: 0 }
+  })
 
   const periodosPorLojaRef = useRef<Record<string, { inicio: string; fim: string }>>({})
   const handlePeriodoChange = (lojaId: string, inicio: string, fim: string) => {
     periodosPorLojaRef.current[lojaId] = { inicio, fim }
   }
 
+  const handlePagamentosSincronizados = useCallback((lojaId: string, lista: any[]) => {
+    setPagamentosPorLoja(prev => ({
+      ...prev,
+      [lojaId]: (lista || []).map(p => (p?.empresa_id ? p : { ...p, empresa_id: lojaId })),
+    }))
+  }, [])
+
+  const pagamentosUnificadosDoGrupo = useMemo(
+    () => lojas.flatMap(loja => pagamentosPorLoja[loja.id] || []),
+    [lojas, pagamentosPorLoja]
+  )
+
+  const handleAplicarPeriodoGlobal = useCallback(
+    ({ inicio, fim, periodoAtivo }: { inicio: string; fim: string; periodoAtivo: string }) => {
+      setPeriodoSincronizado(prev => ({
+        inicio,
+        fim,
+        periodoAtivo,
+        versao: prev.versao + 1,
+      }))
+    },
+    []
+  )
+
+  function ativarVisaoTodasAsLojas() {
+    const algumDivergente = lojas.some(l => {
+      const p = periodosPorLojaRef.current[l.id]
+      return Boolean(p && (p.inicio !== periodoSincronizado.inicio || p.fim !== periodoSincronizado.fim))
+    })
+    if (algumDivergente) {
+      setPeriodoSincronizado(prev => ({ ...prev, versao: prev.versao + 1 }))
+    }
+    setModoVisualizacao('todas')
+  }
+
   useEffect(() => {
+    setPagamentosPorLoja({})
+    periodosPorLojaRef.current = {}
     if (grupoId) carregarGrupo()
   }, [grupoId])
 
@@ -334,6 +384,7 @@ export default function GrupoDetalhe() {
 
   const termoLateral = buscaLateral.trim().toLowerCase()
   const lojasLateral = termoLateral ? lojas.filter(l => l.nome.toLowerCase().includes(termoLateral)) : lojas
+  const saldoTotalGrupo = lojas.reduce((acc, l) => acc + Number(l.saldo_caixa || 0), 0)
   const outrosGrupos = gruposLateral.filter(
     g => g.id !== grupoId && (!termoLateral || g.nome.toLowerCase().includes(termoLateral))
   )
@@ -351,6 +402,42 @@ export default function GrupoDetalhe() {
           </div>
 
           <div className="gp-banner-actions">
+            {lojas.length > 0 && (
+              <div
+                role="group"
+                aria-label="Modo de visualização do grupo"
+                className="inline-flex items-center p-1 rounded-xl border border-slate-200 dark:border-white/[0.1] bg-slate-100/80 dark:bg-[#0b101b]"
+              >
+                <button
+                  type="button"
+                  onClick={ativarVisaoTodasAsLojas}
+                  aria-pressed={modoVisualizacao === 'todas'}
+                  className={`px-3 h-[30px] rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    modoVisualizacao === 'todas'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  Todas as lojas ({lojas.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!lojaSelecionadaId && lojas[0]) setLojaSelecionadaId(lojas[0].id)
+                    setModoVisualizacao('individual')
+                  }}
+                  aria-pressed={modoVisualizacao === 'individual'}
+                  className={`px-3 h-[30px] rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    modoVisualizacao === 'individual'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  Loja individual
+                </button>
+              </div>
+            )}
+
             <button type="button" onClick={() => router.push('/gestao-pagamentos')} className="gp-back">
               <ArrowLeft size={15} /> Meus grupos
             </button>
@@ -410,20 +497,55 @@ export default function GrupoDetalhe() {
               </div>
 
               <div className="gp-lojas" role="list">
+                {lojas.length > 0 && (
+                  <button
+                    type="button"
+                    role="listitem"
+                    onClick={ativarVisaoTodasAsLojas}
+                    className={`gp-loja-item${modoVisualizacao === 'todas' ? ' is-on' : ''}`}
+                    aria-pressed={modoVisualizacao === 'todas'}
+                    title="Visão consolidada de todas as lojas do grupo"
+                  >
+                    <span
+                      className="gp-loja-dot"
+                      style={{ background: 'linear-gradient(135deg, #1d74f2 0%, #4f46e5 100%)' }}
+                      aria-hidden="true"
+                    >
+                      ∑
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="gp-loja-item-nome">Todas as lojas</span>
+                      <span className={`gp-loja-item-saldo${saldoTotalGrupo < 0 ? ' is-neg' : ''}`}>
+                        {fmtBRL(saldoTotalGrupo)}
+                      </span>
+                    </span>
+                  </button>
+                )}
+
                 {lojasLateral.map(loja => {
                   const saldo = Number(loja.saldo_caixa || 0)
-                  const ativa = loja.id === lojaSelecionadaId
+                  const ativa = modoVisualizacao === 'individual' && loja.id === lojaSelecionadaId
+                  const idxOriginal = lojas.findIndex(l => l.id === loja.id)
                   return (
                     <button
                       key={loja.id}
                       type="button"
                       role="listitem"
-                      onClick={() => setLojaSelecionadaId(loja.id)}
+                      onClick={() => {
+                        setLojaSelecionadaId(loja.id)
+                        setModoVisualizacao('individual')
+                      }}
                       className={`gp-loja-item${ativa ? ' is-on' : ''}`}
                       aria-pressed={ativa}
                       title={loja.nome}
                     >
-                      <span className="gp-loja-dot" aria-hidden="true">{loja.nome.charAt(0).toUpperCase()}</span>
+                      <span
+                        className="gp-loja-dot"
+                        style={{ background: obterCorAvatarLoja(idxOriginal >= 0 ? idxOriginal : 0) }}
+                        aria-hidden="true"
+                      >
+                        {loja.nome.charAt(0).toUpperCase()}
+                      </span>
                       <span className="min-w-0 flex-1">
                         <span className="gp-loja-item-nome">{loja.nome}</span>
                         <span className={`gp-loja-item-saldo${saldo < 0 ? ' is-neg' : ''}`}>{fmtBRL(saldo)}</span>
@@ -469,23 +591,51 @@ export default function GrupoDetalhe() {
                 </button>
               </div>
             ) : (
-              // Todas as lojas continuam montadas (cada uma mantém seu período, filtros e dados);
-              // apenas a loja escolhida na lateral fica visível.
-              lojas.map(loja => (
-                <div key={loja.id} className={loja.id === lojaSelecionadaId ? 'min-w-0' : 'hidden'}>
-                  <LojaCard
-                    empresa={loja}
-                    lojasDoGrupo={lojas}
+              <>
+                <div className={modoVisualizacao === 'todas' ? 'min-w-0' : 'hidden'}>
+                  <GrupoConsolidadoCard
+                    key={grupoId}
+                    grupoId={grupoId}
                     nomeGrupo={grupo.nome}
-                    refreshTick={refreshTick}
-                    onTransferenciaGlobal={() => setRefreshTick(t => t + 1)}
-                    onPeriodoChange={handlePeriodoChange}
-                    onLojaRemovida={carregarGrupo}
-                    onSaldoSalvo={handleSaldoSalvo}
-                    isVisivel={loja.id === lojaSelecionadaId}
+                    lojas={lojas}
+                    pagamentosUnificados={pagamentosUnificadosDoGrupo}
+                    periodoGlobal={periodoSincronizado}
+                    onAplicarPeriodoGlobal={handleAplicarPeriodoGlobal}
+                    onRefreshGlobal={() => setRefreshTick(t => t + 1)}
+                    onAbrirLoja={(id) => {
+                      setLojaSelecionadaId(id)
+                      setModoVisualizacao('individual')
+                    }}
                   />
                 </div>
-              ))
+
+                {/* Em 'todas', todos os blocos <LojaCard /> ficam visíveis e empilhados verticalmente em sequência;
+                    em 'individual', apenas a loja escolhida na lateral fica visível e as demais seguem montadas com hidden. */}
+                {lojas.map(loja => {
+                  const visivel = modoVisualizacao === 'todas' || loja.id === lojaSelecionadaId
+                  return (
+                    <div
+                      key={loja.id}
+                      id={'gp-loja-bloco-' + loja.id}
+                      className={visivel ? 'min-w-0 scroll-mt-4' : 'hidden'}
+                    >
+                      <LojaCard
+                        empresa={loja}
+                        lojasDoGrupo={lojas}
+                        nomeGrupo={grupo.nome}
+                        refreshTick={refreshTick}
+                        onTransferenciaGlobal={() => setRefreshTick(t => t + 1)}
+                        onPeriodoChange={handlePeriodoChange}
+                        onLojaRemovida={carregarGrupo}
+                        onSaldoSalvo={handleSaldoSalvo}
+                        isVisivel={visivel}
+                        periodoSincronizado={periodoSincronizado}
+                        onPagamentosSincronizados={handlePagamentosSincronizados}
+                      />
+                    </div>
+                  )
+                })}
+              </>
             )}
           </main>
         </div>

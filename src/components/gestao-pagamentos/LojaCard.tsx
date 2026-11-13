@@ -37,9 +37,13 @@ interface LojaCardProps {
   onSaldoSalvo?: (lojaId: string, novoSaldo: number) => void
   /** Indica se a loja está visível no momento */
   isVisivel?: boolean
+  /** Sincroniza período global quando aplicado na visão Todas as lojas */
+  periodoSincronizado?: { inicio: string; fim: string; periodoAtivo: string; versao: number } | null
+  /** Expõe lançamentos carregados da loja para o resumo consolidado do grupo sem consultas duplicadas */
+  onPagamentosSincronizados?: (lojaId: string, pagamentos: any[]) => void
 }
 
-export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransferenciaGlobal, onPeriodoChange, onLojaRemovida, nomeGrupo, onSaldoSalvo, isVisivel = true }: LojaCardProps) {
+export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransferenciaGlobal, onPeriodoChange, onLojaRemovida, nomeGrupo, onSaldoSalvo, isVisivel = true, periodoSincronizado, onPagamentosSincronizados }: LojaCardProps) {
   const supabase = createClient()
   const router = useRouter()
   const { setEmpresaAtiva } = useEmpresa()
@@ -53,6 +57,10 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   }, [empresa.id, dataInicio, dataFim])
 
   const [pagamentos, setPagamentos] = useState<any[]>([])
+
+  useEffect(() => {
+    onPagamentosSincronizados?.(empresa.id, pagamentos)
+  }, [empresa.id, pagamentos])
   const [carregando, setCarregando] = useState(false)
   const [importando, setImportando] = useState(false)
 
@@ -153,6 +161,14 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
   const [periodoAtivo, setPeriodoAtivo] = useState('hoje')
   const [menuPeriodoAberto, setMenuPeriodoAberto] = useState(false)
+
+  useEffect(() => {
+    if (!periodoSincronizado || !(periodoSincronizado.versao > 0)) return
+    setDataInicio(periodoSincronizado.inicio)
+    setDataFim(periodoSincronizado.fim)
+    setPeriodoAtivo(periodoSincronizado.periodoAtivo)
+    setMenuPeriodoAberto(false)
+  }, [periodoSincronizado?.versao])
 
   const [saldoCaixa, setSaldoCaixa] = useState<number>(Number(empresa.saldo_caixa) || 0)
   const [saldoCaixaPendente, setSaldoCaixaPendente] = useState<number>(Number(empresa.saldo_caixa) || 0)
